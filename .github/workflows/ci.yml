@@ -35,6 +35,20 @@ jobs:
       - name: Build and qualify installed distributions
         run: python scripts/release_distribution.py "$RUNNER_TEMP/research-distribution"
 
+      - name: Build exact-source container
+        run: |
+          docker build \
+            --build-arg PLATFORM_SOURCE_SHA="${GITHUB_SHA}" \
+            --tag "research-platform:${GITHUB_SHA}" \
+            --file deploy/Dockerfile .
+
+      - name: Verify installed container
+        run: |
+          python scripts/verify_container_image.py \
+            "research-platform:${GITHUB_SHA}" \
+            --expected-source-sha "${GITHUB_SHA}" \
+            --output "$RUNNER_TEMP/container-verification.json"
+
       - name: Upload assurance evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -44,3 +58,4 @@ jobs:
           path: |
             ${{ runner.temp }}/product-assurance.json
             ${{ runner.temp }}/research-distribution/**
+            ${{ runner.temp }}/container-verification.json

@@ -19,6 +19,20 @@ The formal output includes wheel/sdist artifacts, installed-verification receipt
 
 The evidence document binds source SHA, branch, release-manifest digest, source-tree SHA-256, Python/package versions, build-command output digests, artifact sizes/checksums, SBOM checksum and installed-verification receipt checksums.
 
+## Container qualification
+
+The release container is also source-bound. Formal builds pass the exact Git SHA into the image:
+
+```bash
+docker build --build-arg PLATFORM_SOURCE_SHA="$GIT_SHA" -t "research-platform:$GIT_SHA" -f deploy/Dockerfile .
+python scripts/verify_container_image.py "research-platform:$GIT_SHA" \
+  --expected-source-sha "$GIT_SHA" --output container-verification.json
+```
+
+The verifier rejects a revision-label mismatch, runs the image's non-root `doctor`, checks the installed canonical `research` CLI, and executes the full deterministic reference lifecycle inside the installed container. The receipt records the image ID, source SHA, package/Python versions, lifecycle actions, and command output digests.
+
+The container test does not create domain evidence. Minecraft/model/live qualification remains with the owning Roles and their explicitly allocated server windows.
+
 ## Product assurance gate
 
 CI first runs:
@@ -31,7 +45,7 @@ This emits one machine-readable receipt and exits nonzero on the first blocking 
 
 Provider conformance is declared in `tests/PROVIDER_CONFORMANCE.json`. The matrix must contain exactly the durable, environment, model, effect and checkpoint classes and points to first-party behavior/recovery tests that are themselves classified exactly once by `tests/TEST_SYSTEM.json`.
 
-The GitHub workflow then runs formal distribution qualification and uploads both gate evidence and distribution evidence for the exact CI source revision.
+The GitHub workflow runs source-bound product assurance, wheel/sdist qualification, exact-SHA container build/verification, and uploads all receipts for the exact CI source revision.
 
 ## Licensing boundary
 
