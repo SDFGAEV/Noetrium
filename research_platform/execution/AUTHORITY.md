@@ -1,6 +1,10 @@
 # Execution authority and recovery contract
 
-ROLE 03 owns execution intent, durable operation state, and workflow progress. It does not own external-effect certainty.
+ROLE 03 owns execution intent, durable operation state, workflow progress, and the execution/admission consumer projection. It does not own external-effect certainty or the governance system catalog.
+
+## Admission ownership projection
+
+`execution/admission` keeps authority id `admission_decision` and projects the ROLE 01 system-catalog ownership contract exactly as `hierarchical execution quotas, identity-aware admission decisions and lease accounting`. Both `OWNS` and `SystemLeafContract.owns` are consumer projections of that catalog authority; wording drift fails closed rather than creating a second ownership source.
 
 ## Operation identity
 
