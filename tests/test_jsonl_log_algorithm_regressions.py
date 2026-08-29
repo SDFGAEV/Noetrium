@@ -39,6 +39,49 @@ def test_jsonl_store_uses_structural_logging_ports_without_nominal_bases() -> No
     assert callable(RuntimeJsonlLogStore.query)
 
 
+def test_query_retries_windows_snapshot_permission_race(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import os
+
+    if os.name != "nt":
+        pytest.skip("Windows transient permission race")
+    store = JsonlLogStore(tmp_path / "events.jsonl")
+    store.append(_record(1))
+    original = RuntimeJsonlLogStore._iter_frozen_lines
+    attempts = {"count": 0}
+
+    def flaky(snapshot):
+        attempts["count"] += 1
+        if attempts["count"] == 1:
+            raise PermissionError(13, "simulated rotation permission race")
+        yield from original(snapshot)
+
+    monkeypatch.setattr(RuntimeJsonlLogStore, "_iter_frozen_lines", staticmethod(flaky))
+    assert [row.log_id for row in store.query(limit=10)] == ["log-1"]
+    assert attempts["count"] == 2
+
+
+def test_query_persistent_windows_permission_failure_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import os
+
+    if os.name != "nt":
+        pytest.skip("Windows transient permission race")
+    store = JsonlLogStore(tmp_path / "events.jsonl")
+    store.append(_record(1))
+    attempts = {"count": 0}
+
+    def denied(snapshot):
+        del snapshot
+        attempts["count"] += 1
+        raise PermissionError(13, "persistent permission failure")
+        yield
+
+    monkeypatch.setattr(RuntimeJsonlLogStore, "_iter_frozen_lines", staticmethod(denied))
+    with pytest.raises(RuntimeError, match="stable segment generation") as exc_info:
+        store.query(limit=10)
+    assert isinstance(exc_info.value.__cause__, PermissionError)
+    assert attempts["count"] == 4
+
+
 def test_store_keeps_logical_path_identity_if_live_leaf_resolution_drifts(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

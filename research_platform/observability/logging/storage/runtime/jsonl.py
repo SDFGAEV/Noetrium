@@ -166,7 +166,7 @@ class JsonlLogStore:
         if limit <= 0:
             return ()
         rank = {level: index for index, level in enumerate(LogLevel)}
-        last_identity_error: FileNotFoundError | None = None
+        last_identity_error: OSError | None = None
         for _attempt in range(4):
             snapshot = self._freeze_query_snapshot()
             if not snapshot:
@@ -212,6 +212,11 @@ class JsonlLogStore:
                     elif key > selected[0][0]:
                         heapq.heapreplace(selected, item)
             except FileNotFoundError as exc:
+                last_identity_error = exc
+                continue
+            except PermissionError as exc:
+                if os.name != "nt":
+                    raise
                 last_identity_error = exc
                 continue
 

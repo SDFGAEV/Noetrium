@@ -38,6 +38,12 @@ segment identity no longer matches, the query retries from a fresh snapshot rath
 mixing generations. Observation therefore remains downstream of storage authority and
 does not block writers for the duration of JSON decoding/filtering.
 
+On Windows, a rename can transiently surface as `PermissionError` between the frozen
+metadata snapshot and the subsequent file open. That error is treated exactly like a
+stale generation: the query refreezes and retries. The retry is bounded; persistent
+permission failure therefore fails closed instead of returning partial evidence. Linux
+`PermissionError` remains a hard failure and is never reclassified as a rotation race.
+
 ## Regression requirements
 
 Windows and Linux qualification must cover all of the following:
