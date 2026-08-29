@@ -1,15 +1,19 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import time
 from typing import Protocol
 
 from research_platform.environment.runtime.api import DurablePreparedActionSession, EnvironmentSession
 from research_platform.resource.allocation.api import (
     EndpointAllocation,
+    EndpointBindingProof,
     EndpointAllocationPort,
     EndpointLeaseGuardFactoryPort,
     EndpointLeaseGuardPort,
 )
+from research_platform.platform.kernel import canonical_digest
+from research_platform.runtime.service.api import ServiceReadyObservation
 
 from ..api import (
     MinecraftBranchRuntimeFactoryPort,
@@ -150,6 +154,37 @@ class MinecraftBranchRuntimeBinding(MinecraftBranchRuntimePort):
     def environment_generation(self) -> str:
         return self.implementation.identity.artifact_digest
 
+    def _confirm_bound_endpoints(self, readiness: ServiceReadyObservation) -> None:
+        if not isinstance(readiness, ServiceReadyObservation):
+            raise MinecraftBranchRuntimeError(
+                "branch server readiness did not return typed evidence",
+                phase="bind",
+            )
+        binder_identity_digest = canonical_digest(
+            {
+                "contract_digest": readiness.contract_digest,
+                "process": readiness.process,
+                "environment_generation": self.environment_generation,
+            }
+        )
+        observed_at = time.time()
+
+        def confirm(allocation: EndpointAllocation) -> EndpointAllocation:
+            return self._endpoint_allocations.confirm_bound(
+                EndpointBindingProof(
+                    allocation_id=allocation.allocation_id,
+                    endpoint=allocation.endpoint,
+                    lease_fencing_token=allocation.lease_fencing_token,
+                    binder_identity_digest=binder_identity_digest,
+                    observed_at_epoch_s=observed_at,
+                    evidence_ref=readiness.ready_evidence_ref,
+                )
+            )
+
+        self.allocation = confirm(self.allocation)
+        if self.rcon_allocation is not None:
+            self.rcon_allocation = confirm(self.rcon_allocation)
+
     def open_session(self, services: MinecraftSessionServices) -> EnvironmentSession:
         if self._closed:
             raise MinecraftBranchRuntimeError("branch runtime is closed")
@@ -157,7 +192,8 @@ class MinecraftBranchRuntimeBinding(MinecraftBranchRuntimePort):
             return self._session
         try:
             self._server.start()
-            self._server.verify_ready()
+            readiness = self._server.verify_ready()
+            self._confirm_bound_endpoints(readiness)
             self._lease_guard.assert_healthy()
             raw_session = self._environment_runtime.open_session(
                 self.implementation,

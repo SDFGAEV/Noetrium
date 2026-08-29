@@ -45,6 +45,23 @@ Internal observation queries carry no task action ID and are audit-only. They
 cannot overwrite `last_action_verified` or be treated by downstream memory as successful task
 experience.
 
+### Completion and reconciliation authority
+
+Planner intent is never completion authority. A `planner_finish` goal can close only when
+the last action receipt is accepted and either explicitly verified or carries a confirmed
+effect certainty. Accepted-but-unverified/possible effects remain incomplete.
+
+Environment-to-agent receipts preserve the kernel effect certainty instead of inferring it
+from a Boolean verification field: confirmed effects map to `confirmed`, possible effects
+remain `possible`, rejected/no-effect outcomes map to `rejected`, and unresolved evidence
+remains `unknown`. The provider effect identity is copied from the authoritative
+`EffectReceipt`; it is not reconstructed from diagnostics.
+
+Prepared-action and generic reconciliation preserve the same four-way semantics:
+`APPLIED -> EFFECT_CONFIRMED`, `REJECTED -> EFFECT_REJECTED`,
+`NOT_APPLIED -> NO_EFFECT`, and `UNKNOWN` produces no terminal effect truth. A missing
+action-recovery record is therefore unknown, never retry-safe absence.
+
 ## Craft and resource invariants
 
 - Collection proves both broken blocks and a positive inventory delta.
@@ -70,6 +87,13 @@ experience.
   remains partial.
 - Self-defence considers an explicit bounded hostile registry, target count and
   radius.
+
+## Hot-path selection
+
+Drop association and nearby dropped-item selection scan candidates once and retain the
+nearest eligible entity. They deliberately do not sort the full candidate set: target
+selection is `O(N)` while preserving the same nearest-by-bot-distance semantics and stable
+first-candidate tie behavior.
 
 ## Verification
 

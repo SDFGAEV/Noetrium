@@ -204,6 +204,26 @@ test('dropped-item detection follows prismarine-entity without deprecated getter
   assert.equal(runtime.findNearbyDroppedItem(new Vec3(1, 64, 0), 3), drop)
 })
 
+test('drop targeting preserves nearest-bot selection across multiple candidates', () => {
+  const bot = fakeBot([])
+  runtime.bindBot(bot)
+  const block = new Vec3(3, 64, 0)
+  const watcher = runtime.captureItemDropNear(block, 'oak_log', 8)
+  const far = { id: 20, name: 'item', position: new Vec3(5, 64, 0), isValid: true, getDroppedItem: () => ({ name: 'oak_log' }) }
+  const near = { id: 21, name: 'item', position: new Vec3(1, 64, 0), isValid: true, getDroppedItem: () => ({ name: 'oak_log' }) }
+  const middle = { id: 22, name: 'item', position: new Vec3(3, 64, 0), isValid: true, getDroppedItem: () => ({ name: 'oak_log' }) }
+  bot.entities[20] = far
+  bot.entities[21] = near
+  bot.entities[22] = middle
+  bot.emit('entitySpawn', far)
+  bot.emit('entitySpawn', near)
+  bot.emit('entitySpawn', middle)
+
+  assert.equal(watcher.pickupTarget(), near)
+  assert.equal(runtime.findNearbyDroppedItem(block, 8), near)
+  watcher.cancel()
+})
+
 test('itemDrop capture binds the actual drop emitted for the dug block', async () => {
   const bot = fakeBot([])
   runtime.bindBot(bot)

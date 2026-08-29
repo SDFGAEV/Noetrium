@@ -20,9 +20,20 @@ from research_platform.environment.minecraft.composition import (
 )
 from research_platform.environment.minecraft.runtime import MinecraftEnvironmentImplementation
 from research_platform.environment.runtime.api import DurablePreparedActionSession
-from research_platform.resource.allocation.api import EndpointAllocationRequest, EndpointProbeResult, NetworkEndpoint
+from research_platform.resource.allocation.api import (
+    EndpointAllocationRequest,
+    EndpointAllocationState,
+    EndpointProbeResult,
+    NetworkEndpoint,
+)
 from research_platform.resource.allocation.runtime import InMemoryEndpointAllocator
 from research_platform.resource.lease.runtime import InMemoryResourceLeaseRegistry
+from research_platform.runtime.service.api import (
+    ServiceProcessIdentity,
+    ServiceReadyObservation,
+    ServiceStartOutcome,
+    ServiceStopOutcome,
+)
 from research_platform.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
 
 
@@ -65,15 +76,24 @@ class RecordingEnvironmentRuntime:
 class RecordingServer:
     def __init__(self, events: list[str]) -> None:
         self.events = events
+        self.contract_digest = "c" * 64
+        self.process = ServiceProcessIdentity(9001, "start-9001", 9001)
 
-    def start(self) -> None:
+    def start(self) -> ServiceStartOutcome:
         self.events.append("server.start")
+        return ServiceStartOutcome(
+            self.contract_digest, self.process, "minecraft-ready:start", ("start",)
+        )
 
-    def verify_ready(self) -> None:
+    def verify_ready(self) -> ServiceReadyObservation:
         self.events.append("server.ready")
+        return ServiceReadyObservation(
+            self.contract_digest, self.process, "minecraft-ready:verified", ("ready",)
+        )
 
-    def stop(self) -> None:
+    def stop(self) -> ServiceStopOutcome:
         self.events.append("server.stop")
+        return ServiceStopOutcome(self.contract_digest, True, ("stop",))
 
 
 def _request() -> MinecraftBranchRuntimeRequest:
@@ -145,6 +165,9 @@ def test_branch_runtime_binds_branch_endpoint_and_releases_in_reverse_order() ->
     session = binding.open_session(services=object())
     assert session is not None
     assert not isinstance(session, DurablePreparedActionSession)
+    assert binding.allocation.state is EndpointAllocationState.BOUND
+    assert binding.allocation.binding_evidence_ref == "minecraft-ready:verified"
+    assert allocations.get(binding.allocation.allocation_id).state is EndpointAllocationState.BOUND
     assert created_specs[0].workdir == r"C:\mc\branches\candidate-a"
     assert created_specs[0].level_name == "candidate-a-world"
     binding.close()
@@ -313,8 +336,76 @@ def test_branch_runtime_allocates_and_rebinds_rcon_endpoint_as_part_of_branch_tr
     assert created_specs[0].rcon_endpoint is not None
     assert created_specs[0].rcon_endpoint.port == 25576
     binding.open_session(services=object())
+    assert binding.allocation.state is EndpointAllocationState.BOUND
+    assert binding.rcon_allocation is not None
+    assert binding.rcon_allocation.state is EndpointAllocationState.BOUND
+    assert binding.allocation.binding_evidence_ref == "minecraft-ready:verified"
+    assert binding.rcon_allocation.binding_evidence_ref == "minecraft-ready:verified"
     binding.close()
     assert not allocations.active()
+
+
+def test_branch_runtime_releases_all_endpoints_when_binding_confirmation_fails() -> None:
+    leases = InMemoryResourceLeaseRegistry()
+    delegate = InMemoryEndpointAllocator(
+        ownership=leases,
+        leases=leases,
+        probe=AlwaysAvailableProbe(),
+    )
+
+    class FailingSecondConfirmation:
+        def __init__(self) -> None:
+            self.confirmations = 0
+
+        def __getattr__(self, name):
+            return getattr(delegate, name)
+
+        def confirm_bound(self, proof):
+            self.confirmations += 1
+            if self.confirmations == 2:
+                raise RuntimeError("simulated RCON binding proof rejection")
+            return delegate.confirm_bound(proof)
+
+    allocations = FailingSecondConfirmation()
+    events: list[str] = []
+
+    def compose_environment(spec: MinecraftEnvironmentSpec) -> MinecraftEnvironmentAssembly:
+        return MinecraftEnvironmentAssembly(
+            MinecraftEnvironmentImplementation(spec=spec, bridge_factory=lambda _: object()),
+            RecordingEnvironmentRuntime(events),
+        )
+
+    class ServerFactory:
+        def create(self, spec: MinecraftServerSpec, *, environment_generation: str) -> RecordingServer:
+            return RecordingServer(events)
+
+    request = _request()
+    request = replace(
+        request,
+        server_template=replace(request.server_template, rcon_endpoint=MinecraftRconEndpoint(port=25575)),
+        rcon_endpoint_allocation=EndpointAllocationRequest(
+            allocation_id="candidate-a-rcon-failing",
+            holder_scope=ScopeIdentity(ScopeKind.BRANCH, "candidate-a"),
+            purpose="candidate branch rcon",
+            host="127.0.0.1",
+            candidate_ports=(25577,),
+            owner_scope=PLATFORM_SCOPE,
+        ),
+    )
+    factory = MinecraftBranchRuntimeFactory(
+        endpoint_allocations=allocations,
+        lease_guard_factory=NoopGuardFactory(),
+        environment_factory=type("EnvironmentFactory", (), {"compose": staticmethod(compose_environment)})(),
+        server_factory=ServerFactory(),
+    )
+    binding = factory.open(request)
+
+    with pytest.raises(Exception, match="branch runtime start failed"):
+        binding.open_session(services=object())
+
+    assert allocations.confirmations == 2
+    assert events == ["server.start", "server.ready", "server.stop"]
+    assert not delegate.active()
 
 
 def test_branch_runtime_rejects_rcon_template_without_rcon_allocation() -> None:

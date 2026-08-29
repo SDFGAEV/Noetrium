@@ -10,7 +10,7 @@ from research_platform.environment.minecraft.composition import (
     MinecraftResourcePlanner,
     MinecraftAgentSkillCatalog,
 )
-from research_platform.environment.runtime.api import ActionResult, Observation
+from research_platform.environment.runtime.api import ActionResult, Observation, action_request_digest
 from research_platform.participant.agent.api import (
     AgentEvidencePort,
     AgentGoal,
@@ -19,7 +19,7 @@ from research_platform.participant.agent.api import (
     AgentProgressPort,
     AgentSkillSelection,
 )
-from research_platform.platform.kernel import ExecutionContext
+from research_platform.platform.kernel import EffectCertainty, EffectClass, EffectReceipt, ExecutionContext
 
 
 class _Session:
@@ -44,12 +44,21 @@ class _Session:
             inventory[request.payload["block"]] = inventory.get(request.payload["block"], 0) + request.payload["count"]
             self.state["inventory"] = inventory
         self.sequence += 1
+        effect = EffectReceipt(
+            effect_id=f"minecraft-action:{request.action_id}",
+            request_digest=action_request_digest(request),
+            effect_class=EffectClass.RECONCILABLE,
+            certainty=EffectCertainty.EFFECT_CONFIRMED,
+            provider_instance_id="minecraft:test-session",
+            verification_required=False,
+            provider_receipt=request.action_id,
+        )
         return ActionResult(
             request.action_id,
             True,
             Observation(f"obs:{self.sequence}", "world-v1", {"state": dict(self.state)}),
-            None,
-            {"verified": True, "effect_id": request.action_id},
+            effect,
+            {"verified": True},
         )
 
 

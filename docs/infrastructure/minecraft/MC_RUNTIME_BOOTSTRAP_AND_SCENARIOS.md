@@ -26,6 +26,19 @@ The materializer rejects absolute/parent-traversing paths, duplicate members, de
 
 The Java adapter then verifies the requested major version with `java -version` and records archive, tree, executable and version-output identities. Callers may instead provide an already-qualified Java executable.
 
+## Endpoint reservation and bind proof
+
+Endpoint allocation and service readiness are separate authorities. A branch server receives
+a resource allocation in `RESERVED` state. After the exact server contract returns a typed
+`ServiceReadyObservation`, the Minecraft runtime submits an `EndpointBindingProof` containing
+the allocation identity, exact endpoint, current fencing token, process/environment binder
+identity and readiness evidence reference. Only Resource may persist `RESERVED -> BOUND`.
+
+When RCON is enabled, the server readiness observation covers the configured server and RCON
+readiness contract, and both exact allocations must be confirmed. If any bind proof is rejected
+or becomes stale, branch startup fails and the startup transaction stops the server and releases
+all allocations; no partially bound endpoint is exposed as a live branch runtime.
+
 ## Typed source-world scenarios
 
 `MinecraftScenarioSpec` is an ordered immutable set of `MinecraftScenarioStep` values. Each step declares a mutation command and a required response assertion, optionally verified through a separate command.

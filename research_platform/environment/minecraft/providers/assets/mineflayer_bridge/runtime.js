@@ -273,13 +273,21 @@ function captureItemDropNear (position, itemName = null, maxDistance = 0.5) {
     }
     finish(null)
   }
-  const pickupTarget = () => Array.from(trackedEntities.values())
-    .filter(entity => entity && entity.isValid !== false && !collectedByBot.has(entity.id))
-    .filter(entity => {
+  const pickupTarget = () => {
+    let nearest = null
+    let nearestDistance = Infinity
+    for (const entity of trackedEntities.values()) {
+      if (!entity || entity.isValid === false || collectedByBot.has(entity.id)) continue
       const name = droppedItemName(entity)
-      return !itemName || name == null || name === itemName
-    })
-    .sort((a, b) => a.position.distanceTo(activeBot.entity.position) - b.position.distanceTo(activeBot.entity.position))[0] || null
+      if (itemName && name != null && name !== itemName) continue
+      const distance = entity.position.distanceTo(activeBot.entity.position)
+      if (distance < nearestDistance) {
+        nearest = entity
+        nearestDistance = distance
+      }
+    }
+    return nearest
+  }
   return {
     promise,
     cancel,
@@ -295,11 +303,18 @@ function captureItemDropNear (position, itemName = null, maxDistance = 0.5) {
 function findNearbyDroppedItem (position, maxDistance = 6) {
   const activeBot = requireBot()
   const origin = position instanceof Vec3 ? position : new Vec3(Number(position.x), Number(position.y), Number(position.z))
-  return Object.values(activeBot.entities || {})
-    .filter(entity => entity !== activeBot.entity && isDroppedItemEntity(entity))
-    .map(entity => ({ entity, distance: entity.position.distanceTo(origin), botDistance: entity.position.distanceTo(activeBot.entity.position) }))
-    .filter(row => row.distance <= maxDistance)
-    .sort((a, b) => a.botDistance - b.botDistance)[0]?.entity || null
+  let nearest = null
+  let nearestBotDistance = Infinity
+  for (const entity of Object.values(activeBot.entities || {})) {
+    if (entity === activeBot.entity || !isDroppedItemEntity(entity)) continue
+    if (entity.position.distanceTo(origin) > maxDistance) continue
+    const botDistance = entity.position.distanceTo(activeBot.entity.position)
+    if (botDistance < nearestBotDistance) {
+      nearest = entity
+      nearestBotDistance = botDistance
+    }
+  }
+  return nearest
 }
 
 function findInventoryItem (name) {

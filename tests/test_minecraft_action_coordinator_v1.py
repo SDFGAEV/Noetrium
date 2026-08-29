@@ -15,6 +15,7 @@ from research_platform.environment.minecraft.runtime.action_coordinator import (
     MinecraftActionCoordinatorBindings,
 )
 from research_platform.environment.minecraft.runtime.checkpoint import MinecraftActionVerification
+from research_platform.environment.minecraft.runtime.errors import MinecraftEnvironmentFailure
 from research_platform.environment.runtime.api import (
     ActionIdentityViolation,
     ActionReconciliationDisposition,
@@ -157,3 +158,72 @@ def test_reconcile_not_applied_maps_to_no_effect() -> None:
     )
     reconciled = coordinator.reconcile(effect, request.context)
     assert reconciled.certainty is EffectCertainty.NO_EFFECT
+
+
+@pytest.mark.parametrize(
+    ("disposition", "expected_certainty"),
+    (
+        (ActionReconciliationDisposition.APPLIED, EffectCertainty.EFFECT_CONFIRMED),
+        (ActionReconciliationDisposition.REJECTED, EffectCertainty.EFFECT_REJECTED),
+        (ActionReconciliationDisposition.NOT_APPLIED, EffectCertainty.NO_EFFECT),
+    ),
+)
+def test_prepared_and_generic_reconciliation_have_terminal_certainty_parity(
+    disposition: ActionReconciliationDisposition,
+    expected_certainty: EffectCertainty,
+) -> None:
+    context = ExecutionContext("run", "trace", "span", task_id="task")
+
+    prepared_bridge = _Bridge(disposition)
+    prepared_coordinator = _coordinator(prepared_bridge)
+    prepared_request = _request(f"prepared-{disposition.value}")
+    handle = prepared_coordinator.prepare_action_recovery(prepared_request, context)
+    prepared = prepared_coordinator.reconcile_prepared_action(handle, context)
+    assert prepared.disposition is disposition
+    assert prepared.result is not None
+    assert prepared.result.effect is not None
+    assert prepared.result.effect.certainty is expected_certainty
+
+    generic_bridge = _Bridge(disposition)
+    generic_coordinator = _coordinator(generic_bridge)
+    generic_request = _request(f"generic-{disposition.value}")
+    effect = EffectReceipt(
+        effect_id=f"minecraft-action:{generic_request.action_id}",
+        request_digest=action_request_digest(generic_request),
+        effect_class=EffectClass.RECONCILABLE,
+        certainty=EffectCertainty.EFFECT_POSSIBLE,
+        provider_instance_id="minecraft:session",
+        verification_required=True,
+        provider_receipt=generic_request.action_id,
+    )
+    generic = generic_coordinator.reconcile(effect, context)
+    assert generic.certainty is expected_certainty
+
+
+def test_prepared_and_generic_unknown_reconciliation_both_fail_closed() -> None:
+    context = ExecutionContext("run", "trace", "span", task_id="task")
+    prepared_bridge = _Bridge(ActionReconciliationDisposition.UNKNOWN)
+    prepared_coordinator = _coordinator(prepared_bridge)
+    prepared_request = _request("prepared-unknown-parity")
+    handle = prepared_coordinator.prepare_action_recovery(prepared_request, context)
+    prepared = prepared_coordinator.reconcile_prepared_action(handle, context)
+    assert prepared.disposition is ActionReconciliationDisposition.UNKNOWN
+    assert prepared.result is None
+
+    generic_bridge = _Bridge(ActionReconciliationDisposition.UNKNOWN)
+    generic_coordinator = _coordinator(generic_bridge)
+    generic_request = _request("generic-unknown-parity")
+    effect = EffectReceipt(
+        effect_id=f"minecraft-action:{generic_request.action_id}",
+        request_digest=action_request_digest(generic_request),
+        effect_class=EffectClass.RECONCILABLE,
+        certainty=EffectCertainty.EFFECT_POSSIBLE,
+        provider_instance_id="minecraft:session",
+        verification_required=True,
+        provider_receipt=generic_request.action_id,
+    )
+    with pytest.raises(
+        MinecraftEnvironmentFailure,
+        match="cannot prove whether the external action was applied",
+    ):
+        generic_coordinator.reconcile(effect, context)
