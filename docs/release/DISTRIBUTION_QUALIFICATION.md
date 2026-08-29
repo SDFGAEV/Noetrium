@@ -50,3 +50,5 @@ The GitHub workflow runs source-bound product assurance, wheel/sdist qualificati
 ## Licensing boundary
 
 The SBOM records package license fields as `NOASSERTION` until project ownership selects an explicit OSS license. ROLE 06 does not invent or silently apply a legal license policy. A formal public OSS release therefore still requires ROLE 00/project-owner license selection if no repository `LICENSE` is present.
+
+The container image uses a multi-stage build: source exists only in the builder stage, while the runtime stage installs the built wheel and carries no importable source checkout. Container qualification rejects root runtime users and runs doctor plus the full reference lifecycle with networking disabled.

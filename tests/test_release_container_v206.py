@@ -31,6 +31,13 @@ def test_container_definition_binds_source_and_doctor_checks_product_cli():
     assert 'org.opencontainers.image.revision="${PLATFORM_SOURCE_SHA}"' in dockerfile
     assert "research --help >/dev/null" in entrypoint
     assert "USER platform" in dockerfile
+    assert "FROM python:3.12-slim-bookworm AS builder" in dockerfile
+    runtime_stage = dockerfile.split("FROM python:3.12-slim-bookworm", 2)[-1]
+    assert "COPY research_platform" not in runtime_stage
+    assert "COPY --from=builder /wheelhouse /tmp/wheelhouse" in runtime_stage
+    assert "research_platform-*.whl" in runtime_stage
+    assert "research-platform-architecture-gate" in entrypoint
+    assert "$PACKAGE_ROOT/environment/minecraft" in entrypoint
 
 
 def test_container_smoke_script_exercises_full_reference_lifecycle():
