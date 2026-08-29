@@ -1,23 +1,40 @@
 from __future__ import annotations
-from tests._concurrency_support import run_artifact_store
 
+from dataclasses import replace
+import hashlib
 import json
+from pathlib import Path
 
 import pytest
 
-from research_platform.experimentation.run.api import RunArtifactKind
+from research_platform.experimentation.run.api import (
+    RunArtifactFinalizationError,
+    RunArtifactKind,
+    RunArtifactSnapshotReceipt,
+    RunArtifactVerificationError,
+)
 from research_platform.experimentation.run.runtime import DirectoryRunArtifactStore
 
 
-def test_directory_run_artifact_store_publishes_atomic_json(tmp_path):
-    store = run_artifact_store(tmp_path / "run")
+class _InlineSerialActor:
+    actor_id = "role03-test-inline-serial-actor"
 
+    def call(self, operation, fn, /, *args, **kwargs):
+        del operation, kwargs
+        return fn(*args)
+
+
+def _store(path: Path, *, run_id: str = "run-1") -> DirectoryRunArtifactStore:
+    return DirectoryRunArtifactStore(path, run_id=run_id, writer_actor=_InlineSerialActor())
+
+
+def test_directory_run_artifact_store_publishes_atomic_json(tmp_path: Path) -> None:
+    store = _store(tmp_path / "run")
     path = store.publish_json(
         "nested/result.json",
         {"status": "ok", "value": 3},
         kind=RunArtifactKind.RESULT,
     )
-
     assert json.loads((tmp_path / "run" / "nested" / "result.json").read_text()) == {
         "status": "ok",
         "value": 3,
@@ -25,14 +42,16 @@ def test_directory_run_artifact_store_publishes_atomic_json(tmp_path):
     assert path.endswith("nested\\result.json") or path.endswith("nested/result.json")
 
 
-def test_directory_run_artifact_store_rejects_escape(tmp_path):
-    store = run_artifact_store(tmp_path / "run")
+def test_directory_run_artifact_store_rejects_escape_and_reserved_authority_path(tmp_path: Path) -> None:
+    store = _store(tmp_path / "run")
     with pytest.raises(ValueError):
         store.path("../outside.json", kind=RunArtifactKind.RESULT)
+    with pytest.raises(ValueError, match="reserved authority path"):
+        store.path(".run-artifact-finalized/forged.json", kind=RunArtifactKind.EVIDENCE)
 
 
-def test_directory_run_artifact_store_publishes_text_atomically(tmp_path):
-    store = run_artifact_store(tmp_path / "run")
+def test_directory_run_artifact_store_publishes_text_atomically(tmp_path: Path) -> None:
+    store = _store(tmp_path / "run")
     path = store.publish_text(
         "evidence/j_eval.jsonl",
         '{"eval_id":"one"}\n',
@@ -40,3 +59,90 @@ def test_directory_run_artifact_store_publishes_text_atomically(tmp_path):
     )
     assert (tmp_path / "run" / "evidence" / "j_eval.jsonl").read_text() == '{"eval_id":"one"}\n'
     assert path.endswith("j_eval.jsonl")
+
+
+def test_finalize_record_stream_issues_authoritative_receipt_and_verifies(tmp_path: Path) -> None:
+    store = _store(tmp_path / "run")
+    store.append_json("raw/events.jsonl", {"n": 1}, kind=RunArtifactKind.EVIDENCE)
+    store.append_json("raw/events.jsonl", {"n": 2}, kind=RunArtifactKind.EVIDENCE)
+
+    receipt = store.finalize(
+        "raw/events.jsonl",
+        kind=RunArtifactKind.EVIDENCE,
+        record_stream=True,
+    )
+    target = tmp_path / "run" / "raw" / "events.jsonl"
+    assert receipt.run_id == "run-1"
+    assert receipt.artifact_ref == "raw/events.jsonl"
+    assert receipt.artifact_kind is RunArtifactKind.EVIDENCE
+    assert receipt.record_count == 2
+    assert receipt.byte_size == target.stat().st_size
+    assert receipt.content_sha256 == hashlib.sha256(target.read_bytes()).hexdigest()
+    assert store.verify_finalized(receipt) == receipt
+
+
+def test_finalize_missing_artifact_fails_closed(tmp_path: Path) -> None:
+    store = _store(tmp_path / "run")
+    with pytest.raises(RunArtifactFinalizationError, match="missing"):
+        store.finalize("raw/missing.jsonl", kind=RunArtifactKind.EVIDENCE, record_stream=True)
+
+
+def test_verify_rejects_existing_but_unfinalized_artifact(tmp_path: Path) -> None:
+    store = _store(tmp_path / "run")
+    store.publish_text("raw/events.jsonl", '{"n":1}\n', kind=RunArtifactKind.EVIDENCE)
+    target = tmp_path / "run" / "raw" / "events.jsonl"
+    forged = RunArtifactSnapshotReceipt(
+        run_id="run-1",
+        artifact_ref="raw/events.jsonl",
+        artifact_kind=RunArtifactKind.EVIDENCE,
+        generation="a" * 64,
+        content_sha256=hashlib.sha256(target.read_bytes()).hexdigest(),
+        byte_size=target.stat().st_size,
+        record_count=1,
+    )
+    with pytest.raises(RunArtifactVerificationError, match="never finalized"):
+        store.verify_finalized(forged)
+
+
+def test_verify_rejects_digest_or_count_receipt_forgery(tmp_path: Path) -> None:
+    store = _store(tmp_path / "run")
+    store.append_json("raw/events.jsonl", {"n": 1}, kind=RunArtifactKind.EVIDENCE)
+    receipt = store.finalize("raw/events.jsonl", kind=RunArtifactKind.EVIDENCE, record_stream=True)
+
+    with pytest.raises(RunArtifactVerificationError, match="ledger does not match"):
+        store.verify_finalized(replace(receipt, content_sha256="b" * 64))
+    with pytest.raises(RunArtifactVerificationError, match="ledger does not match"):
+        store.verify_finalized(replace(receipt, record_count=receipt.record_count + 1))
+
+
+def test_verify_rejects_content_drift_after_finalization(tmp_path: Path) -> None:
+    store = _store(tmp_path / "run")
+    store.append_json("raw/events.jsonl", {"n": 1}, kind=RunArtifactKind.EVIDENCE)
+    receipt = store.finalize("raw/events.jsonl", kind=RunArtifactKind.EVIDENCE, record_stream=True)
+    store.append_json("raw/events.jsonl", {"n": 2}, kind=RunArtifactKind.EVIDENCE)
+
+    with pytest.raises(RunArtifactVerificationError, match="drifted"):
+        store.verify_finalized(receipt)
+
+
+def test_verify_rejects_same_content_rebound_artifact(tmp_path: Path) -> None:
+    store = _store(tmp_path / "run")
+    store.publish_text("raw/events.jsonl", '{"n":1}\n', kind=RunArtifactKind.EVIDENCE)
+    receipt = store.finalize("raw/events.jsonl", kind=RunArtifactKind.EVIDENCE, record_stream=True)
+    target = tmp_path / "run" / "raw" / "events.jsonl"
+    replacement = target.with_name("replacement.jsonl")
+    replacement.write_bytes(target.read_bytes())
+    replacement.replace(target)
+
+    with pytest.raises(RunArtifactVerificationError, match="drifted"):
+        store.verify_finalized(receipt)
+
+
+def test_verify_rejects_receipt_from_another_run(tmp_path: Path) -> None:
+    store = _store(tmp_path / "run", run_id="run-1")
+    other = _store(tmp_path / "other", run_id="run-2")
+    other.publish_text("raw/events.jsonl", '{"n":1}\n', kind=RunArtifactKind.EVIDENCE)
+    receipt = other.finalize("raw/events.jsonl", kind=RunArtifactKind.EVIDENCE, record_stream=True)
+
+    with pytest.raises(RunArtifactVerificationError, match="different run"):
+        store.verify_finalized(receipt)

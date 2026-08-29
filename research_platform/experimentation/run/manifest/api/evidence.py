@@ -3,11 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
+from research_platform.experimentation.run.api import RunArtifactSnapshotReceipt
 from research_platform.platform.kernel import canonical_digest
 
-
 _HEX = frozenset("0123456789abcdef")
-EVIDENCE_BUNDLE_SCHEMA_VERSION = "1"
+EVIDENCE_BUNDLE_SCHEMA_VERSION = "2"
 
 
 def _require_identity(value: object, field: str) -> str:
@@ -28,13 +28,6 @@ def _require_sha256(value: object, field: str) -> str:
         raise ValueError(f"evidence bundle {field} must be SHA-256")
     return value
 
-
-def _require_non_negative_int(value: object, field: str) -> int:
-    if type(value) is not int or value < 0:
-        raise ValueError(f"evidence bundle {field} must be a non-negative integer")
-    return value
-
-
 def _require_bool(value: object, field: str) -> bool:
     if type(value) is not bool:
         raise ValueError(f"evidence bundle {field} must be boolean")
@@ -51,9 +44,7 @@ class EvidenceStreamDescriptor:
     stream_id: str
     family: str
     schema_version: str
-    artifact_ref: str
-    record_count: int
-    content_sha256: str
+    artifact_receipt: RunArtifactSnapshotReceipt
     required: bool
     source_of_truth: bool
 
@@ -61,11 +52,25 @@ class EvidenceStreamDescriptor:
         _require_identity(self.stream_id, "stream_id")
         _require_non_empty_string(self.family, "stream family")
         _require_non_empty_string(self.schema_version, "stream schema_version")
-        _require_non_empty_string(self.artifact_ref, "stream artifact_ref")
-        _require_non_negative_int(self.record_count, "stream record_count")
-        _require_sha256(self.content_sha256, "stream content_sha256")
+        if type(self.artifact_receipt) is not RunArtifactSnapshotReceipt:
+            raise ValueError("evidence stream requires a typed run artifact snapshot receipt")
+        if self.artifact_receipt.record_count is None:
+            raise ValueError("evidence stream artifact receipt must carry authoritative record_count")
         _require_bool(self.required, "stream required")
         _require_bool(self.source_of_truth, "stream source_of_truth")
+
+    @property
+    def artifact_ref(self) -> str:
+        return self.artifact_receipt.artifact_ref
+
+    @property
+    def record_count(self) -> int:
+        assert self.artifact_receipt.record_count is not None
+        return self.artifact_receipt.record_count
+
+    @property
+    def content_sha256(self) -> str:
+        return self.artifact_receipt.content_sha256
 
 
 def _validate_source_stream_ids(values: tuple[str, ...]) -> None:
@@ -115,7 +120,6 @@ def _validate_complete_streams(status: EvidenceBundleStatus, streams: tuple[Evid
     ):
         raise ValueError("complete evidence bundle cannot have an empty required stream")
 
-
 def _validate_artifacts(
     artifacts: tuple[DerivedEvidenceArtifact, ...],
     stream_ids: tuple[str, ...],
@@ -135,7 +139,7 @@ def _validate_artifacts(
 
 @dataclass(frozen=True, slots=True)
 class EvidenceBundleManifest:
-    """Immutable index over raw scientific streams and rebuildable projections."""
+    """Immutable index over authority-finalized raw streams and rebuildable projections."""
 
     schema_version: str
     bundle_id: str
@@ -157,6 +161,9 @@ class EvidenceBundleManifest:
         if self.source_checkpoint_id is not None:
             _require_non_empty_string(self.source_checkpoint_id, "source_checkpoint_id")
         stream_ids = _validate_stream_collection(self.streams)
+        for stream in self.streams:
+            if stream.artifact_receipt.run_id != self.run_id:
+                raise ValueError("evidence stream artifact receipt belongs to a different run")
         _validate_complete_streams(self.status, self.streams)
         _validate_artifacts(self.derived_artifacts, stream_ids)
 

@@ -1,10 +1,15 @@
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 from pathlib import Path
 
-from research_platform.experimentation.run.api import RunArtifactKind, RunArtifactStorePort
+from research_platform.experimentation.run.api import (
+    RunArtifactKind,
+    RunArtifactSnapshotReceipt,
+    RunArtifactStorePort,
+    RunArtifactVerificationError,
+)
 from research_platform.platform.kernel import canonical_bytes
 
 from ..api import (
@@ -29,12 +34,13 @@ _BUNDLE_FIELDS = frozenset({
     "source_checkpoint_id", "streams", "derived_artifacts",
 })
 _STREAM_FIELDS = frozenset({
-    "stream_id", "family", "schema_version", "artifact_ref",
-    "record_count", "content_sha256", "required", "source_of_truth",
+    "stream_id", "family", "schema_version", "artifact_receipt", "required", "source_of_truth",
+})
+_RECEIPT_FIELDS = frozenset({
+    "run_id", "artifact_ref", "artifact_kind", "generation", "content_sha256", "byte_size", "record_count",
 })
 _ARTIFACT_FIELDS = frozenset({
-    "artifact_id", "artifact_kind", "artifact_ref", "content_sha256",
-    "derived_from_stream_ids",
+    "artifact_id", "artifact_kind", "artifact_ref", "content_sha256", "derived_from_stream_ids",
 })
 
 
@@ -54,20 +60,45 @@ def _require_string(row: dict[str, object], field: str, scope: str) -> str:
     return value
 
 
+def _require_int(value: object, field: str, scope: str) -> int:
+    if type(value) is not int:
+        raise TypeError(f"{scope} {field} must be an integer")
+    return value
+
+
+def _decode_artifact_receipt(value: object) -> RunArtifactSnapshotReceipt:
+    if not isinstance(value, dict) or set(value) != _RECEIPT_FIELDS:
+        raise TypeError("evidence stream artifact_receipt fields are not exact")
+    record_count = value["record_count"]
+    if record_count is not None and type(record_count) is not int:
+        raise TypeError("evidence stream artifact_receipt record_count must be an integer or null")
+    try:
+        kind = RunArtifactKind(_require_string(value, "artifact_kind", "artifact receipt"))
+    except ValueError as exc:
+        raise TypeError("evidence stream artifact_receipt kind is invalid") from exc
+    return RunArtifactSnapshotReceipt(
+        run_id=_require_string(value, "run_id", "artifact receipt"),
+        artifact_ref=_require_string(value, "artifact_ref", "artifact receipt"),
+        artifact_kind=kind,
+        generation=_require_string(value, "generation", "artifact receipt"),
+        content_sha256=_require_string(value, "content_sha256", "artifact receipt"),
+        byte_size=_require_int(value["byte_size"], "byte_size", "artifact receipt"),
+        record_count=record_count,
+    )
+
+
 def _decode_stream(row: object) -> EvidenceStreamDescriptor:
     if not isinstance(row, dict) or set(row) != _STREAM_FIELDS:
         raise TypeError("evidence stream fields are not exact")
-    strings = {field: _require_string(row, field, "evidence stream") for field in (
-        "stream_id", "family", "schema_version", "artifact_ref", "content_sha256"
-    )}
-    if type(row["record_count"]) is not int:
-        raise TypeError("evidence stream record_count must be an integer")
     if type(row["required"]) is not bool or type(row["source_of_truth"]) is not bool:
         raise TypeError("evidence stream flags must be booleans")
     return EvidenceStreamDescriptor(
-        strings["stream_id"], strings["family"], strings["schema_version"],
-        strings["artifact_ref"], row["record_count"], strings["content_sha256"],
-        row["required"], row["source_of_truth"],
+        stream_id=_require_string(row, "stream_id", "evidence stream"),
+        family=_require_string(row, "family", "evidence stream"),
+        schema_version=_require_string(row, "schema_version", "evidence stream"),
+        artifact_receipt=_decode_artifact_receipt(row["artifact_receipt"]),
+        required=row["required"],
+        source_of_truth=row["source_of_truth"],
     )
 
 
@@ -80,15 +111,15 @@ def _decode_streams(value: object) -> tuple[EvidenceStreamDescriptor, ...]:
 def _decode_artifact(row: object) -> DerivedEvidenceArtifact:
     if not isinstance(row, dict) or set(row) != _ARTIFACT_FIELDS:
         raise TypeError("derived evidence artifact fields are not exact")
-    values = {field: _require_string(row, field, "derived evidence artifact") for field in (
-        "artifact_id", "artifact_kind", "artifact_ref", "content_sha256"
-    )}
     source_ids = row["derived_from_stream_ids"]
     if not isinstance(source_ids, list) or any(type(item) is not str for item in source_ids):
         raise TypeError("derived evidence source ids must be strings")
     return DerivedEvidenceArtifact(
-        values["artifact_id"], values["artifact_kind"], values["artifact_ref"],
-        values["content_sha256"], tuple(source_ids),
+        artifact_id=_require_string(row, "artifact_id", "derived evidence artifact"),
+        artifact_kind=_require_string(row, "artifact_kind", "derived evidence artifact"),
+        artifact_ref=_require_string(row, "artifact_ref", "derived evidence artifact"),
+        content_sha256=_require_string(row, "content_sha256", "derived evidence artifact"),
+        derived_from_stream_ids=tuple(source_ids),
     )
 
 
@@ -137,24 +168,52 @@ def load_evidence_bundle_manifest(path: str | Path) -> EvidenceBundleManifest:
 
 
 class RunArtifactEvidenceBundlePublisher:
-    """Publish one validated final manifest through the run artifact authority."""
+    """Publish COMPLETE evidence only after artifact-authority verification."""
 
     def __init__(self, artifacts: RunArtifactStorePort) -> None:
         self._artifacts = artifacts
 
+    def _verify_complete_streams(self, manifest: EvidenceBundleManifest) -> None:
+        if manifest.status is not EvidenceBundleStatus.COMPLETE:
+            return
+        for stream in manifest.streams:
+            try:
+                verified = self._artifacts.verify_finalized(stream.artifact_receipt)
+            except RunArtifactVerificationError as exc:
+                raise ValueError(
+                    f"complete evidence stream is not authority-finalized: {stream.stream_id}"
+                ) from exc
+            if verified != stream.artifact_receipt:
+                raise ValueError(
+                    f"complete evidence stream verification changed receipt: {stream.stream_id}"
+                )
+
     def publish(self, manifest: EvidenceBundleManifest) -> EvidenceBundleReceipt:
+        self._verify_complete_streams(manifest)
         encoded = canonical_bytes(manifest)
-        manifest_ref = self._artifacts.publish_text(
-            f"evidence/{manifest.bundle_id}/manifest.json",
+        manifest_artifact_ref = f"evidence/{manifest.bundle_id}/manifest.json"
+        self._artifacts.publish_text(
+            manifest_artifact_ref,
             encoded.decode("utf-8"),
             kind=RunArtifactKind.EVIDENCE,
         )
+        manifest_receipt = self._artifacts.finalize(
+            manifest_artifact_ref,
+            kind=RunArtifactKind.EVIDENCE,
+            record_stream=False,
+        )
+        expected_sha256 = hashlib.sha256(encoded).hexdigest()
+        if manifest_receipt.run_id != manifest.run_id:
+            raise ValueError("published evidence manifest belongs to a different run")
+        if manifest_receipt.content_sha256 != expected_sha256:
+            raise ValueError("published evidence manifest content digest does not match encoded manifest")
+        manifest_ref = self._artifacts.path(manifest_artifact_ref, kind=RunArtifactKind.EVIDENCE)
         return EvidenceBundleReceipt(
             manifest.bundle_id,
             manifest.run_id,
             manifest.run_manifest_digest,
             manifest_ref,
-            hashlib.sha256(encoded).hexdigest(),
+            expected_sha256,
         )
 
 
