@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import sqlite3
 
 from research_platform.platform.kernel.retry import retry_until_deadline
@@ -51,7 +52,9 @@ class SQLiteEndpointAllocationStore(AtomicEndpointReservationPort):
     def __init__(self, path: str | Path, *, timeout_seconds: float = 30.0) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.timeout_seconds = timeout_seconds
+        if not math.isfinite(float(timeout_seconds)) or timeout_seconds <= 0:
+            raise ValueError("SQLite endpoint timeout_seconds must be finite and positive")
+        self.timeout_seconds = float(timeout_seconds)
         with self._connection() as conn:
             conn.execute("BEGIN IMMEDIATE")
             try:
@@ -201,13 +204,15 @@ class SQLiteEndpointAllocationStore(AtomicEndpointReservationPort):
         ttl_seconds: float,
         now: float | None = None,
     ) -> EndpointReservationResult:
-        if ttl_seconds <= 0:
-            raise ValueError("endpoint lease ttl_seconds must be > 0")
+        if not math.isfinite(float(ttl_seconds)) or ttl_seconds <= 0:
+            raise ValueError("endpoint lease ttl_seconds must be finite and > 0")
         if lease.resource != allocation.endpoint.resource or lease.lease_id != allocation.lease_id:
             raise ValueError("endpoint reservation lease/allocation identity mismatch")
         if lease.resource.kind is not ResourceKind.NETWORK_ENDPOINT:
             raise ValueError("endpoint reservation requires a network-endpoint resource")
         now_epoch_s = time() if now is None else float(now)
+        if not math.isfinite(now_epoch_s):
+            raise ValueError("endpoint observation time must be finite")
         with self._connection() as conn:
             conn.execute("BEGIN IMMEDIATE")
             try:
@@ -317,6 +322,8 @@ class SQLiteEndpointAllocationStore(AtomicEndpointReservationPort):
         self, proof: EndpointBindingProof, *, now: float | None = None
     ) -> EndpointAllocation:
         now_epoch_s = time() if now is None else float(now)
+        if not math.isfinite(now_epoch_s):
+            raise ValueError("endpoint observation time must be finite")
         with self._connection() as conn:
             conn.execute("BEGIN IMMEDIATE")
             try:
@@ -382,9 +389,11 @@ class SQLiteEndpointAllocationStore(AtomicEndpointReservationPort):
         ttl_seconds: float,
         now: float | None = None,
     ) -> EndpointAllocation:
-        if ttl_seconds <= 0:
-            raise ValueError("endpoint lease ttl_seconds must be > 0")
+        if not math.isfinite(float(ttl_seconds)) or ttl_seconds <= 0:
+            raise ValueError("endpoint lease ttl_seconds must be finite and > 0")
         now_epoch_s = time() if now is None else float(now)
+        if not math.isfinite(now_epoch_s):
+            raise ValueError("endpoint observation time must be finite")
         with self._connection() as conn:
             conn.execute("BEGIN IMMEDIATE")
             current = self._reconcile_one(conn, allocation_id, now_epoch_s)
@@ -423,8 +432,8 @@ class SQLiteEndpointAllocationStore(AtomicEndpointReservationPort):
             return ()
         if len(set(allocation_ids)) != len(allocation_ids):
             raise ValueError("endpoint allocation ids must be unique")
-        if ttl_seconds <= 0:
-            raise ValueError("endpoint lease ttl_seconds must be > 0")
+        if not math.isfinite(float(ttl_seconds)) or ttl_seconds <= 0:
+            raise ValueError("endpoint lease ttl_seconds must be finite and > 0")
         now_epoch_s = time() if now is None else float(now)
         expires_at = now_epoch_s + ttl_seconds
         with self._connection() as conn:
@@ -516,6 +525,8 @@ class SQLiteEndpointAllocationStore(AtomicEndpointReservationPort):
 
     def reconcile_orphans(self, *, now: float | None = None) -> tuple[EndpointAllocation, ...]:
         now_epoch_s = time() if now is None else float(now)
+        if not math.isfinite(now_epoch_s):
+            raise ValueError("endpoint observation time must be finite")
         with self._connection() as conn:
             conn.execute("BEGIN IMMEDIATE")
             conn.execute(

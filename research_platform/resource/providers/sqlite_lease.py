@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import sqlite3
 
 from research_platform.platform.kernel.retry import retry_until_deadline
@@ -44,7 +45,9 @@ class SQLiteResourceLeaseRegistry(ResourceOwnershipPort, ResourceLeasePort):
     def __init__(self, path: str | Path, *, timeout_seconds: float = 30.0) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.timeout_seconds = timeout_seconds
+        if not math.isfinite(float(timeout_seconds)) or timeout_seconds <= 0:
+            raise ValueError("SQLite resource timeout_seconds must be finite and positive")
+        self.timeout_seconds = float(timeout_seconds)
         with self._connection() as conn:
             conn.execute("BEGIN IMMEDIATE")
             try:
@@ -156,9 +159,13 @@ class SQLiteResourceLeaseRegistry(ResourceOwnershipPort, ResourceLeasePort):
         ttl_seconds: float | None = None,
         now: float | None = None,
     ) -> ResourceLease:
-        if ttl_seconds is not None and ttl_seconds <= 0:
-            raise ValueError("lease ttl_seconds must be > 0")
+        if ttl_seconds is not None and (
+            not math.isfinite(float(ttl_seconds)) or ttl_seconds <= 0
+        ):
+            raise ValueError("lease ttl_seconds must be finite and > 0")
         now_epoch_s = time() if now is None else float(now)
+        if not math.isfinite(now_epoch_s):
+            raise ValueError("lease observation time must be finite")
         with self._connection() as conn:
             conn.execute("BEGIN IMMEDIATE")
             owner = conn.execute("SELECT 1 FROM resource_owners WHERE resource_key=?", (lease.resource.key,)).fetchone()
@@ -219,9 +226,11 @@ class SQLiteResourceLeaseRegistry(ResourceOwnershipPort, ResourceLeasePort):
         ttl_seconds: float,
         now: float | None = None,
     ) -> ResourceLease:
-        if ttl_seconds <= 0:
-            raise ValueError("lease ttl_seconds must be > 0")
+        if not math.isfinite(float(ttl_seconds)) or ttl_seconds <= 0:
+            raise ValueError("lease ttl_seconds must be finite and > 0")
         now_epoch_s = time() if now is None else float(now)
+        if not math.isfinite(now_epoch_s):
+            raise ValueError("lease observation time must be finite")
         with self._connection() as conn:
             conn.execute("BEGIN IMMEDIATE")
             expire_lease(conn, lease_id, now_epoch_s)
@@ -291,6 +300,8 @@ class SQLiteResourceLeaseRegistry(ResourceOwnershipPort, ResourceLeasePort):
 
     def reconcile_expired(self, *, now: float | None = None) -> tuple[ResourceLease, ...]:
         now_epoch_s = time() if now is None else float(now)
+        if not math.isfinite(now_epoch_s):
+            raise ValueError("lease observation time must be finite")
         with self._connection() as conn:
             conn.execute("BEGIN IMMEDIATE")
             rows = conn.execute(

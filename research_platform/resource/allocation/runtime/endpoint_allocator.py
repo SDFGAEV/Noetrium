@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import math
 from threading import RLock
 from time import time
 
@@ -52,8 +53,8 @@ class AtomicEndpointAllocator(EndpointAllocationPort):
         probe: EndpointProbePort,
         lease_ttl_seconds: float = DEFAULT_ENDPOINT_LEASE_POLICY.ttl_seconds,
     ) -> None:
-        if lease_ttl_seconds <= 0:
-            raise ValueError("endpoint lease_ttl_seconds must be > 0")
+        if not math.isfinite(float(lease_ttl_seconds)) or lease_ttl_seconds <= 0:
+            raise ValueError("endpoint lease_ttl_seconds must be finite and > 0")
         self._reservations = reservations
         self._probe = probe
         self._lease_ttl_seconds = float(lease_ttl_seconds)
@@ -125,8 +126,8 @@ class AtomicEndpointAllocator(EndpointAllocationPort):
 
     def renew(self, allocation_id: str, *, ttl_seconds: float | None = None) -> EndpointAllocation:
         ttl = self._lease_ttl_seconds if ttl_seconds is None else float(ttl_seconds)
-        if ttl <= 0:
-            raise ValueError("endpoint lease ttl_seconds must be > 0")
+        if not math.isfinite(ttl) or ttl <= 0:
+            raise ValueError("endpoint lease ttl_seconds must be finite and > 0")
         return self._reservations.renew(allocation_id, ttl_seconds=ttl)
 
     def renew_many(self, allocation_ids: tuple[str, ...], *, ttl_seconds: float | None = None) -> tuple[EndpointAllocation, ...]:
@@ -135,8 +136,8 @@ class AtomicEndpointAllocator(EndpointAllocationPort):
         if len(set(allocation_ids)) != len(allocation_ids):
             raise ValueError("endpoint allocation ids must be unique")
         ttl = self._lease_ttl_seconds if ttl_seconds is None else float(ttl_seconds)
-        if ttl <= 0:
-            raise ValueError("endpoint lease ttl_seconds must be > 0")
+        if not math.isfinite(ttl) or ttl <= 0:
+            raise ValueError("endpoint lease ttl_seconds must be finite and > 0")
         return self._reservations.renew_many(allocation_ids, ttl_seconds=ttl)
 
     def release(self, allocation_id: str) -> EndpointAllocation:
@@ -169,8 +170,8 @@ class InMemoryEndpointAllocator(EndpointAllocationPort):
         probe: EndpointProbePort,
         lease_ttl_seconds: float = DEFAULT_ENDPOINT_LEASE_POLICY.ttl_seconds,
     ) -> None:
-        if lease_ttl_seconds <= 0:
-            raise ValueError("endpoint lease_ttl_seconds must be > 0")
+        if not math.isfinite(float(lease_ttl_seconds)) or lease_ttl_seconds <= 0:
+            raise ValueError("endpoint lease_ttl_seconds must be finite and > 0")
         self._ownership = ownership
         self._leases = leases
         self._probe = probe
@@ -327,6 +328,8 @@ class InMemoryEndpointAllocator(EndpointAllocationPort):
             if not current.state.is_live:
                 raise EndpointAllocationConflict(f"endpoint allocation is not active: {allocation_id}")
             ttl = self._lease_ttl_seconds if ttl_seconds is None else float(ttl_seconds)
+            if not math.isfinite(ttl) or ttl <= 0:
+                raise ValueError("endpoint lease ttl_seconds must be finite and > 0")
             granted = self._leases.renew(
                 current.lease_id,
                 fencing_token=current.lease_fencing_token,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 from research_platform.platform.kernel.durability.file_lock import InterprocessFileLock, InterprocessLockBusy
@@ -81,8 +82,8 @@ class FileLockedRecoveryExecutionFactory:
         *,
         ttl_seconds: float,
     ) -> FileLockedRecoveryExecution:
-        if ttl_seconds <= 0:
-            raise ValueError("ttl_seconds must be positive")
+        if not math.isfinite(float(ttl_seconds)) or ttl_seconds <= 0:
+            raise ValueError("ttl_seconds must be finite and positive")
         return FileLockedRecoveryExecution(
             self.store,
             self.lock_path,

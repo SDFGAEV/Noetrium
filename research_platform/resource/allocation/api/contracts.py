@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+import math
 
 from research_platform.platform.kernel import canonical_digest
 from research_platform.resource.lease.api import (
@@ -94,10 +95,13 @@ class EndpointLeasePolicy:
     renewal_interval_seconds: float = 30.0
 
     def __post_init__(self) -> None:
-        if self.ttl_seconds <= 0:
-            raise ValueError("endpoint lease ttl_seconds must be > 0")
-        if self.renewal_interval_seconds <= 0:
-            raise ValueError("endpoint lease renewal_interval_seconds must be > 0")
+        if not math.isfinite(float(self.ttl_seconds)) or self.ttl_seconds <= 0:
+            raise ValueError("endpoint lease ttl_seconds must be finite and > 0")
+        if (
+            not math.isfinite(float(self.renewal_interval_seconds))
+            or self.renewal_interval_seconds <= 0
+        ):
+            raise ValueError("endpoint lease renewal_interval_seconds must be finite and > 0")
         if self.renewal_interval_seconds >= self.ttl_seconds:
             raise ValueError("endpoint lease renewal interval must be shorter than ttl")
 
@@ -143,8 +147,11 @@ class EndpointBindingProof:
             or any(character not in "0123456789abcdef" for character in self.binder_identity_digest)
         ):
             raise ValueError("endpoint binder identity must be a canonical lowercase SHA-256 digest")
-        if self.observed_at_epoch_s <= 0:
-            raise ValueError("endpoint binding observation timestamp must be positive")
+        if (
+            not math.isfinite(float(self.observed_at_epoch_s))
+            or self.observed_at_epoch_s <= 0
+        ):
+            raise ValueError("endpoint binding observation timestamp must be finite and positive")
 
     def digest(self) -> str:
         return canonical_digest(self)
@@ -179,6 +186,15 @@ class EndpointAllocation:
             raise ValueError("endpoint allocation identity is incomplete")
         if self.lease_holder_generation < 1 or self.lease_fencing_token < 1:
             raise ValueError("endpoint allocation lease generation/fencing must be >= 1")
+        if self.lease_expires_at_epoch_s is not None and (
+            not math.isfinite(float(self.lease_expires_at_epoch_s))
+            or self.lease_expires_at_epoch_s <= 0
+        ):
+            raise ValueError("endpoint allocation lease expiry must be finite and positive")
+        if self.bound_at_epoch_s is not None and (
+            not math.isfinite(float(self.bound_at_epoch_s)) or self.bound_at_epoch_s <= 0
+        ):
+            raise ValueError("endpoint allocation bound timestamp must be finite and positive")
         proof_fields = (self.binding_proof_digest, self.binding_evidence_ref, self.bound_at_epoch_s)
         has_proof = tuple(value is not None for value in proof_fields)
         if any(has_proof) and not all(has_proof):
