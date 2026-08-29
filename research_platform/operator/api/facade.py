@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
+import math
 from types import MappingProxyType
 from typing import Protocol
 
@@ -19,7 +20,11 @@ class ResearchAction(StrEnum):
 
 
 def _freeze_json(value: JsonInput, *, path: str = "payload") -> JsonValue:
-    if value is None or isinstance(value, (str, int, float, bool)):
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise ValueError(f"{path} numbers must be finite JSON values")
+        return value
+    if value is None or isinstance(value, (str, int, bool)):
         return value
     if isinstance(value, Mapping):
         frozen: dict[str, JsonValue] = {}

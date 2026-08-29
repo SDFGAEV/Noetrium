@@ -113,3 +113,11 @@ def test_diagnose_route_preserves_foreign_cli_arguments_verbatim():
     ) as downstream:
         assert main(["diagnose", "status", "run-root"]) == 0
     downstream.assert_called_once_with(["status", "run-root"])
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_facade_rejects_non_finite_json_numbers(value):
+    with pytest.raises(ValueError, match="finite JSON"):
+        ResearchRequest(ResearchAction.RUN, "run-1", {"value": value})
+    with pytest.raises(ValueError, match="finite JSON"):
+        ResearchResult(ResearchAction.RUN, "run-1", "accepted", {"value": value})

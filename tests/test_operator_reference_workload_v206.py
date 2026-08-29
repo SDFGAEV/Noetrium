@@ -9,7 +9,10 @@ import pytest
 from research_platform.api import ResearchFacade
 from research_platform.operator.reference import ReferenceResearchApplication
 from research_platform.operator.composition.research import main
-from research_platform.platform.kernel.durability import ChecksummedDocumentError
+from research_platform.platform.kernel.durability import (
+    ChecksummedDocumentError,
+    encode_checksummed_document,
+)
 
 
 def test_reference_workload_runs_full_durable_lifecycle():
@@ -68,3 +71,91 @@ def test_reference_workload_is_exercisable_through_installed_cli_shape(capsys):
             row = json.loads(capsys.readouterr().out)
             assert row["ok"] is True
             assert row["command"] == command
+
+
+def _write_valid_checksum_state(app, target: str, payload: dict) -> None:
+    app._path(target).write_bytes(
+        encode_checksummed_document("research-platform.operator-reference.v1", payload)
+    )
+
+
+@pytest.mark.parametrize(
+    "payload, message",
+    [
+        (
+            {
+                "target": "strict-1",
+                "phase": "running",
+                "generation": 1,
+                "events": [
+                    {"sequence": 1, "action": "run", "phase": "running", "generation": 1}
+                ],
+                "extra": "forbidden",
+            },
+            "state fields",
+        ),
+        (
+            {
+                "target": "strict-1",
+                "phase": "running",
+                "generation": True,
+                "events": [
+                    {"sequence": 1, "action": "run", "phase": "running", "generation": 1}
+                ],
+            },
+            "positive integer",
+        ),
+        (
+            {
+                "target": "strict-1",
+                "phase": "running",
+                "generation": 1,
+                "events": [{"junk": 1}],
+            },
+            "event fields",
+        ),
+        (
+            {
+                "target": "strict-1",
+                "phase": "running",
+                "generation": 1,
+                "events": [
+                    {"sequence": 2, "action": "run", "phase": "running", "generation": 1}
+                ],
+            },
+            "sequence",
+        ),
+        (
+            {
+                "target": "strict-1",
+                "phase": "running",
+                "generation": 2,
+                "events": [
+                    {"sequence": 1, "action": "run", "phase": "running", "generation": 1},
+                    {"sequence": 2, "action": "resume", "phase": "running", "generation": 2},
+                ],
+            },
+            "resume transition",
+        ),
+    ],
+)
+def test_reference_state_rejects_semantically_malformed_checksummed_documents(payload, message):
+    with TemporaryDirectory() as td:
+        app = ReferenceResearchApplication(Path(td))
+        _write_valid_checksum_state(app, "strict-1", payload)
+        with pytest.raises(ValueError, match=message):
+            app._read("strict-1")
+
+
+def test_reference_writer_validates_state_before_persisting():
+    with TemporaryDirectory() as td:
+        app = ReferenceResearchApplication(Path(td))
+        malformed = {
+            "target": "strict-2",
+            "phase": "running",
+            "generation": 1,
+            "events": [],
+        }
+        with pytest.raises(ValueError, match="events"):
+            app._write("strict-2", malformed)
+        assert not app._path("strict-2").exists()

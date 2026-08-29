@@ -13,6 +13,60 @@ from research_platform.platform.kernel.durability import (
 )
 
 _SCHEMA = "research-platform.operator-reference.v1"
+_STATE_FIELDS = frozenset({"target", "phase", "generation", "events"})
+_EVENT_FIELDS = frozenset({"sequence", "action", "phase", "generation"})
+_EVENT_ACTIONS = frozenset({"run", "stop", "resume", "reconcile"})
+
+
+def _positive_int(value: object, *, field: str) -> int:
+    if type(value) is not int or value < 1:
+        raise ValueError(f"{field} must be a positive integer")
+    return value
+
+
+def _validate_reference_payload(payload: object, *, target: str) -> dict:
+    if not isinstance(payload, dict) or set(payload) != _STATE_FIELDS:
+        raise ValueError("reference state fields are invalid")
+    if payload["target"] != target:
+        raise ValueError("reference state target identity mismatch")
+    if payload["phase"] not in {"running", "stopped"}:
+        raise ValueError("reference state phase is invalid")
+    generation = _positive_int(payload["generation"], field="reference state generation")
+    events = payload["events"]
+    if not isinstance(events, list) or not events:
+        raise ValueError("reference state events are invalid")
+
+    expected_phase = "running"
+    expected_generation = 1
+    for expected_sequence, event in enumerate(events, start=1):
+        if not isinstance(event, dict) or set(event) != _EVENT_FIELDS:
+            raise ValueError("reference event fields are invalid")
+        if _positive_int(event["sequence"], field="reference event sequence") != expected_sequence:
+            raise ValueError("reference event sequence is not contiguous")
+        action = event["action"]
+        if not isinstance(action, str) or action not in _EVENT_ACTIONS:
+            raise ValueError("reference event action is invalid")
+        event_generation = _positive_int(event["generation"], field="reference event generation")
+        if expected_sequence == 1:
+            if action != "run":
+                raise ValueError("reference event history must begin with run")
+        elif action == "run":
+            raise ValueError("reference event history contains duplicate run")
+        elif action == "stop":
+            if expected_phase != "running":
+                raise ValueError("reference event stop transition is invalid")
+            expected_phase = "stopped"
+        elif action == "resume":
+            if expected_phase != "stopped":
+                raise ValueError("reference event resume transition is invalid")
+            expected_phase = "running"
+            expected_generation += 1
+        if event["phase"] != expected_phase or event_generation != expected_generation:
+            raise ValueError("reference event state transition is inconsistent")
+
+    if payload["phase"] != expected_phase or generation != expected_generation:
+        raise ValueError("reference state does not match event history")
+    return payload
 
 
 class ReferenceResearchApplication:
@@ -36,20 +90,13 @@ class ReferenceResearchApplication:
         payload = decode_checksummed_document(
             path.read_bytes(), expected_schema=_SCHEMA
         ).payload
-        if payload.get("target") != target:
-            raise ValueError("reference state target identity mismatch")
-        if payload.get("phase") not in {"running", "stopped"}:
-            raise ValueError("reference state phase is invalid")
-        if not isinstance(payload.get("generation"), int) or payload["generation"] < 1:
-            raise ValueError("reference state generation is invalid")
-        if not isinstance(payload.get("events"), list):
-            raise ValueError("reference state events are invalid")
-        return payload
+        return _validate_reference_payload(payload, target=target)
 
     def _write(self, target: str, payload: dict) -> None:
+        validated = _validate_reference_payload(payload, target=target)
         atomic_replace_bytes(
             self._path(target),
-            encode_checksummed_document(_SCHEMA, payload),
+            encode_checksummed_document(_SCHEMA, validated),
         )
 
     @staticmethod
