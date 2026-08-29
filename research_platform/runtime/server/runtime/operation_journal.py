@@ -3,11 +3,14 @@ from __future__ import annotations
 from dataclasses import asdict
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
 from contextlib import AbstractContextManager
 
+from research_platform.platform.kernel import canonical_bytes
+from research_platform.platform.kernel.durability import fsync_directory
 from research_platform.platform.kernel.durability.file_lock import InterprocessFileLock
 from research_platform.platform.kernel.durability.file_lock import InterprocessLockBusy
 from research_platform.platform.concurrency.api import SerialActorPort
@@ -29,6 +32,16 @@ from research_platform.runtime.server.api import (
 
 class ServerOperationJournalIntegrityError(RuntimeError):
     """The durable server-operation ledger cannot be safely replayed."""
+
+
+_JOURNAL_SCHEMA = "server-operation-journal.v2"
+_GENESIS_CHECKSUM = "0" * 64
+_MAX_RECORD_BYTES = 256 * 1024
+_CHECKSUM_RE = re.compile(r"[0-9a-f]{64}")
+
+
+def _record_checksum(body: dict[str, object]) -> str:
+    return hashlib.sha256(canonical_bytes(body)).hexdigest()
 
 
 class _NonBlockingServerLock(AbstractContextManager[object]):
@@ -97,39 +110,152 @@ class JsonlServerOperationJournal(ServerOperationJournalPort):
             operation_id=operation_id,
         )
 
-    def _append(self, event_type: str, event: object) -> None:
-        """Append and fsync one operation event in ledger order.
+    @staticmethod
+    def _decode_envelope(
+        raw: bytes,
+        *,
+        expected_previous_checksum: str | None,
+    ) -> tuple[dict[str, object], str]:
+        if not raw or len(raw) > _MAX_RECORD_BYTES:
+            raise ServerOperationJournalIntegrityError(
+                "server operation ledger record size is invalid"
+            )
+        try:
+            document = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ServerOperationJournalIntegrityError(
+                "server operation ledger record is not canonical JSON"
+            ) from exc
+        if not isinstance(document, dict):
+            raise ServerOperationJournalIntegrityError(
+                "server operation ledger record is not an object"
+            )
+        record_checksum = document.get("record_checksum")
+        previous_checksum = document.get("previous_checksum")
+        if document.get("journal_schema") != _JOURNAL_SCHEMA:
+            raise ServerOperationJournalIntegrityError(
+                "server operation ledger schema is unsupported"
+            )
+        if not isinstance(record_checksum, str) or _CHECKSUM_RE.fullmatch(record_checksum) is None:
+            raise ServerOperationJournalIntegrityError(
+                "server operation ledger record checksum is invalid"
+            )
+        if not isinstance(previous_checksum, str) or _CHECKSUM_RE.fullmatch(previous_checksum) is None:
+            raise ServerOperationJournalIntegrityError(
+                "server operation ledger previous checksum is invalid"
+            )
+        if (
+            expected_previous_checksum is not None
+            and previous_checksum != expected_previous_checksum
+        ):
+            raise ServerOperationJournalIntegrityError(
+                "server operation ledger hash chain is discontinuous"
+            )
+        body = dict(document)
+        body.pop("record_checksum", None)
+        if _record_checksum(body) != record_checksum:
+            raise ServerOperationJournalIntegrityError(
+                "server operation ledger record checksum mismatch"
+            )
+        body.pop("journal_schema", None)
+        body.pop("previous_checksum", None)
+        return body, record_checksum
 
-        Process-local ordering is owned by the injected serial actor; the
-        interprocess guard preserves one durable cross-process append order.
-        """
+    def _tail_checksum_locked(self) -> str:
+        if not self.path.exists() or self.path.stat().st_size == 0:
+            return _GENESIS_CHECKSUM
+        with self.path.open("rb") as stream:
+            stream.seek(0, os.SEEK_END)
+            end = stream.tell()
+            stream.seek(end - 1)
+            if stream.read(1) != b"\n":
+                raise ServerOperationJournalIntegrityError(
+                    "server operation ledger has a partial durable tail"
+                )
+            cursor = end - 1
+            chunks: list[bytes] = []
+            scanned = 0
+            while cursor > 0:
+                block_start = max(0, cursor - 4096)
+                stream.seek(block_start)
+                block = stream.read(cursor - block_start)
+                split = block.rfind(b"\n")
+                if split >= 0:
+                    chunks.insert(0, block[split + 1 :])
+                    break
+                chunks.insert(0, block)
+                scanned += len(block)
+                if scanned > _MAX_RECORD_BYTES:
+                    raise ServerOperationJournalIntegrityError(
+                        "server operation ledger tail record is oversized"
+                    )
+                cursor = block_start
+            raw = b"".join(chunks)
+            _body, checksum = self._decode_envelope(
+                raw,
+                expected_previous_checksum=None,
+            )
+            return checksum
+
+    def _append(self, event_type: str, event: object) -> None:
+        """Append one hash-chained event and durably publish its first directory entry."""
         payload = asdict(event)
         for key, value in tuple(payload.items()):
             if hasattr(value, "value"):
                 payload[key] = value.value
-        record = {"event": event_type, **payload}
-        encoded = (json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
+        validator = {
+            "started": self._started,
+            "finished": self._finished,
+            "resolved": self._resolved,
+        }.get(event_type)
+        if validator is None:
+            raise ValueError(f"unsupported server operation event type: {event_type!r}")
+        validator(dict(payload))
+
         def append_owned() -> None:
             with InterprocessFileLock(self._guard_path):
+                previous_checksum = self._tail_checksum_locked()
+                body = {
+                    "journal_schema": _JOURNAL_SCHEMA,
+                    "previous_checksum": previous_checksum,
+                    "event": event_type,
+                    **payload,
+                }
+                record = {**body, "record_checksum": _record_checksum(body)}
+                encoded = canonical_bytes(record) + b"\n"
+                if len(encoded) > _MAX_RECORD_BYTES:
+                    raise ValueError("server operation journal record exceeds size limit")
+                created = not self.path.exists()
                 with self.path.open("ab") as stream:
                     stream.write(encoded)
                     stream.flush()
                     os.fsync(stream.fileno())
+                if created:
+                    fsync_directory(self.path.parent)
 
         self._writer_actor.call(f"append:{event_type}", append_owned)
 
     @staticmethod
     def _started(payload: dict[str, object]) -> ServerOperationStarted:
+        expected = {
+            "operation_id", "server_id", "kind", "request_digest", "started_at",
+            "interactive", "profile_digest", "effect",
+        }
         try:
+            if set(payload) != expected:
+                raise ValueError("started field set is not exact")
+            for key in ("operation_id", "server_id", "kind", "request_digest", "profile_digest", "effect"):
+                if type(payload[key]) is not str:
+                    raise TypeError(f"{key} must be a string")
+            if type(payload["interactive"]) is not bool:
+                raise TypeError("interactive must be a boolean")
+            started_at = payload["started_at"]
+            if type(started_at) not in {int, float} or isinstance(started_at, bool) or not math.isfinite(float(started_at)) or float(started_at) < 0:
+                raise ValueError("started_at must be a finite non-negative number")
             return ServerOperationStarted(
-                str(payload["operation_id"]),
-                str(payload["server_id"]),
-                ServerOperationKind(str(payload["kind"])),
-                str(payload["request_digest"]),
-                float(payload["started_at"]),
-                bool(payload["interactive"]),
-                str(payload.get("profile_digest", "")),
-                ServerOperationEffect(str(payload.get("effect", ServerOperationEffect.UNKNOWN.value))),
+                payload["operation_id"], payload["server_id"], ServerOperationKind(payload["kind"]),
+                payload["request_digest"], float(started_at), payload["interactive"],
+                payload["profile_digest"], ServerOperationEffect(payload["effect"]),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise ServerOperationJournalIntegrityError(
@@ -138,27 +264,43 @@ class JsonlServerOperationJournal(ServerOperationJournalPort):
 
     @staticmethod
     def _finished(payload: dict[str, object]) -> ServerOperationFinished:
+        expected = {
+            "operation_id", "server_id", "kind", "request_digest", "state",
+            "finished_at", "duration_seconds", "return_code", "failure_kind",
+            "stdout_bytes", "stderr_bytes", "error_type", "error_digest",
+            "profile_digest", "stdout_digest", "stderr_digest", "effect",
+            "stdout_preview", "stderr_preview",
+        }
         try:
+            if set(payload) != expected:
+                raise ValueError("finished field set is not exact")
+            string_keys = (
+                "operation_id", "server_id", "kind", "request_digest", "state",
+                "failure_kind", "profile_digest", "stdout_digest", "stderr_digest",
+                "effect", "stdout_preview", "stderr_preview",
+            )
+            if any(type(payload[key]) is not str for key in string_keys):
+                raise TypeError("finished string field has wrong type")
+            for key in ("error_type", "error_digest"):
+                if payload[key] is not None and type(payload[key]) is not str:
+                    raise TypeError(f"{key} must be null or string")
+            for key in ("finished_at", "duration_seconds"):
+                value = payload[key]
+                if type(value) not in {int, float} or isinstance(value, bool) or not math.isfinite(float(value)) or float(value) < 0:
+                    raise ValueError(f"{key} must be finite and non-negative")
+            for key in ("stdout_bytes", "stderr_bytes"):
+                if type(payload[key]) is not int or payload[key] < 0:
+                    raise ValueError(f"{key} must be a non-negative integer")
+            if payload["return_code"] is not None and type(payload["return_code"]) is not int:
+                raise TypeError("return_code must be null or integer")
             return ServerOperationFinished(
-                str(payload["operation_id"]),
-                str(payload["server_id"]),
-                ServerOperationKind(str(payload["kind"])),
-                str(payload["request_digest"]),
-                ServerOperationState(str(payload["state"])),
-                float(payload["finished_at"]),
-                float(payload["duration_seconds"]),
-                None if payload.get("return_code") is None else int(payload["return_code"]),
-                str(payload["failure_kind"]),
-                int(payload["stdout_bytes"]),
-                int(payload["stderr_bytes"]),
-                None if payload.get("error_type") is None else str(payload["error_type"]),
-                None if payload.get("error_digest") is None else str(payload["error_digest"]),
-                str(payload.get("profile_digest", "")),
-                str(payload.get("stdout_digest", "")),
-                str(payload.get("stderr_digest", "")),
-                ServerOperationEffect(str(payload.get("effect", ServerOperationEffect.UNKNOWN.value))),
-                str(payload.get("stdout_preview", "")),
-                str(payload.get("stderr_preview", "")),
+                payload["operation_id"], payload["server_id"], ServerOperationKind(payload["kind"]),
+                payload["request_digest"], ServerOperationState(payload["state"]),
+                float(payload["finished_at"]), float(payload["duration_seconds"]),
+                payload["return_code"], payload["failure_kind"], payload["stdout_bytes"],
+                payload["stderr_bytes"], payload["error_type"], payload["error_digest"],
+                payload["profile_digest"], payload["stdout_digest"], payload["stderr_digest"],
+                ServerOperationEffect(payload["effect"]), payload["stdout_preview"], payload["stderr_preview"],
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise ServerOperationJournalIntegrityError(
@@ -167,23 +309,32 @@ class JsonlServerOperationJournal(ServerOperationJournalPort):
 
     @staticmethod
     def _resolved(payload: dict[str, object]) -> ServerOperationResolved:
+        expected = {
+            "operation_id", "server_id", "kind", "request_digest", "disposition",
+            "resolved_at", "evidence_ref", "evidence_digest", "profile_digest",
+        }
         try:
-            evidence_ref = str(payload["evidence_ref"])
-            evidence_digest = str(payload["evidence_digest"])
+            if set(payload) != expected:
+                raise ValueError("resolution field set is not exact")
+            for key in (
+                "operation_id", "server_id", "kind", "request_digest", "disposition",
+                "evidence_ref", "evidence_digest", "profile_digest",
+            ):
+                if type(payload[key]) is not str:
+                    raise TypeError(f"{key} must be a string")
+            resolved_at = payload["resolved_at"]
+            if type(resolved_at) not in {int, float} or isinstance(resolved_at, bool) or not math.isfinite(float(resolved_at)) or float(resolved_at) < 0:
+                raise ValueError("resolved_at must be finite and non-negative")
+            evidence_ref = payload["evidence_ref"]
+            evidence_digest = payload["evidence_digest"]
             if re.fullmatch(r"[A-Za-z0-9_.:/-]{1,256}", evidence_ref) is None:
                 raise ValueError("resolution evidence reference is unsafe")
-            if re.fullmatch(r"[0-9a-fA-F]{64}", evidence_digest) is None:
-                raise ValueError("resolution evidence digest is not SHA-256")
+            if re.fullmatch(r"[0-9a-f]{64}", evidence_digest) is None:
+                raise ValueError("resolution evidence digest is not canonical SHA-256")
             return ServerOperationResolved(
-                str(payload["operation_id"]),
-                str(payload["server_id"]),
-                ServerOperationKind(str(payload["kind"])),
-                str(payload["request_digest"]),
-                ServerOperationResolution(str(payload["disposition"])),
-                float(payload["resolved_at"]),
-                evidence_ref,
-                evidence_digest,
-                str(payload.get("profile_digest", "")),
+                payload["operation_id"], payload["server_id"], ServerOperationKind(payload["kind"]),
+                payload["request_digest"], ServerOperationResolution(payload["disposition"]),
+                float(resolved_at), evidence_ref, evidence_digest, payload["profile_digest"],
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise ServerOperationJournalIntegrityError(
@@ -208,6 +359,7 @@ class JsonlServerOperationJournal(ServerOperationJournalPort):
                 return self.path.stat().st_size
 
         snapshot_size = self._writer_actor.call("freeze-read-prefix", freeze_owned)
+        expected_previous_checksum = _GENESIS_CHECKSUM
         with self.path.open("rb") as stream:
             remaining = snapshot_size
             line_number = 0
@@ -217,12 +369,16 @@ class JsonlServerOperationJournal(ServerOperationJournalPort):
                     break
                 remaining -= len(raw)
                 line_number += 1
-                if not raw.strip():
-                    continue
                 try:
-                    payload = json.loads(raw.decode("utf-8"))
-                    if not isinstance(payload, dict):
-                        raise TypeError("event is not an object")
+                    if not raw.endswith(b"\n"):
+                        raise ServerOperationJournalIntegrityError(
+                            "server operation ledger has a partial durable tail"
+                        )
+                    payload, record_checksum = self._decode_envelope(
+                        raw[:-1],
+                        expected_previous_checksum=expected_previous_checksum,
+                    )
+                    expected_previous_checksum = record_checksum
                     event_type = payload.pop("event")
                     if event_type == "started":
                         event = self._started(payload)
@@ -273,11 +429,11 @@ class JsonlServerOperationJournal(ServerOperationJournalPort):
                         raise ValueError(f"unknown event type {event_type!r}")
                 except ServerOperationJournalIntegrityError as exc:
                     raise ServerOperationJournalIntegrityError(
-                        f"server operation ledger is corrupt at line {line_number}"
+                        f"server operation ledger is corrupt at line {line_number}: {exc}"
                     ) from exc
                 except (UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError, KeyError) as exc:
                     raise ServerOperationJournalIntegrityError(
-                        f"server operation ledger is corrupt at line {line_number}"
+                        f"server operation ledger is corrupt at line {line_number}: {exc}"
                     ) from exc
         return tuple(records[operation_id] for operation_id in order)
 

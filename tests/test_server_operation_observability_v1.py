@@ -498,3 +498,102 @@ def test_journal_same_operation_transition_race_is_typed_and_non_corrupting(tmp_
     record = journal.read_operation(operation_id)
     assert record is not None and record.resolution is not None
     assert journal.pending_operations() == ()
+
+
+def test_server_operation_journal_records_form_a_checksum_chain(tmp_path: Path) -> None:
+    path = tmp_path / "server-operations.jsonl"
+    journal = JsonlServerOperationJournal(path)
+    journal.record_started(_started_mutation("op-chain"))
+    journal.record_finished(_finished_mutation("op-chain"))
+
+    rows = [json.loads(line) for line in path.read_text("utf-8").splitlines()]
+    assert rows[0]["journal_schema"] == "server-operation-journal.v2"
+    assert rows[0]["previous_checksum"] == "0" * 64
+    assert len(rows[0]["record_checksum"]) == 64
+    assert rows[1]["previous_checksum"] == rows[0]["record_checksum"]
+    assert len(rows[1]["record_checksum"]) == 64
+
+
+def test_server_operation_journal_rejects_valid_json_payload_tampering(tmp_path: Path) -> None:
+    path = tmp_path / "server-operations.jsonl"
+    journal = JsonlServerOperationJournal(path)
+    journal.record_started(_started_mutation("op-tamper"))
+    journal.record_finished(_finished_mutation("op-tamper"))
+    rows = [json.loads(line) for line in path.read_text("utf-8").splitlines()]
+    rows[0]["server_id"] = "forged-server"
+    rows[1]["server_id"] = "forged-server"
+    path.write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ServerOperationJournalIntegrityError, match="line 1"):
+        journal.pending_operations()
+
+
+def test_server_operation_journal_rejects_missing_chain_prefix(tmp_path: Path) -> None:
+    path = tmp_path / "server-operations.jsonl"
+    journal = JsonlServerOperationJournal(path)
+    journal.record_started(_started_mutation("op-prefix"))
+    journal.record_finished(_finished_mutation("op-prefix"))
+    rows = path.read_text("utf-8").splitlines()
+    path.write_text(rows[1] + "\n", encoding="utf-8")
+
+    with pytest.raises(ServerOperationJournalIntegrityError, match="line 1"):
+        journal.recent_operations()
+
+
+def test_server_operation_journal_rejects_legacy_unchecksummed_record(tmp_path: Path) -> None:
+    path = tmp_path / "server-operations.jsonl"
+    path.write_text(
+        json.dumps({"event": "started", "operation_id": "legacy"}) + "\n",
+        encoding="utf-8",
+    )
+    journal = JsonlServerOperationJournal(path)
+    with pytest.raises(ServerOperationJournalIntegrityError, match="line 1"):
+        journal.pending_operations()
+
+def test_server_operation_journal_rejects_typed_field_drift_before_write(tmp_path: Path) -> None:
+    path = tmp_path / "server-operations.jsonl"
+    journal = JsonlServerOperationJournal(path)
+    invalid = ServerOperationStarted(
+        "op-type-drift",
+        "server-a",
+        ServerOperationKind.COMMAND,
+        "d" * 64,
+        1.0,
+        "false",  # type: ignore[arg-type]
+        "profile",
+        ServerOperationEffect.MUTATION,
+    )
+    with pytest.raises(ServerOperationJournalIntegrityError, match="started record"):
+        journal.record_started(invalid)
+    assert not path.exists()
+
+
+def test_server_operation_journal_fsyncs_parent_only_on_first_publication(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "server-operations.jsonl"
+    calls: list[Path] = []
+    monkeypatch.setattr(
+        "research_platform.runtime.server.runtime.operation_journal.fsync_directory",
+        lambda candidate: calls.append(candidate),
+    )
+    journal = JsonlServerOperationJournal(path)
+    journal.record_started(_started_mutation("op-directory-fsync"))
+    journal.record_finished(_finished_mutation("op-directory-fsync"))
+    assert calls == [tmp_path]
+
+
+def test_server_operation_journal_refuses_append_after_partial_tail(tmp_path: Path) -> None:
+    path = tmp_path / "server-operations.jsonl"
+    journal = JsonlServerOperationJournal(path)
+    journal.record_started(_started_mutation("op-partial"))
+    with path.open("ab") as stream:
+        stream.write(b'{"journal_schema":"server-operation-journal.v2"')
+
+    with pytest.raises(ServerOperationJournalIntegrityError, match="line 2") as captured:
+        journal.record_started(_started_mutation("op-after-partial"))
+    assert captured.value.__cause__ is not None
+    assert "partial durable tail" in str(captured.value.__cause__)
+    assert b"op-after-partial" not in path.read_bytes()
