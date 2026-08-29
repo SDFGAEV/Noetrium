@@ -1,15 +1,14 @@
-from .facade import (
+"""Canonical topology-hiding product API for common Research Platform control."""
+
+from research_platform.operator.api.facade import (
     ResearchAction,
     ResearchApplicationPort,
     ResearchFacade,
     ResearchRequest,
     ResearchResult,
 )
-from .routes import OperatorHandlerPort, OperatorRoutePort
 
 __all__ = [
-    "OperatorHandlerPort",
-    "OperatorRoutePort",
     "ResearchAction",
     "ResearchApplicationPort",
     "ResearchFacade",

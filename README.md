@@ -107,15 +107,27 @@ python -m pip install --upgrade pip
 python -m pip install -e ".[test]"
 ```
 
-### Inspect the platform
+### Use the canonical product surface
+
+The common Python API is `research_platform.api`; the common CLI is `research`.
+Production lifecycle commands bind an explicit downstream application rather than discovering hidden providers:
+
+```python
+from research_platform.api import ResearchFacade
+
+facade = ResearchFacade(my_application)
+status = facade.inspect("run-123")
+```
 
 ```bash
-research-platform-architecture-gate
-research-platform-algorithm --help
-research-platform-concurrency --help
-research-platform-performance --help
-research-platform-manage --help
+research --help
+research --application my_project.operator:build_application inspect run-123
+research diagnose --help
+research manage --help
 ```
+
+Architecture/algorithm/concurrency/performance CLIs remain specialized governance tools for maintainers.
+See [Public facade and CLI](docs/product/PUBLIC_FACADE_AND_CLI.md).
 
 ## Container workflow
 
@@ -197,6 +209,8 @@ research-platform-concurrency scan
 research-platform-performance scan
 ```
 The platform also maintains a hierarchical test taxonomy so new tests remain assigned to an explicit subsystem/contract level rather than becoming an unstructured collection of files. See `tests/TEST_SYSTEM.json` and `scripts/test_system.py`.
+
+Formal product assurance also validates provider-conformance classes and installed wheel/sdist artifacts. See [Distribution qualification](docs/release/DISTRIBUTION_QUALIFICATION.md).
 
 A passing historical validation or release artifact does not prove the current working tree. Re-run the gates that matter for the exact revision you intend to publish or deploy.
 
