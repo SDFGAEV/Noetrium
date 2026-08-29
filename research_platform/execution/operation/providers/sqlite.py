@@ -61,6 +61,8 @@ class SQLiteOperationStore:
                             updated_at REAL NOT NULL,
                             parent_operation_id TEXT,
                             effect_id TEXT,
+                            effect_request_id TEXT,
+                            effect_request_digest TEXT,
                             effect_profile TEXT NOT NULL,
                             effect_certainty TEXT NOT NULL,
                             result_digest TEXT,
@@ -75,7 +77,8 @@ class SQLiteOperationStore:
                         columns = tuple(row[1] for row in db.execute("PRAGMA table_info(operations)"))
                         expected = (
                             "operation_id", "command_id", "state", "version", "created_at", "updated_at",
-                            "parent_operation_id", "effect_id", "effect_profile", "effect_certainty", "result_digest",
+                            "parent_operation_id", "effect_id", "effect_request_id", "effect_request_digest",
+                            "effect_profile", "effect_certainty", "result_digest",
                             "failure_kind", "failure_code", "failure_message", "failure_retryable",
                             "failure_reconciliation_required", "cancellation_requested", "cancellation_reason",
                         )
@@ -89,32 +92,34 @@ class SQLiteOperationStore:
 
     @staticmethod
     def _from_row(row: tuple[object, ...]) -> OperationSnapshot:
-        if not isinstance(row, tuple) or len(row) != 18:
+        if not isinstance(row, tuple) or len(row) != 20:
             raise OperationCorruption("operation row shape is invalid")
-        if not all(isinstance(row[index], str) for index in (0, 1, 2, 8, 9)):
+        if not all(isinstance(row[index], str) for index in (0, 1, 2, 10, 11)):
             raise OperationCorruption("operation identity/state/effect columns must be text")
         if isinstance(row[3], bool) or not isinstance(row[3], int):
             raise OperationCorruption("operation version must be integer")
         for index, field in ((4, "created_at"), (5, "updated_at")):
             if isinstance(row[index], bool) or not isinstance(row[index], (int, float)):
                 raise OperationCorruption(f"operation {field} must be numeric")
-        for index, field in ((6, "parent_operation_id"), (7, "effect_id"), (10, "result_digest"), (17, "cancellation_reason")):
+        nullable_text = ((6, "parent_operation_id"), (7, "effect_id"), (8, "effect_request_id"),
+                         (9, "effect_request_digest"), (12, "result_digest"), (19, "cancellation_reason"))
+        for index, field in nullable_text:
             if row[index] is not None and not isinstance(row[index], str):
                 raise OperationCorruption(f"operation {field} must be text or null")
-        if row[16] not in (0, 1):
+        if row[18] not in (0, 1):
             raise OperationCorruption("operation cancellation_requested must be 0 or 1")
-        failure_columns = row[11:16]
-        if row[11] is None:
+        failure_columns = row[13:18]
+        if row[13] is None:
             if any(value is not None for value in failure_columns):
                 raise OperationCorruption("operation failure columns must be all null when failure_kind is null")
             failure = None
         else:
-            if not all(isinstance(row[index], str) for index in (11, 12, 13)):
+            if not all(isinstance(row[index], str) for index in (13, 14, 15)):
                 raise OperationCorruption("operation failure kind/code/message must be text")
-            if row[14] not in (0, 1) or row[15] not in (0, 1):
+            if row[16] not in (0, 1) or row[17] not in (0, 1):
                 raise OperationCorruption("operation failure booleans must be 0 or 1")
             try:
-                failure = OperationFailure(OperationFailureKind(row[11]), row[12], row[13], bool(row[14]), bool(row[15]))
+                failure = OperationFailure(OperationFailureKind(row[13]), row[14], row[15], bool(row[16]), bool(row[17]))
             except (TypeError, ValueError) as exc:
                 raise OperationCorruption("operation failure columns violate typed contract") from exc
         try:
@@ -122,8 +127,9 @@ class SQLiteOperationStore:
                 OperationId(row[0]), CommandId(row[1]), OperationState(row[2]), row[3], float(row[4]), float(row[5]),
                 None if row[6] is None else OperationId(row[6]),
                 None if row[7] is None else EffectId(row[7]),
-                OperationEffectProfile(row[8]), OperationEffectCertainty(row[9]), row[10], failure,
-                bool(row[16]), row[17],
+                OperationEffectProfile(row[10]), OperationEffectCertainty(row[11]), row[12], failure,
+                bool(row[18]), row[19],
+                effect_request_id=row[8], effect_request_digest=row[9],
             )
         except (TypeError, ValueError) as exc:
             raise OperationCorruption("operation row violates typed lifecycle contract") from exc
@@ -134,6 +140,8 @@ class SQLiteOperationStore:
             snapshot.command_id,
             snapshot.parent_operation_id,
             snapshot.effect_id,
+            snapshot.effect_request_id,
+            snapshot.effect_request_digest,
             snapshot.effect_profile,
         )
 
@@ -164,7 +172,7 @@ class SQLiteOperationStore:
                 return existing, False
             try:
                 db.execute(
-                    "INSERT INTO operations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "INSERT INTO operations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (
                         snapshot.operation_id.value,
                         snapshot.command_id.value,
@@ -174,6 +182,8 @@ class SQLiteOperationStore:
                         snapshot.updated_at_unix,
                         None if snapshot.parent_operation_id is None else snapshot.parent_operation_id.value,
                         None if snapshot.effect_id is None else snapshot.effect_id.value,
+                        snapshot.effect_request_id,
+                        snapshot.effect_request_digest,
                         snapshot.effect_profile.value,
                         snapshot.effect_certainty.value,
                         snapshot.result_digest,

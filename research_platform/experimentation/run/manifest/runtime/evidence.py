@@ -25,7 +25,7 @@ def encode_evidence_bundle_manifest(manifest: EvidenceBundleManifest) -> bytes:
 
 
 _BUNDLE_FIELDS = frozenset({
-    "schema_version", "bundle_id", "run_id", "status",
+    "schema_version", "bundle_id", "run_id", "run_manifest_digest", "status",
     "source_checkpoint_id", "streams", "derived_artifacts",
 })
 _STREAM_FIELDS = frozenset({
@@ -109,6 +109,7 @@ def _build_evidence_bundle(document: dict[str, object]) -> EvidenceBundleManifes
         schema_version=_require_string(document, "schema_version", "evidence bundle"),
         bundle_id=_require_string(document, "bundle_id", "evidence bundle"),
         run_id=_require_string(document, "run_id", "evidence bundle"),
+        run_manifest_digest=_require_string(document, "run_manifest_digest", "evidence bundle"),
         status=EvidenceBundleStatus(_require_string(document, "status", "evidence bundle")),
         source_checkpoint_id=_decode_checkpoint(document["source_checkpoint_id"]),
         streams=_decode_streams(document["streams"]),
@@ -151,6 +152,7 @@ class RunArtifactEvidenceBundlePublisher:
         return EvidenceBundleReceipt(
             manifest.bundle_id,
             manifest.run_id,
+            manifest.run_manifest_digest,
             manifest_ref,
             hashlib.sha256(encoded).hexdigest(),
         )

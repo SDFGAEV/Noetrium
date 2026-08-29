@@ -11,6 +11,8 @@ class RunLaunchManifestDecodeError(ValueError):
     """A launch-manifest document violates the frozen run contract."""
 
 
+RUN_LAUNCH_MANIFEST_SCHEMA_VERSION = "1"
+_WIRE_FIELDS = frozenset({"schema_version", "manifest"})
 _FIELDS = frozenset(
     {
         "release_digest",
@@ -37,8 +39,12 @@ _PLAN_FIELDS = frozenset(
 
 
 def encode_run_launch_manifest(manifest: RunLaunchManifest) -> bytes:
+    document = {
+        "schema_version": RUN_LAUNCH_MANIFEST_SCHEMA_VERSION,
+        "manifest": asdict(manifest),
+    }
     return json.dumps(
-        asdict(manifest),
+        document,
         sort_keys=True,
         ensure_ascii=False,
         indent=2,
@@ -48,7 +54,12 @@ def encode_run_launch_manifest(manifest: RunLaunchManifest) -> bytes:
 def _require_document(raw: bytes) -> dict[str, object]:
     if type(raw) is not bytes:
         raise TypeError("run launch manifest payload must be bytes")
-    document = json.loads(raw.decode("utf-8"))
+    envelope = json.loads(raw.decode("utf-8"))
+    if not isinstance(envelope, dict) or set(envelope) != _WIRE_FIELDS:
+        raise TypeError("run launch manifest envelope fields are not exact")
+    if type(envelope["schema_version"]) is not str or envelope["schema_version"] != RUN_LAUNCH_MANIFEST_SCHEMA_VERSION:
+        raise TypeError("run launch manifest schema_version is unsupported")
+    document = envelope["manifest"]
     if not isinstance(document, dict) or set(document) != _FIELDS:
         raise TypeError("run launch manifest fields are not exact")
     return document
@@ -174,6 +185,7 @@ def load_run_launch_manifest(path: str | Path) -> RunLaunchManifest:
 
 
 __all__ = [
+    "RUN_LAUNCH_MANIFEST_SCHEMA_VERSION",
     "RunLaunchManifestDecodeError",
     "decode_run_launch_manifest",
     "encode_run_launch_manifest",

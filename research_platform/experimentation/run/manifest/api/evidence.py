@@ -7,6 +7,7 @@ from research_platform.platform.kernel import canonical_digest
 
 
 _HEX = frozenset("0123456789abcdef")
+EVIDENCE_BUNDLE_SCHEMA_VERSION = "1"
 
 
 def _require_identity(value: object, field: str) -> str:
@@ -139,15 +140,18 @@ class EvidenceBundleManifest:
     schema_version: str
     bundle_id: str
     run_id: str
+    run_manifest_digest: str
     status: EvidenceBundleStatus
     source_checkpoint_id: str | None
     streams: tuple[EvidenceStreamDescriptor, ...]
     derived_artifacts: tuple[DerivedEvidenceArtifact, ...] = ()
 
     def __post_init__(self) -> None:
-        _require_non_empty_string(self.schema_version, "schema_version")
+        if type(self.schema_version) is not str or self.schema_version != EVIDENCE_BUNDLE_SCHEMA_VERSION:
+            raise ValueError("evidence bundle schema_version is unsupported")
         _require_identity(self.bundle_id, "bundle_id")
         _require_identity(self.run_id, "run_id")
+        _require_sha256(self.run_manifest_digest, "run_manifest_digest")
         if type(self.status) is not EvidenceBundleStatus:
             raise ValueError("evidence bundle status must be EvidenceBundleStatus")
         if self.source_checkpoint_id is not None:
@@ -165,18 +169,21 @@ class EvidenceBundleManifest:
 class EvidenceBundleReceipt:
     bundle_id: str
     run_id: str
+    run_manifest_digest: str
     manifest_ref: str
     manifest_sha256: str
 
     def __post_init__(self) -> None:
         _require_identity(self.bundle_id, "receipt bundle_id")
         _require_identity(self.run_id, "receipt run_id")
+        _require_sha256(self.run_manifest_digest, "receipt run_manifest_digest")
         _require_non_empty_string(self.manifest_ref, "receipt manifest_ref")
         _require_sha256(self.manifest_sha256, "receipt manifest_sha256")
 
 
 __all__ = [
     "DerivedEvidenceArtifact",
+    "EVIDENCE_BUNDLE_SCHEMA_VERSION",
     "EvidenceBundleManifest",
     "EvidenceBundleReceipt",
     "EvidenceBundleStatus",

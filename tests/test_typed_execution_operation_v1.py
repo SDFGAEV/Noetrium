@@ -32,7 +32,7 @@ def test_unknown_effect_is_explicit_and_requires_reconciliation():
     command = ExecutionCommand.create(command_id="cmd", command_type="external.write",
                                       payload_schema="x.v1", payload_digest=DIGEST, now_unix=1.0)
     running = OperationSnapshot(OperationId("op"), command.command_id, OperationState.RUNNING, 3, 1.0, 2.0,
-                                effect_id=EffectId("effect-1"), effect_profile=OperationEffectProfile.RECONCILABLE)
+                                effect_id=EffectId("effect-1"), effect_profile=OperationEffectProfile.RECONCILABLE, effect_request_id="request-proof", effect_request_digest=DIGEST)
     failure = OperationFailure(OperationFailureKind.EXTERNAL_EFFECT_UNCERTAIN, "EFFECT_ACK_LOST",
                                "effect acknowledgement lost", retryable=False, reconciliation_required=True)
     unknown = transition_operation(running, OperationState.UNKNOWN_EFFECT, now_unix=3.0,
@@ -66,7 +66,7 @@ def test_uncertain_effect_failure_cannot_be_terminal_failed():
                                reconciliation_required=True)
     try:
         OperationSnapshot(OperationId("op-y"), command.command_id, OperationState.FAILED, 2, 1.0, 2.0,
-                          effect_id=EffectId("effect-y"), effect_profile=OperationEffectProfile.RECONCILABLE,
+                          effect_id=EffectId("effect-y"), effect_profile=OperationEffectProfile.RECONCILABLE, effect_request_id="request-proof", effect_request_digest=DIGEST,
                           failure=failure)
     except ValueError:
         pass
@@ -171,7 +171,7 @@ def test_transition_cannot_rebind_effect_identity():
     command = ExecutionCommand.create(command_id="cmd-effect-id", command_type="x", payload_schema="x.v1",
                                       payload_digest=DIGEST, now_unix=1.0)
     current = OperationSnapshot(OperationId("op-effect-id"), command.command_id, OperationState.ADMITTED, 1, 1.0, 1.0,
-                                effect_id=EffectId("effect-stable"), effect_profile=OperationEffectProfile.RECONCILABLE)
+                                effect_id=EffectId("effect-stable"), effect_profile=OperationEffectProfile.RECONCILABLE, effect_request_id="request-proof", effect_request_digest=DIGEST)
     try:
         transition_operation(current, OperationState.RUNNING, effect_id=EffectId("effect-other"))
     except TypeError:
@@ -217,7 +217,7 @@ def test_executed_effect_certainty_cannot_regress():
     current = OperationSnapshot(OperationId("op-effect-monotonic"), command.command_id,
                                 OperationState.RECOVERING, 4, 1.0, 2.0,
                                 effect_id=EffectId("effect-monotonic"),
-                                effect_profile=OperationEffectProfile.RECONCILABLE,
+                                effect_profile=OperationEffectProfile.RECONCILABLE, effect_request_id="request-proof", effect_request_digest=DIGEST,
                                 effect_certainty=OperationEffectCertainty.EXECUTED)
     try:
         transition_operation(current, OperationState.COMPLETED, now_unix=3.0,
@@ -234,7 +234,7 @@ def test_not_executed_effect_can_resolve_to_executed():
     current = OperationSnapshot(OperationId("op-effect-forward"), command.command_id,
                                 OperationState.RUNNING, 2, 1.0, 2.0,
                                 effect_id=EffectId("effect-forward"),
-                                effect_profile=OperationEffectProfile.RECONCILABLE)
+                                effect_profile=OperationEffectProfile.RECONCILABLE, effect_request_id="request-proof", effect_request_digest=DIGEST)
     completed = transition_operation(current, OperationState.COMPLETED, now_unix=3.0,
                                      effect_certainty=OperationEffectCertainty.EXECUTED)
     assert completed.effect_certainty is OperationEffectCertainty.EXECUTED
@@ -246,7 +246,7 @@ def test_recovery_cancellation_revision_is_idempotent_and_reason_is_immutable():
     current = OperationSnapshot(OperationId("op-revise-first"), command.command_id,
                                 OperationState.RECOVERING, 5, 1.0, 2.0,
                                 effect_id=EffectId("effect-revise-first"),
-                                effect_profile=OperationEffectProfile.RECONCILABLE,
+                                effect_profile=OperationEffectProfile.RECONCILABLE, effect_request_id="request-proof", effect_request_digest=DIGEST,
                                 effect_certainty=OperationEffectCertainty.EXECUTED,
                                 cancellation_requested=True, cancellation_reason="first")
     replay = revise_operation(current, cancellation_requested=True, cancellation_reason="first")
@@ -294,7 +294,7 @@ def test_effectful_inflight_failure_requires_unknown_effect_reconciliation():
     current = OperationSnapshot(OperationId("op-effect-fail"), command.command_id,
                                 OperationState.RUNNING, 2, 1.0, 2.0,
                                 effect_id=EffectId("effect-fail"),
-                                effect_profile=OperationEffectProfile.RECONCILABLE)
+                                effect_profile=OperationEffectProfile.RECONCILABLE, effect_request_id="request-proof", effect_request_digest=DIGEST)
     failure = OperationFailure(OperationFailureKind.OPERATION_FAILURE, "FAILED", "handler failed")
     try:
         transition_operation(current, OperationState.FAILED, now_unix=3.0, failure=failure)
