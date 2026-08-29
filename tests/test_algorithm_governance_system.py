@@ -7,6 +7,10 @@ import pytest
 from tempfile import TemporaryDirectory
 
 from research_platform.governance.algorithm.api import AlgorithmLanguage, SourceDocument
+from research_platform.governance.api import (
+    RepositorySourceFailureKind,
+    RepositorySourceIncompleteError,
+)
 from research_platform.governance.algorithm.providers import (
     FilesystemAlgorithmSnapshotStore,
     FilesystemFileAnalysisCache,
@@ -272,3 +276,103 @@ def test_repository_source_tree_fails_closed_on_undecodable_source(tmp_path: Pat
     bad.write_bytes(b"\xff\xfe\x00")
     with pytest.raises(RuntimeError, match="snapshot incomplete"):
         tuple(RepositorySourceTree(tmp_path).documents(suffixes={".py"}))
+
+
+def test_repository_source_tree_reports_typed_utf8_failure(tmp_path: Path) -> None:
+    bad = tmp_path / "bad.py"
+    bad.write_bytes(b"\xff\xfe\x00")
+    with pytest.raises(RepositorySourceIncompleteError) as caught:
+        RepositorySourceTree(tmp_path).snapshot(suffixes={".py"})
+    assert caught.value.failures == (
+        caught.value.failures[0],
+    )
+    failure = caught.value.failures[0]
+    assert failure.kind is RepositorySourceFailureKind.UTF8_DECODE
+    assert failure.relative_path == "bad.py"
+
+
+def test_repository_source_tree_fails_closed_on_directory_walk_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import research_platform.governance.providers.repository_source as source_provider
+
+    blocked = tmp_path / "blocked"
+    def failing_walk(_root, *, topdown, onerror):
+        assert topdown is True
+        onerror(PermissionError(13, "denied", str(blocked)))
+        return ()
+
+    monkeypatch.setattr(source_provider.os, "walk", failing_walk)
+    with pytest.raises(RepositorySourceIncompleteError) as caught:
+        RepositorySourceTree(tmp_path).snapshot(suffixes={".py"})
+    failure = caught.value.failures[0]
+    assert failure.kind is RepositorySourceFailureKind.DIRECTORY_WALK
+    assert failure.relative_path == "blocked"
+
+
+def test_repository_source_tree_reports_typed_file_read_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import research_platform.governance.providers.repository_source as source_provider
+
+    target = tmp_path / "denied.py"
+    target.write_text("VALUE = 1\n", encoding="utf-8")
+    original = source_provider.Path.read_bytes
+
+    def denied(path: Path) -> bytes:
+        if path == target:
+            raise PermissionError(13, "denied", str(path))
+        return original(path)
+
+    monkeypatch.setattr(source_provider.Path, "read_bytes", denied)
+    with pytest.raises(RepositorySourceIncompleteError) as caught:
+        RepositorySourceTree(tmp_path).snapshot(suffixes={".py"})
+    failure = caught.value.failures[0]
+    assert failure.kind is RepositorySourceFailureKind.FILE_READ
+    assert failure.relative_path == "denied.py"
+
+
+def test_repository_source_index_fails_closed_on_python_parse_error(tmp_path: Path) -> None:
+    (tmp_path / "broken.py").write_text("def broken(:\n", encoding="utf-8")
+    with pytest.raises(RepositorySourceIncompleteError) as caught:
+        RepositorySourceTree(tmp_path).index(suffixes={".py"})
+    failure = caught.value.failures[0]
+    assert failure.kind is RepositorySourceFailureKind.PYTHON_PARSE
+    assert failure.relative_path == "broken.py"
+
+
+def test_repository_source_paths_use_canonical_posix_sorting(tmp_path: Path) -> None:
+    for name in ("configs.py", "CURRENT_VALIDATION.py", "alpha.py", "Z.py"):
+        (tmp_path / name).write_text("VALUE = 1\n", encoding="utf-8")
+    paths = [
+        blob.relative_path
+        for blob in RepositorySourceTree(tmp_path).documents(suffixes={".py"})
+    ]
+    assert paths == sorted(paths)
+
+
+def test_python_analyzer_reuses_canonical_source_index_ast(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "a.py"
+    target.write_text("def f():\n    return 1\n", encoding="utf-8")
+    index = RepositorySourceTree(tmp_path).index(suffixes={".py"})
+    document = next(iter(RepositorySourceInventory(index).documents()))
+
+    import research_platform.governance.algorithm.runtime.python_analyzer as analyzer_module
+    monkeypatch.setattr(
+        analyzer_module.ast,
+        "parse",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("reparsed source")),
+    )
+    analysis = PythonAlgorithmAnalyzer(index).analyze(document)
+    assert analysis.parse_errors == 0
+    assert [symbol.qualified_name for symbol in analysis.symbols] == ["f"]
+
+
+def test_repository_source_index_rejects_identity_drift(tmp_path: Path) -> None:
+    target = tmp_path / "a.py"
+    target.write_text("VALUE = 1\n", encoding="utf-8")
+    index = RepositorySourceTree(tmp_path).index(suffixes={".py"})
+    with pytest.raises(ValueError, match="source identity mismatch"):
+        index.text("a.py", sha256="0" * 64)

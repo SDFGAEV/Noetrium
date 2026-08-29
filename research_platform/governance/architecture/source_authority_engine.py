@@ -47,10 +47,7 @@ def audit_authority_rules(
     for path in sorted(root.rglob("*.py")):
         if not is_production_python(root, path):
             continue
-        try:
-            tree = source_tree(path)
-        except (OSError, UnicodeDecodeError, SyntaxError):
-            continue
+        tree = source_tree(path)
         module = module_name(root, path)
         aliases = import_aliases(tree)
         for node in source_nodes(path):

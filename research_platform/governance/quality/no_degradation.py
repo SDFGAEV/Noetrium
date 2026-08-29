@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from research_platform.governance.api import RepositorySourceIndexPort
+
 from .degradation_config_scan import scan_config_degradation
 from .degradation_contracts import (
     BANNED_RUNTIME_IDENTIFIERS,
@@ -12,8 +14,15 @@ from .degradation_contracts import (
 from .degradation_python_scan import scan_python_degradation
 
 
-def scan_no_degradation(root: Path) -> tuple[DegradationFinding, ...]:
-    return tuple([*scan_python_degradation(root), *scan_config_degradation(root)])
+def scan_no_degradation(
+    root: Path,
+    *,
+    source_index: RepositorySourceIndexPort | None = None,
+) -> tuple[DegradationFinding, ...]:
+    return tuple([
+        *scan_python_degradation(root, source_index=source_index),
+        *scan_config_degradation(root, source_index=source_index),
+    ])
 
 
 __all__ = [

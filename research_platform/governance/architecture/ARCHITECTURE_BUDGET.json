@@ -1,0 +1,20 @@
+{
+  "schema_version": "architecture-complexity-budget.v1",
+  "baseline_git_sha": "1615043e0d72075bf0d7352fff1e5f3387446b65",
+  "baseline": {
+    "top_level_systems": 17,
+    "subsystems": 173,
+    "contract_declarations": 129,
+    "authorities": 190,
+    "import_edges": 4749
+  },
+  "limits": {
+    "top_level_systems": 17,
+    "subsystems": 173,
+    "contract_declarations": 129,
+    "authorities": 190,
+    "import_edges": 4776
+  },
+  "migration_id": "role01-shared-source-index-v1",
+  "growth_justification": "Typed source-completeness and shared SourceIndex authority add explicit governance API/composition dependency edges while removing independent filesystem scan authority."
+}

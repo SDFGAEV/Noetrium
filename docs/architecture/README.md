@@ -18,15 +18,47 @@ Architecture hotspot scanning likewise reuses the source index and performs one 
 ## Governance source-analysis boundary
 
 Repository discovery is a Governance provider responsibility exposed through
-`RepositorySourcePort`. Algorithm, concurrency and performance analyzers adapt
-that typed source contract into their own domain documents; they do not import
-a sibling or parent concrete scanner at runtime.
+`RepositorySourcePort` / `RepositorySourceIndexPort`. A release-quality or
+architecture composition root freezes one `RepositorySourceSnapshot` before any
+consumer runs. Directory traversal, file read, UTF-8 decode and Python parse
+failures raise `RepositorySourceIncompleteError`; a partial cut is never exposed.
 
-`RepositorySourceTree` prunes generated/vendor directories before descent and
-preserves exact filesystem-byte SHA-256 identity, UTF-8 decoding and stable
-path ordering. A normal source tree remains live and is rescanned on each call.
-When several governance gates must analyze exactly the same source cut, the
-composition root may explicitly create a `RepositorySourceSnapshot` and inject
-that immutable value into each gate. Snapshot reuse is therefore deliberate
-composition-time policy, never an ambient global cache or a second source
-truth.
+`RepositorySourceTree` prunes generated/vendor directories before descent,
+preserves exact filesystem-byte SHA-256 identity and orders files by canonical
+POSIX relative path on every operating system. Source-invariant diagnostics use
+the same POSIX-relative path identity so report digests do not vary by host OS.
+`RepositorySourceIndex` is a read-only IR over that frozen cut: Python syntax is parsed once and analyzers
+request ASTs by `relative_path + sha256`. Algorithm, concurrency, performance,
+quality and architecture consumers therefore bind to the same source identity
+instead of independently rescanning the live filesystem.
+
+Snapshot/index reuse is explicit composition-time policy, never an ambient
+global cache or a second source truth. Source identity changes require a new
+cut; an analyzer cannot silently accept digest drift. Root-level derived release
+projections such as `RELEASE_EVIDENCE.json`, `RELEASE_MANIFEST.json` and
+`DEVELOPMENT_ARCHITECTURE_REPORT.json` are excluded from source identity so a
+governance report cannot recursively change the source cut that produced it.
+
+## Registry contract projection
+
+`governance/system_registry/catalog.json` remains the only durable declaration
+authority for topology, ownership, requires/provides and component metadata.
+Governance does not import leaf boundary modules or maintain `_NODE_METADATA`.
+Instead, source invariants statically inspect existing literal
+`SystemLeafContract` declarations and compare their identity/authority/ownership
+fields with the catalog. A mismatch is `leaf_contract_catalog_drift` and fails
+closed until the owning Role resolves the contract through CSR when required.
+
+Nodes that do not yet declare `SystemLeafContract` are not synthesized from the
+catalog. Adding such a public contract belongs to the system owner; ROLE01 only
+verifies declarations that exist and guards the canonical registry.
+
+## Architecture complexity budget
+
+`research_platform/governance/architecture/ARCHITECTURE_BUDGET.json` binds the
+frozen baseline SHA to limits for systems, subsystems, contract declarations,
+authorities and import edges. The architecture report evaluates this budget as
+a first-class gate. Growth above the frozen baseline requires a migration id and
+substantive justification; observed values above the checked-in limit fail the
+gate. Limits are tightened to the reviewed candidate rather than retaining
+headroom for unspecified future growth.

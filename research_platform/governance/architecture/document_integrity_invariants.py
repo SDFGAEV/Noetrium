@@ -59,10 +59,7 @@ def audit_document_integrity_invariants(root: Path) -> list[SourceInvariantViola
             continue
         if "ChecksummedDocumentError" not in source_text(path):
             continue
-        try:
-            tree = source_tree(path)
-        except SyntaxError:
-            continue
+        tree = source_tree(path)
         for handler in (node for node in ast.walk(tree) if isinstance(node, ast.ExceptHandler)):
             if "ChecksummedDocumentError" not in _exception_type_names(handler.type):
                 continue

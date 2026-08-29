@@ -3,7 +3,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from .source_index import source_tree
+from .source_index import source_text, source_tree
 
 from .source_scan import SourceInvariantViolation, imports, violation
 
@@ -154,7 +154,7 @@ def audit_workflow_invariants(root: Path) -> list[SourceInvariantViolation]:
     rows.extend(_audit_dispatch_authority(root))
 
     dispatcher = runtime_root / "operation_dispatch.py"
-    text = dispatcher.read_text(encoding="utf-8") if dispatcher.exists() else ""
+    text = source_text(dispatcher) if dispatcher.exists() else ""
     for token in ("OperationRequest", "_executor.execute"):
         if token not in text:
             rows.append(violation(

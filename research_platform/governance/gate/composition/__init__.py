@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from pathlib import Path
 
-from research_platform.governance.architecture.report import build_architecture_report
+from research_platform.governance.architecture.composition import build_architecture_report
 
 from ..api import GateFinding, GatePort, GateReport, GateRequest, GateSeverity
 from ..runtime import CompositeGate
@@ -29,6 +29,8 @@ class ArchitectureReportGate(GatePort):
             findings.append(GateFinding(self.gate_id, GateSeverity.ERROR, "SOURCE_INVARIANT", str(asdict(violation))))
         for violation in report.source_authority_violations:
             findings.append(GateFinding(self.gate_id, GateSeverity.ERROR, "SOURCE_AUTHORITY", str(asdict(violation))))
+        for violation in report.architecture_budget_violations:
+            findings.append(GateFinding(self.gate_id, GateSeverity.ERROR, "ARCHITECTURE_BUDGET", str(asdict(violation))))
         return GateReport(self.gate_id, tuple(findings))
 
 
