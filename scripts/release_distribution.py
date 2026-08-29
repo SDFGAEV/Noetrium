@@ -63,10 +63,19 @@ def _build_distributions(output: Path) -> tuple[Path, Path, dict[str, object]]:
     return wheels[0], sdists[0], command
 
 
-def _write_json(path: Path, payload: object) -> str:
-    raw = (json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
+def _write_text_lf(path: Path, value: str) -> str:
+    if "\r" in value:
+        raise ValueError("release authority text must not contain carriage returns")
+    raw = value.encode("utf-8")
     path.write_bytes(raw)
     return hashlib.sha256(raw).hexdigest()
+
+
+def _write_json(path: Path, payload: object) -> str:
+    return _write_text_lf(
+        path,
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+    )
 
 
 def _spdx_document(*, sha: str, version: str, artifacts: tuple[Path, ...]) -> dict:
@@ -127,8 +136,7 @@ def build_distribution_release(output: Path) -> dict:
     for artifact in (wheel, sdist, sbom_path):
         checksum_rows.append(f"{_sha256(artifact)}  {artifact.name}")
     checksums_path = output / "SHA256SUMS"
-    checksums_path.write_text("\n".join(checksum_rows) + "\n", encoding="utf-8")
-    checksums_sha = _sha256(checksums_path)
+    checksums_sha = _write_text_lf(checksums_path, "\n".join(checksum_rows) + "\n")
 
     artifacts = {
         path.name: {"sha256": _sha256(path), "size": path.stat().st_size}
@@ -152,8 +160,9 @@ def build_distribution_release(output: Path) -> dict:
     }
     evidence_path = output / "DISTRIBUTION_RELEASE_EVIDENCE.json"
     evidence_sha = _write_json(evidence_path, evidence)
-    (output / "DISTRIBUTION_RELEASE_EVIDENCE.json.sha256").write_text(
-        f"{evidence_sha}  {evidence_path.name}\n", encoding="utf-8"
+    _write_text_lf(
+        output / "DISTRIBUTION_RELEASE_EVIDENCE.json.sha256",
+        f"{evidence_sha}  {evidence_path.name}\n",
     )
     return evidence
 

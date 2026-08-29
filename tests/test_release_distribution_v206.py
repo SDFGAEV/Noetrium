@@ -56,3 +56,25 @@ def test_distribution_output_must_be_outside_source_tree():
 def test_installed_artifact_verifier_rejects_missing_file():
     with pytest.raises(FileNotFoundError):
         verify_installed_artifact(distribution.ROOT / ".local" / "missing-role06.whl")
+
+
+def test_release_authority_text_writer_uses_portable_lf_bytes():
+    local_root = distribution.ROOT / ".local"
+    local_root.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(prefix="release-lf-", dir=local_root) as td:
+        path = Path(td) / "SHA256SUMS"
+        digest = distribution._write_text_lf(path, "abc  artifact.whl\ndef  artifact.tar.gz\n")
+        raw = path.read_bytes()
+        assert raw == b"abc  artifact.whl\ndef  artifact.tar.gz\n"
+        assert b"\r" not in raw
+        assert digest == hashlib.sha256(raw).hexdigest()
+
+
+def test_release_authority_text_writer_rejects_carriage_returns():
+    local_root = distribution.ROOT / ".local"
+    local_root.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(prefix="release-cr-", dir=local_root) as td:
+        path = Path(td) / "SHA256SUMS"
+        with pytest.raises(ValueError, match="carriage returns"):
+            distribution._write_text_lf(path, "abc  artifact.whl\r\n")
+        assert not path.exists()
