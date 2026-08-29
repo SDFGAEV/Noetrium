@@ -4,6 +4,7 @@ import hashlib
 from pathlib import Path
 
 from research_platform.platform.concurrency.api import TaskGroupPort
+from research_platform.platform.kernel.logical_path import logical_absolute_path
 from research_platform.observability.logging.storage.runtime.jsonl import JsonlLogStore
 
 
@@ -15,7 +16,7 @@ def build_jsonl_log_store(
     max_segments: int = 8,
     queue_capacity: int | None = None,
 ) -> JsonlLogStore:
-    resolved = Path(path).expanduser().resolve()
+    resolved = logical_absolute_path(path, expand_user=True)
     identity = hashlib.sha256(str(resolved).encode("utf-8")).hexdigest()[:16]
     actor = task_group.open_serial_actor(
         f"jsonl-log:{identity}",

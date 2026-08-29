@@ -19,6 +19,7 @@ from research_platform.observability.logging.record.api import LogLevel, LogReco
 from research_platform.observability.logging.sink.api import LogSinkPort
 from research_platform.platform.kernel.durability.durable_file import durable_replace_file, durable_unlink, fsync_directory
 from research_platform.platform.kernel.durability.file_lock import InterprocessFileLock
+from research_platform.platform.kernel.logical_path import logical_absolute_path
 from research_platform.observability.logging.storage.api import LogStorageWriteActorPort
 
 from .codec import LOG_RECORD_SCHEMA_VERSION, decode_log_line, encode_log_record
@@ -38,7 +39,7 @@ class JsonlLogStore(LogSinkPort, LogQueryPort):
             raise ValueError("JSONL log max_bytes must be positive")
         if max_segments <= 0:
             raise ValueError("JSONL log max_segments must be positive")
-        self.path = Path(path).expanduser().resolve()
+        self.path = logical_absolute_path(path, expand_user=True)
         self.max_bytes = max_bytes
         self.max_segments = max_segments
         self._writer_actor = writer_actor

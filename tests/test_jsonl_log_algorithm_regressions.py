@@ -26,6 +26,32 @@ def _record(index: int) -> LogRecord:
     )
 
 
+def test_store_keeps_logical_path_identity_if_live_leaf_resolution_drifts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "events.jsonl"
+    rival = tmp_path / "events.jsonl.1"
+    original_resolve = Path.resolve
+
+    def drifting_resolve(candidate: Path, *args, **kwargs):
+        if candidate == path:
+            return rival
+        return original_resolve(candidate, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", drifting_resolve)
+    runtime = build_concurrency_runtime()
+    group = runtime.open_task_group("jsonl-logical-path-regression")
+    try:
+        store = build_jsonl_log_store(path, task_group=group, max_bytes=700, max_segments=8)
+        assert store.path == path
+        assert store._guard_path == path.with_name("events.jsonl.guard.lock")
+        store.append(_record(1))
+        assert path.is_file()
+        assert not rival.exists()
+    finally:
+        runtime.close()
+
+
 def test_query_limit_returns_globally_newest_records_without_rotation(tmp_path: Path) -> None:
     store = JsonlLogStore(tmp_path / "events.jsonl")
     for index in range(5):
@@ -129,6 +155,47 @@ def test_multiple_processes_append_and_rotate_without_overwrite(tmp_path: Path) 
     for process in processes:
         process.start()
     for process in processes:
+        process.join(30)
+        assert process.exitcode == 0
+    rows = JsonlLogStore(path, max_bytes=700, max_segments=64).query(limit=1000)
+    assert len(rows) == 48
+    assert len({row.log_id for row in rows}) == 48
+
+
+def _query_worker(path: str, stop) -> None:
+    runtime = build_concurrency_runtime()
+    group = runtime.open_task_group("multiprocess-log-reader")
+    store = build_jsonl_log_store(path, task_group=group, max_bytes=700, max_segments=64)
+    try:
+        while not stop.wait(0.001):
+            rows = store.query(limit=1000)
+            ids = [row.log_id for row in rows]
+            if len(ids) != len(set(ids)):
+                raise AssertionError("concurrent JSONL query returned duplicate log identities")
+    finally:
+        runtime.close()
+
+
+def test_multiple_processes_rotate_while_concurrent_readers_query(tmp_path: Path) -> None:
+    import multiprocessing
+
+    path = tmp_path / "events.jsonl"
+    context = multiprocessing.get_context("spawn")
+    stop = context.Event()
+    readers = [
+        context.Process(target=_query_worker, args=(str(path), stop)) for _ in range(2)
+    ]
+    writers = [
+        context.Process(target=_append_worker, args=(str(path), worker, 12))
+        for worker in range(4)
+    ]
+    for process in readers + writers:
+        process.start()
+    for process in writers:
+        process.join(30)
+        assert process.exitcode == 0
+    stop.set()
+    for process in readers:
         process.join(30)
         assert process.exitcode == 0
     rows = JsonlLogStore(path, max_bytes=700, max_segments=64).query(limit=1000)
