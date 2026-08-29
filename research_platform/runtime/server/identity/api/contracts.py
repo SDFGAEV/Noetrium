@@ -70,8 +70,8 @@ class ServerConnectionProfile:
             raise ServerIdentityConfigurationError("server username must be non-empty and contain no whitespace")
         if not self.ssh_executable:
             raise ServerIdentityConfigurationError("ssh executable must be non-empty")
-        if self.connect_timeout_seconds <= 0:
-            raise ServerIdentityConfigurationError("SSH connect timeout must be positive")
+        if not math.isfinite(float(self.connect_timeout_seconds)) or self.connect_timeout_seconds <= 0:
+            raise ServerIdentityConfigurationError("SSH connect timeout must be finite and positive")
         if self.control_path is not None:
             if not self.control_path.is_absolute():
                 raise ServerIdentityConfigurationError("SSH control path must be absolute")
@@ -95,8 +95,8 @@ class ServerConnectionProfile:
                 raise ServerIdentityConfigurationError(
                     "SSH control path template expands to 108 or more bytes; use a shorter local path"
                 )
-        if self.control_persist_seconds <= 0:
-            raise ServerIdentityConfigurationError("SSH control persist seconds must be positive")
+        if not math.isfinite(float(self.control_persist_seconds)) or self.control_persist_seconds <= 0:
+            raise ServerIdentityConfigurationError("SSH control persist seconds must be finite and positive")
         if not math.isfinite(float(self.command_timeout_seconds)) or self.command_timeout_seconds <= 0:
             raise ServerIdentityConfigurationError("SSH command timeout must be finite and positive")
         if not math.isfinite(float(self.interactive_timeout_seconds)) or self.interactive_timeout_seconds <= 0:

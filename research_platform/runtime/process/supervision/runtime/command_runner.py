@@ -63,8 +63,8 @@ class AsyncProcessCommandRunner(ProcessCommandRunnerPort):
         cleanup_timeout_seconds: float = 2.0,
         default_output_limit_bytes: int = 8 * 1024 * 1024,
     ) -> None:
-        if cleanup_timeout_seconds <= 0:
-            raise ValueError("process command cleanup timeout must be positive")
+        if not math.isfinite(float(cleanup_timeout_seconds)) or cleanup_timeout_seconds <= 0:
+            raise ValueError("process command cleanup timeout must be finite and positive")
         if default_output_limit_bytes <= 0:
             raise ValueError("process command output limit must be positive")
         self._task_group = task_group

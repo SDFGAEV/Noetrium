@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import time
 
 from research_platform.runtime.host.api import OperatingSystemRoute
@@ -51,8 +52,8 @@ class SSHServerConnection(ServerConnectionPort):
             raise ValueError("remote command must be non-empty")
         argv = self._argv(command, interactive=interactive)
         effective_timeout = self._profile.command_timeout_seconds if timeout_seconds is None else float(timeout_seconds)
-        if effective_timeout <= 0:
-            raise ValueError("SSH command timeout must be positive")
+        if not math.isfinite(effective_timeout) or effective_timeout <= 0:
+            raise ValueError("SSH command timeout must be finite and positive")
         if interactive:
             argv = (argv[0], "-tt", *argv[1:])
         runner = self._runner

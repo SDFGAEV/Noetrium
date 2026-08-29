@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 from pathlib import Path
 from typing import Mapping
@@ -23,8 +24,8 @@ class AsyncLocalCommandRunner(LocalCommandRunnerPort):
         *,
         default_timeout_seconds: float = 3600.0,
     ) -> None:
-        if default_timeout_seconds <= 0:
-            raise ValueError("local command default timeout must be positive")
+        if not math.isfinite(float(default_timeout_seconds)) or default_timeout_seconds <= 0:
+            raise ValueError("local command default timeout must be finite and positive")
         self._process_runner = process_runner
         self._default_timeout_seconds = float(default_timeout_seconds)
 
@@ -43,8 +44,8 @@ class AsyncLocalCommandRunner(LocalCommandRunnerPort):
             if timeout_seconds is None
             else float(timeout_seconds)
         )
-        if effective_timeout <= 0:
-            raise ValueError("local command timeout must be positive")
+        if not math.isfinite(effective_timeout) or effective_timeout <= 0:
+            raise ValueError("local command timeout must be finite and positive")
         process_environment = None
         if environment is not None:
             process_environment = os.environ.copy()

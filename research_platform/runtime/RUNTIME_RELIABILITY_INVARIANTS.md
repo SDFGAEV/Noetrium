@@ -19,3 +19,9 @@ A timeout, cancellation, network loss, process ownership loss, or other failure 
 ## Validation expectation
 
 Changes to these invariants require focused Windows tests plus Linux validation for POSIX process-group cleanup and SSH/process behavior. Server validation must use the designated Platform validation host; protected SEM runtime directories, GPU allocations, and model-serving endpoints are outside this subsystem's validation authority.
+
+## Finite temporal controls
+
+Every externally configurable runtime duration that can bound admission, cleanup, polling, transport, process execution, session control, toolchain acquisition, or operational GPU observation must be finite and strictly positive before any external action begins. `NaN`, positive/negative infinity, zero, and negative durations are configuration errors rather than alternate timeout semantics.
+
+This applies to process cleanup/default/override timeouts, service readiness/stop/heartbeat values, readiness poll/request budgets, SSH connect/control/command/interactive/transfer/repository/Git budgets, tmux command budgets, Java runtime acquisition, and `nvidia-smi` observation commands. Typed outer deadlines remain authoritative; component-local timers may only consume a finite portion of that budget and cannot disable it.

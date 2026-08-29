@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Mapping
 
 from research_platform.runtime.process.supervision.api import ProcessCommandRunnerPort
@@ -11,8 +12,8 @@ class SubprocessTmuxCommandRunner:
     """Tmux command adapter over the platform async process-command authority."""
 
     def __init__(self, process_runner: ProcessCommandRunnerPort, timeout_s: float = 5.0) -> None:
-        if timeout_s <= 0:
-            raise ValueError("tmux command timeout must be positive")
+        if not math.isfinite(float(timeout_s)) or timeout_s <= 0:
+            raise ValueError("tmux command timeout must be finite and positive")
         self._process_runner = process_runner
         self.timeout_s = float(timeout_s)
 

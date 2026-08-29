@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import platform as host_platform
 import re
 from dataclasses import asdict, dataclass
@@ -87,8 +88,8 @@ class JavaRuntimeProvisioningRequest:
         ):
             if not is_absolute_target_path(value):
                 raise ValueError(f"Java runtime {name} must be absolute")
-        if self.timeout_s <= 0:
-            raise ValueError("Java runtime acquisition timeout must be positive")
+        if not math.isfinite(float(self.timeout_s)) or self.timeout_s <= 0:
+            raise ValueError("Java runtime acquisition timeout must be finite and positive")
 
 
 @dataclass(frozen=True, slots=True)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import math
 import ssl
 from threading import Lock
 from urllib.parse import urlsplit
@@ -22,8 +23,8 @@ class ProcessAliveReadinessProbe:
     """Generic service liveness readiness owned by the ASYNC_IO timer lane."""
 
     def __init__(self, task_group: TaskGroupPort, *, poll_interval_s: float = 0.05) -> None:
-        if poll_interval_s <= 0:
-            raise ValueError("poll interval must be positive")
+        if not math.isfinite(float(poll_interval_s)) or poll_interval_s <= 0:
+            raise ValueError("poll interval must be finite and positive")
         self._task_group = task_group
         self.poll_interval_s = float(poll_interval_s)
         self._sequence_lock = Lock()
@@ -94,8 +95,13 @@ class HttpEndpointReadinessProbe:
             raise ValueError("readiness URL must use http or https")
         if parsed.username is not None or parsed.password is not None:
             raise ValueError("readiness URL must not embed credentials")
-        if poll_interval_s <= 0 or request_timeout_s <= 0:
-            raise ValueError("readiness polling values must be positive")
+        if (
+            not math.isfinite(float(poll_interval_s))
+            or not math.isfinite(float(request_timeout_s))
+            or poll_interval_s <= 0
+            or request_timeout_s <= 0
+        ):
+            raise ValueError("readiness polling values must be finite and positive")
         self._task_group = task_group
         self.url = url
         self.poll_interval_s = float(poll_interval_s)
