@@ -55,10 +55,18 @@ verifies declarations that exist and guards the canonical registry.
 
 ## Architecture complexity budget
 
-`research_platform/governance/architecture/ARCHITECTURE_BUDGET.json` binds the
-frozen baseline SHA to limits for systems, subsystems, contract declarations,
-authorities and import edges. The architecture report evaluates this budget as
-a first-class gate. Growth above the frozen baseline requires a migration id and
-substantive justification; observed values above the checked-in limit fail the
-gate. Limits are tightened to the reviewed candidate rather than retaining
-headroom for unspecified future growth.
+`research_platform/governance/architecture/ARCHITECTURE_BUDGET.json` is a v2
+reviewed migration ledger, not an editable global ceiling. Its baseline authority
+binds the frozen Git SHA, canonical source digest and independently recomputable
+complexity projection. The semantic document is pinned by a reviewed SHA-256, so
+changing baseline metrics or migration allowances without a corresponding
+review-authority change fails closed.
+
+Every growth allowance carries a unique migration id, owner Role, exact reviewed
+source Git SHA, per-dimension delta and substantive justification. Effective
+limits are computed as `baseline + sum(reviewed deltas)`; there is no standalone
+`limits` field to raise. Review tests materialize the frozen baseline and each
+migration source with `git archive`, rebuild the canonical SourceIndex and verify
+the declared deltas. The current reviewed ledger composes `4749 + 72 = 4821`
+import edges from ROLE01–06 exact source bindings while keeping all topology,
+contract and authority counts frozen.
