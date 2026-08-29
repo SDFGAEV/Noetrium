@@ -54,7 +54,7 @@ class AsyncLocalCommandRunner(LocalCommandRunnerPort):
             cwd=str(cwd) if cwd is not None else None,
             environment=process_environment,
             timeout_seconds=effective_timeout,
-        ).result(timeout=effective_timeout + 4.0)
+        ).result()
         if completed.timed_out:
             raise LocalCommandTimeoutError(
                 "local-command",

@@ -29,7 +29,7 @@ class SubprocessTmuxCommandRunner:
             environment=dict(environment),
             timeout_seconds=self.timeout_s,
             output_limit_bytes=1024 * 1024,
-        ).result(timeout=self.timeout_s + 4.0)
+        ).result()
         if completed.timed_out:
             raise TmuxCommandTimeout(
                 f"tmux command exceeded {self.timeout_s:.3f}s timeout"
