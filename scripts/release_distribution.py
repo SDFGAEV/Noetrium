@@ -66,7 +66,7 @@ def _materialize_exact_source(sha: str, destination: Path) -> str:
             parts = PurePosixPath(member.name).parts
             if not member.name or member.name.startswith("/") or ".." in parts:
                 raise RuntimeError(f"unsafe git archive member: {member.name!r}")
-        archive.extractall(destination)
+        archive.extractall(destination, filter="data")
     return hashlib.sha256(raw).hexdigest()
 
 

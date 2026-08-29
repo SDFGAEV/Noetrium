@@ -118,3 +118,27 @@ def test_distribution_build_runs_from_external_exact_source(monkeypatch):
     assert receipt["cwd_mode"] == "external-git-archive"
     assert receipt["source_sha"] == "a" * 40
     assert receipt["source_archive_sha256"] == "b" * 64
+
+
+def test_exact_source_materialization_uses_safe_tar_filter(monkeypatch):
+    buffer = distribution.io.BytesIO()
+    payload = b"release-source"
+    with distribution.tarfile.open(fileobj=buffer, mode="w") as archive:
+        member = distribution.tarfile.TarInfo("README.md")
+        member.size = len(payload)
+        archive.addfile(member, distribution.io.BytesIO(payload))
+    raw = buffer.getvalue()
+    seen: dict[str, object] = {}
+
+    def fake_extractall(self, path, members=None, *, numeric_owner=False, filter=None):
+        seen["filter"] = filter
+
+    monkeypatch.setattr(distribution, "_git_archive", lambda sha: raw)
+    monkeypatch.setattr(distribution.tarfile.TarFile, "extractall", fake_extractall)
+    local_root = distribution.ROOT / ".local"
+    local_root.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(prefix="release-safe-tar-", dir=local_root) as td:
+        destination = Path(td) / "source"
+        digest = distribution._materialize_exact_source("a" * 40, destination)
+    assert seen["filter"] == "data"
+    assert digest == hashlib.sha256(raw).hexdigest()
