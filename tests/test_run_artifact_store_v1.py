@@ -160,6 +160,84 @@ def test_finalization_seals_writes_across_reopen(tmp_path: Path) -> None:
         reopened.append_json("raw/events.jsonl", {"n": 3}, kind=RunArtifactKind.EVIDENCE)
 
 
+def test_finalize_failure_before_seal_commit_leaves_artifact_writable(tmp_path: Path, monkeypatch) -> None:
+    import research_platform.experimentation.run.runtime.artifacts as artifacts_runtime
+
+    root = tmp_path / "run"
+    store = _store(root)
+    store.append_json("raw/events.jsonl", {"n": 1}, kind=RunArtifactKind.EVIDENCE)
+
+    def fail_seal(path: Path, payload: bytes) -> None:
+        del path, payload
+        raise OSError("injected seal publication failure")
+
+    monkeypatch.setattr(artifacts_runtime, "atomic_replace_bytes", fail_seal)
+    with pytest.raises(OSError, match="seal publication failure"):
+        store.finalize("raw/events.jsonl", kind=RunArtifactKind.EVIDENCE, record_stream=True)
+
+    authority = root / ".run-artifact-finalized"
+    assert not (authority / "seals").exists()
+    assert not (authority / "generations").exists()
+    store.append_json("raw/events.jsonl", {"n": 2}, kind=RunArtifactKind.EVIDENCE)
+
+
+def test_finalize_failure_after_seal_commit_blocks_writes_and_recovers(tmp_path: Path, monkeypatch) -> None:
+    import research_platform.experimentation.run.runtime.artifacts as artifacts_runtime
+    from research_platform.platform.kernel.durability import atomic_replace_bytes as durable_atomic_replace
+
+    root = tmp_path / "run"
+    store = _store(root)
+    store.append_json("raw/events.jsonl", {"n": 1}, kind=RunArtifactKind.EVIDENCE)
+    calls = 0
+
+    def fail_index(path: Path, payload: bytes) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            durable_atomic_replace(path, payload)
+            return
+        raise OSError("injected generation index failure")
+
+    monkeypatch.setattr(artifacts_runtime, "atomic_replace_bytes", fail_index)
+    with pytest.raises(OSError, match="generation index failure"):
+        store.finalize("raw/events.jsonl", kind=RunArtifactKind.EVIDENCE, record_stream=True)
+
+    authority = root / ".run-artifact-finalized"
+    assert len(list((authority / "seals").glob("*.json"))) == 1
+    assert not (authority / "generations").exists()
+    with pytest.raises(RunArtifactSealedError):
+        store.append_json("raw/events.jsonl", {"n": 2}, kind=RunArtifactKind.EVIDENCE)
+    with pytest.raises(RunArtifactSealedError):
+        store.publish_text("raw/events.jsonl", '{"n":2}\n', kind=RunArtifactKind.EVIDENCE)
+
+    monkeypatch.setattr(artifacts_runtime, "atomic_replace_bytes", durable_atomic_replace)
+    reopened = _store(root)
+    receipt = reopened.finalize("raw/events.jsonl", kind=RunArtifactKind.EVIDENCE, record_stream=True)
+    assert len(list((authority / "generations").glob("*.json"))) == 1
+    assert reopened.verify_finalized(receipt) == receipt
+
+
+def test_reopen_repairs_missing_or_corrupt_generation_index_from_seal(tmp_path: Path) -> None:
+    root = tmp_path / "run"
+    store = _store(root)
+    store.append_json("raw/events.jsonl", {"n": 1}, kind=RunArtifactKind.EVIDENCE)
+    receipt = store.finalize("raw/events.jsonl", kind=RunArtifactKind.EVIDENCE, record_stream=True)
+    ledger = root / ".run-artifact-finalized" / "generations" / f"{receipt.generation}.json"
+
+    ledger.unlink()
+    assert store.verify_finalized(receipt) == receipt
+    reopened = _store(root)
+    assert reopened.finalize("raw/events.jsonl", kind=RunArtifactKind.EVIDENCE, record_stream=True) == receipt
+    assert ledger.is_file()
+
+    ledger.write_bytes(b"{}")
+    with pytest.raises(RunArtifactVerificationError, match="generation ledger does not match"):
+        reopened.verify_finalized(receipt)
+    repaired = _store(root)
+    assert repaired.finalize("raw/events.jsonl", kind=RunArtifactKind.EVIDENCE, record_stream=True) == receipt
+    assert repaired.verify_finalized(receipt) == receipt
+
+
 def test_snapshot_receipt_requires_canonical_lowercase_sha256(tmp_path: Path) -> None:
     store = _store(tmp_path / "run")
     store.publish_text("raw/events.jsonl", '{"n":1}\n', kind=RunArtifactKind.EVIDENCE)
@@ -179,12 +257,13 @@ def test_finalize_uses_platform_atomic_replace_for_ledger_and_seal(tmp_path: Pat
         calls.append(path)
         platform_atomic_replace_bytes(path, payload)
 
-    monkeypatch.setattr(artifacts_runtime, "atomic_replace_bytes", spy)
     store = _store(tmp_path / "run")
     store.publish_text("raw/events.jsonl", '{"n":1}\n', kind=RunArtifactKind.EVIDENCE)
+    monkeypatch.setattr(artifacts_runtime, "atomic_replace_bytes", spy)
     store.finalize("raw/events.jsonl", kind=RunArtifactKind.EVIDENCE, record_stream=True)
-    assert any("generations" in path.parts for path in calls)
-    assert any("seals" in path.parts for path in calls)
+    assert len(calls) == 2
+    assert "seals" in calls[0].parts
+    assert "generations" in calls[1].parts
 
 
 def test_verify_rejects_receipt_from_another_run(tmp_path: Path) -> None:

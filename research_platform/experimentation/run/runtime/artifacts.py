@@ -228,8 +228,13 @@ class DirectoryRunArtifactStore(RunArtifactStorePort):
         if self._read_bytes(seal, error_type=RunArtifactVerificationError, label="seal") != expected:
             raise RunArtifactVerificationError("run artifact seal does not match receipt")
         ledger = self._ledger_path(receipt.generation)
-        if self._read_bytes(ledger, error_type=RunArtifactVerificationError, label="generation ledger") != expected:
-            raise RunArtifactVerificationError("run artifact generation ledger does not match receipt")
+        if ledger.exists():
+            if self._read_bytes(
+                ledger,
+                error_type=RunArtifactVerificationError,
+                label="generation ledger",
+            ) != expected:
+                raise RunArtifactVerificationError("run artifact generation ledger does not match receipt")
         current = self._snapshot_unlocked(
             receipt.artifact_ref,
             kind=receipt.artifact_kind,
@@ -239,6 +244,19 @@ class DirectoryRunArtifactStore(RunArtifactStorePort):
         if current != receipt:
             raise RunArtifactVerificationError("run artifact content drifted after finalization")
         return receipt
+
+    def _ensure_generation_index(self, receipt: RunArtifactSnapshotReceipt) -> None:
+        payload = canonical_bytes(receipt, indent=2) + b"\n"
+        ledger = self._ledger_path(receipt.generation)
+        if ledger.exists():
+            recorded = self._read_bytes(
+                ledger,
+                error_type=RunArtifactFinalizationError,
+                label="generation ledger",
+            )
+            if recorded == payload:
+                return
+        atomic_replace_bytes(ledger, payload)
 
     def finalize(
         self,
@@ -256,6 +274,7 @@ class DirectoryRunArtifactStore(RunArtifactStorePort):
                 )
                 if recorded.artifact_kind is not kind or (recorded.record_count is not None) is not record_stream:
                     raise RunArtifactFinalizationError("run artifact is already sealed with different semantics")
+                self._ensure_generation_index(recorded)
                 try:
                     return self._verify_finalized_unlocked(recorded)
                 except RunArtifactVerificationError as exc:
@@ -268,27 +287,13 @@ class DirectoryRunArtifactStore(RunArtifactStorePort):
                 error_type=RunArtifactFinalizationError,
             )
             payload = canonical_bytes(receipt, indent=2) + b"\n"
-            ledger = self._ledger_path(receipt.generation)
-            if ledger.exists():
-                recorded = self._read_bytes(
-                    ledger,
-                    error_type=RunArtifactFinalizationError,
-                    label="generation ledger",
-                )
-                if recorded != payload:
-                    raise RunArtifactFinalizationError("run artifact generation ledger conflicts with receipt")
-            else:
-                atomic_replace_bytes(ledger, payload)
-            if seal.exists():
-                recorded = self._read_bytes(seal, error_type=RunArtifactFinalizationError, label="seal")
-                if recorded != payload:
-                    raise RunArtifactFinalizationError("run artifact seal conflicts with receipt")
-            else:
-                atomic_replace_bytes(seal, payload)
+            atomic_replace_bytes(seal, payload)
             try:
-                return self._verify_finalized_unlocked(receipt)
+                verified = self._verify_finalized_unlocked(receipt)
             except RunArtifactVerificationError as exc:
                 raise RunArtifactFinalizationError("finalized run artifact failed immediate verification") from exc
+            self._ensure_generation_index(receipt)
+            return verified
 
         return self._writer_actor.call(f"finalize:{artifact_ref}", finalize_owned)
 
