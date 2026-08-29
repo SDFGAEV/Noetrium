@@ -14,9 +14,7 @@ import os
 from pathlib import Path
 from typing import ClassVar
 
-from research_platform.observability.logging.query.api import LogQueryPort
 from research_platform.observability.logging.record.api import LogLevel, LogRecord
-from research_platform.observability.logging.sink.api import LogSinkPort
 from research_platform.platform.kernel.durability.durable_file import durable_replace_file, durable_unlink, fsync_directory
 from research_platform.platform.kernel.durability.file_lock import InterprocessFileLock
 from research_platform.platform.kernel.logical_path import logical_absolute_path
@@ -29,17 +27,21 @@ class JsonlLogCorruptionError(ValueError):
     """A complete JSONL record is corrupt and cannot be safely ignored."""
 
 
-class JsonlLogStore(LogSinkPort, LogQueryPort):
+class JsonlLogStore:
     """Crash-tolerant structured log store with deterministic query order."""
 
     SCHEMA_VERSION: ClassVar[str] = LOG_RECORD_SCHEMA_VERSION
+
+    @staticmethod
+    def logical_path(path: str | Path) -> Path:
+        return logical_absolute_path(path, expand_user=True)
 
     def __init__(self, path: str | Path, *, writer_actor: LogStorageWriteActorPort, max_bytes: int = 64 * 1024 * 1024, max_segments: int = 8) -> None:
         if max_bytes <= 0:
             raise ValueError("JSONL log max_bytes must be positive")
         if max_segments <= 0:
             raise ValueError("JSONL log max_segments must be positive")
-        self.path = logical_absolute_path(path, expand_user=True)
+        self.path = self.logical_path(path)
         self.max_bytes = max_bytes
         self.max_segments = max_segments
         self._writer_actor = writer_actor

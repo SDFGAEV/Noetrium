@@ -7,7 +7,10 @@ import pytest
 
 from research_platform.observability.logging.context.api import DiagnosticAddress
 from research_platform.observability.logging.record.api import LogLevel, LogRecord
-from research_platform.observability.logging.storage.runtime.jsonl import JsonlLogCorruptionError
+from research_platform.observability.logging.storage.runtime.jsonl import (
+    JsonlLogCorruptionError,
+    JsonlLogStore as RuntimeJsonlLogStore,
+)
 from tests._concurrency_support import jsonl_log_store as JsonlLogStore
 from research_platform.observability.logging.storage.composition import build_jsonl_log_store
 from research_platform.platform.concurrency.composition import build_concurrency_runtime
@@ -24,6 +27,16 @@ def _record(index: int) -> LogRecord:
         "safe",
         DiagnosticAddress((PLATFORM_SCOPE,)),
     )
+
+
+def test_jsonl_store_uses_structural_logging_ports_without_nominal_bases() -> None:
+    from research_platform.observability.logging.query.api import LogQueryPort
+    from research_platform.observability.logging.sink.api import LogSinkPort
+
+    assert LogQueryPort not in RuntimeJsonlLogStore.__mro__
+    assert LogSinkPort not in RuntimeJsonlLogStore.__mro__
+    assert callable(RuntimeJsonlLogStore.append)
+    assert callable(RuntimeJsonlLogStore.query)
 
 
 def test_store_keeps_logical_path_identity_if_live_leaf_resolution_drifts(

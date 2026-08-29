@@ -11,6 +11,14 @@ The former anchors the requested pathname lexically without dereferencing the cu
 filesystem leaf. This matters on Windows because resolving a file while another process
 renames it can observe the renamed file object and return a rotated-segment pathname.
 
+## Typed port coupling
+
+`JsonlLogStore` satisfies the logging sink/query Protocols structurally rather than
+nominally inheriting the Protocol classes. The runtime therefore keeps the same typed
+`append()`/`query()` contract without adding implementation-to-Protocol inheritance
+edges. Composition obtains the normalized authority through `JsonlLogStore.logical_path()`
+so path identity has one runtime definition instead of duplicate cross-layer imports.
+
 ## Append and rotation
 
 Every append enters one `InterprocessFileLock` derived from the stable active-log path.
