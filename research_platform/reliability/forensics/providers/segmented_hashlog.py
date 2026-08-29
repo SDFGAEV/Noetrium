@@ -3,11 +3,17 @@ from __future__ import annotations
 from pathlib import Path
 from threading import RLock
 
-from research_platform.reliability.forensics.api import VerifiedLedgerSlice
+from research_platform.reliability.forensics.api import VerifiedLedgerCut, VerifiedLedgerSlice
 from research_platform.reliability.forensics.providers.hashchain_core import stat_signature
 from research_platform.reliability.forensics.providers.hashlog import HashChainError
 from research_platform.reliability.forensics.providers.directory_change_signal import DirectoryChangeSignal
-from research_platform.reliability.forensics.providers.segment_verifier import scan_segment_chain, scan_segment_chain_payloads, segment_files
+from research_platform.reliability.forensics.providers.segment_verifier import (
+    iter_segment_chain_payload_batches,
+    scan_segment_chain,
+    scan_segment_chain_cut,
+    scan_segment_chain_payloads,
+    segment_files,
+)
 from research_platform.reliability.forensics.providers.segmented_manifest import SegmentManifestStore, SegmentSummary
 from research_platform.reliability.forensics.providers.segmented_state import SegmentStateCell, SegmentWriterState
 from research_platform.reliability.forensics.providers.segmented_writer import SegmentedLedgerWriter
@@ -108,6 +114,24 @@ class SegmentedHashChainedJSONL:
             if total != verified.total_rows or tail != verified.tail_hash:
                 raise HashChainError("verified segment cut disagrees with adopted scan")
             return verified
+
+    def verified_cut_after(self, row_count: int) -> VerifiedLedgerCut:
+        """Verify one segmented cut without retaining its suffix payloads."""
+        with self._lock:
+            result, cut = scan_segment_chain_cut(self.root, start_after=row_count)
+            total, tail = self._adopt_scan(result)
+            if total != cut.total_rows or tail != cut.tail_hash:
+                raise HashChainError("verified segment cut disagrees with adopted scan")
+            return cut
+
+    def iter_verified_payload_batches(
+        self, cut: VerifiedLedgerCut, *, batch_size: int = 512
+    ):
+        """Re-verify one fixed segmented cut while yielding bounded batches."""
+        with self._lock:
+            yield from iter_segment_chain_payload_batches(
+                self.root, cut=cut, batch_size=batch_size
+            )
 
     def _ensure_owned(self)->None:
         state=self._state.value

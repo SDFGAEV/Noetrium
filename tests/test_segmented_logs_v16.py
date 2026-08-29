@@ -32,6 +32,23 @@ class SegmentedLogsV16Tests(unittest.TestCase):
             root=Path(td); cap=segmented_byte_capture(root,"stderr",max_segment_bytes=100); cap.append(b"a"*300); m=cap.seal(); p=root/m.segments[1].filename; raw=bytearray(p.read_bytes()); raw[0]^=1; p.write_bytes(raw)
             with self.assertRaises(CaptureIntegrityError): cap.verify()
 
+
+    def test_segmented_verified_cut_streams_fixed_bounded_batches(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "events"
+            with SegmentedHashChainedJSONL(root, max_segment_bytes=220) as log:
+                for index in range(18):
+                    log.append({"index": index, "value": "x" * 20})
+                cut = log.verified_cut_after(5)
+                log.append({"index": 18, "value": "later"})
+                batches = list(log.iter_verified_payload_batches(cut, batch_size=3))
+                self.assertTrue(all(1 <= len(batch) <= 3 for batch in batches))
+                self.assertEqual(
+                    [row["index"] for batch in batches for row in batch],
+                    list(range(5, 18)),
+                )
+                self.assertEqual(cut.total_rows, 18)
+
     def test_verified_suffix_survives_reopen_and_rejects_tampered_prefix(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td) / "events"
