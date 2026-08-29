@@ -27,7 +27,7 @@ CI first runs:
 python scripts/product_assurance_gate.py --full --output product-assurance.json
 ```
 
-This emits one machine-readable receipt and exits nonzero on the first blocking failure. The full gate verifies the L0鈥揕8 taxonomy assignment, the required provider-conformance matrix, the architecture gate and the complete pytest regression.
+This emits one machine-readable receipt and exits nonzero on the first blocking failure. The full gate verifies the L0-L8 taxonomy assignment, the required provider-conformance matrix, the architecture gate and the complete pytest regression. The receipt also records repository, branch, exact HEAD SHA, release source-tree SHA-256, and whether the worktree was clean at evaluation time.
 
 Provider conformance is declared in `tests/PROVIDER_CONFORMANCE.json`. The matrix must contain exactly the durable, environment, model, effect and checkpoint classes and points to first-party behavior/recovery tests that are themselves classified exactly once by `tests/TEST_SYSTEM.json`.
 
