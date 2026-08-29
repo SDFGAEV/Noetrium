@@ -4,11 +4,14 @@ import argparse
 from dataclasses import asdict
 from datetime import datetime, timezone
 import hashlib
+import io
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import shutil
 import subprocess
 import sys
+import tarfile
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -42,18 +45,49 @@ def _require_clean_source() -> tuple[str, str]:
     return _git("rev-parse", "HEAD"), _git("branch", "--show-current")
 
 
-def _build_distributions(output: Path) -> tuple[Path, Path, dict[str, object]]:
+def _git_archive(sha: str) -> bytes:
+    completed = subprocess.run(
+        ["git", "archive", "--format=tar", sha],
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if completed.returncode != 0:
+        raise RuntimeError(completed.stderr.decode("utf-8", "replace").strip() or "git archive failed")
+    return completed.stdout
+
+
+def _materialize_exact_source(sha: str, destination: Path) -> str:
+    raw = _git_archive(sha)
+    destination.mkdir(parents=True, exist_ok=False)
+    with tarfile.open(fileobj=io.BytesIO(raw), mode="r:") as archive:
+        for member in archive.getmembers():
+            parts = PurePosixPath(member.name).parts
+            if not member.name or member.name.startswith("/") or ".." in parts:
+                raise RuntimeError(f"unsafe git archive member: {member.name!r}")
+        archive.extractall(destination)
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _build_distributions(output: Path, *, sha: str) -> tuple[Path, Path, dict[str, object]]:
     if output.exists():
         shutil.rmtree(output)
     output.mkdir(parents=True)
-    argv = [sys.executable, "-m", "build", "--wheel", "--sdist", "--outdir", str(output)]
-    completed = subprocess.run(argv, cwd=ROOT, text=True, capture_output=True, check=False)
-    command = {
-        "argv": argv,
-        "returncode": completed.returncode,
-        "stdout_sha256": hashlib.sha256(completed.stdout.encode()).hexdigest(),
-        "stderr_sha256": hashlib.sha256(completed.stderr.encode()).hexdigest(),
-    }
+    with tempfile.TemporaryDirectory(prefix="research-release-source-") as td:
+        source_root = Path(td) / "source"
+        source_archive_sha256 = _materialize_exact_source(sha, source_root)
+        argv = [sys.executable, "-m", "build", "--wheel", "--sdist", "--outdir", str(output)]
+        completed = subprocess.run(argv, cwd=source_root, text=True, capture_output=True, check=False)
+        command = {
+            "argv": argv,
+            "cwd_mode": "external-git-archive",
+            "source_sha": sha,
+            "source_archive_sha256": source_archive_sha256,
+            "returncode": completed.returncode,
+            "stdout_sha256": hashlib.sha256(completed.stdout.encode()).hexdigest(),
+            "stderr_sha256": hashlib.sha256(completed.stderr.encode()).hexdigest(),
+        }
     if completed.returncode != 0:
         raise RuntimeError(completed.stderr[-4000:] or completed.stdout[-4000:] or "distribution build failed")
     wheels = tuple(output.glob("*.whl"))
@@ -116,7 +150,7 @@ def build_distribution_release(output: Path) -> dict:
         raise ValueError("distribution output must be outside the source tree")
     sha, branch = _require_clean_source()
     manifest = build_release_manifest(ROOT)
-    wheel, sdist, build_command = _build_distributions(output)
+    wheel, sdist, build_command = _build_distributions(output, sha=sha)
     if _git("status", "--porcelain=v1", "--untracked-files=all"):
         raise RuntimeError("distribution build mutated tracked/untracked source state")
 

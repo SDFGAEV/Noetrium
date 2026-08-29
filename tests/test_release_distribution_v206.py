@@ -78,3 +78,43 @@ def test_release_authority_text_writer_rejects_carriage_returns():
         with pytest.raises(ValueError, match="carriage returns"):
             distribution._write_text_lf(path, "abc  artifact.whl\r\n")
         assert not path.exists()
+
+
+def test_distribution_build_runs_from_external_exact_source(monkeypatch):
+    local_root = distribution.ROOT / ".local"
+    local_root.mkdir(parents=True, exist_ok=True)
+    seen: dict[str, Path] = {}
+
+    def fake_materialize(sha: str, destination: Path) -> str:
+        assert sha == "a" * 40
+        destination.mkdir(parents=True, exist_ok=False)
+        seen["source"] = destination.resolve()
+        return "b" * 64
+
+    def fake_run(argv, *, cwd, text, capture_output, check):
+        source_root = Path(cwd).resolve()
+        assert source_root == seen["source"]
+        assert source_root != distribution.ROOT
+        assert distribution.ROOT not in source_root.parents
+        output = Path(argv[-1])
+        (output / "research_platform-1.0-py3-none-any.whl").write_bytes(b"wheel")
+        (output / "research_platform-1.0.tar.gz").write_bytes(b"sdist")
+        return type("Completed", (), {
+            "returncode": 0,
+            "stdout": "build-ok",
+            "stderr": "",
+        })()
+
+    monkeypatch.setattr(distribution, "_materialize_exact_source", fake_materialize)
+    monkeypatch.setattr(distribution.subprocess, "run", fake_run)
+    with TemporaryDirectory(prefix="release-build-test-", dir=local_root) as td:
+        output = Path(td) / "dist"
+        wheel, sdist, receipt = distribution._build_distributions(
+            output,
+            sha="a" * 40,
+        )
+    assert wheel.name.endswith(".whl")
+    assert sdist.name.endswith(".tar.gz")
+    assert receipt["cwd_mode"] == "external-git-archive"
+    assert receipt["source_sha"] == "a" * 40
+    assert receipt["source_archive_sha256"] == "b" * 64
