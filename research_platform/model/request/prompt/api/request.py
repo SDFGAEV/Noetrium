@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Callable, Mapping, Protocol
 
 from research_platform.model.request.api import ModelRequestEnvelope
+from research_platform.model.request._immutable_json import freeze_json_object
 from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity, JsonObject
 
 
@@ -42,6 +43,9 @@ class PromptBoundRequest:
     prompt_generation_id: str
     prompt_id: str
     prompt_digest: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "body", freeze_json_object(self.body, field="prompt-bound request body"))
 
 
 class PromptRequestBindingPort(Protocol):

@@ -82,9 +82,17 @@ class HarnessPatternsV190Tests(unittest.TestCase):
             )
             self.assertEqual(env.model.model_id,"m")
             self.assertEqual(env.model.engine,"engine")
-            self.assertEqual(recorder.reconstruct_request_body(env),body)
-            self.assertEqual(ledger.get("rq190"),env)
+            reconstructed_full=recorder.reconstruct(env)
+            reconstructed=reconstructed_full.request_body
+            self.assertEqual(reconstructed,body)
+            with self.assertRaises(TypeError): reconstructed_full.tool_schema_bundle[0]["name"]="tampered"
+            with self.assertRaises(TypeError): reconstructed["messages"]=[]
+            with self.assertRaises(TypeError): reconstructed["messages"][0]["content"]="tampered"
             recorder.verify_visible_request(env,body)
+            body["messages"][0]["content"]="caller-mutated"
+            self.assertEqual(reconstructed["messages"][0]["content"],"hello")
+            self.assertEqual(ledger.get("rq190"),env)
+            with self.assertRaises(RuntimeError): recorder.verify_visible_request(env,body)
             with self.assertRaises(RuntimeError): recorder.verify_visible_request(env,{"messages":[]})
             other_ref=content.put(b'{"x":1}',media_type="application/json")
             with self.assertRaises(RuntimeError):

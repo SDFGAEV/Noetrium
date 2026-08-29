@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass
 from typing import Protocol, runtime_checkable
 
 from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity, canonical_digest
+from research_platform.model.request._immutable_json import FrozenJsonObject, freeze_json_object, freeze_json_value
 
 
 _MODEL_REQUEST_SCHEMAS = frozenset({"model-request.v1", "runtime-canary-request.v1"})
@@ -108,9 +109,14 @@ class ModelRequestEnvelope:
 
 @dataclass(frozen=True, slots=True)
 class ReconstructedModelRequest:
-    request_body: dict[str, object]
+    request_body: FrozenJsonObject
     compiled_prompt_text: str | None
     tool_schema_bundle: object | None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "request_body", freeze_json_object(self.request_body, field="reconstructed request body"))
+        if self.tool_schema_bundle is not None:
+            object.__setattr__(self, "tool_schema_bundle", freeze_json_value(self.tool_schema_bundle, field="reconstructed tool schema bundle"))
 
 
 @runtime_checkable

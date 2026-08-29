@@ -75,6 +75,29 @@ class PromptRequestBuildV76Tests(unittest.TestCase):
             bound.execution_contract.request_body_sha256,
             bound.model_request.request_body.sha256,
         )
+        with self.assertRaises(TypeError):
+            bound.request_body["temperature"]=0.0
+        with self.assertRaises(TypeError):
+            bound.request_body["messages"][0]["content"]="tampered"
+
+    def test_builder_owned_body_cannot_mutate_frozen_request_cut(self):
+        td=tempfile.TemporaryDirectory(); self.addCleanup(td.cleanup); root=Path(td.name)
+        registry=PromptRegistry(); registry.publish("g1",default_prompt_specs())
+        retained={}
+        def body_builder(resolution,compilation):
+            body={"messages":[{"role":"system","content":compilation.compiled.text}],"temperature":resolution.bundle.temperature}
+            retained["body"]=body
+            return body
+        bound=PromptRequestBuildTransaction().build(
+            registry=registry,prompt_id="planner.v6",policy=default_block_policies()["planner"],
+            blocks=self.blocks(),schemas=default_output_schemas(),context_length=262144,
+            request_id="rq76-freeze",context=self.context(),model=self.model(),
+            model_requests=self.recorder(root),body_builder=body_builder,
+        )
+        original=bound.request_body["messages"][0]["content"]
+        retained["body"]["messages"][0]["content"]="caller-mutated"
+        self.assertEqual(bound.request_body["messages"][0]["content"],original)
+        with self.assertRaises(TypeError): bound.request_body["messages"][0]["content"]="direct-mutated"
 
     def test_non_dict_body_is_rejected_before_contract_creation(self):
         td=tempfile.TemporaryDirectory(); self.addCleanup(td.cleanup); root=Path(td.name)

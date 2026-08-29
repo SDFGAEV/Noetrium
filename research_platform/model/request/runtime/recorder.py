@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity
+from research_platform.model.request._immutable_json import FrozenJsonObject, freeze_json_object, freeze_json_value
 from research_platform.model.request.api import (
     ContentAddressedStorePort,
     ModelRequestEnvelope,
@@ -38,12 +39,16 @@ class ReconstructableModelRequestRecorder:
         source_artifact_refs: tuple[str, ...] = (),
         source_state_refs: tuple[str, ...] = (),
     ) -> ModelRequestEnvelope:
-        body_ref = self._content.put(_canonical_json(request_body), media_type="application/json")
+        frozen_body = freeze_json_object(request_body, field="model-visible request body")
+        frozen_tools = None if tool_schema_bundle is None else freeze_json_value(
+            tool_schema_bundle, field="model-visible tool schema bundle"
+        )
+        body_ref = self._content.put(_canonical_json(frozen_body), media_type="application/json")
         prompt_ref = None if compiled_prompt_text is None else self._content.put(
             compiled_prompt_text.encode("utf-8"), media_type="text/plain; charset=utf-8"
         )
-        tool_ref = None if tool_schema_bundle is None else self._content.put(
-            _canonical_json(tool_schema_bundle), media_type="application/json"
+        tool_ref = None if frozen_tools is None else self._content.put(
+            _canonical_json(frozen_tools), media_type="application/json"
         )
         envelope = ModelRequestEnvelope(
             schema_version="model-request.v1",
@@ -76,7 +81,7 @@ class ReconstructableModelRequestRecorder:
             tools = json.loads(self._content.get(envelope.tool_schema_bundle))
         return ReconstructedModelRequest(body, compiled, tools)
 
-    def reconstruct_request_body(self, envelope: ModelRequestEnvelope) -> dict[str, object]:
+    def reconstruct_request_body(self, envelope: ModelRequestEnvelope) -> FrozenJsonObject:
         return self.reconstruct(envelope).request_body
 
     def verify_visible_request(self, envelope: ModelRequestEnvelope, actual_body: dict[str, object]) -> None:

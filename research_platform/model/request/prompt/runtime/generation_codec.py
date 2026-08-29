@@ -2,6 +2,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 
+from research_platform.model.request._immutable_json import FrozenJsonObject, freeze_json_object
+
 from .blocks import PromptBlockPolicy
 from .publication_common import PromptPublicationError, sha256_bytes
 from .runtime import ActivePromptBundle
@@ -11,7 +13,7 @@ from .spec import PromptSpec
 @dataclass(frozen=True, slots=True)
 class EncodedGeneration:
     generation_id: str
-    payload: dict[str,object]
+    payload: FrozenJsonObject
     payload_sha256: str
     envelope_bytes: bytes
     bundle_digests: tuple[tuple[str,str],...]
@@ -32,9 +34,9 @@ def encode_generation(generation_id:str,specs:tuple[PromptSpec,...],policies:dic
     body={"generation_id":generation_id,"bundles":bundles,"bundle_digests":bd,"policy_digests":pd,"schema_digests":sd}
     encoded=json.dumps(body,ensure_ascii=False,sort_keys=True,separators=(",",":")).encode(); digest=sha256_bytes(encoded)
     envelope=json.dumps({"payload_sha256":digest,"payload":body},ensure_ascii=False,sort_keys=True,indent=2).encode()
-    return EncodedGeneration(generation_id,body,digest,envelope,bd,pd,sd)
+    return EncodedGeneration(generation_id,freeze_json_object(body, field="prompt generation payload"),digest,envelope,bd,pd,sd)
 
-def decode_generation(raw:str,generation_id:str)->tuple[str,tuple[ActivePromptBundle,...],dict[str,object]]:
+def decode_generation(raw:str,generation_id:str)->tuple[str,tuple[ActivePromptBundle,...],FrozenJsonObject]:
     envelope=json.loads(raw); payload=envelope.get("payload")
     if not isinstance(payload,dict): raise PromptPublicationError("invalid generation payload")
     encoded=json.dumps(payload,ensure_ascii=False,sort_keys=True,separators=(",",":")).encode(); digest=sha256_bytes(encoded)
@@ -46,4 +48,4 @@ def decode_generation(raw:str,generation_id:str)->tuple[str,tuple[ActivePromptBu
         actual=sha256_bytes(json.dumps(check,sort_keys=True,ensure_ascii=False).encode())
         if actual!=bundle["digest"]: raise PromptPublicationError(f"bundle hash mismatch: {bundle['prompt_id']}")
         bundles.append(ActivePromptBundle(bundle["prompt_id"],bundle["role"],bundle["version"],bundle["digest"],bundle["text"],bundle["output_schema"],bundle["model_family"],bundle["temperature"],bundle["top_p"],bundle["max_output_tokens"]))
-    return digest,tuple(bundles),payload
+    return digest,tuple(bundles),freeze_json_object(payload, field="prompt generation payload")

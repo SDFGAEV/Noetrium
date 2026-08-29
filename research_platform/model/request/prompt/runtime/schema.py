@@ -4,12 +4,17 @@ from dataclasses import dataclass
 import hashlib
 import json
 
+from research_platform.model.request._immutable_json import FrozenJsonObject, freeze_json_object
+
 
 @dataclass(frozen=True, slots=True)
 class OutputSchemaSpec:
     schema_id: str
     version: str
-    schema: dict[str, object]
+    schema: FrozenJsonObject
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "schema", freeze_json_object(self.schema, field="output schema"))
 
     def digest(self) -> str:
         raw=json.dumps({"schema_id":self.schema_id,"version":self.version,"schema":self.schema},sort_keys=True,ensure_ascii=False,separators=(",",":")).encode()
