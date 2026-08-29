@@ -15,6 +15,7 @@ from research_platform.platform.kernel.durability.durable_file import atomic_rep
 from research_platform.platform.kernel.durability.file_lock import InterprocessFileLock
 
 from ..api.host_verification import HostInventoryReceipt, HostResourceDelta
+from ..api.inventory import RuntimeInventory
 
 _SCHEMA = "host-inventory-evidence.v2"
 _DELTA_SCHEMA = "host-resource-delta-evidence.v2"
@@ -104,8 +105,11 @@ def _decode_receipt(
     if type(value) is not dict or frozenset(value) != _RECEIPT_FIELDS:
         raise ValueError("host inventory receipt field set mismatch")
     runtime = value["runtime"]
-    if type(runtime) is not dict:
-        raise ValueError("host inventory runtime must be a JSON object")
+    if type(runtime) is not dict or frozenset(runtime) != frozenset({
+        "kernel", "python", "node", "java", "nvidia_driver",
+        "cuda_driver_api", "nvml", "sglang", "vllm",
+    }):
+        raise ValueError("host inventory runtime field set mismatch")
     receipt = HostInventoryReceipt(
         schema_version=value["schema_version"],
         phase=value["phase"],
@@ -116,7 +120,7 @@ def _decode_receipt(
         gpu_free_memory_bytes=_pairs(value["gpu_free_memory_bytes"], "gpu_free_memory_bytes"),
         listening_ports=_items(value["listening_ports"], "listening_ports"),
         mount_free_bytes=_pairs(value["mount_free_bytes"], "mount_free_bytes"),
-        runtime=dict(runtime),
+        runtime=RuntimeInventory(**runtime),
         receipt_digest=value["receipt_digest"],
     )
     if receipt.phase != expected_phase:

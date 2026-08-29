@@ -4,6 +4,7 @@ from runtime_manager_test_support import make_runtime_control_store
 from tests_support import frozen_runtime_manifest
 
 from pathlib import Path
+from dataclasses import FrozenInstanceError
 import tempfile
 import unittest
 import hashlib
@@ -223,6 +224,20 @@ class HostInventoryEvidenceAuthorityV29Tests(unittest.TestCase):
             store = DirectoryHostInventoryEvidenceStore(Path(td) / "host-evidence")
             with self.assertRaisesRegex(ValueError, "stable token"):
                 store.load("e" * 64, "../pre_start")
+
+    def test_runtime_snapshot_is_typed_and_deeply_immutable(self):
+        receipt = build_host_inventory_receipt(HOST_ID, runtime_host(), phase="pre_start")
+        self.assertIs(type(receipt.runtime), RuntimeInventory)
+        with self.assertRaises(FrozenInstanceError):
+            receipt.runtime.kernel = "tampered"  # type: ignore[misc]
+
+        with tempfile.TemporaryDirectory() as td:
+            store = DirectoryHostInventoryEvidenceStore(Path(td) / "host-evidence")
+            store.publish("f" * 64, receipt)
+            loaded = store.load("f" * 64, "pre_start")
+            self.assertIs(type(loaded.runtime), RuntimeInventory)
+            with self.assertRaises(FrozenInstanceError):
+                loaded.runtime.python = "tampered"  # type: ignore[misc]
 
 
 if __name__ == "__main__": unittest.main()

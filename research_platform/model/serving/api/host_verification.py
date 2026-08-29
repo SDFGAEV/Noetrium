@@ -6,7 +6,7 @@ import json
 import math
 import re
 
-from .inventory import HostInventory
+from .inventory import HostInventory, RuntimeInventory
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _PHASE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
@@ -89,17 +89,16 @@ def _ports(value: object, field: str) -> tuple[int, ...]:
     return ports
 
 
-def _runtime(value: object) -> dict[str, object]:
-    if type(value) is not dict or frozenset(value) != _RUNTIME_FIELDS:
-        raise ValueError("runtime field set mismatch")
-    result = dict(value)
-    _text(result["kernel"], "runtime.kernel")
-    _text(result["python"], "runtime.python")
+def _runtime(value: object) -> RuntimeInventory:
+    if type(value) is not RuntimeInventory:
+        raise ValueError("runtime must be RuntimeInventory")
+    _text(value.kernel, "runtime.kernel")
+    _text(value.python, "runtime.python")
     for field in _RUNTIME_FIELDS - {"kernel", "python"}:
-        item = result[field]
+        item = getattr(value, field)
         if item is not None:
             _text(item, f"runtime.{field}")
-    return result
+    return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,7 +112,7 @@ class HostInventoryReceipt:
     gpu_free_memory_bytes: tuple[tuple[str, int], ...]
     listening_ports: tuple[int, ...]
     mount_free_bytes: tuple[tuple[str, int], ...]
-    runtime: dict[str, object]
+    runtime: RuntimeInventory
     receipt_digest: str
 
     def __post_init__(self) -> None:
@@ -210,7 +209,7 @@ def build_host_inventory_receipt(
         gpu_free_memory_bytes=tuple((gpu.uuid, gpu.free_memory_bytes) for gpu in inventory.gpus),
         listening_ports=inventory.listening_ports,
         mount_free_bytes=tuple((mount.path, mount.free_bytes) for mount in inventory.mounts),
-        runtime=asdict(inventory.runtime),
+        runtime=inventory.runtime,
         receipt_digest=_digest(base),
     )
 
