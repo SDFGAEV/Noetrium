@@ -22,6 +22,8 @@ from research_platform.model.serving.providers.host_verification_storage import 
 from research_platform.platform.composition.host_runtime_verification import HostInventoryRuntimeVerification
 from research_platform.model.stack.api import ModelArtifactClosure, RuntimeBuildIdentity, ModelStackSpec
 from research_platform.model.serving.api import FrozenDeploymentSet
+from research_platform.model.serving.api.host_verification import build_host_inventory_receipt
+from research_platform.platform.kernel.durability import decode_checksummed_document, encode_checksummed_document
 from research_platform.execution.runtime.manager import (
     ExactRuntimeController, RuntimeAction,
     RuntimeControlStore, RuntimePlatformAuthorities, ServerRuntimeAdapter, ServerRuntimeControlPlane,
@@ -167,5 +169,60 @@ class ServerRuntimeControlV29Tests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 ServerRuntimeControlPlane(ctl,adapter).run_exact(replace(m,role_model_manifest_digest="bad"),control_id="ctl")
             self.assertEqual(recorder.calls,[])
+
+
+
+
+class HostInventoryEvidenceAuthorityV29Tests(unittest.TestCase):
+    def test_manifest_rebinding_is_rejected(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "host-evidence"
+            store = DirectoryHostInventoryEvidenceStore(root)
+            receipt = build_host_inventory_receipt(HOST_ID, runtime_host(), phase="pre_start")
+            source = Path(store.publish("a" * 64, receipt))
+            rebound = root / f"{'b' * 64}.pre_start.host-inventory.json"
+            rebound.write_bytes(source.read_bytes())
+
+            with self.assertRaisesRegex(ValueError, "runtime manifest binding mismatch"):
+                store.load("b" * 64, "pre_start")
+
+    def test_checksum_valid_malformed_receipt_is_rejected(self):
+        with tempfile.TemporaryDirectory() as td:
+            store = DirectoryHostInventoryEvidenceStore(Path(td) / "host-evidence")
+            receipt = build_host_inventory_receipt(HOST_ID, runtime_host(), phase="pre_start")
+            path = Path(store.publish("c" * 64, receipt))
+            document = decode_checksummed_document(
+                path.read_bytes(), expected_schema="host-inventory-evidence.v2"
+            )
+            payload = dict(document.payload)
+            malformed = dict(payload["receipt"])
+            malformed["schema_version"] = 2
+            payload["receipt"] = malformed
+            path.write_bytes(
+                encode_checksummed_document("host-inventory-evidence.v2", payload)
+            )
+
+            with self.assertRaisesRegex(ValueError, "schema_version must equal 1"):
+                store.load("c" * 64, "pre_start")
+
+    def test_published_identity_cannot_be_overwritten(self):
+        with tempfile.TemporaryDirectory() as td:
+            from dataclasses import replace
+
+            store = DirectoryHostInventoryEvidenceStore(Path(td) / "host-evidence")
+            first = build_host_inventory_receipt(HOST_ID, runtime_host(), phase="pre_start")
+            later_inventory = replace(runtime_host(), captured_at_unix=2.0)
+            second = build_host_inventory_receipt(HOST_ID, later_inventory, phase="pre_start")
+            store.publish("d" * 64, first)
+
+            with self.assertRaisesRegex(ValueError, "already exists with different content"):
+                store.publish("d" * 64, second)
+
+    def test_phase_path_injection_is_rejected(self):
+        with tempfile.TemporaryDirectory() as td:
+            store = DirectoryHostInventoryEvidenceStore(Path(td) / "host-evidence")
+            with self.assertRaisesRegex(ValueError, "stable token"):
+                store.load("e" * 64, "../pre_start")
+
 
 if __name__ == "__main__": unittest.main()
