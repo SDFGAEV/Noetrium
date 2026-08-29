@@ -8,6 +8,7 @@ import pytest
 
 from research_platform.api import ResearchFacade
 from research_platform.operator.reference import ReferenceResearchApplication
+from research_platform.operator.reference.application import ReferencePhase, ReferenceState
 from research_platform.operator.composition.research import main
 from research_platform.platform.kernel.durability import (
     ChecksummedDocumentError,
@@ -147,15 +148,11 @@ def test_reference_state_rejects_semantically_malformed_checksummed_documents(pa
             app._read("strict-1")
 
 
-def test_reference_writer_validates_state_before_persisting():
+def test_reference_writer_requires_typed_valid_state_before_persisting():
     with TemporaryDirectory() as td:
         app = ReferenceResearchApplication(Path(td))
-        malformed = {
-            "target": "strict-2",
-            "phase": "running",
-            "generation": 1,
-            "events": [],
-        }
         with pytest.raises(ValueError, match="events"):
-            app._write("strict-2", malformed)
+            ReferenceState("strict-2", ReferencePhase.RUNNING, 1, ())
+        with pytest.raises(TypeError, match="ReferenceState"):
+            app._write("strict-2", {"target": "strict-2"})  # type: ignore[arg-type]
         assert not app._path("strict-2").exists()

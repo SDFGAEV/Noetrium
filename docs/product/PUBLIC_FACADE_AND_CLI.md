@@ -42,6 +42,7 @@ The bundled `research_platform.operator.reference` application exists only to qu
 - Missing application bindings fail closed.
 - Result action/target drift is rejected.
 - Corrupt reference state fails checksum verification.
+- Decoded reference state is modeled as immutable typed `ReferenceState` / `ReferenceEvent` values; exact fields and lifecycle transitions are validated before any state is accepted or persisted.
 - Real external-effect uncertainty must remain with the owning runtime/reliability authority; the product layer never converts missing evidence into success.
 
 The platform-side generic run-lifecycle handoff required for a default real application is tracked by `CSR-06-GENERIC-RUN-LIFECYCLE-OPERATOR-HANDOFF-20260829`.
