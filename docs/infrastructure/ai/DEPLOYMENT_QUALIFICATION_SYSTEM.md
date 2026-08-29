@@ -33,6 +33,10 @@ Qualification records deployment-relevant facts or explicitly records that a fac
 
 The controller operating system and the target runtime operating system are separate path domains. Paths embedded in target-runtime probes are serialized with the target runtime's path grammar; controller-local SSH/config/control paths use controller-native validation.
 
+Model `config.json` is treated as measured qualification evidence, not as a permissive metadata bag. Parsed roots must be JSON objects, and observed model type, architecture list, dtype, and context length retain their JSON types; malformed values fail closed instead of being coerced through `str()`/`int()` and marked captured.
+
+The target-Python capability probe follows the same rule: its subprocess JSON has an exact field set and exact string/list/null types. Malformed capability payloads become explicit probe errors, and candidates carrying those errors are rejected rather than qualified from partially reconstructed defaults.
+
 Observation is read-only. It must not download large payloads, install packages, alter GPU state, or mutate the selected environment merely to decide whether a candidate is plausible.
 ## Resolution and materialization
 

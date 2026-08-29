@@ -480,3 +480,27 @@ def test_package_index_probe_preserves_target_stderr_on_failure() -> None:
 
     assert item.selected_version is None
     assert "metadata endpoint failed" in (item.dependency_closure_error or "")
+
+
+def test_resolver_rejects_incomplete_python_capability_facts() -> None:
+    request = DeploymentQualificationRequest(
+        "example-model",
+        Path("/models/example-model"),
+        Path("/opt/python/bin/python"),
+        backends=("vllm",),
+    )
+    facts = _facts()
+    facts = replace(
+        facts,
+        python=replace(
+            facts.python,
+            errors=("Python capability probe returned invalid typed facts: field set mismatch",),
+        ),
+    )
+
+    plan = DeploymentQualificationResolver().resolve(request, facts)
+
+    candidate = plan.candidates[0]
+    assert candidate.decision is CandidateDecision.REJECTED
+    assert "target Python capability facts are incomplete" in " ".join(candidate.reasons)
+    assert plan.selected_backend is None

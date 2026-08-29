@@ -105,6 +105,10 @@ class DeploymentQualificationResolver:
                 reasons.append("multi-GPU topology was not observed for tensor parallel deployment")
         if facts.model.error or not facts.model.config_present:
             reasons.append("model config.json was not captured; model identity is incomplete")
+        if facts.python.errors:
+            reasons.append(
+                "target Python capability facts are incomplete: " + "; ".join(facts.python.errors)
+            )
         if not facts.python.pip_version:
             reasons.append("selected Python interpreter has no usable pip")
         if not facts.python.ensurepip_available:
