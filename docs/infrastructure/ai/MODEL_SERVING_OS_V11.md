@@ -16,6 +16,8 @@ A `QualificationCertificate` binds:
 
 The resource envelope records measured peak GPU/host memory, maximum qualified concurrency and latency/throughput bounds. Placement therefore uses measured target-host evidence rather than optimistic model-size guesses.
 
+Durable host-inventory, runtime-qualification, and runtime-canary evidence is bound inside its checksummed document to the exact runtime-manifest digest that owns it. Directory placement alone is not authority: copying otherwise valid evidence into another manifest namespace must fail closed, and identical evidence publication is immutable/idempotent rather than overwriteable.
+
 Persisted host inventory and resource-delta evidence is immutable and fail-closed. Each evidence document is checksum-protected, bound inside the document to the exact runtime-manifest digest, and decoded through exact schema/type/range invariants. Rebinding a valid receipt under another manifest path, recomputing a checksum over malformed typed facts, changing the phase identity, or overwriting an existing manifest/phase evidence identity is rejected.
 
 ## Backpressure, not degradation

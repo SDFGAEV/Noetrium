@@ -344,7 +344,7 @@ def test_loader_rejects_validly_rechecksummed_runtime_receipt_drift(tmp_path: Pa
     receipt_path = Path(published.runtime_evidence_paths[0])
     decoded = decode_checksummed_document(
         receipt_path.read_bytes(),
-        expected_schema="runtime-qualification-receipt.v3",
+        expected_schema="runtime-qualification-receipt.v4",
     )
     payload = dict(decoded.payload)
     receipt_payload = dict(payload["receipt"])
@@ -359,7 +359,7 @@ def test_loader_rejects_validly_rechecksummed_runtime_receipt_drift(tmp_path: Pa
     payload["receipt"] = receipt_payload
     payload["receipt_digest"] = drifted.digest()
     receipt_path.write_bytes(
-        encode_checksummed_document("runtime-qualification-receipt.v3", payload)
+        encode_checksummed_document("runtime-qualification-receipt.v4", payload)
     )
 
     with pytest.raises(QualifiedModelClosureReadError, match="receipt digest drift"):
