@@ -55,11 +55,32 @@ def test_container_verifier_rejects_source_revision_drift(monkeypatch):
     with pytest.raises(RuntimeError, match="source revision"):
         container.verify_container_image("research-platform:test", expected_source_sha=SHA)
 
+
+def test_container_verifier_rejects_root_runtime_user(monkeypatch):
+    document = [{
+        "Id": "sha256:" + "d" * 64,
+        "RepoDigests": [],
+        "Config": {
+            "Labels": {"org.opencontainers.image.revision": SHA},
+            "User": "root",
+        },
+    }]
+
+    def fake_run(argv: list[str]):
+        return _receipt(argv), json.dumps(document)
+
+    monkeypatch.setattr(container, "_run", fake_run)
+    with pytest.raises(RuntimeError, match="must not run as root"):
+        container.verify_container_image("research-platform:test", expected_source_sha=SHA)
+
 def test_container_verifier_returns_exact_source_bound_receipt(monkeypatch):
     inspect_document = [{
         "Id": "sha256:" + "c" * 64,
         "RepoDigests": ["research-platform@test-digest"],
-        "Config": {"Labels": {"org.opencontainers.image.revision": SHA}},
+        "Config": {
+            "Labels": {"org.opencontainers.image.revision": SHA},
+            "User": "platform",
+        },
     }]
     smoke = {
         "actions": list(container._ACTIONS),
@@ -81,6 +102,8 @@ def test_container_verifier_returns_exact_source_bound_receipt(monkeypatch):
     assert result.source_sha == SHA
     assert result.actions == container._ACTIONS
     assert result.package_version == "0.43.1"
+    assert result.container_user == "platform"
+    assert all("--network=none" in receipt.argv for receipt in result.commands[1:])
     assert len(result.commands) == 3
 
 

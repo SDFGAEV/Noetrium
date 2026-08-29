@@ -32,6 +32,7 @@ class ContainerVerificationReceipt:
     image_id: str
     source_sha: str
     repo_digests: tuple[str, ...]
+    container_user: str
     python_version: str
     package_version: str
     module_file: str
@@ -145,11 +146,20 @@ def verify_container_image(image: str, *, expected_source_sha: str) -> Container
     repo_digests = metadata.get("RepoDigests") or []
     if not isinstance(repo_digests, list) or not all(isinstance(value, str) for value in repo_digests):
         raise RuntimeError("container RepoDigests field is invalid")
+    config = metadata.get("Config")
+    if not isinstance(config, dict):
+        raise RuntimeError("container Config field is invalid")
+    container_user = config.get("User")
+    if not isinstance(container_user, str) or not container_user.strip():
+        raise RuntimeError("container image must declare a non-root user")
+    principal = container_user.strip().split(":", 1)[0].lower()
+    if principal in {"0", "root"}:
+        raise RuntimeError("container image must not run as root")
 
-    doctor_receipt, _ = _run(["docker", "run", "--rm", image, "doctor"])
+    doctor_receipt, _ = _run(["docker", "run", "--rm", "--network=none", image, "doctor"])
     receipts.append(doctor_receipt)
     smoke_receipt, smoke_stdout = _run(
-        ["docker", "run", "--rm", image, "shell", "/bin/sh", "-lc", _product_smoke_script()]
+        ["docker", "run", "--rm", "--network=none", image, "shell", "/bin/sh", "-lc", _product_smoke_script()]
     )
     receipts.append(smoke_receipt)
     smoke = _parse_smoke(smoke_stdout)
@@ -172,6 +182,7 @@ def verify_container_image(image: str, *, expected_source_sha: str) -> Container
         image_id=image_id,
         source_sha=source_sha,
         repo_digests=tuple(repo_digests),
+        container_user=container_user.strip(),
         python_version=python_version,
         package_version=package_version,
         module_file=module_file,
