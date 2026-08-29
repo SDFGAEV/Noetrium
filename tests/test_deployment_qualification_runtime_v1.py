@@ -115,7 +115,7 @@ def _seed(tmp_path: Path, status: QualificationMaterializationStatus):
         backend="vllm",
         packages=(InstallPackage("vllm", "0.27.1", "https://pypi.org/simple"),),
         install_commands=(QualificationCommandReceipt("pip-install", "d" * 64, 0, "e" * 64, "f" * 64),),
-        check_command=QualificationCommandReceipt("pip-check", "g" * 64, 0, "h" * 64, "i" * 64),
+        check_command=QualificationCommandReceipt("pip-check", "1" * 64, 0, "2" * 64, "3" * 64),
         status=status,
     )
     application_store.publish(application)

@@ -37,6 +37,25 @@ DEFAULT_DEPLOYMENT_PROBE_TIMEOUT_SECONDS = 90.0
 DEFAULT_PACKAGE_INDEX_URL = "https://pypi.org/simple"
 
 
+def _require_text(value: object, field_name: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field_name} must be non-empty text")
+    return value
+
+
+def _require_sha256(value: object, field_name: str) -> str:
+    text = _require_text(value, field_name)
+    if len(text) != 64 or any(char not in "0123456789abcdef" for char in text):
+        raise ValueError(f"{field_name} must be a lowercase SHA-256 digest")
+    return text
+
+
+def _require_string_tuple(values: object, field_name: str) -> tuple[str, ...]:
+    if not isinstance(values, tuple) or any(not isinstance(item, str) for item in values):
+        raise ValueError(f"{field_name} must be a tuple of strings")
+    return values
+
+
 def native_cuda_runtime_package_names(cuda_version: str | None) -> tuple[str, ...]:
     """Return observed NVIDIA runtime provider names in preference order.
 
@@ -274,6 +293,11 @@ class InstallPackage:
     version: str
     index_url: str
 
+    def __post_init__(self) -> None:
+        _require_text(self.name, "install package name")
+        _require_text(self.version, "install package version")
+        _require_text(self.index_url, "install package index_url")
+
 
 @dataclass(frozen=True, slots=True)
 class BackendCandidatePlan:
@@ -283,6 +307,19 @@ class BackendCandidatePlan:
     packages: tuple[InstallPackage, ...]
     reasons: tuple[str, ...]
     evidence_refs: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        _require_text(self.backend, "qualification backend")
+        if not isinstance(self.decision, CandidateDecision):
+            raise ValueError("qualification candidate decision is invalid")
+        if self.version is not None:
+            _require_text(self.version, "qualification backend version")
+        if not isinstance(self.packages, tuple) or any(
+            not isinstance(item, InstallPackage) for item in self.packages
+        ):
+            raise ValueError("qualification packages must be typed InstallPackage values")
+        _require_string_tuple(self.reasons, "qualification candidate reasons")
+        _require_string_tuple(self.evidence_refs, "qualification candidate evidence_refs")
 
 
 @dataclass(frozen=True, slots=True)
@@ -294,7 +331,15 @@ class DeploymentQualificationPlan:
     plan_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
+        _require_sha256(self.request_digest, "qualification request_digest")
+        _require_sha256(self.facts_digest, "qualification facts_digest")
+        if not isinstance(self.candidates, tuple) or not self.candidates or any(
+            not isinstance(item, BackendCandidatePlan) for item in self.candidates
+        ):
+            raise ValueError("qualification plan requires typed backend candidates")
         accepted = [item.backend for item in self.candidates if item.decision is CandidateDecision.ACCEPTED]
+        if self.selected_backend is not None:
+            _require_text(self.selected_backend, "qualification selected_backend")
         if self.selected_backend is not None and self.selected_backend not in accepted:
             raise ValueError("selected backend must be an accepted candidate")
         object.__setattr__(
@@ -375,6 +420,14 @@ class QualificationCommandReceipt:
     stdout_digest: str
     stderr_digest: str
 
+    def __post_init__(self) -> None:
+        _require_text(self.operation, "qualification command operation")
+        _require_sha256(self.command_digest, "qualification command_digest")
+        if isinstance(self.return_code, bool) or not isinstance(self.return_code, int):
+            raise ValueError("qualification command return_code must be an integer")
+        _require_sha256(self.stdout_digest, "qualification stdout_digest")
+        _require_sha256(self.stderr_digest, "qualification stderr_digest")
+
 
 @dataclass(frozen=True, slots=True)
 class DeploymentQualificationApplicationReceipt:
@@ -389,8 +442,25 @@ class DeploymentQualificationApplicationReceipt:
     application_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
-        if len(self.plan_digest) != 64:
-            raise ValueError("qualification application plan digest is invalid")
+        _require_sha256(self.plan_digest, "qualification application plan_digest")
+        _require_text(self.environment_id, "qualification application environment_id")
+        if self.backend is not None:
+            _require_text(self.backend, "qualification application backend")
+        if not isinstance(self.packages, tuple) or any(
+            not isinstance(item, InstallPackage) for item in self.packages
+        ):
+            raise ValueError("qualification application packages must be typed")
+        if not isinstance(self.install_commands, tuple) or any(
+            not isinstance(item, QualificationCommandReceipt) for item in self.install_commands
+        ):
+            raise ValueError("qualification install_commands must be typed receipts")
+        if self.check_command is not None and not isinstance(
+            self.check_command, QualificationCommandReceipt
+        ):
+            raise ValueError("qualification check_command must be a typed receipt")
+        if not isinstance(self.status, QualificationMaterializationStatus):
+            raise ValueError("qualification application status is invalid")
+        _require_string_tuple(self.reasons, "qualification application reasons")
         object.__setattr__(
             self,
             "application_digest",
@@ -456,6 +526,16 @@ class RuntimeCheckReceipt:
     stdout_preview: str = ""
     stderr_preview: str = ""
 
+    def __post_init__(self) -> None:
+        _require_text(self.check, "runtime qualification check")
+        _require_sha256(self.command_digest, "runtime qualification command_digest")
+        if isinstance(self.return_code, bool) or not isinstance(self.return_code, int):
+            raise ValueError("runtime qualification return_code must be an integer")
+        _require_sha256(self.stdout_digest, "runtime qualification stdout_digest")
+        _require_sha256(self.stderr_digest, "runtime qualification stderr_digest")
+        if not isinstance(self.stdout_preview, str) or not isinstance(self.stderr_preview, str):
+            raise ValueError("runtime qualification previews must be strings")
+
 
 @dataclass(frozen=True, slots=True)
 class DeploymentQualificationRuntimeReceipt:
@@ -469,6 +549,18 @@ class DeploymentQualificationRuntimeReceipt:
     runtime_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
+        _require_sha256(self.application_digest, "runtime qualification application_digest")
+        _require_sha256(self.plan_digest, "runtime qualification plan_digest")
+        _require_text(self.environment_id, "runtime qualification environment_id")
+        if self.backend is not None:
+            _require_text(self.backend, "runtime qualification backend")
+        if not isinstance(self.checks, tuple) or any(
+            not isinstance(item, RuntimeCheckReceipt) for item in self.checks
+        ):
+            raise ValueError("runtime qualification checks must be typed receipts")
+        if not isinstance(self.status, DeploymentRuntimeQualificationStatus):
+            raise ValueError("runtime qualification status is invalid")
+        _require_string_tuple(self.reasons, "runtime qualification reasons")
         object.__setattr__(
             self,
             "runtime_digest",

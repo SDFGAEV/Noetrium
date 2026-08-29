@@ -77,3 +77,11 @@ The management CLI exposes qualification through the generic deployment namespac
 The upstream stores qualification contracts, resolvers, providers, evidence schemas, and generic operator documentation. Concrete deployment investigations, machine observations, chosen model stacks, benchmark results, and project qualification receipts belong to the downstream repository or its external evidence store.
 
 This separation allows the same qualification system to support different models, runtimes, accelerators, and research projects without making any one of them part of the platform identity.
+
+## Persisted qualification schema integrity
+
+The application and runtime qualification stores use checksummed documents, but checksum verification is only the outer integrity layer. After checksum validation, every receipt is decoded against an exact field set and exact scalar/array/object types.
+
+A checksum-valid receipt is rejected when fields are missing or added, a return code is encoded as a string, a package/command/check has the wrong shape, a list contains `null`, or any other coercion would be required. This prevents durable qualification evidence from being silently normalized into a different typed fact.
+
+This strictness applies to platform-owned persisted receipts. It does not prohibit explicit parsing at external process/protocol boundaries, where the source contract itself is textual.
