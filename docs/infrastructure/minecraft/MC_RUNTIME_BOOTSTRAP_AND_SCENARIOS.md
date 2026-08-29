@@ -61,3 +61,7 @@ A live qualification proves infrastructure capability only. Scientific interpret
 ## Ownership boundary
 
 Upstream owns Minecraft server/runtime adapters, typed action contracts, scenario/world-cut mechanisms and provider qualification. Downstream repositories own task manifests, benchmark normalization, experiment matrices, scientific success criteria and result interpretation.
+
+## Bridge startup diagnostics
+
+The JSONL transport keeps a bounded provider `stderr` tail and surfaces the latest lines when the bridge exits or closes stdout before protocol readiness. Diagnostic formatting snapshots the deque through the immutable tuple projection before tail slicing, so an error-reporting path cannot mask the original Mineflayer/provider failure with a container-type error. `test_minecraft_jsonl_transport_v1.py` guards this failure path.

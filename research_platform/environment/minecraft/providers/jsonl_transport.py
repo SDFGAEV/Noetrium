@@ -133,7 +133,7 @@ class JsonlProcessTransport:
         return tuple(self._stderr_tail)
 
     def stderr_tail_text(self) -> str:
-        return " | ".join(self._stderr_tail[-20:])[-6000:]
+        return " | ".join(self.stderr_tail[-20:])[-6000:]
 
     def _failure(
         self,
