@@ -6,6 +6,7 @@ from pathlib import Path
 
 from research_platform.experimentation.run.api import (
     RunArtifactKind,
+    RunArtifactSealedError,
     RunArtifactSnapshotReceipt,
     RunArtifactStorePort,
     RunArtifactVerificationError,
@@ -192,11 +193,15 @@ class RunArtifactEvidenceBundlePublisher:
         self._verify_complete_streams(manifest)
         encoded = canonical_bytes(manifest)
         manifest_artifact_ref = f"evidence/{manifest.bundle_id}/manifest.json"
-        self._artifacts.publish_text(
-            manifest_artifact_ref,
-            encoded.decode("utf-8"),
-            kind=RunArtifactKind.EVIDENCE,
-        )
+        try:
+            self._artifacts.publish_text(
+                manifest_artifact_ref,
+                encoded.decode("utf-8"),
+                kind=RunArtifactKind.EVIDENCE,
+            )
+        except RunArtifactSealedError:
+            # A retry may encounter the durable seal from an earlier successful publication.
+            pass
         manifest_receipt = self._artifacts.finalize(
             manifest_artifact_ref,
             kind=RunArtifactKind.EVIDENCE,
@@ -207,13 +212,14 @@ class RunArtifactEvidenceBundlePublisher:
             raise ValueError("published evidence manifest belongs to a different run")
         if manifest_receipt.content_sha256 != expected_sha256:
             raise ValueError("published evidence manifest content digest does not match encoded manifest")
-        manifest_ref = self._artifacts.path(manifest_artifact_ref, kind=RunArtifactKind.EVIDENCE)
+        verified_manifest = self._artifacts.verify_finalized(manifest_receipt)
+        if verified_manifest != manifest_receipt:
+            raise ValueError("published evidence manifest verification changed receipt")
         return EvidenceBundleReceipt(
             manifest.bundle_id,
             manifest.run_id,
             manifest.run_manifest_digest,
-            manifest_ref,
-            expected_sha256,
+            manifest_receipt,
         )
 
 

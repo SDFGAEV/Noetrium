@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 import hashlib
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,7 @@ import pytest
 from research_platform.experimentation.run.api import (
     RunArtifactFinalizationError,
     RunArtifactKind,
+    RunArtifactSealedError,
     RunArtifactSnapshotReceipt,
     RunArtifactVerificationError,
 )
@@ -100,42 +102,89 @@ def test_verify_rejects_existing_but_unfinalized_artifact(tmp_path: Path) -> Non
         byte_size=target.stat().st_size,
         record_count=1,
     )
-    with pytest.raises(RunArtifactVerificationError, match="never finalized"):
+    with pytest.raises(RunArtifactVerificationError, match="seal is missing"):
         store.verify_finalized(forged)
-
 
 def test_verify_rejects_digest_or_count_receipt_forgery(tmp_path: Path) -> None:
     store = _store(tmp_path / "run")
     store.append_json("raw/events.jsonl", {"n": 1}, kind=RunArtifactKind.EVIDENCE)
     receipt = store.finalize("raw/events.jsonl", kind=RunArtifactKind.EVIDENCE, record_stream=True)
 
-    with pytest.raises(RunArtifactVerificationError, match="ledger does not match"):
+    with pytest.raises(RunArtifactVerificationError, match="seal does not match"):
         store.verify_finalized(replace(receipt, content_sha256="b" * 64))
-    with pytest.raises(RunArtifactVerificationError, match="ledger does not match"):
+    with pytest.raises(RunArtifactVerificationError, match="seal does not match"):
         store.verify_finalized(replace(receipt, record_count=receipt.record_count + 1))
-
 
 def test_verify_rejects_content_drift_after_finalization(tmp_path: Path) -> None:
     store = _store(tmp_path / "run")
     store.append_json("raw/events.jsonl", {"n": 1}, kind=RunArtifactKind.EVIDENCE)
     receipt = store.finalize("raw/events.jsonl", kind=RunArtifactKind.EVIDENCE, record_stream=True)
-    store.append_json("raw/events.jsonl", {"n": 2}, kind=RunArtifactKind.EVIDENCE)
+    target = tmp_path / "run" / "raw" / "events.jsonl"
+    target.write_bytes(target.read_bytes() + b'{"n":2}\n')
 
-    with pytest.raises(RunArtifactVerificationError, match="drifted"):
+    with pytest.raises(RunArtifactVerificationError, match="content drifted"):
         store.verify_finalized(receipt)
 
-
-def test_verify_rejects_same_content_rebound_artifact(tmp_path: Path) -> None:
-    store = _store(tmp_path / "run")
+def test_verify_accepts_portable_same_content_restore(tmp_path: Path) -> None:
+    source_root = tmp_path / "run"
+    store = _store(source_root)
     store.publish_text("raw/events.jsonl", '{"n":1}\n', kind=RunArtifactKind.EVIDENCE)
     receipt = store.finalize("raw/events.jsonl", kind=RunArtifactKind.EVIDENCE, record_stream=True)
-    target = tmp_path / "run" / "raw" / "events.jsonl"
+
+    restored_root = tmp_path / "restored-run"
+    shutil.copytree(source_root, restored_root)
+    restored = _store(restored_root)
+    assert restored.verify_finalized(receipt) == receipt
+
+    target = restored_root / "raw" / "events.jsonl"
     replacement = target.with_name("replacement.jsonl")
     replacement.write_bytes(target.read_bytes())
     replacement.replace(target)
+    assert restored.verify_finalized(receipt) == receipt
 
-    with pytest.raises(RunArtifactVerificationError, match="drifted"):
-        store.verify_finalized(receipt)
+def test_finalization_seals_writes_across_reopen(tmp_path: Path) -> None:
+    root = tmp_path / "run"
+    store = _store(root)
+    store.append_json("raw/events.jsonl", {"n": 1}, kind=RunArtifactKind.EVIDENCE)
+    receipt = store.finalize("raw/events.jsonl", kind=RunArtifactKind.EVIDENCE, record_stream=True)
+
+    with pytest.raises(RunArtifactSealedError, match="finalized and sealed"):
+        store.append_json("raw/events.jsonl", {"n": 2}, kind=RunArtifactKind.EVIDENCE)
+    with pytest.raises(RunArtifactSealedError, match="finalized and sealed"):
+        store.publish_text("raw/events.jsonl", '{"n":2}\n', kind=RunArtifactKind.EVIDENCE)
+
+    reopened = _store(root)
+    assert reopened.verify_finalized(receipt) == receipt
+    assert reopened.finalize("raw/events.jsonl", kind=RunArtifactKind.EVIDENCE, record_stream=True) == receipt
+    with pytest.raises(RunArtifactSealedError, match="finalized and sealed"):
+        reopened.append_json("raw/events.jsonl", {"n": 3}, kind=RunArtifactKind.EVIDENCE)
+
+
+def test_snapshot_receipt_requires_canonical_lowercase_sha256(tmp_path: Path) -> None:
+    store = _store(tmp_path / "run")
+    store.publish_text("raw/events.jsonl", '{"n":1}\n', kind=RunArtifactKind.EVIDENCE)
+    receipt = store.finalize("raw/events.jsonl", kind=RunArtifactKind.EVIDENCE, record_stream=True)
+    with pytest.raises(ValueError, match="generation must be SHA-256"):
+        replace(receipt, generation="A" * 64)
+    with pytest.raises(ValueError, match="content_sha256 must be SHA-256"):
+        replace(receipt, content_sha256="B" * 64)
+
+
+def test_finalize_uses_platform_atomic_replace_for_ledger_and_seal(tmp_path: Path, monkeypatch) -> None:
+    import research_platform.experimentation.run.runtime.artifacts as artifacts_runtime
+    from research_platform.platform.kernel.durability import atomic_replace_bytes as platform_atomic_replace_bytes
+
+    calls: list[Path] = []
+    def spy(path: Path, payload: bytes) -> None:
+        calls.append(path)
+        platform_atomic_replace_bytes(path, payload)
+
+    monkeypatch.setattr(artifacts_runtime, "atomic_replace_bytes", spy)
+    store = _store(tmp_path / "run")
+    store.publish_text("raw/events.jsonl", '{"n":1}\n', kind=RunArtifactKind.EVIDENCE)
+    store.finalize("raw/events.jsonl", kind=RunArtifactKind.EVIDENCE, record_stream=True)
+    assert any("generations" in path.parts for path in calls)
+    assert any("seals" in path.parts for path in calls)
 
 
 def test_verify_rejects_receipt_from_another_run(tmp_path: Path) -> None:

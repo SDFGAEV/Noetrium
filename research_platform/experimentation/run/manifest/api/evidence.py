@@ -24,7 +24,7 @@ def _require_non_empty_string(value: object, field: str) -> str:
 
 
 def _require_sha256(value: object, field: str) -> str:
-    if type(value) is not str or len(value) != 64 or any(character not in _HEX for character in value.lower()):
+    if type(value) is not str or len(value) != 64 or any(character not in _HEX for character in value):
         raise ValueError(f"evidence bundle {field} must be SHA-256")
     return value
 
@@ -177,15 +177,31 @@ class EvidenceBundleReceipt:
     bundle_id: str
     run_id: str
     run_manifest_digest: str
-    manifest_ref: str
-    manifest_sha256: str
+    manifest_artifact_receipt: RunArtifactSnapshotReceipt
 
     def __post_init__(self) -> None:
         _require_identity(self.bundle_id, "receipt bundle_id")
         _require_identity(self.run_id, "receipt run_id")
         _require_sha256(self.run_manifest_digest, "receipt run_manifest_digest")
-        _require_non_empty_string(self.manifest_ref, "receipt manifest_ref")
-        _require_sha256(self.manifest_sha256, "receipt manifest_sha256")
+        if type(self.manifest_artifact_receipt) is not RunArtifactSnapshotReceipt:
+            raise ValueError("evidence bundle receipt requires typed finalized manifest artifact")
+        artifact = self.manifest_artifact_receipt
+        if artifact.run_id != self.run_id:
+            raise ValueError("evidence bundle manifest artifact belongs to a different run")
+        if artifact.artifact_kind.value != "evidence" or artifact.record_count is not None:
+            raise ValueError("evidence bundle manifest artifact receipt has invalid semantics")
+        expected_ref = f"evidence/{self.bundle_id}/manifest.json"
+        if artifact.artifact_ref != expected_ref:
+            raise ValueError("evidence bundle manifest artifact ref does not match bundle identity")
+
+    @property
+    def manifest_ref(self) -> str:
+        return self.manifest_artifact_receipt.artifact_ref
+
+    @property
+    def manifest_sha256(self) -> str:
+        return self.manifest_artifact_receipt.content_sha256
+
 
 
 __all__ = [

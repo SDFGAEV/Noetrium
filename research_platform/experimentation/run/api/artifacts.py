@@ -28,7 +28,7 @@ def _require_artifact_ref(value: object) -> str:
     return value
 
 def _require_sha256(value: object, field: str) -> str:
-    if type(value) is not str or len(value) != 64 or any(ch not in _HEX for ch in value.lower()):
+    if type(value) is not str or len(value) != 64 or any(ch not in _HEX for ch in value):
         raise ValueError(f"run artifact {field} must be SHA-256")
     return value
 
@@ -56,6 +56,10 @@ class RunArtifactFinalizationError(RuntimeError):
 
 
 class RunArtifactVerificationError(RuntimeError):
+    pass
+
+
+class RunArtifactSealedError(RuntimeError):
     pass
 
 @dataclass(frozen=True, slots=True)
@@ -131,6 +135,7 @@ __all__ = [
     "RunArtifactFinalizationPort",
     "RunArtifactKind",
     "RunArtifactSnapshotReceipt",
+    "RunArtifactSealedError",
     "RunArtifactStorePort",
     "RunArtifactVerificationError",
     "RunArtifactVerificationPort",

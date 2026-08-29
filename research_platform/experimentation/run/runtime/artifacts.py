@@ -2,16 +2,16 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
-import tempfile
 from pathlib import Path
 
 from research_platform.platform.kernel import JsonObject, JsonValue, canonical_bytes, canonical_digest
+from research_platform.platform.kernel.durability import atomic_replace_bytes, durable_append_bytes
 
 from .diagnostics import json_default
 from ..api.artifacts import (
     RunArtifactFinalizationError,
     RunArtifactKind,
+    RunArtifactSealedError,
     RunArtifactSnapshotReceipt,
     RunArtifactStorePort,
     RunArtifactVerificationError,
@@ -19,10 +19,14 @@ from ..api.artifacts import (
 )
 
 _FINALIZED_DIR = ".run-artifact-finalized"
+_RECEIPT_FIELDS = frozenset({
+    "run_id", "artifact_ref", "artifact_kind", "generation",
+    "content_sha256", "byte_size", "record_count",
+})
 
 
 class DirectoryRunArtifactStore(RunArtifactStorePort):
-    """Crash-safe run-local artifact authority with finalized snapshot receipts."""
+    """Crash-safe run-local artifact authority with durable logical seals."""
 
     def __init__(
         self,
@@ -54,6 +58,28 @@ class DirectoryRunArtifactStore(RunArtifactStorePort):
             target.parent.mkdir(parents=True, exist_ok=True)
         return target
 
+    @staticmethod
+    def _seal_key(artifact_ref: str) -> str:
+        return hashlib.sha256(artifact_ref.encode("utf-8")).hexdigest()
+
+    def _seal_path(self, artifact_ref: str) -> Path:
+        return self.root / _FINALIZED_DIR / "seals" / f"{self._seal_key(artifact_ref)}.json"
+
+    def _ledger_path(self, generation: str) -> Path:
+        return self.root / _FINALIZED_DIR / "generations" / f"{generation}.json"
+
+    def _require_unsealed(self, artifact_ref: str) -> None:
+        seal = self._seal_path(artifact_ref)
+        try:
+            seal.lstat()
+        except FileNotFoundError:
+            return
+        except OSError as exc:
+            raise RunArtifactSealedError(
+                f"run artifact seal state cannot be inspected: {artifact_ref}"
+            ) from exc
+        raise RunArtifactSealedError(f"run artifact is finalized and sealed: {artifact_ref}")
+
     def path(self, name: str, *, kind: RunArtifactKind) -> str:
         if type(kind) is not RunArtifactKind:
             raise ValueError("run artifact kind must be RunArtifactKind")
@@ -74,17 +100,9 @@ class DirectoryRunArtifactStore(RunArtifactStorePort):
         target = self._resolve_ref(name, create_parent=True)
 
         def publish_owned() -> str:
-            descriptor, temporary = tempfile.mkstemp(prefix=f".{target.name}.", dir=str(target.parent))
-            try:
-                with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as handle:
-                    handle.write(content)
-                    handle.flush()
-                    os.fsync(handle.fileno())
-                Path(temporary).replace(target)
-                return str(target)
-            except BaseException:
-                Path(temporary).unlink(missing_ok=True)
-                raise
+            self._require_unsealed(name)
+            atomic_replace_bytes(target, content.encode("utf-8"))
+            return str(target)
 
         return self._writer_actor.call(f"publish:{name}", publish_owned)
 
@@ -99,10 +117,8 @@ class DirectoryRunArtifactStore(RunArtifactStorePort):
         encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, default=json_default) + "\n"
 
         def append_owned() -> str:
-            with target.open("a", encoding="utf-8", newline="\n") as handle:
-                handle.write(encoded)
-                handle.flush()
-                os.fsync(handle.fileno())
+            self._require_unsealed(name)
+            durable_append_bytes(target, encoded.encode("utf-8"))
             return str(target)
 
         return self._writer_actor.call(f"append:{name}", append_owned)
@@ -141,25 +157,20 @@ class DirectoryRunArtifactStore(RunArtifactStorePort):
         except OSError as exc:
             raise error_type(f"run artifact cannot be read: {artifact_ref}") from exc
         after = target.stat()
-        before_identity = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
-        after_identity = (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+        before_identity = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns)
+        after_identity = (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns)
         if before_identity != after_identity or after.st_size != byte_size:
             raise error_type(f"run artifact changed during snapshot: {artifact_ref}")
         content_sha256 = hasher.hexdigest()
-        generation = canonical_digest(
-            {
-                "run_id": self.run_id,
-                "artifact_ref": artifact_ref,
-                "artifact_kind": kind.value,
-                "device": int(after.st_dev),
-                "inode": int(after.st_ino),
-                "mtime_ns": int(after.st_mtime_ns),
-                "ctime_ns": int(after.st_ctime_ns),
-                "content_sha256": content_sha256,
-                "byte_size": byte_size,
-                "record_count": record_count,
-            }
-        )
+        generation = canonical_digest({
+            "schema_version": "1",
+            "run_id": self.run_id,
+            "artifact_ref": artifact_ref,
+            "artifact_kind": kind.value,
+            "content_sha256": content_sha256,
+            "byte_size": byte_size,
+            "record_count": record_count,
+        })
         return RunArtifactSnapshotReceipt(
             run_id=self.run_id,
             artifact_ref=artifact_ref,
@@ -170,24 +181,64 @@ class DirectoryRunArtifactStore(RunArtifactStorePort):
             record_count=record_count,
         )
 
-    def _ledger_path(self, generation: str, *, create_parent: bool) -> Path:
-        directory = self.root / _FINALIZED_DIR
-        if create_parent:
-            directory.mkdir(parents=True, exist_ok=True)
-        return directory / f"{generation}.json"
+    @staticmethod
+    def _decode_receipt(raw: bytes, *, error_type: type[RuntimeError]) -> RunArtifactSnapshotReceipt:
+        try:
+            document = json.loads(raw.decode("utf-8"))
+            if not isinstance(document, dict) or set(document) != _RECEIPT_FIELDS:
+                raise ValueError("receipt fields are not exact")
+            record_count = document["record_count"]
+            if record_count is not None and type(record_count) is not int:
+                raise TypeError("record_count must be integer or null")
+            if type(document["byte_size"]) is not int:
+                raise TypeError("byte_size must be integer")
+            strings = {
+                field: document[field]
+                for field in ("run_id", "artifact_ref", "artifact_kind", "generation", "content_sha256")
+            }
+            if any(type(value) is not str for value in strings.values()):
+                raise TypeError("receipt string fields must be strings")
+            return RunArtifactSnapshotReceipt(
+                run_id=strings["run_id"],
+                artifact_ref=strings["artifact_ref"],
+                artifact_kind=RunArtifactKind(strings["artifact_kind"]),
+                generation=strings["generation"],
+                content_sha256=strings["content_sha256"],
+                byte_size=document["byte_size"],
+                record_count=record_count,
+            )
+        except (UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+            raise error_type("run artifact finalized receipt is corrupt") from exc
 
     @staticmethod
-    def _write_atomic_bytes(target: Path, payload: bytes) -> None:
-        descriptor, temporary = tempfile.mkstemp(prefix=f".{target.name}.", dir=str(target.parent))
+    def _read_bytes(path: Path, *, error_type: type[RuntimeError], label: str) -> bytes:
         try:
-            with os.fdopen(descriptor, "wb") as handle:
-                handle.write(payload)
-                handle.flush()
-                os.fsync(handle.fileno())
-            Path(temporary).replace(target)
-        except BaseException:
-            Path(temporary).unlink(missing_ok=True)
-            raise
+            if not path.is_file():
+                raise error_type(f"run artifact {label} is missing")
+            return path.read_bytes()
+        except OSError as exc:
+            raise error_type(f"run artifact {label} cannot be read") from exc
+
+    def _verify_finalized_unlocked(
+        self,
+        receipt: RunArtifactSnapshotReceipt,
+    ) -> RunArtifactSnapshotReceipt:
+        expected = canonical_bytes(receipt, indent=2) + b"\n"
+        seal = self._seal_path(receipt.artifact_ref)
+        if self._read_bytes(seal, error_type=RunArtifactVerificationError, label="seal") != expected:
+            raise RunArtifactVerificationError("run artifact seal does not match receipt")
+        ledger = self._ledger_path(receipt.generation)
+        if self._read_bytes(ledger, error_type=RunArtifactVerificationError, label="generation ledger") != expected:
+            raise RunArtifactVerificationError("run artifact generation ledger does not match receipt")
+        current = self._snapshot_unlocked(
+            receipt.artifact_ref,
+            kind=receipt.artifact_kind,
+            record_stream=receipt.record_count is not None,
+            error_type=RunArtifactVerificationError,
+        )
+        if current != receipt:
+            raise RunArtifactVerificationError("run artifact content drifted after finalization")
+        return receipt
 
     def finalize(
         self,
@@ -197,6 +248,19 @@ class DirectoryRunArtifactStore(RunArtifactStorePort):
         record_stream: bool,
     ) -> RunArtifactSnapshotReceipt:
         def finalize_owned() -> RunArtifactSnapshotReceipt:
+            seal = self._seal_path(artifact_ref)
+            if seal.exists():
+                recorded = self._decode_receipt(
+                    self._read_bytes(seal, error_type=RunArtifactFinalizationError, label="seal"),
+                    error_type=RunArtifactFinalizationError,
+                )
+                if recorded.artifact_kind is not kind or (recorded.record_count is not None) is not record_stream:
+                    raise RunArtifactFinalizationError("run artifact is already sealed with different semantics")
+                try:
+                    return self._verify_finalized_unlocked(recorded)
+                except RunArtifactVerificationError as exc:
+                    raise RunArtifactFinalizationError("sealed run artifact no longer matches its receipt") from exc
+
             receipt = self._snapshot_unlocked(
                 artifact_ref,
                 kind=kind,
@@ -204,13 +268,27 @@ class DirectoryRunArtifactStore(RunArtifactStorePort):
                 error_type=RunArtifactFinalizationError,
             )
             payload = canonical_bytes(receipt, indent=2) + b"\n"
-            ledger = self._ledger_path(receipt.generation, create_parent=True)
+            ledger = self._ledger_path(receipt.generation)
             if ledger.exists():
-                if ledger.read_bytes() != payload:
-                    raise RunArtifactFinalizationError("run artifact finalized ledger conflicts with receipt")
+                recorded = self._read_bytes(
+                    ledger,
+                    error_type=RunArtifactFinalizationError,
+                    label="generation ledger",
+                )
+                if recorded != payload:
+                    raise RunArtifactFinalizationError("run artifact generation ledger conflicts with receipt")
             else:
-                self._write_atomic_bytes(ledger, payload)
-            return receipt
+                atomic_replace_bytes(ledger, payload)
+            if seal.exists():
+                recorded = self._read_bytes(seal, error_type=RunArtifactFinalizationError, label="seal")
+                if recorded != payload:
+                    raise RunArtifactFinalizationError("run artifact seal conflicts with receipt")
+            else:
+                atomic_replace_bytes(seal, payload)
+            try:
+                return self._verify_finalized_unlocked(receipt)
+            except RunArtifactVerificationError as exc:
+                raise RunArtifactFinalizationError("finalized run artifact failed immediate verification") from exc
 
         return self._writer_actor.call(f"finalize:{artifact_ref}", finalize_owned)
 
@@ -219,29 +297,11 @@ class DirectoryRunArtifactStore(RunArtifactStorePort):
             raise RunArtifactVerificationError("run artifact verification requires a typed snapshot receipt")
         if receipt.run_id != self.run_id:
             raise RunArtifactVerificationError("run artifact snapshot belongs to a different run")
-
-        def verify_owned() -> RunArtifactSnapshotReceipt:
-            ledger = self._ledger_path(receipt.generation, create_parent=False)
-            expected = canonical_bytes(receipt, indent=2) + b"\n"
-            if not ledger.is_file():
-                raise RunArtifactVerificationError("run artifact snapshot was never finalized")
-            try:
-                recorded = ledger.read_bytes()
-            except OSError as exc:
-                raise RunArtifactVerificationError("run artifact finalized ledger cannot be read") from exc
-            if recorded != expected:
-                raise RunArtifactVerificationError("run artifact finalized ledger does not match receipt")
-            current = self._snapshot_unlocked(
-                receipt.artifact_ref,
-                kind=receipt.artifact_kind,
-                record_stream=receipt.record_count is not None,
-                error_type=RunArtifactVerificationError,
-            )
-            if current != receipt:
-                raise RunArtifactVerificationError("run artifact content or generation drifted after finalization")
-            return receipt
-
-        return self._writer_actor.call(f"verify-finalized:{receipt.artifact_ref}", verify_owned)
+        return self._writer_actor.call(
+            f"verify-finalized:{receipt.artifact_ref}",
+            self._verify_finalized_unlocked,
+            receipt,
+        )
 
 
 __all__ = ["DirectoryRunArtifactStore"]

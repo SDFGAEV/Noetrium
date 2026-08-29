@@ -19,9 +19,11 @@ The canonical `RunLaunchManifest.digest()` is the stable launch/source identity 
 
 Mutable run artifacts are not scientific evidence merely because a caller knows a path. `DirectoryRunArtifactStore.finalize()` is the authority boundary that snapshots a completed artifact and emits a typed `RunArtifactSnapshotReceipt`.
 
-A snapshot receipt binds the run ID, run-local artifact reference, artifact kind, opaque generation, content SHA-256, byte size, and authoritative record count for record streams. Finalization writes a durable receipt ledger through the same serialized run-artifact writer.
+A snapshot receipt binds the run ID, run-local artifact reference, artifact kind, logical generation, content SHA-256, byte size, and authoritative record count for record streams. Generation is derived only from logical run/artifact identity plus authoritative content facts; it never contains device, inode, mtime, or ctime. A complete backup restored under a different root or filesystem therefore preserves the same scientific artifact identity.
 
-`verify_finalized()` does not trust the receipt alone. It requires the durable finalization ledger and re-snapshots the current artifact. Missing/unfinalized artifacts, receipt forgery, content/count drift, run mismatch, or stale/rebound artifact identity fail closed.
+Finalization durably publishes both a generation ledger and a per-reference seal using the Platform `atomic_replace_bytes` durability authority. Once the seal exists, normal publish/append operations fail closed even after the store is reopened. Finalization is idempotent only when the sealed artifact still verifies exactly.
+
+`verify_finalized()` does not trust the receipt alone. It requires both durable seal and generation ledger, then re-snapshots the current artifact. Missing/unfinalized artifacts, receipt forgery, content/count drift, run mismatch, or a non-identical restore fail closed. Byte-identical backup/restore or replacement remains the same logical generation by design.
 
 The directory provider performs the O(n) content hash/record-count pass at finalization/verification, not after every JSONL append. Append throughput therefore remains single-writer sequential I/O without a per-record full-file rehash.
 
@@ -33,7 +35,7 @@ Raw evidence streams no longer carry caller-asserted `artifact_ref`, `record_cou
 
 For `COMPLETE` publication, `RunArtifactEvidenceBundlePublisher` verifies every stream receipt through `RunArtifactVerificationPort` before writing the manifest. A hand-constructed descriptor, an existing-but-unfinalized path, or a finalized stream that later changes cannot authorize COMPLETE evidence.
 
-The evidence manifest itself is atomically published and finalized through the same run-artifact authority. `EvidenceBundleReceipt` repeats `run_id` and `run_manifest_digest` alongside the finalized manifest SHA-256.
+The evidence manifest itself is atomically published and finalized through the same run-artifact authority. `EvidenceBundleReceipt` preserves the typed finalized manifest `RunArtifactSnapshotReceipt` together with `run_id` and `run_manifest_digest`; it does not collapse the manifest authority back into caller-supplied path/hash strings. Publication replay is idempotent only when the existing sealed manifest has the identical authoritative content digest.
 
 An optional `source_checkpoint_id` can bind evidence to a specific checkpoint cut. Raw source-of-truth streams remain separate from rebuildable `DerivedEvidenceArtifact` projections, and derived artifacts list the exact source stream IDs they depend on.
 

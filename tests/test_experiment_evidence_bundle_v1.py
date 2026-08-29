@@ -114,9 +114,12 @@ def test_evidence_bundle_publishes_only_authority_finalized_streams(tmp_path: Pa
     receipt = RunArtifactEvidenceBundlePublisher(store).publish(manifest)
     target = tmp_path / "run" / "evidence" / "episode-1" / "manifest.json"
     assert receipt.run_manifest_digest == SHA_C
-    assert receipt.manifest_ref == str(target)
+    assert receipt.manifest_ref == "evidence/episode-1/manifest.json"
+    assert receipt.manifest_artifact_receipt.artifact_kind is RunArtifactKind.EVIDENCE
+    assert receipt.manifest_artifact_receipt.record_count is None
     assert receipt.manifest_sha256 == manifest.digest
     assert receipt.manifest_sha256 == hashlib.sha256(target.read_bytes()).hexdigest()
+    assert store.verify_finalized(receipt.manifest_artifact_receipt) == receipt.manifest_artifact_receipt
     document = json.loads(target.read_text(encoding="utf-8"))
     assert document["schema_version"] == "2"
     assert [row["stream_id"] for row in document["streams"]] == [
@@ -124,6 +127,18 @@ def test_evidence_bundle_publishes_only_authority_finalized_streams(tmp_path: Pa
         "study-events",
     ]
     assert document["streams"][0]["artifact_receipt"]["record_count"] == 4
+
+def test_evidence_bundle_publication_replay_is_idempotent_after_manifest_seal(tmp_path: Path) -> None:
+    store = _store(tmp_path / "run")
+    environment = _finalize_rows(store, "raw/environment.jsonl", [{"n": 1}])
+    study = _finalize_rows(store, "raw/study.jsonl", [{"n": 1}])
+    manifest = _manifest((environment, study))
+    publisher = RunArtifactEvidenceBundlePublisher(store)
+
+    first = publisher.publish(manifest)
+    second = publisher.publish(manifest)
+    assert second == first
+    assert store.verify_finalized(second.manifest_artifact_receipt) == second.manifest_artifact_receipt
 
 
 def test_evidence_bundle_codec_round_trips_exact_v2_contract() -> None:
@@ -136,7 +151,8 @@ def test_evidence_bundle_rejects_old_schema_and_invalid_run_manifest_digest() ->
         EvidenceBundleManifest(**{**asdict(_manifest()), "schema_version": "1"})
     with pytest.raises(ValueError, match="run_manifest_digest"):
         EvidenceBundleManifest(**{**asdict(_manifest()), "run_manifest_digest": "not-a-sha"})
-
+    with pytest.raises(ValueError, match="run_manifest_digest"):
+        EvidenceBundleManifest(**{**asdict(_manifest()), "run_manifest_digest": "C" * 64})
 
 def test_evidence_bundle_decoder_rejects_unknown_top_level_or_receipt_fields() -> None:
     document = json.loads(encode_evidence_bundle_manifest(_manifest()))
@@ -253,7 +269,7 @@ def test_complete_publication_rejects_digest_and_count_receipt_forgery(tmp_path:
         publisher.publish(_manifest((replace(environment, record_count=7), study)))
 
 
-def test_complete_publication_rejects_content_drift_and_stale_rebound(tmp_path: Path) -> None:
+def test_complete_publication_rejects_content_drift_but_accepts_portable_same_content_restore(tmp_path: Path) -> None:
     store = _store(tmp_path / "run")
     environment = _finalize_rows(store, "raw/environment.jsonl", [{"n": 1}])
     study = _finalize_rows(store, "raw/study.jsonl", [{"n": 1}, {"n": 2}])
@@ -265,13 +281,11 @@ def test_complete_publication_rejects_content_drift_and_stale_rebound(tmp_path: 
         RunArtifactEvidenceBundlePublisher(store).publish(_manifest((environment, study)))
 
     target.write_bytes(original)
-    refreshed = store.finalize("raw/environment.jsonl", kind=RunArtifactKind.EVIDENCE, record_stream=True)
     replacement = target.with_name("replacement.jsonl")
     replacement.write_bytes(target.read_bytes())
     replacement.replace(target)
-    with pytest.raises(ValueError, match="not authority-finalized"):
-        RunArtifactEvidenceBundlePublisher(store).publish(_manifest((refreshed, study)))
-
+    receipt = RunArtifactEvidenceBundlePublisher(store).publish(_manifest((environment, study)))
+    assert receipt.manifest_sha256 == _manifest((environment, study)).digest
 
 def test_complete_publication_rejects_publisher_store_run_mismatch(tmp_path: Path) -> None:
     source = _store(tmp_path / "run-1", run_id="run-1")
@@ -293,15 +307,26 @@ def test_evidence_bundle_requires_typed_status() -> None:
         EvidenceBundleManifest("2", "episode-1", "run-1", SHA_C, "complete", None, (stream,))
 
 
-def test_evidence_bundle_receipt_rejects_malformed_publication_identity() -> None:
+def test_evidence_bundle_receipt_preserves_typed_finalized_manifest_identity() -> None:
+    manifest_artifact = RunArtifactSnapshotReceipt(
+        run_id="run-1",
+        artifact_ref="evidence/episode-1/manifest.json",
+        artifact_kind=RunArtifactKind.EVIDENCE,
+        generation=SHA_D,
+        content_sha256=SHA_A,
+        byte_size=42,
+        record_count=None,
+    )
     valid = dict(
         bundle_id="episode-1",
         run_id="run-1",
         run_manifest_digest=SHA_C,
-        manifest_ref="evidence/episode-1/manifest.json",
-        manifest_sha256=SHA_A,
+        manifest_artifact_receipt=manifest_artifact,
     )
-    assert EvidenceBundleReceipt(**valid).manifest_sha256 == SHA_A
+    receipt = EvidenceBundleReceipt(**valid)
+    assert receipt.manifest_ref == "evidence/episode-1/manifest.json"
+    assert receipt.manifest_sha256 == SHA_A
+    assert receipt.manifest_artifact_receipt is manifest_artifact
     with pytest.raises(ValueError):
         EvidenceBundleReceipt(**{**valid, "bundle_id": "../escape"})
     with pytest.raises(ValueError):
@@ -309,8 +334,20 @@ def test_evidence_bundle_receipt_rejects_malformed_publication_identity() -> Non
     with pytest.raises(ValueError):
         EvidenceBundleReceipt(**{**valid, "run_manifest_digest": "not-a-sha"})
     with pytest.raises(ValueError):
-        EvidenceBundleReceipt(**{**valid, "manifest_ref": ""})
-    with pytest.raises(ValueError):
-        EvidenceBundleReceipt(**{**valid, "manifest_sha256": "not-a-sha"})
-    with pytest.raises(ValueError):
-        EvidenceBundleReceipt(**{**valid, "manifest_sha256": True})
+        EvidenceBundleReceipt(**{**valid, "run_manifest_digest": "C" * 64})
+    with pytest.raises(ValueError, match="different run"):
+        EvidenceBundleReceipt(**{**valid, "run_id": "run-2"})
+    with pytest.raises(ValueError, match="artifact ref"):
+        EvidenceBundleReceipt(**{
+            **valid,
+            "manifest_artifact_receipt": replace(
+                manifest_artifact, artifact_ref="evidence/other/manifest.json"
+            ),
+        })
+    with pytest.raises(ValueError, match="invalid semantics"):
+        EvidenceBundleReceipt(**{
+            **valid,
+            "manifest_artifact_receipt": replace(manifest_artifact, record_count=1),
+        })
+    with pytest.raises(ValueError, match="typed finalized"):
+        EvidenceBundleReceipt(**{**valid, "manifest_artifact_receipt": object()})
