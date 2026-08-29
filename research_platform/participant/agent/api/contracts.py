@@ -6,6 +6,12 @@ from typing import Protocol, runtime_checkable
 from research_platform.participant.capability.api import CapabilityPort
 from research_platform.platform.kernel import ExecutionContext, JsonInput, JsonValue
 
+from research_platform.participant._immutable_json import (
+    freeze_json_input,
+    freeze_json_value,
+    freeze_json_value_object,
+)
+
 
 @dataclass(frozen=True, slots=True)
 class AgentIdentity:
@@ -32,6 +38,15 @@ class AgentTurnRequest:
     context: ExecutionContext
     input_payload: JsonInput | None = None
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.context, ExecutionContext):
+            raise TypeError("agent turn context must be an ExecutionContext")
+        object.__setattr__(self, "task", freeze_json_input(self.task, field="agent turn task"))
+        if self.input_payload is not None:
+            object.__setattr__(
+                self, "input_payload", freeze_json_input(self.input_payload, field="agent turn input_payload")
+            )
+
 
 @dataclass(frozen=True, slots=True)
 class AgentTurnResult:
@@ -39,6 +54,21 @@ class AgentTurnResult:
     agent_generation: str | None = None
     artifacts: tuple[str, ...] = ()
     diagnostics: dict[str, JsonValue] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "output", freeze_json_value(self.output, field="agent turn output"))
+        if self.agent_generation is not None and (
+            not isinstance(self.agent_generation, str) or not self.agent_generation.strip()
+        ):
+            raise ValueError("agent_generation must be non-empty text when provided")
+        if not isinstance(self.artifacts, tuple) or any(
+            not isinstance(item, str) or not item.strip() for item in self.artifacts
+        ):
+            raise TypeError("agent turn artifacts must be a tuple of non-empty strings")
+        frozen_diagnostics = freeze_json_value_object(
+            self.diagnostics, field="agent turn diagnostics"
+        )
+        object.__setattr__(self, "diagnostics", frozen_diagnostics)
 
 
 @runtime_checkable

@@ -6,6 +6,8 @@ from typing import Protocol, runtime_checkable
 from research_platform.reliability.effect.api import EffectReconciliationDisposition, PreparedEffectHandle
 from research_platform.platform.kernel import EffectClass, EffectReceipt, ExecutionContext, JsonObject, JsonValue, canonical_digest
 
+from research_platform.participant._immutable_json import freeze_json_value, freeze_json_value_object
+
 
 @dataclass(frozen=True, slots=True)
 class CapabilityProviderIdentity:
@@ -42,6 +44,19 @@ class CapabilityRequest:
     payload: JsonValue
     context: ExecutionContext
     idempotency_key: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.capability_id, str) or not self.capability_id.strip():
+            raise ValueError("capability request identity is required")
+        if not isinstance(self.context, ExecutionContext):
+            raise TypeError("capability request context must be an ExecutionContext")
+        if self.idempotency_key is not None and (
+            not isinstance(self.idempotency_key, str) or not self.idempotency_key.strip()
+        ):
+            raise ValueError("capability request idempotency_key must be non-empty when provided")
+        object.__setattr__(
+            self, "payload", freeze_json_value(self.payload, field="capability request payload")
+        )
 
 
 def capability_effect_request_id(request: CapabilityRequest) -> str:
@@ -80,6 +95,24 @@ class CapabilityResult:
     diagnostics: JsonObject = field(default_factory=dict)
     effect: EffectReceipt | None = None
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.capability_id, str) or not self.capability_id.strip():
+            raise ValueError("capability result identity is required")
+        if self.generation is not None and (
+            not isinstance(self.generation, str) or not self.generation.strip()
+        ):
+            raise ValueError("capability result generation must be non-empty when provided")
+        if not isinstance(self.artifacts, tuple) or any(
+            not isinstance(item, str) or not item.strip() for item in self.artifacts
+        ):
+            raise TypeError("capability result artifacts must be a tuple of non-empty strings")
+        object.__setattr__(
+            self, "payload", freeze_json_value(self.payload, field="capability result payload")
+        )
+        object.__setattr__(
+            self, "diagnostics", freeze_json_value_object(self.diagnostics, field="capability result diagnostics")
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class CapabilityEffectReconciliationResult:
@@ -87,6 +120,16 @@ class CapabilityEffectReconciliationResult:
     disposition: EffectReconciliationDisposition
     result: CapabilityResult | None
     diagnostics: JsonObject = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.capability_id, str) or not self.capability_id.strip():
+            raise ValueError("capability reconciliation identity is required")
+        if self.result is not None and not isinstance(self.result, CapabilityResult):
+            raise TypeError("capability reconciliation result must be CapabilityResult")
+        object.__setattr__(
+            self, "diagnostics",
+            freeze_json_value_object(self.diagnostics, field="capability reconciliation diagnostics"),
+        )
 
 
 @runtime_checkable

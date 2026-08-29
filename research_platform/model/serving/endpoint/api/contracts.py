@@ -5,6 +5,7 @@ from typing import Mapping
 from urllib.parse import urlparse
 
 from research_platform.model.request.api import ModelRequestEnvelope
+from research_platform.model.request._immutable_json import freeze_json_object, freeze_json_value
 from research_platform.platform.kernel import canonical_digest, JsonInput, JsonValue
 
 
@@ -18,12 +19,21 @@ class ModelEndpointRequest:
     body: Mapping[str, JsonInput]
 
     def __post_init__(self) -> None:
-        if not self.deployment_id.strip():
+        if not isinstance(self.request, ModelRequestEnvelope):
+            raise TypeError("model endpoint request must carry a ModelRequestEnvelope")
+        if not isinstance(self.deployment_id, str) or not self.deployment_id.strip():
             raise ValueError("model endpoint deployment_id is required")
-        if len(self.deployment_generation) != 64:
-            raise ValueError("model endpoint deployment_generation must be SHA-256")
+        if (
+            not isinstance(self.deployment_generation, str)
+            or len(self.deployment_generation) != 64
+            or any(char not in "0123456789abcdef" for char in self.deployment_generation)
+        ):
+            raise ValueError("model endpoint deployment_generation must be lowercase SHA-256")
         if not isinstance(self.body, Mapping):
             raise TypeError("model endpoint request body must be a mapping")
+        object.__setattr__(
+            self, "body", freeze_json_object(self.body, field="model endpoint request body")
+        )
 
     def digest(self) -> str:
         return canonical_digest({
@@ -45,14 +55,20 @@ class ModelEndpointRoute:
     timeout_s: float = 120.0
 
     def __post_init__(self) -> None:
-        if not self.deployment_id.strip() or len(self.deployment_generation) != 64:
+        if (
+            not isinstance(self.deployment_id, str)
+            or not self.deployment_id.strip()
+            or not isinstance(self.deployment_generation, str)
+            or len(self.deployment_generation) != 64
+            or any(char not in "0123456789abcdef" for char in self.deployment_generation)
+        ):
             raise ValueError("model endpoint route requires exact deployment identity")
         parsed = urlparse(self.base_url)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise ValueError("model endpoint route base_url must be an absolute HTTP(S) URL")
         if not self.completion_path.startswith("/"):
             raise ValueError("model endpoint completion_path must be absolute")
-        if self.timeout_s <= 0:
+        if isinstance(self.timeout_s, bool) or not isinstance(self.timeout_s, (int, float)) or self.timeout_s <= 0:
             raise ValueError("model endpoint timeout_s must be positive")
 
     @property
@@ -66,8 +82,11 @@ class JsonHttpResponse:
     body: JsonValue
 
     def __post_init__(self) -> None:
-        if self.status_code < 100:
+        if type(self.status_code) is not int or not 100 <= self.status_code <= 599:
             raise ValueError("HTTP status code is invalid")
+        object.__setattr__(
+            self, "body", freeze_json_value(self.body, field="JSON HTTP response body")
+        )
 
 
 @dataclass(frozen=True, slots=True)

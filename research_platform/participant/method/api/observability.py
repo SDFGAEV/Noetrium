@@ -7,6 +7,23 @@ from threading import RLock
 from typing import Mapping, Protocol, runtime_checkable
 
 from research_platform.platform.kernel import ExecutionContext, JsonValue
+from research_platform.participant._immutable_json import freeze_json_value_object
+
+
+def _method_observation_id(
+    context: ExecutionContext, method_id: str, session_id: str, kind: str, payload: Mapping[str, JsonValue]
+) -> str:
+    document = {
+        "context": asdict(context),
+        "method_id": method_id,
+        "session_id": session_id,
+        "kind": kind,
+        "payload": dict(payload),
+    }
+    raw = json.dumps(
+        document, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+    ).encode()
+    return f"methodobs_{hashlib.sha256(raw).hexdigest()[:24]}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,17 +35,29 @@ class MethodObservation:
     kind: str
     payload: Mapping[str, JsonValue]
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.context, ExecutionContext):
+            raise TypeError("method observation context must be an ExecutionContext")
+        if any(
+            not isinstance(value, str) or not value.strip()
+            for value in (self.method_id, self.session_id, self.kind)
+        ):
+            raise ValueError("method observation identity fields are required")
+        frozen = freeze_json_value_object(self.payload, field="method observation payload")
+        object.__setattr__(self, "payload", frozen)
+        expected = _method_observation_id(
+            self.context, self.method_id, self.session_id, self.kind, frozen
+        )
+        if self.observation_id != expected:
+            raise ValueError("method observation identity does not match immutable payload")
+
     @classmethod
     def build(cls, context: ExecutionContext, method_id: str, session_id: str, kind: str, payload: Mapping[str, JsonValue]) -> "MethodObservation":
-        document = {
-            "context": asdict(context),
-            "method_id": method_id,
-            "session_id": session_id,
-            "kind": kind,
-            "payload": dict(payload),
-        }
-        raw = json.dumps(document, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
-        return cls(f"methodobs_{hashlib.sha256(raw).hexdigest()[:24]}", context, method_id, session_id, kind, dict(payload))
+        frozen = freeze_json_value_object(payload, field="method observation payload")
+        return cls(
+            _method_observation_id(context, method_id, session_id, kind, frozen),
+            context, method_id, session_id, kind, frozen,
+        )
 
 
 class MethodObservationDeliveryError(RuntimeError):

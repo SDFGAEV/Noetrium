@@ -63,12 +63,11 @@ def test_skill_restore_rejects_capacity_mismatch_without_mutation() -> None:
     assert target.snapshot() == before
 
 
-def test_skill_checkpoint_rejects_non_finite_recipe_values() -> None:
-    bad = AgentSkillRecord(
-        skill_id="skill.bad",
-        version="1",
-        summary="bad recipe",
-        recipe=(("move", {"distance": float("nan")}),),
-    )
+def test_skill_record_rejects_non_finite_recipe_values_before_checkpoint() -> None:
     with pytest.raises(ValueError, match="non-finite"):
-        AgentSkillLibraryCheckpoint(records=(bad,))
+        AgentSkillRecord(
+            skill_id="skill.bad",
+            version="1",
+            summary="bad recipe",
+            recipe=(("move", {"distance": float("nan")}),),
+        )

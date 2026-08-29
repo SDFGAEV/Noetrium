@@ -32,3 +32,8 @@ A rejected, possible, unknown, or otherwise unverified effect remains trajectory
 The cognition checkpoint is versioned and binds session identity, goal digest, counters, last observation digest, action summaries, and the last receipt. Resume rejects a checkpoint from another goal or session. Persistence failure is a primary cognition failure; the loop does not report a terminal result whose checkpoint was not durably published.
 
 The phase split is semantic rather than cosmetic: recovery and tests can exercise each boundary independently while the top-level loop remains a small orchestration state machine.
+## Agent turn JSON boundary
+
+`AgentTurnRequest` and `AgentTurnResult` are immutable participant/execution boundary values, not frozen wrappers around mutable JSON. Task, input, output, and diagnostics are recursively copied and frozen at construction. Request-side lists retain list-compatible JSON behavior, while result-side arrays canonicalize to tuples to match the platform `JsonValue` contract.
+
+Caller-owned dictionaries or lists may therefore be mutated after construction without changing an already-issued turn request or result. Direct or nested mutation through the boundary value is rejected. Non-finite numbers, unsupported JSON values, invalid mutable artifact collections, and blank artifact identities fail closed before a turn value can cross the boundary.

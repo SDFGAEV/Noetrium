@@ -5,6 +5,7 @@ from enum import StrEnum
 from typing import Mapping
 
 from research_platform.platform.kernel import canonical_digest
+from research_platform.participant._immutable_json import freeze_json_input_object
 
 from ..api.coordination_checkpoint import (
     AgentConversationCheckpoint,
@@ -46,6 +47,14 @@ class ConversationMessage:
             raise ValueError("conversation turn cannot be negative")
         if self.priority < 0 or self.generation < 0:
             raise ValueError("conversation priority/generation cannot be negative")
+        if not isinstance(self.metadata, Mapping) or any(
+            not isinstance(key, str) or not isinstance(value, str)
+            for key, value in self.metadata.items()
+        ):
+            raise TypeError("conversation metadata must be a string mapping")
+        object.__setattr__(
+            self, "metadata", freeze_json_input_object(self.metadata, field="conversation metadata")
+        )
 
 
 @dataclass(frozen=True, slots=True)

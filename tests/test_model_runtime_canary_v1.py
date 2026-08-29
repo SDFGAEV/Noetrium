@@ -126,8 +126,12 @@ def test_runtime_canary_binds_request_response_and_process_generation() -> None:
     assert len(evidence.evidence_digest) == 64
     assert len(endpoint.requests) == 1
     assert endpoint.requests[0].request.role == 'planner'
-    assert type(endpoint.requests[0].body) is dict
-    assert type(endpoint.requests[0].body['messages']) is list
+    assert isinstance(endpoint.requests[0].body, dict)
+    with pytest.raises(TypeError):
+        endpoint.requests[0].body["model"] = "tampered"
+    assert isinstance(endpoint.requests[0].body['messages'], list)
+    with pytest.raises(TypeError):
+        endpoint.requests[0].body['messages'].append({'role': 'user', 'content': 'tampered'})
 
 
 def test_runtime_canary_contract_failure_is_explicit_failed_evidence() -> None:

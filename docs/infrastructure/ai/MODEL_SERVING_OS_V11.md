@@ -24,6 +24,8 @@ Persisted host inventory and resource-delta evidence is immutable and fail-close
 
 `ModelAdmissionController` caps concurrent requests at the qualified concurrency. Saturation waits or times out. It never reduces context, output tokens, precision, tensor parallelism, prompt content or model size.
 
+The endpoint boundary accepts only a typed `ModelRequestEnvelope` bound to an exact lowercase deployment-generation digest. Request bodies are deep-frozen before route/admission/transport identity is evaluated, and JSON HTTP responses are likewise detached from caller-owned mutable objects. Endpoint request or response content therefore cannot be mutated in memory after it has become serving/canary evidence.
+
 ## Crash-reconcilable one-click recovery
 
 Recovery now includes `RECONCILE_STUDY` and has a durable attempt record. Before each recovery step the store records the step as running. If the operator process itself dies during a state-changing step:

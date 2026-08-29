@@ -60,3 +60,64 @@ def test_agent_turn_contract_carries_no_concrete_substrate_type():
     result = AgentTurnResult({"done": True}, "agent-g1")
     assert request.task == "do something"
     assert result.agent_generation == "agent-g1"
+
+
+def test_agent_turn_json_boundary_is_deeply_immutable():
+    ctx = ExecutionContext("run", "trace", "span")
+    task = {"steps": [{"name": "inspect"}]}
+    payload = {"items": ["a"]}
+    output = {"plan": [{"action": "move"}]}
+    diagnostics = {"trace": {"verified": True}}
+    request = AgentTurnRequest(task, ctx, payload)
+    result = AgentTurnResult(output, "agent-g1", ("artifact:1",), diagnostics)
+
+    task["steps"][0]["name"] = "caller-mutated"
+    payload["items"].append("b")
+    output["plan"][0]["action"] = "caller-mutated"
+    diagnostics["trace"]["verified"] = False
+    assert request.task["steps"][0]["name"] == "inspect"
+    assert request.input_payload["items"] == ["a"]
+    assert result.output["plan"][0]["action"] == "move"
+    assert result.diagnostics["trace"]["verified"] is True
+
+    import pytest
+    with pytest.raises(TypeError): request.task["steps"][0]["name"] = "tampered"
+    with pytest.raises(TypeError): request.input_payload["items"].append("tampered")
+    assert result.output["plan"] == ({"action": "move"},)
+    assert isinstance(result.output["plan"], tuple)
+    with pytest.raises(TypeError):
+        result.output["plan"][0]["action"] = "tampered"
+    with pytest.raises(TypeError): result.diagnostics["trace"]["verified"] = False
+
+
+def test_agent_turn_json_boundary_rejects_non_json_authority_values():
+    import pytest
+    ctx = ExecutionContext("run", "trace", "span")
+    with pytest.raises(ValueError, match="non-finite"):
+        AgentTurnRequest({"score": float("nan")}, ctx)
+    with pytest.raises(ValueError, match="non-finite"):
+        AgentTurnResult({"score": float("inf")})
+    with pytest.raises(TypeError, match="tuple of non-empty strings"):
+        AgentTurnResult({"ok": True}, artifacts=["artifact:1"])
+
+
+def test_capability_request_and_result_json_are_immutable_authority_values():
+    import pytest
+    ctx = ExecutionContext("run", "trace", "span")
+    request_payload = {"steps": [{"name": "inspect"}]}
+    result_payload = {"items": ["a"]}
+    diagnostics = {"trace": {"ok": True}}
+    request = CapabilityRequest("echo", request_payload, ctx, "slot-1")
+    result = CapabilityResult("echo", result_payload, diagnostics=diagnostics)
+
+    request_payload["steps"][0]["name"] = "caller-mutated"
+    result_payload["items"].append("b")
+    diagnostics["trace"]["ok"] = False
+    assert request.payload["steps"] == ({"name": "inspect"},)
+    assert result.payload["items"] == ("a",)
+    assert result.diagnostics["trace"]["ok"] is True
+
+    with pytest.raises(TypeError):
+        request.payload["steps"][0]["name"] = "tampered"
+    with pytest.raises(TypeError):
+        result.diagnostics["trace"]["ok"] = False
