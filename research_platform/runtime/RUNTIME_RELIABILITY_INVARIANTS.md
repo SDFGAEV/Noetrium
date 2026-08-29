@@ -32,3 +32,8 @@ This applies to process cleanup/default/override timeouts, service readiness/sto
 Remote-operation history is a corruption-sensitive WAL, not diagnostic text. Each persisted event uses schema `server-operation-journal.v2`, carries the previous record checksum, and carries its own SHA-256 checksum over canonical bytes. Replay begins from a fixed genesis checksum and fails closed on malformed JSON, legacy unchecksummed rows, checksum mismatch, chain discontinuity, partial tails, oversized rows, unexpected fields, primitive-type drift, or semantically invalid event transitions.
 
 The same strict decoder validates an event before append so production cannot durably publish a record that recovery would later reject. New journal-file publication fsyncs the file and then its parent directory; later appends fsync the file while preserving the existing short interprocess append lock. Full-prefix verification remains outside the writer lock, and append finds only the last chain head under the lock, so integrity does not restore O(file-size) writer serialization.
+
+
+## Durable server-operation evidence semantics
+
+Server-operation WAL records reject unsafe durable identities and non-canonical request/profile/output/error digests before publication. Persisted success must prove `return_code=0` with `failure_kind=none`; timeout must carry `failure_kind=timeout`; failed records cannot claim a success failure-kind; and exception type/digest evidence is all-or-nothing. These invariants apply at the durable codec boundary so in-memory diagnostic projections remain independent from WAL identity requirements.

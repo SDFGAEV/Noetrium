@@ -22,6 +22,22 @@ SERVER_OPERATION_JOURNAL_SCHEMA = "server-operation-journal.v2"
 SERVER_OPERATION_JOURNAL_GENESIS_CHECKSUM = "0" * 64
 MAX_SERVER_OPERATION_RECORD_BYTES = 256 * 1024
 _CHECKSUM_RE = re.compile(r"[0-9a-f]{64}")
+_OPERATION_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}")
+_SERVER_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
+
+
+def _require_sha256(value: str, label: str, *, allow_empty: bool = False) -> None:
+    if allow_empty and value == "":
+        return
+    if _CHECKSUM_RE.fullmatch(value) is None:
+        raise ValueError(f"{label} must be a canonical SHA-256 digest")
+
+
+def _require_durable_identity(operation_id: str, server_id: str) -> None:
+    if _OPERATION_ID_RE.fullmatch(operation_id) is None:
+        raise ValueError("operation_id must be a safe non-empty durable identifier")
+    if _SERVER_ID_RE.fullmatch(server_id) is None:
+        raise ValueError("server_id must be a safe non-empty durable identifier")
 
 
 class ServerOperationJournalIntegrityError(RuntimeError):
@@ -76,6 +92,9 @@ def _decode_started(payload: dict[str, object]) -> ServerOperationStarted:
     )
     if type(payload["interactive"]) is not bool:
         raise TypeError("started interactive must be a boolean")
+    _require_durable_identity(payload["operation_id"], payload["server_id"])
+    _require_sha256(payload["request_digest"], "request_digest")
+    _require_sha256(payload["profile_digest"], "profile_digest", allow_empty=True)
     started_at = _finite_nonnegative(payload["started_at"], "started_at")
     return ServerOperationStarted(
         payload["operation_id"],
@@ -110,6 +129,15 @@ def _decode_finished(payload: dict[str, object]) -> ServerOperationFinished:
     for key in ("error_type", "error_digest"):
         if payload[key] is not None and type(payload[key]) is not str:
             raise TypeError(f"finished {key} must be null or string")
+    _require_durable_identity(payload["operation_id"], payload["server_id"])
+    _require_sha256(payload["request_digest"], "request_digest")
+    _require_sha256(payload["profile_digest"], "profile_digest", allow_empty=True)
+    for key in ("stdout_digest", "stderr_digest"):
+        _require_sha256(payload[key], key, allow_empty=True)
+    if (payload["error_type"] is None) != (payload["error_digest"] is None):
+        raise ValueError("finished error_type and error_digest must be present together")
+    if payload["error_digest"] is not None:
+        _require_sha256(payload["error_digest"], "error_digest")
     finished_at = _finite_nonnegative(payload["finished_at"], "finished_at")
     duration = _finite_nonnegative(payload["duration_seconds"], "duration_seconds")
     for key in ("stdout_bytes", "stderr_bytes"):
@@ -117,12 +145,28 @@ def _decode_finished(payload: dict[str, object]) -> ServerOperationFinished:
             raise ValueError(f"finished {key} must be a non-negative integer")
     if payload["return_code"] is not None and type(payload["return_code"]) is not int:
         raise TypeError("finished return_code must be null or integer")
+    state = ServerOperationState(payload["state"])
+    failure_kind = payload["failure_kind"]
+    if state is ServerOperationState.STARTED:
+        raise ValueError("finished event cannot use started state")
+    if state is ServerOperationState.SUCCEEDED:
+        if payload["return_code"] != 0 or failure_kind != "none":
+            raise ValueError("succeeded operation must have return_code=0 and failure_kind=none")
+        if payload["error_type"] is not None:
+            raise ValueError("succeeded operation cannot carry error evidence")
+    elif state is ServerOperationState.TIMED_OUT:
+        if failure_kind != "timeout":
+            raise ValueError("timed-out operation must have failure_kind=timeout")
+        if payload["error_type"] is not None:
+            raise ValueError("timed-out result cannot carry exception evidence")
+    elif not failure_kind or failure_kind == "none":
+        raise ValueError("failed operation must carry a non-success failure kind")
     return ServerOperationFinished(
         payload["operation_id"],
         payload["server_id"],
         ServerOperationKind(payload["kind"]),
         payload["request_digest"],
-        ServerOperationState(payload["state"]),
+        state,
         finished_at,
         duration,
         payload["return_code"],
@@ -154,6 +198,9 @@ def _decode_resolved(payload: dict[str, object]) -> ServerOperationResolved:
         ),
         "resolution",
     )
+    _require_durable_identity(payload["operation_id"], payload["server_id"])
+    _require_sha256(payload["request_digest"], "request_digest")
+    _require_sha256(payload["profile_digest"], "profile_digest", allow_empty=True)
     resolved_at = _finite_nonnegative(payload["resolved_at"], "resolved_at")
     evidence_ref = payload["evidence_ref"]
     evidence_digest = payload["evidence_digest"]

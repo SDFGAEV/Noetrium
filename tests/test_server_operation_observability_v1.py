@@ -7,6 +7,9 @@ from threading import Event, Thread
 
 import pytest
 
+_PROFILE_DIGEST = "1" * 64
+_OTHER_PROFILE_DIGEST = "2" * 64
+
 from research_platform.runtime.server.api import (
     ServerOperationEffect,
     ServerOperationFinished,
@@ -254,7 +257,7 @@ def test_jsonl_journal_scopes_recovery_to_the_requested_server(tmp_path: Path) -
                 operation_id,
                 server_id,
                 ServerOperationKind.COMMAND,
-                operation_id.ljust(64, "a"),
+                ("a" if operation_id == "op-a" else "b") * 64,
                 1.0,
                 False,
                 effect=ServerOperationEffect.MUTATION,
@@ -295,7 +298,7 @@ def test_jsonl_journal_requires_explicit_resolution_before_new_mutation(tmp_path
             "b" * 64,
             1.0,
             False,
-            "profile",
+            _PROFILE_DIGEST,
             ServerOperationEffect.MUTATION,
         )
     )
@@ -309,7 +312,7 @@ def test_jsonl_journal_requires_explicit_resolution_before_new_mutation(tmp_path
             2.0,
             "remote-check:op-pending",
             "c" * 64,
-            "profile",
+            _PROFILE_DIGEST,
         )
     )
     record = journal.read_operation("op-pending")
@@ -363,7 +366,7 @@ def test_jsonl_journal_fails_closed_on_corrupt_tail(tmp_path: Path) -> None:
         raise AssertionError("corrupt server-operation ledger was accepted")
 
 
-def _started_mutation(operation_id: str, *, profile: str = "profile") -> ServerOperationStarted:
+def _started_mutation(operation_id: str, *, profile: str = _PROFILE_DIGEST) -> ServerOperationStarted:
     return ServerOperationStarted(
         operation_id,
         "server-a",
@@ -376,7 +379,7 @@ def _started_mutation(operation_id: str, *, profile: str = "profile") -> ServerO
     )
 
 
-def _finished_mutation(operation_id: str, *, profile: str = "profile") -> ServerOperationFinished:
+def _finished_mutation(operation_id: str, *, profile: str = _PROFILE_DIGEST) -> ServerOperationFinished:
     return ServerOperationFinished(
         operation_id,
         "server-a",
@@ -386,7 +389,7 @@ def _finished_mutation(operation_id: str, *, profile: str = "profile") -> Server
         2.0,
         1.0,
         0,
-        "",
+        "none",
         0,
         0,
         profile_digest=profile,
@@ -415,7 +418,7 @@ def test_journal_rejects_profile_drift_before_finish_append(tmp_path: Path) -> N
     journal.record_started(_started_mutation("op-profile"))
 
     with pytest.raises(ServerOperationTransitionConflict, match="identity"):
-        journal.record_finished(_finished_mutation("op-profile", profile="other"))
+        journal.record_finished(_finished_mutation("op-profile", profile=_OTHER_PROFILE_DIGEST))
 
     assert len(path.read_text("utf-8").splitlines()) == 1
     record = journal.read_operation("op-profile")
@@ -437,7 +440,7 @@ def test_journal_rejects_finish_after_resolution_before_append(tmp_path: Path) -
             2.0,
             "remote-check:resolved-first",
             "f" * 64,
-            "profile",
+            _PROFILE_DIGEST,
         )
     )
 
@@ -472,7 +475,7 @@ def test_journal_same_operation_transition_race_is_typed_and_non_corrupting(tmp_
                 ServerOperationResolved(
                     operation_id, "server-a", ServerOperationKind.FILE_UPLOAD,
                     "e" * 64, ServerOperationResolution.EFFECT_NOT_APPLIED,
-                    2.0, "remote-check:race", "f" * 64, "profile",
+                    2.0, "remote-check:race", "f" * 64, _PROFILE_DIGEST,
                 )
             )
         except BaseException as exc:
@@ -485,7 +488,7 @@ def test_journal_same_operation_transition_race_is_typed_and_non_corrupting(tmp_
             ServerOperationResolved(
                 operation_id, "server-a", ServerOperationKind.FILE_UPLOAD,
                 "e" * 64, ServerOperationResolution.EFFECT_NOT_APPLIED,
-                3.0, "remote-check:other", "a" * 64, "profile",
+                3.0, "remote-check:other", "a" * 64, _PROFILE_DIGEST,
             )
         )
     release.set()
@@ -562,7 +565,7 @@ def test_server_operation_journal_rejects_typed_field_drift_before_write(tmp_pat
         "d" * 64,
         1.0,
         "false",  # type: ignore[arg-type]
-        "profile",
+        _PROFILE_DIGEST,
         ServerOperationEffect.MUTATION,
     )
     with pytest.raises(ServerOperationJournalIntegrityError, match="started record"):
@@ -597,3 +600,68 @@ def test_server_operation_journal_refuses_append_after_partial_tail(tmp_path: Pa
     assert captured.value.__cause__ is not None
     assert "partial durable tail" in str(captured.value.__cause__)
     assert b"op-after-partial" not in path.read_bytes()
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    (
+        ("server_id", "unsafe server"),
+        ("request_digest", "not-a-digest"),
+        ("profile_digest", "not-a-digest"),
+    ),
+)
+def test_server_operation_journal_rejects_invalid_durable_identity_before_write(
+    tmp_path: Path, field: str, value: str
+) -> None:
+    path = tmp_path / "server-operations.jsonl"
+    values = {
+        "operation_id": "op-invalid-identity",
+        "server_id": "server-a",
+        "request_digest": "a" * 64,
+        "profile_digest": _PROFILE_DIGEST,
+    }
+    values[field] = value
+    event = ServerOperationStarted(
+        values["operation_id"], values["server_id"], ServerOperationKind.COMMAND,
+        values["request_digest"], 1.0, False, values["profile_digest"],
+        ServerOperationEffect.MUTATION,
+    )
+    journal = JsonlServerOperationJournal(path)
+    with pytest.raises(ServerOperationJournalIntegrityError, match="started record"):
+        journal.record_started(event)
+    assert not path.exists()
+
+
+@pytest.mark.parametrize(
+    "state,return_code,failure_kind,error_type,error_digest",
+    (
+        (ServerOperationState.SUCCEEDED, 1, "none", None, None),
+        (ServerOperationState.SUCCEEDED, 0, "remote_exit", None, None),
+        (ServerOperationState.SUCCEEDED, 0, "none", "RuntimeError", "f" * 64),
+        (ServerOperationState.FAILED, 1, "none", None, None),
+        (ServerOperationState.TIMED_OUT, 124, "network", None, None),
+        (ServerOperationState.FAILED, 1, "remote_exit", "RuntimeError", None),
+        (ServerOperationState.FAILED, 1, "remote_exit", "RuntimeError", "bad-digest"),
+    ),
+)
+def test_server_operation_journal_rejects_impossible_finished_evidence(
+    tmp_path: Path,
+    state: ServerOperationState,
+    return_code: int,
+    failure_kind: str,
+    error_type: str | None,
+    error_digest: str | None,
+) -> None:
+    path = tmp_path / "server-operations.jsonl"
+    operation_id = "op-invalid-finish"
+    journal = JsonlServerOperationJournal(path)
+    journal.record_started(_started_mutation(operation_id))
+    event = ServerOperationFinished(
+        operation_id, "server-a", ServerOperationKind.FILE_UPLOAD, "e" * 64,
+        state, 2.0, 1.0, return_code, failure_kind, 0, 0,
+        error_type, error_digest, profile_digest=_PROFILE_DIGEST,
+        effect=ServerOperationEffect.MUTATION,
+    )
+    with pytest.raises(ServerOperationJournalIntegrityError, match="finished record"):
+        journal.record_finished(event)
+    assert len(path.read_text("utf-8").splitlines()) == 1
