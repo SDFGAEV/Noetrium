@@ -23,6 +23,9 @@ class CommandReceipt:
 @dataclass(frozen=True, slots=True)
 class InstalledArtifactReceipt:
     schema: str
+    qualification_scope: str
+    npe_verified: bool
+    operator_smoke_actions: tuple[str, ...]
     artifact_name: str
     artifact_sha256: str
     artifact_size: int
@@ -145,7 +148,10 @@ def verify_installed_artifact(artifact: Path) -> InstalledArtifactReceipt:
             commands.append(receipt)
 
         return InstalledArtifactReceipt(
-            schema="research-platform.installed-artifact-verification.v1",
+            schema="research-platform.installed-artifact-verification.v2",
+            qualification_scope="operator-smoke-only",
+            npe_verified=False,
+            operator_smoke_actions=("run", "inspect", "stop", "resume", "reconcile", "evidence"),
             artifact_name=artifact.name,
             artifact_sha256=_sha256(artifact),
             artifact_size=artifact.stat().st_size,

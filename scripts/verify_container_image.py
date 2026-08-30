@@ -32,6 +32,9 @@ class CommandReceipt:
 @dataclass(frozen=True, slots=True)
 class ContainerVerificationReceipt:
     schema: str
+    qualification_scope: str
+    npe_verified: bool
+    operator_smoke_actions: tuple[str, ...]
     image: str
     image_id: str
     source_sha: str
@@ -268,7 +271,10 @@ def verify_container_image(
         raise RuntimeError("container installed wheel RECORD was not verified")
 
     return ContainerVerificationReceipt(
-        schema="research-platform.container-verification.v2",
+        schema="research-platform.container-verification.v3",
+        qualification_scope="operator-smoke-only",
+        npe_verified=False,
+        operator_smoke_actions=tuple(_ACTIONS),
         image=image,
         image_id=image_id,
         source_sha=source_sha,

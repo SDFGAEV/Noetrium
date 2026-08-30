@@ -12,8 +12,10 @@ Each installed artifact must:
 
 - import `research_platform.api` from the isolated environment's `site-packages`;
 - expose the installed `research` console script;
-- execute the deterministic reference lifecycle `run -> inspect -> stop -> resume -> reconcile -> evidence` successfully;
-- preserve durable evidence across command processes.
+- execute the historical Operator smoke lifecycle `run -> inspect -> stop -> resume -> reconcile -> evidence` successfully;
+- preserve that synthetic smoke state across command processes.
+
+These installed-artifact checks qualify packaging, console-script wiring, isolation and the legacy Operator smoke fixture only. Their machine receipts explicitly carry `qualification_scope=operator-smoke-only` and `npe_verified=false`; they are not Section-37 New Project Experience evidence.
 
 The formal output includes wheel/sdist artifacts, installed-verification receipts, `SBOM.spdx.json`, `SHA256SUMS`, `DISTRIBUTION_RELEASE_EVIDENCE.json`, and a digest for the evidence document.
 
@@ -38,7 +40,7 @@ python scripts/verify_container_image.py "research-platform:$GIT_SHA" \
   --output container-verification.json
 ```
 
-The image embeds that exact wheel as a read-only provenance artifact. Build-time verification rejects a wheel whose bytes do not match the authority digest. Runtime verification independently checks the revision/wheel/distribution-evidence labels, recomputes the embedded wheel SHA-256, verifies every hashed installed file against the wheel `RECORD`, attests effective UID/GID (not only Docker `Config.User`), requires both to be non-root, and then executes the full deterministic reference lifecycle with networking disabled. The receipt binds the image ID/digest to the exact wheel and distribution evidence.
+The image embeds that exact wheel as a read-only provenance artifact. Build-time verification rejects a wheel whose bytes do not match the authority digest. Runtime verification independently checks the revision/wheel/distribution-evidence labels, recomputes the embedded wheel SHA-256, verifies every hashed installed file against the wheel `RECORD`, attests effective UID/GID (not only Docker `Config.User`), requires both to be non-root, and then executes the full historical Operator smoke lifecycle with networking disabled. The container receipt likewise records `npe_verified=false`; this smoke does not satisfy the Section-37 project/reference acceptance contract. The receipt binds the image ID/digest to the exact wheel and distribution evidence.
 
 Changing mutable checkout Platform source after wheel qualification cannot alter the image code because no `research_platform/**` source tree enters the container build context. Modified installed `site-packages`, a forged wheel label, a stale distribution receipt, or effective root execution all fail closed.
 

@@ -161,7 +161,10 @@ def test_container_verifier_returns_distribution_bound_receipt(monkeypatch):
         expected_wheel_sha256=WHEEL_SHA,
         expected_distribution_evidence_sha256=DIST_SHA,
     )
-    assert result.schema == "research-platform.container-verification.v2"
+    assert result.schema == "research-platform.container-verification.v3"
+    assert result.qualification_scope == "operator-smoke-only"
+    assert result.npe_verified is False
+    assert result.operator_smoke_actions == ("run", "inspect", "stop", "resume", "reconcile", "evidence")
     assert result.source_sha == SHA
     assert result.wheel_sha256 == WHEEL_SHA
     assert result.distribution_evidence_sha256 == DIST_SHA
