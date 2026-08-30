@@ -37,6 +37,11 @@ class QualifiedModelEndpointBinding:
     timeout_s: float = 120.0
 
     def __post_init__(self) -> None:
+        """Validate the complete canary evidence set and fixed deployment identities.
+
+        Algorithm-Complexity: O(N)
+        Algorithm-Rationale: N is the number of runtime canary evidence digests; each digest must be validated and duplicate evidence rejected before the binding can be trusted.
+        """
         if not self.role.strip() or not self.deployment_id.strip():
             raise ValueError("qualified model binding identity is required")
         if not self.base_url.strip() or not self.prompt_generation.strip():

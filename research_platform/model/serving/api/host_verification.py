@@ -195,6 +195,11 @@ def build_host_inventory_receipt(
     *,
     phase: str,
 ) -> HostInventoryReceipt:
+    """Project the complete host inventory into an immutable receipt.
+
+    Algorithm-Complexity: O(N)
+    Algorithm-Rationale: N is the number of GPUs plus mounts and the receipt intentionally materializes one identity/free-space entry for every observed device and mount.
+    """
     _sha256(expected_host_identity_digest, "expected_host_identity_digest")
     base = _receipt_base(inventory, phase)
     if base["host_identity_digest"] != expected_host_identity_digest:

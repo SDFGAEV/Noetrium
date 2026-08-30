@@ -111,6 +111,11 @@ class AgentObservation:
     evidence_payload: Mapping[str, JsonValue] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        """Freeze evidence/state and validate every artifact reference.
+
+        Algorithm-Complexity: O(N)
+        Algorithm-Rationale: N is the combined JSON/evidence and artifact-reference size; immutable fail-closed construction must traverse every supplied value before computing the state digest.
+        """
         if not self.observation_id.strip() or not self.generation.strip():
             raise ValueError("agent observation identity is required")
         if not self.modality.strip() or not isinstance(self.state, Mapping):

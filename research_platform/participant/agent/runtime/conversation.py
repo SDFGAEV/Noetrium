@@ -41,6 +41,11 @@ class ConversationMessage:
     kind: ConversationKind = ConversationKind.CHAT
 
     def __post_init__(self) -> None:
+        """Validate and freeze the complete caller-supplied metadata mapping.
+
+        Algorithm-Complexity: O(N)
+        Algorithm-Rationale: N is the number of metadata entries and each key/value must be validated and frozen before the conversation message crosses the participant boundary.
+        """
         if any(not value.strip() for value in (self.message_id, self.peer_id, self.sender_id, self.text)):
             raise ValueError("conversation message identity and text are required")
         if self.turn < 0:

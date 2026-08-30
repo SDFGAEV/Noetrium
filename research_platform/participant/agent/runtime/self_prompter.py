@@ -27,7 +27,12 @@ class SelfPrompterState:
     def __post_init__(self) -> None:
         if self.schema_version != "agent-self-prompter.v1":
             raise ValueError("unsupported self-prompter snapshot")
-        if any(type(value) is not int or value < 0 for value in (self.prompt_count, self.no_command_count)):
+        if (
+            type(self.prompt_count) is not int
+            or self.prompt_count < 0
+            or type(self.no_command_count) is not int
+            or self.no_command_count < 0
+        ):
             raise ValueError("self-prompter counters cannot be negative")
         if (
             isinstance(self.next_prompt_at, bool)

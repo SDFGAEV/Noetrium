@@ -473,6 +473,11 @@ class DeploymentQualificationApplicationReceipt:
     application_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
+        """Validate every package/command/reason before issuing the application digest.
+
+        Algorithm-Complexity: O(N)
+        Algorithm-Rationale: N is the number of variable-length packages, command receipts, and reason strings that must each be type-checked before this durable qualification receipt is trusted.
+        """
         _require_sha256(self.plan_digest, "qualification application plan_digest")
         _require_text(self.environment_id, "qualification application environment_id")
         if self.backend is not None:
@@ -580,6 +585,11 @@ class DeploymentQualificationRuntimeReceipt:
     runtime_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
+        """Validate every runtime check/reason before issuing the runtime digest.
+
+        Algorithm-Complexity: O(N)
+        Algorithm-Rationale: N is the number of runtime checks and reason strings carried by the receipt; fail-closed construction must inspect every variable-length typed element.
+        """
         _require_sha256(self.application_digest, "runtime qualification application_digest")
         _require_sha256(self.plan_digest, "runtime qualification plan_digest")
         _require_text(self.environment_id, "runtime qualification environment_id")

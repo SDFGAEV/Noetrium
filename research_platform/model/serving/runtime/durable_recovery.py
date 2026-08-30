@@ -80,6 +80,44 @@ class DurableExactRecoveryRunner:
                 plan, attempt_id=attempt_id, cancellation=cancellation
             )
 
+    def _execute_step(
+        self,
+        attempt,
+        step: RecoveryStep,
+        plan: RecoveryPlan,
+        observer_failures: list[RecoveryObserverFailure],
+    ):
+        """Execute and durably checkpoint exactly one recovery step."""
+        attempt = begin_recovery_step(attempt, step, now=time.time())
+        self.store.write(attempt)
+        failure = self._notify(
+            f"step_started:{step.value}",
+            lambda: self.observer.step_started(step),
+        )
+        if failure is not None:
+            observer_failures.append(failure)
+        try:
+            refs = tuple(self.executor.execute(step, plan))
+        except Exception:
+            failure = self._notify(
+                f"step_finished:{step.value}:failed",
+                lambda: self.observer.step_finished(step, result="failed"),
+            )
+            if failure is not None:
+                observer_failures.append(failure)
+            attempt = fail_recovery_step(attempt, step, now=time.time())
+            self.store.write(attempt)
+            raise
+        failure = self._notify(
+            f"step_finished:{step.value}:success",
+            lambda: self.observer.step_finished(step, result="success"),
+        )
+        if failure is not None:
+            observer_failures.append(failure)
+        attempt = complete_recovery_step(attempt, step, refs, now=time.time())
+        self.store.write(attempt)
+        return attempt
+
     def _run_session(
         self,
         plan: RecoveryPlan,
@@ -115,25 +153,7 @@ class DurableExactRecoveryRunner:
         try:
             for step in decision.steps:
                 self._checkpoint(cancellation)
-                attempt = begin_recovery_step(attempt, step, now=time.time())
-                self.store.write(attempt)
-                failure = self._notify(f"step_started:{step.value}", lambda step=step: self.observer.step_started(step))
-                if failure is not None:
-                    observer_failures.append(failure)
-                try:
-                    refs = tuple(self.executor.execute(step, plan))
-                except Exception:
-                    failure = self._notify(f"step_finished:{step.value}:failed", lambda step=step: self.observer.step_finished(step, result="failed"))
-                    if failure is not None:
-                        observer_failures.append(failure)
-                    attempt = fail_recovery_step(attempt, step, now=time.time())
-                    self.store.write(attempt)
-                    raise
-                failure = self._notify(f"step_finished:{step.value}:success", lambda step=step: self.observer.step_finished(step, result="success"))
-                if failure is not None:
-                    observer_failures.append(failure)
-                attempt = complete_recovery_step(attempt, step, refs, now=time.time())
-                self.store.write(attempt)
+                attempt = self._execute_step(attempt, step, plan, observer_failures)
                 executed.append(step)
 
             if len(attempt.completed_steps) >= len(plan.steps):

@@ -2,12 +2,22 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
+import re
 from typing import Mapping
 from urllib.parse import urlparse
 
 from research_platform.model.request.api import ModelRequestEnvelope
 from research_platform.model.request._immutable_json import freeze_json_object, freeze_json_value
 from research_platform.platform.kernel import canonical_digest, JsonInput, JsonValue
+
+
+_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+
+
+def _require_sha256(value: object, field: str) -> str:
+    if not isinstance(value, str) or _SHA256.fullmatch(value) is None:
+        raise ValueError(f"{field} must be lowercase SHA-256")
+    return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,12 +34,7 @@ class ModelEndpointRequest:
             raise TypeError("model endpoint request must carry a ModelRequestEnvelope")
         if not isinstance(self.deployment_id, str) or not self.deployment_id.strip():
             raise ValueError("model endpoint deployment_id is required")
-        if (
-            not isinstance(self.deployment_generation, str)
-            or len(self.deployment_generation) != 64
-            or any(char not in "0123456789abcdef" for char in self.deployment_generation)
-        ):
-            raise ValueError("model endpoint deployment_generation must be lowercase SHA-256")
+        _require_sha256(self.deployment_generation, "model endpoint deployment_generation")
         if not isinstance(self.body, Mapping):
             raise TypeError("model endpoint request body must be a mapping")
         object.__setattr__(
@@ -56,14 +61,12 @@ class ModelEndpointRoute:
     timeout_s: float = 120.0
 
     def __post_init__(self) -> None:
-        if (
-            not isinstance(self.deployment_id, str)
-            or not self.deployment_id.strip()
-            or not isinstance(self.deployment_generation, str)
-            or len(self.deployment_generation) != 64
-            or any(char not in "0123456789abcdef" for char in self.deployment_generation)
-        ):
+        if not isinstance(self.deployment_id, str) or not self.deployment_id.strip():
             raise ValueError("model endpoint route requires exact deployment identity")
+        try:
+            _require_sha256(self.deployment_generation, "model endpoint route deployment_generation")
+        except ValueError as exc:
+            raise ValueError("model endpoint route requires exact deployment identity") from exc
         parsed = urlparse(self.base_url)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise ValueError("model endpoint route base_url must be an absolute HTTP(S) URL")

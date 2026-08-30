@@ -13,6 +13,16 @@ def _digest(value: object) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
 
 
+def _require_positive_finite(value: object, field: str) -> None:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(float(value))
+        or value <= 0
+    ):
+        raise ValueError(f"resource envelope {field} must be finite and positive")
+
+
 @dataclass(frozen=True, slots=True)
 class ResourceEnvelope:
     peak_gpu_memory_bytes_per_device: int
@@ -27,15 +37,12 @@ class ResourceEnvelope:
             raise ValueError("resource envelope requires measured positive memory peaks")
         if type(self.max_qualified_concurrency) is not int or self.max_qualified_concurrency <= 0:
             raise ValueError("qualified concurrency must be positive")
-        for field in ("ttft_p99_seconds", "tpot_p99_seconds", "minimum_output_tokens_per_second"):
-            value = getattr(self, field)
-            if (
-                isinstance(value, bool)
-                or not isinstance(value, (int, float))
-                or not math.isfinite(float(value))
-                or value <= 0
-            ):
-                raise ValueError(f"resource envelope {field} must be finite and positive")
+        _require_positive_finite(self.ttft_p99_seconds, "ttft_p99_seconds")
+        _require_positive_finite(self.tpot_p99_seconds, "tpot_p99_seconds")
+        _require_positive_finite(
+            self.minimum_output_tokens_per_second,
+            "minimum_output_tokens_per_second",
+        )
 
 
 @dataclass(frozen=True, slots=True)

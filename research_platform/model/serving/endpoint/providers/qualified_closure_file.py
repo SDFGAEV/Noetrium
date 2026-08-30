@@ -17,6 +17,36 @@ class QualifiedModelClosureReadError(ValueError):
     """The persisted closure is absent, malformed, altered, or internally inconsistent."""
 
 
+
+
+def _verify_runtime_receipts(decoded, runtime_store) -> None:
+    """Load and verify every exact runtime qualification receipt."""
+    for deployment_id, expected_digest in decoded.runtime_qualification_receipt_digests:
+        receipt = runtime_store.load(decoded.runtime_manifest_digest, deployment_id)
+        if receipt.digest() != expected_digest:
+            raise QualifiedModelClosureReadError(
+                f"runtime qualification receipt digest drift: {deployment_id}"
+            )
+
+
+def _load_runtime_canaries(decoded, canary_store):
+    """Load each canary named by the durable qualified closure."""
+    return tuple(
+        canary_store.load(decoded.runtime_manifest_digest, digest)
+        for digest in decoded.runtime_canary_evidence_digests
+    )
+
+
+def _verify_canary_digest_set(decoded, canaries) -> None:
+    observed = tuple(item.evidence_digest for item in canaries)
+    expected = decoded.runtime_canary_evidence_digests
+    if (
+        len(set(observed)) != len(observed)
+        or len(set(expected)) != len(expected)
+        or set(observed) != set(expected)
+    ):
+        raise QualifiedModelClosureReadError("runtime canary evidence digest set drift")
+
 def load_qualified_model_deployment_closure(
     path: str | Path,
     *,
@@ -57,33 +87,21 @@ def load_qualified_model_deployment_closure(
         )
 
     try:
-        loaded_receipts = tuple(
-            (deployment_id, runtime_store.load(decoded.runtime_manifest_digest, deployment_id), expected_digest)
-            for deployment_id, expected_digest in decoded.runtime_qualification_receipt_digests
-        )
+        _verify_runtime_receipts(decoded, runtime_store)
+    except QualifiedModelClosureReadError:
+        raise
     except Exception as exc:
         raise QualifiedModelClosureReadError(
             "runtime qualification receipt cannot be loaded"
         ) from exc
-    for deployment_id, receipt, expected_digest in loaded_receipts:
-        if receipt.digest() != expected_digest:
-            raise QualifiedModelClosureReadError(
-                f"runtime qualification receipt digest drift: {deployment_id}"
-            )
 
     canary_root = (closure_path.parent / decoded.runtime_canary_root).resolve(strict=False)
     try:
         canary_store = runtime_canary_store_factory(canary_root)
-        canaries = tuple(
-            canary_store.load(decoded.runtime_manifest_digest, digest)
-            for digest in decoded.runtime_canary_evidence_digests
-        )
+        canaries = _load_runtime_canaries(decoded, canary_store)
     except Exception as exc:
         raise QualifiedModelClosureReadError("runtime canary evidence cannot be loaded") from exc
-    if tuple(sorted(item.evidence_digest for item in canaries)) != tuple(
-        sorted(decoded.runtime_canary_evidence_digests)
-    ):
-        raise QualifiedModelClosureReadError("runtime canary evidence digest set drift")
+    _verify_canary_digest_set(decoded, canaries)
 
     return QualifiedModelDeploymentClosure(
         role_manifest=decoded.role_manifest,

@@ -100,6 +100,15 @@ class FileDeploymentQualificationApplicationStore(DeploymentQualificationApplica
             stderr_digest=text(data["stderr_digest"], field="command.stderr_digest", allow_empty=False),
         )
 
+    @staticmethod
+    def _package(value: object) -> InstallPackage:
+        data = exact_fields(value, field="package", fields=_PACKAGE_FIELDS)
+        return InstallPackage(
+            name=text(data["name"], field="package.name", allow_empty=False),
+            version=text(data["version"], field="package.version", allow_empty=False),
+            index_url=text(data["index_url"], field="package.index_url", allow_empty=False),
+        )
+
     @classmethod
     def _optional_command(cls, value: object) -> QualificationCommandReceipt | None:
         return None if value is None else cls._command(value)
@@ -113,15 +122,7 @@ class FileDeploymentQualificationApplicationStore(DeploymentQualificationApplica
             plan_digest=text(payload["plan_digest"], field="plan_digest", allow_empty=False),
             environment_id=text(payload["environment_id"], field="environment_id", allow_empty=False),
             backend=optional_text(payload["backend"], field="backend"),
-            packages=tuple(
-                InstallPackage(
-                    name=text(item_data["name"], field="package.name", allow_empty=False),
-                    version=text(item_data["version"], field="package.version", allow_empty=False),
-                    index_url=text(item_data["index_url"], field="package.index_url", allow_empty=False),
-                )
-                for item in packages
-                for item_data in (exact_fields(item, field="package", fields=_PACKAGE_FIELDS),)
-            ),
+            packages=tuple(cls._package(item) for item in packages),
             install_commands=tuple(
                 cls._command(item)
                 for item in install_commands
