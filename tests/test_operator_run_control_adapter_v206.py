@@ -39,6 +39,24 @@ class _RecordKind(StrEnum):
     TERMINAL = "terminal"
 
 
+class _OutcomeValue(StrEnum):
+    IN_PROGRESS = "in_progress"
+    STOPPED = "stopped"
+    RECOVERY_REQUIRED = "recovery_required"
+    FAILED = "failed"
+    NOT_EVALUATED = "not_evaluated"
+    NOT_OBSERVED = "not_observed"
+    NOT_FINALIZED = "not_finalized"
+
+
+@dataclass(frozen=True)
+class _Outcomes:
+    execution: _OutcomeValue
+    task: _OutcomeValue
+    evidence: _OutcomeValue
+    scientific: _OutcomeValue
+
+
 @dataclass(frozen=True)
 class _Target:
     run_id: str
@@ -76,6 +94,7 @@ class _Receipt:
     latest_checkpoint_id: str | None
     checkpoint_manifest_digest: str | None
     evidence_bundle_receipt: object | None
+    outcomes: _Outcomes
     control_event_receipt: _Event
 
 
@@ -104,6 +123,14 @@ def _receipt(request: _Request, *, phase: _Phase | None = None) -> _Receipt:
     resolved = phase or (_Phase.STOPPED if request.action is _Action.STOP else _Phase.RUNNING)
     generation = request.target.expected_generation or 0
     event = _Event(1, _RecordKind.TERMINAL, generation, request.action, resolved, "c" * 64, "d" * 64)
+    execution = {
+        _Phase.RUNNING: _OutcomeValue.IN_PROGRESS,
+        _Phase.STOPPED: _OutcomeValue.STOPPED,
+        _Phase.RECOVERY_REQUIRED: _OutcomeValue.RECOVERY_REQUIRED,
+        _Phase.FAILED: _OutcomeValue.FAILED,
+    }[resolved]
+    evidence = _OutcomeValue.NOT_FINALIZED if request.action is _Action.EVIDENCE else _OutcomeValue.NOT_OBSERVED
+    outcomes = _Outcomes(execution, _OutcomeValue.NOT_EVALUATED, evidence, _OutcomeValue.NOT_EVALUATED)
     return _Receipt(
         request.action,
         request.target.run_id,
@@ -114,6 +141,7 @@ def _receipt(request: _Request, *, phase: _Phase | None = None) -> _Receipt:
         None,
         None,
         None,
+        outcomes,
         event,
     )
 
@@ -277,6 +305,11 @@ def test_adapter_consumes_real_role03_run_control_contract_when_available():
         RunControlEventReceipt,
         RunControlPhase,
         RunControlReceipt,
+        RunEvidenceValidity,
+        RunExecutionOutcome,
+        RunOutcomeProjection,
+        RunScientificValidity,
+        RunTaskOutcome,
     )
     from research_platform.experimentation.run.control.api.contracts import RunControlRecordKind
 
@@ -287,9 +320,15 @@ def test_adapter_consumes_real_role03_run_control_contract_when_available():
                 RunControlAction.INSPECT, RunControlPhase.RUNNING,
                 "c" * 64, "d" * 64,
             )
+            outcomes = RunOutcomeProjection(
+                RunExecutionOutcome.IN_PROGRESS,
+                RunTaskOutcome.NOT_EVALUATED,
+                RunEvidenceValidity.NOT_OBSERVED,
+                RunScientificValidity.NOT_EVALUATED,
+            )
             return RunControlReceipt(
                 RunControlAction.INSPECT, "run-1", "b" * 64, "a" * 64,
-                RunControlPhase.RUNNING, 0, None, None, None, event,
+                RunControlPhase.RUNNING, 0, None, None, None, outcomes, event,
             )
 
     application = bind_run_control_application(
@@ -319,7 +358,7 @@ def test_adapter_rejects_control_event_action_drift(monkeypatch):
                 receipt.action, receipt.run_id, receipt.run_identity_digest,
                 receipt.run_manifest_digest, receipt.phase, receipt.control_generation,
                 receipt.latest_checkpoint_id, receipt.checkpoint_manifest_digest,
-                receipt.evidence_bundle_receipt, event,
+                receipt.evidence_bundle_receipt, receipt.outcomes, event,
             )
 
     application, _control = _application(monkeypatch, _DriftControl())
@@ -336,7 +375,7 @@ def test_adapter_rejects_foreign_evidence_identity(monkeypatch):
                 receipt.action, receipt.run_id, receipt.run_identity_digest,
                 receipt.run_manifest_digest, receipt.phase, receipt.control_generation,
                 receipt.latest_checkpoint_id, receipt.checkpoint_manifest_digest, evidence,
-                receipt.control_event_receipt,
+                receipt.outcomes, receipt.control_event_receipt,
             )
 
     application, _control = _application(monkeypatch, _EvidenceControl())

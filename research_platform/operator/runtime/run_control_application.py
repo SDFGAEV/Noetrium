@@ -221,6 +221,12 @@ def _research_result(
         "checkpoint_manifest_digest": receipt.checkpoint_manifest_digest,
         "control_event": _event_payload(receipt.control_event_receipt),
         "evidence_bundle": _evidence_payload(receipt),
+        "outcomes": {
+            "execution": receipt.outcomes.execution.value,
+            "task": receipt.outcomes.task.value,
+            "evidence": receipt.outcomes.evidence.value,
+            "scientific": receipt.outcomes.scientific.value,
+        },
     }
     return ResearchResult(
         request.action,
