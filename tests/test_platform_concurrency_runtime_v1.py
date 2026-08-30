@@ -1345,6 +1345,31 @@ def test_async_io_provider_retrieves_source_exception_after_logical_cancel() -> 
     ]
 
 
+def test_async_io_waiting_close_joins_prior_nonblocking_shutdown() -> None:
+    executor = AsyncIoExecutor(max_in_flight=1)
+    started = Event(); cleanup_started = Event(); cleanup_done = Event()
+    loop_errors: list[dict[str, object]] = []
+    executor._loop.call_soon_threadsafe(
+        executor._loop.set_exception_handler,
+        lambda _loop, context: loop_errors.append(dict(context)),
+    )
+    async def job() -> None:
+        started.set()
+        try:
+            await asyncio.sleep(10)
+        except asyncio.CancelledError:
+            cleanup_started.set(); await asyncio.sleep(0.08); cleanup_done.set(); raise
+    executor.submit(job)
+    assert started.wait(1)
+    executor.close(wait=False, cancel_pending=True)
+    assert cleanup_started.wait(1)
+    executor.close(wait=True, cancel_pending=True)
+    gc.collect()
+    assert cleanup_done.is_set()
+    assert not executor._thread.is_alive()
+    assert not [row for row in loop_errors if row.get("message") == "Task was destroyed but it is pending!"]
+
+
 def test_async_io_executor_releases_fast_completion_admission_without_tracking_leak() -> None:
     runtime = build_concurrency_runtime(
         budget=ConcurrencyBudget(

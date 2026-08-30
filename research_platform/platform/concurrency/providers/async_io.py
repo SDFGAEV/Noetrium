@@ -94,7 +94,7 @@ class _AsyncFutureHandle(Generic[T]):
 
     def cancel(self) -> bool:
         with self._state_lock:
-            if self._future.done():
+            if self._future.done() or self._cancel_requested:
                 return False
             self._cancel_requested = True
             task = self._source_task
@@ -221,7 +221,8 @@ class AsyncIoExecutor:
         current = asyncio.current_task()
         tasks = [task for task in asyncio.all_tasks() if task is not current and not task.done()]
         for task in tasks:
-            task.cancel()
+            if task.cancelling() == 0:
+                task.cancel()
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -244,7 +245,10 @@ class AsyncIoExecutor:
             else:
                 shutdown.add_done_callback(lambda _future: self._loop.call_soon_threadsafe(self._loop.stop))
         elif self._thread.is_alive() and wait:
-            self._loop.call_soon_threadsafe(self._loop.stop)
+            # A prior non-blocking close already owns shutdown and schedules loop
+            # stop only after source Tasks physically finish.  A later waiting
+            # close must join that shutdown, never stop the loop out from under it.
+            pass
         if wait:
             self._thread.join(timeout=self._shutdown_timeout_seconds)
             if self._thread.is_alive():
