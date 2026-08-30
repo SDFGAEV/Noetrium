@@ -7,6 +7,7 @@ import unittest
 from unittest.mock import patch
 
 from research_platform.reliability.forensics.providers.segmented_hashlog import SegmentedHashChainedJSONL
+from research_platform.reliability.forensics.providers.hashlog import HashChainError
 from research_platform.reliability.forensics.providers.directory_change_signal import DirectoryChangeSignal
 
 
@@ -69,6 +70,34 @@ class SegmentedEventHotPathV173Tests(unittest.TestCase):
                 renamed.unlink()
                 self.assertTrue(signal.changed_since(None)); signal.acknowledge()
             signal.close()
+
+
+    def test_external_directory_mutation_during_active_append_fails_closed(self) -> None:
+        with TemporaryDirectory() as td:
+            root = Path(td) / "events"
+            ledger = SegmentedHashChainedJSONL(root, fsync_every=4)
+            ledger.append({"event": 1})
+            original = ledger._writer.append
+            def inject(payload):
+                receipt = original(payload)
+                (root / "99999999.jsonl").write_bytes(b"")
+                return receipt
+            ledger._writer.append = inject
+            with self.assertRaisesRegex(HashChainError, "during owning writer append"):
+                ledger.append({"event": 2})
+
+    def test_owned_segment_creation_does_not_mask_extra_directory_entry(self) -> None:
+        with TemporaryDirectory() as td:
+            root = Path(td) / "events"
+            ledger = SegmentedHashChainedJSONL(root, fsync_every=4)
+            original = ledger._writer.append
+            def inject(payload):
+                receipt = original(payload)
+                (root / "99999999.jsonl").write_bytes(b"")
+                return receipt
+            ledger._writer.append = inject
+            with self.assertRaisesRegex(HashChainError, "namespace drift"):
+                ledger.append({"event": 1})
 
 
 if __name__ == "__main__":

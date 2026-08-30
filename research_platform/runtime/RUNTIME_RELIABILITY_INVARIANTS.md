@@ -52,4 +52,6 @@ Server-operation WAL records reject unsafe durable identities and non-canonical 
 - Windows must not treat directory `stat()` metadata as authoritative because fresh child creation can leave the observed directory metadata unchanged.
 - Kernel directory-entry signals keep steady-state append O(1): no segment-directory enumeration is introduced on the hot path.
 - Any unacknowledged create/delete/rename signal fails closed before append and forces full ledger verification; writer-owned changes are acknowledged only after the owned append completes.
+- The segmented writer returns an internal append receipt and creates new segment files exclusively; a signal observed after an ordinary active-file append is never acknowledged as writer-owned.
+- When an append legitimately creates a segment, the slow path verifies the exact owned directory namespace before consuming the expected kernel notification, so coalesced external entries cannot hide behind rotation.
 - Failure to create, wait on, advance, or close the Windows notification handle is surfaced rather than silently degrading to the nondeterministic stat fallback.

@@ -1,7 +1,14 @@
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from pathlib import Path
+
+
+@dataclass(frozen=True, slots=True)
+class SegmentedAppendReceipt:
+    row_hash: str
+    created_segment: bool
 
 from research_platform.reliability.forensics.providers.hashchain_core import encode_row, stat_signature
 from research_platform.reliability.forensics.providers.segmented_state import SegmentStateCell, SegmentWriterState
@@ -26,7 +33,7 @@ class SegmentedLedgerWriter:
     def path(self, index: int) -> Path:
         return self.root / f"{index:08d}.jsonl"
 
-    def append(self, payload: dict[str, object]) -> str:
+    def append(self, payload: dict[str, object]) -> SegmentedAppendReceipt:
         state = self.state.value
         encoded, row_hash = encode_row(state.tail_hash, payload)
         active = self.path(state.active_index)
@@ -42,7 +49,9 @@ class SegmentedLedgerWriter:
             active = self.path(index)
 
         due = (state.count + 1) % self.fsync_every == 0
-        with active.open("ab", buffering=1024 * 1024) as handle:
+        created_segment = not active.exists()
+        mode = "xb" if created_segment else "ab"
+        with active.open(mode, buffering=1024 * 1024) as handle:
             handle.write(encoded)
             handle.flush()
             if due:
@@ -60,4 +69,4 @@ class SegmentedLedgerWriter:
                 directory_signature=stat_signature(self.root),
             )
         )
-        return row_hash
+        return SegmentedAppendReceipt(row_hash=row_hash, created_segment=created_segment)

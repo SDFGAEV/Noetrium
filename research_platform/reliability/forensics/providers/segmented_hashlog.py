@@ -145,13 +145,35 @@ class SegmentedHashChainedJSONL:
             self.verify()
             raise HashChainError("segmented ledger changed outside owning writer")
 
+    def _assert_owned_directory_namespace(self) -> None:
+        state = self._state.value
+        expected = {f"{index:08d}.jsonl" for index in range(state.active_index + 1)}
+        if self.manifest_path.exists():
+            expected.add(self.manifest_path.name)
+        actual = {entry.name for entry in self.root.iterdir()}
+        if actual != expected:
+            extras = sorted(actual - expected)
+            missing = sorted(expected - actual)
+            raise HashChainError(
+                f"segmented ledger directory namespace drift extras={extras} missing={missing}"
+            )
+
     def append(self,payload:dict[str,object])->str:
         if self.read_only:
             raise PermissionError("read-only segmented ledger cannot append")
         with self._lock:
             self._ensure_owned()
-            row_hash=self._writer.append(payload)
-            self._directory_signal.acknowledge()
+            before=self._state.value
+            receipt=self._writer.append(payload)
+            changed=self._directory_signal.changed_since(before.directory_signature)
+            if receipt.created_segment:
+                if not changed:
+                    raise HashChainError("owned segment creation was not observed by directory authority")
+                self._assert_owned_directory_namespace()
+                self._directory_signal.acknowledge()
+            elif changed:
+                raise HashChainError("segmented ledger directory changed during owning writer append")
+            row_hash=receipt.row_hash
             state=self._state.value
             current_directory_signature=stat_signature(self.root)
             if current_directory_signature!=state.directory_signature:
