@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Callable
 
 from research_platform.governance.api import RepositorySourceIndexPort
 from research_platform.platform.kernel import canonical_digest
@@ -11,7 +12,10 @@ from .budget import (
     ArchitectureBudgetViolation,
     ArchitectureComplexity,
     ArchitectureComplexityBudget,
+    ArchitectureMigrationObservation,
     audit_architecture_complexity_budget,
+    import_projection_digest,
+    source_catalog_complexity,
 )
 from .hotspots import ModuleHotspot
 from .import_graph import (
@@ -122,6 +126,7 @@ def build_architecture_report(
     *,
     hotspot_limit: int = 20,
     source_index: RepositorySourceIndexPort | None = None,
+    historical_source_index_factory: Callable[[str], RepositorySourceIndexPort] | None = None,
 ) -> ArchitectureReport:
     root = Path(root).resolve()
     if source_index is None:
@@ -163,11 +168,39 @@ def build_architecture_report(
     hotspots = profile.hotspots[:hotspot_limit]
     risks = profile.optimization_risks[:hotspot_limit]
     source_authority_violations = profile.authority_violations
+    historical_observation_resolver = None
+    if historical_source_index_factory is not None:
+        def historical_observation_resolver(
+            git_sha: str, module_prefixes: tuple[str, ...]
+        ) -> tuple[str, ArchitectureMigrationObservation]:
+            historical_index = historical_source_index_factory(git_sha)
+            historical_profile = scan_architecture_source_profile(
+                root, source_index=historical_index
+            )
+            historical_pairs = tuple(
+                (edge.source_module, edge.target_module)
+                for edge in historical_profile.import_edges
+            )
+            projection = (
+                import_projection_digest(historical_pairs, module_prefixes)
+                if module_prefixes else None
+            )
+            return historical_index.source_digest, ArchitectureMigrationObservation(
+                complexity=source_catalog_complexity(
+                    historical_index, import_edges=len(historical_profile.import_edges)
+                ),
+                import_projection_sha256=projection,
+            )
+
     architecture_complexity, architecture_complexity_budget, architecture_budget_violations = (
         audit_architecture_complexity_budget(
             root,
             import_edges=len(edges),
+            import_edge_pairs=tuple(
+                (edge.source_module, edge.target_module) for edge in edges
+            ),
             source_index=source_index,
+            historical_observation_resolver=historical_observation_resolver,
         )
     )
     declared_audit = build_platform_audit()

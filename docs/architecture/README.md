@@ -23,14 +23,14 @@ architecture composition root freezes one `RepositorySourceSnapshot` before any
 consumer runs. Directory traversal, file read, UTF-8 decode and Python parse
 failures raise `RepositorySourceIncompleteError`; a partial cut is never exposed.
 
-`RepositorySourceTree` prunes generated/vendor directories before descent,
-preserves exact filesystem-byte SHA-256 identity and orders files by canonical
-POSIX relative path on every operating system. Source-invariant diagnostics use
-the same POSIX-relative path identity so report digests do not vary by host OS.
-`RepositorySourceIndex` is a read-only IR over that frozen cut: Python syntax is parsed once and analyzers
-request ASTs by `relative_path + sha256`. Algorithm, concurrency, performance,
-quality and architecture consumers therefore bind to the same source identity
-instead of independently rescanning the live filesystem.
+`RepositorySourceTree` remains the explicit filesystem provider for synthetic and
+non-Git test fixtures. Formal architecture and release-quality composition uses
+`GitRepositorySourceTree`: it resolves one exact commit and reads canonical paths
+from `git ls-tree` plus raw blob bytes from `git cat-file --batch`. It therefore
+never depends on checkout state, `core.autocrlf`, export filters, a later HEAD, or
+files created while a scan is running. Both providers order files by canonical
+POSIX relative path. `RepositorySourceIndex` records its `source_authority` and
+`source_revision`, parses Python once, and serves analyzers by exact frozen bytes.
 
 Snapshot/index reuse is explicit composition-time policy, never an ambient
 global cache or a second source truth. Source identity changes require a new
@@ -55,18 +55,21 @@ verifies declarations that exist and guards the canonical registry.
 
 ## Architecture complexity budget
 
-`research_platform/governance/architecture/ARCHITECTURE_BUDGET.json` is a v2
-reviewed migration ledger, not an editable global ceiling. Its baseline authority
-binds the frozen Git SHA, canonical source digest and independently recomputable
-complexity projection. The semantic document is pinned by a reviewed SHA-256, so
-changing baseline metrics or migration allowances without a corresponding
-review-authority change fails closed.
+`research_platform/governance/architecture/ARCHITECTURE_BUDGET.json` is a v3
+migration authority, not an editable global ceiling. The immutable baseline binds
+an exact Git SHA, canonical source digest and recomputable complexity projection.
+Each migration additionally carries a ROLE00 approval state and evidence reference.
+`proposed` migrations contribute zero allowance.
 
-Every growth allowance carries a unique migration id, owner Role, exact reviewed
-source Git SHA, per-dimension delta and substantive justification. Effective
-limits are computed as `baseline + sum(reviewed deltas)`; there is no standalone
-`limits` field to raise. Review tests materialize the frozen baseline and each
-migration source with `git archive`, rebuild the canonical SourceIndex and verify
-the declared deltas. The current reviewed ledger composes `4749 + 72 = 4821`
-import edges from ROLE01–06 exact source bindings while keeping all topology,
-contract and authority counts frozen.
+An approved migration contributes growth only when its owner-scoped import
+projection matches the current exact source cut. This prevents a ROLE01-only cut
+from pre-spending ROLE02–06 headroom: current ROLE01 remains limited to 4776 even
+if later proposed migrations exist in the ledger. Formal audit also requires Git
+source authority and independently resolves the baseline plus every approved
+migration from exact Git objects before applying any allowance. Missing, stale or
+mismatched provenance fails closed.
+
+The Git provider consumes raw object-database bytes with `ls-tree`/`cat-file`, not
+`git archive`, because archive output can be affected by host EOL/export settings.
+Synthetic filesystem tests must inject their source index explicitly; production
+release-quality never silently falls back from Git authority to a mutable checkout.

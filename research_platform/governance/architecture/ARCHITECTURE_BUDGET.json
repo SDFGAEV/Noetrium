@@ -1,5 +1,5 @@
 {
-  "schema_version": "architecture-complexity-budget.v2",
+  "schema_version": "architecture-complexity-budget.v3",
   "baseline": {
     "git_sha": "1615043e0d72075bf0d7352fff1e5f3387446b65",
     "source_digest": "c4a8a2a99b384775feec41fb0fe7b4f185afae1ef07175f7e2077184c28c3f3d",
@@ -22,7 +22,22 @@
         "contract_declarations": 0,
         "authorities": 0,
         "import_edges": 27
-      },      "justification": "Canonical source completeness and shared SourceIndex authority add explicit governance composition edges while removing independent filesystem scan authority."
+      },
+      "justification": "Canonical source completeness and shared SourceIndex authority add explicit governance composition edges while removing independent filesystem scan authority.",
+      "approval": {
+        "status": "approved",
+        "authority": "ROLE00",
+        "evidence_ref": "SUPERVISOR_REVIEW_GATES.md#architecture-budget-marginal-delta-recount"
+      },
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.platform",
+          "research_platform.governance",
+          "research_platform.scope",
+          "research_platform.portfolio"
+        ],
+        "import_projection_sha256": "4003ed34f499c51cea2310b6a9ca9f4e2e09bf2506910f127c68b49bd9b6059a"
+      }
     },
     {
       "migration_id": "role02-runtime-reliability-v1",
@@ -35,24 +50,37 @@
         "authorities": 0,
         "import_edges": 2
       },
-      "justification": "Reviewed runtime and reliability migration adds two typed producer-consumer edges for resource lifecycle and reconciliation authority without topology growth."
+      "justification": "Proposed runtime and reliability migration adds two typed producer-consumer edges for resource lifecycle and reconciliation authority without topology growth.",
+      "approval": {
+        "status": "proposed",
+        "authority": "ROLE00",
+        "evidence_ref": "SUPERVISOR_ARCHITECTURE_MIGRATION_LEDGER_PROPOSAL.json"
+      },
+      "applicability": null
     },
     {
       "migration_id": "role03-effect-reconciliation-v1",
       "owner_role": "ROLE03",
-      "source_git_sha": "6184411863931b6bcebcdea61b4945a5727cf7a9",
+      "source_git_sha": "c42ba99b4847319f506d48ccca71df2888e71c75",
       "delta": {
         "top_level_systems": 0,
         "subsystems": 0,
         "contract_declarations": 0,
         "authorities": 0,
-        "import_edges": 4
-      },      "justification": "Reviewed Execution migration adds four explicit typed edges for effect reconciliation and neutral operation certainty consumption without changing registry topology."
+        "import_edges": 6
+      },
+      "justification": "Proposed Execution migration adds six typed effect, artifact-finalization and recovery dependencies while preserving all frozen topology dimensions.",
+      "approval": {
+        "status": "proposed",
+        "authority": "ROLE00",
+        "evidence_ref": "SUPERVISOR_REVIEW_GATES.md#ROLE03-exact-review-c42ba99"
+      },
+      "applicability": null
     },
     {
       "migration_id": "role04-participant-model-v1",
       "owner_role": "ROLE04",
-      "source_git_sha": "7c0143b3665eb51e39699529add52186bbe8a05e",
+      "source_git_sha": "0e09d059eb5fce8341ada76bbd1e9930006c4a0c",
       "delta": {
         "top_level_systems": 0,
         "subsystems": 0,
@@ -60,7 +88,13 @@
         "authorities": 0,
         "import_edges": 22
       },
-      "justification": "Reviewed participant and model migration adds typed request, qualification and binding dependencies while preserving the frozen system and authority counts."
+      "justification": "Proposed participant and model migration adds typed request, qualification and binding dependencies while preserving the frozen system and authority counts.",
+      "approval": {
+        "status": "proposed",
+        "authority": "ROLE00",
+        "evidence_ref": "SUPERVISOR_ARCHITECTURE_MIGRATION_LEDGER_PROPOSAL.json"
+      },
+      "applicability": null
     },
     {
       "migration_id": "role05-environment-evidence-v1",
@@ -72,12 +106,19 @@
         "contract_declarations": 0,
         "authorities": 0,
         "import_edges": 3
-      },      "justification": "Reviewed environment and evidence migration adds three typed lifecycle and artifact authority dependencies while preserving all declared topology dimensions."
+      },
+      "justification": "Proposed environment and evidence migration adds three typed lifecycle and artifact authority dependencies while preserving all declared topology dimensions.",
+      "approval": {
+        "status": "proposed",
+        "authority": "ROLE00",
+        "evidence_ref": "SUPERVISOR_ARCHITECTURE_MIGRATION_LEDGER_PROPOSAL.json"
+      },
+      "applicability": null
     },
     {
       "migration_id": "role06-product-assurance-v1",
       "owner_role": "ROLE06",
-      "source_git_sha": "6b6102771a3e1b0215ef1068a645f760194d158e",
+      "source_git_sha": "678403e9dd45427490b9542925e14c881d4f0a00",
       "delta": {
         "top_level_systems": 0,
         "subsystems": 0,
@@ -85,7 +126,13 @@
         "authorities": 0,
         "import_edges": 14
       },
-      "justification": "Reviewed product and assurance migration adds fourteen explicit verification, release and operator dependencies without changing canonical topology authority."
+      "justification": "Proposed product and assurance migration adds fourteen explicit verification, release and operator dependencies without changing canonical topology authority.",
+      "approval": {
+        "status": "proposed",
+        "authority": "ROLE00",
+        "evidence_ref": "SUPERVISOR_ARCHITECTURE_MIGRATION_LEDGER_PROPOSAL.json"
+      },
+      "applicability": null
     }
   ]
 }

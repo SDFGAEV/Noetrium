@@ -4,6 +4,7 @@ import unittest
 import zipfile
 
 from research_platform.platform.composition.release_quality import build_release_quality_evidence
+from research_platform.governance.providers import RepositorySourceTree
 from research_platform.governance.release.runtime.evidence import build_release_evidence
 from research_platform.governance.release.runtime.manifest import build_release_manifest
 from research_platform.governance.release.runtime.packager import ReleasePackager
@@ -26,7 +27,7 @@ class ReleasePackageSelfVerificationV190Tests(unittest.TestCase):
             manifest = build_release_manifest(root)
             evidence = build_release_evidence(
                 root,
-                quality=build_release_quality_evidence(root),
+                quality=build_release_quality_evidence(root, source_index=RepositorySourceTree(root).index()),
                 regression_tests_collected=1,
                 regression_tests_passed=1,
                 regression_tests_skipped=0,
@@ -48,7 +49,7 @@ class ReleasePackageSelfVerificationV190Tests(unittest.TestCase):
             manifest = build_release_manifest(root)
             evidence = build_release_evidence(
                 root,
-                quality=build_release_quality_evidence(root),
+                quality=build_release_quality_evidence(root, source_index=RepositorySourceTree(root).index()),
                 regression_tests_collected=1,
                 regression_tests_passed=1,
                 regression_tests_skipped=0,

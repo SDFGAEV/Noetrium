@@ -19,10 +19,14 @@ def _source_file_count_at_least(source_index: RepositorySourceIndexPort, thresho
     return len(tuple(source_index.documents(suffixes={".py"}))) >= threshold
 
 
-def _architecture_lane(root_text: str, source_index: RepositorySourceIndexPort) -> tuple[str, bool]:
+def _architecture_lane(
+    root_text: str, source_index: RepositorySourceIndexPort, git_executable: str | None = None
+) -> tuple[str, bool]:
     from research_platform.governance.architecture import build_architecture_report
 
-    architecture = build_architecture_report(Path(root_text), source_index=source_index)
+    architecture = build_architecture_report(
+        Path(root_text), source_index=source_index, git_executable=git_executable
+    )
     return architecture.report_sha256, architecture.clean
 
 
@@ -112,9 +116,11 @@ def _static_quality_lane(
     }
 
 def _build_sequential(
-    root: Path, source_index: RepositorySourceIndexPort
+    root: Path, source_index: RepositorySourceIndexPort, git_executable: str | None
 ) -> ReleaseQualityEvidence:
-    architecture_sha, architecture_clean = _architecture_lane(str(root), source_index)
+    architecture_sha, architecture_clean = _architecture_lane(
+        str(root), source_index, git_executable
+    )
     static = _static_quality_lane(str(root), source_index)
     return ReleaseQualityEvidence(
         architecture_report_sha256=architecture_sha,
@@ -127,6 +133,8 @@ def build_release_quality_evidence(
     root: Path,
     *,
     task_group: TaskGroupPort | None = None,
+    source_index: RepositorySourceIndexPort | None = None,
+    git_executable: str | Path | None = None,
 ) -> ReleaseQualityEvidence:
     """Build all static governance evidence from one immutable source tree.
 
@@ -138,12 +146,18 @@ def build_release_quality_evidence(
     """
 
     root = Path(root).resolve()
-    from research_platform.governance.providers import RepositorySourceTree
+    if source_index is None:
+        from research_platform.governance.providers import GitRepositorySourceTree
 
-    source_index = RepositorySourceTree(root).index()
+        source_index = GitRepositorySourceTree(
+            root,
+            git_executable=git_executable,
+        ).index()
     force_sequential = os.environ.get("RELEASE_QUALITY_SEQUENTIAL", "").strip().lower() in {"1", "true", "yes"}
     if force_sequential or not _source_file_count_at_least(source_index, _PARALLEL_FILE_THRESHOLD):
-        return _build_sequential(root, source_index)
+        return _build_sequential(
+            root, source_index, str(git_executable) if git_executable is not None else None
+        )
 
     owned_runtime = None
     resolved_group = task_group
@@ -171,19 +185,24 @@ def build_release_quality_evidence(
             ("concurrency", _concurrency_lane),
             ("performance", _performance_lane),
         )
-        tasks = {
-            name: resolved_group.submit(
+        tasks = {}
+        for name, fn in lane_specs:
+            args = (str(root), source_index)
+            if name == "architecture":
+                args = (
+                    str(root),
+                    source_index,
+                    str(git_executable) if git_executable is not None else None,
+                )
+            tasks[name] = resolved_group.submit(
                 ExecutionSpec(
                     task_id=f"release-quality-{name}",
                     lane_kind=ExecutionLaneKind.CPU,
                 ),
                 fn,
-                str(root),
-                source_index,
+                *args,
                 deadline=Deadline.after(180.0),
             )
-            for name, fn in lane_specs
-        }
         results = {name: task.result(timeout=180.0) for name, task in tasks.items()}
         architecture = results["architecture"]
         no_degradation, silent = results["quality-guards"]

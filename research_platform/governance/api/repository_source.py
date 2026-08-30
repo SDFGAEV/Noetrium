@@ -13,6 +13,8 @@ class RepositorySourceFailureKind(str, Enum):
     UTF8_DECODE = "utf8_decode"
     PYTHON_PARSE = "python_parse"
     CONFIG_PARSE = "config_parse"
+    GIT_RESOLUTION = "git_resolution"
+    GIT_OBJECT = "git_object"
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +58,12 @@ class RepositorySourceIndexPort(RepositorySourcePort, Protocol):
 
     @property
     def source_digest(self) -> str: ...
+
+    @property
+    def source_authority(self) -> str: ...
+
+    @property
+    def source_revision(self) -> str | None: ...
 
     def text(self, relative_path: str, *, sha256: str | None = None) -> str: ...
 
