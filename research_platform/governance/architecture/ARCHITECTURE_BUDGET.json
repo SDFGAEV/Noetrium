@@ -20,9 +20,9 @@
         "subsystems": 1,
         "contract_declarations": 11,
         "authorities": 1,
-        "import_edges": 27
+        "import_edges": 31
       },
-      "justification": "Canonical source completeness, immutable SourceIndex authority, canonical run-control catalog registration, and operator run-control dependency declarations add explicit governance topology/contracts while preserving one source authority.",
+      "justification": "Canonical source completeness, immutable SourceIndex authority, canonical run-control catalog/operator dependency declarations, and NPE project-manifest/import-policy/public-composition contracts add explicit governance topology/contracts while preserving one source authority.",
       "applicability": {
         "module_prefixes": [
           "research_platform.platform",
@@ -30,7 +30,7 @@
           "research_platform.scope",
           "research_platform.portfolio"
         ],
-        "import_projection_sha256": "4003ed34f499c51cea2310b6a9ca9f4e2e09bf2506910f127c68b49bd9b6059a"
+        "import_projection_sha256": "f1f77c3e5008356f656d0953c07a2cd3d84a4de27575b53611c98884b3466750"
       }
     },
     {

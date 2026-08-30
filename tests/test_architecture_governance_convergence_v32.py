@@ -534,7 +534,7 @@ def test_run_control_standard_shape_is_registered(tmp_path: Path) -> None:
 
 def test_role01_run_control_catalog_growth_is_budgeted() -> None:
     migration=next(row for row in load_architecture_complexity_budget(Path(__file__).resolve().parents[1]).migrations if row.owner_role=="ROLE01")
-    assert (migration.delta.subsystems,migration.delta.contract_declarations,migration.delta.authorities,migration.delta.import_edges)==(1,11,1,27)
+    assert (migration.delta.subsystems,migration.delta.contract_declarations,migration.delta.authorities,migration.delta.import_edges)==(1,11,1,31)
 
 def test_role03_proposal_tracks_exact_693c481_run_control_delta() -> None:
     migration=next(row for row in load_architecture_complexity_budget(Path(__file__).resolve().parents[1]).migrations if row.owner_role=="ROLE03")
