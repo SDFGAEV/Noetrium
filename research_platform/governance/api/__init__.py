@@ -1,5 +1,10 @@
 """Public governance contracts."""
 
+from .baseline_authority import (
+    GovernanceBaselineApproval,
+    GovernanceBaselineApprovalSet,
+    GovernanceBaselineLane,
+)
 from .repository_source import (
     RepositorySourceBlob,
     RepositorySourceFailure,
@@ -13,6 +18,9 @@ from .repository_source import (
 )
 
 __all__ = [
+    "GovernanceBaselineApproval",
+    "GovernanceBaselineApprovalSet",
+    "GovernanceBaselineLane",
     "RepositorySourceBlob",
     "RepositorySourceFailure",
     "RepositorySourceFailureKind",

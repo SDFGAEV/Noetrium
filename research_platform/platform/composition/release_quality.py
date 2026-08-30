@@ -71,7 +71,7 @@ def _concurrency_lane(root_text: str, source_index: RepositorySourceIndexPort) -
         return _not_applicable_digest("concurrency-governance"), True, 0
     try:
         snapshot, report = build_concurrency_governance(
-            root, source_inventory=source_index, source_index=source_index
+            root, exact=True, source_inventory=source_index, source_index=source_index
         ).gate()
         return snapshot.source_digest, report.passed, len(report.blockers)
     except ConcurrencyBaselineMissing:
@@ -87,7 +87,7 @@ def _performance_lane(root_text: str, source_index: RepositorySourceIndexPort) -
         return _not_applicable_digest("performance-governance"), True, 0
     try:
         snapshot, report = build_performance_governance(
-            root, source_inventory=source_index, source_index=source_index
+            root, exact=True, source_inventory=source_index, source_index=source_index
         ).gate()
         return snapshot.source_digest, report.passed, len(report.blockers)
     except PerformanceBaselineMissing:

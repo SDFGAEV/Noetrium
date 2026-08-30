@@ -10,7 +10,7 @@ from .runtime import ConcurrencyBaselineMissing, markdown_report
 def main(argv:list[str]|None=None)->int:
     parser=argparse.ArgumentParser(description='Repository-wide concurrency governance')
     parser.add_argument('command',choices=('scan','gate','baseline')); parser.add_argument('--root',type=Path); parser.add_argument('--report',type=Path)
-    args=parser.parse_args(argv); root=(args.root or discover_project_root(__file__)).resolve(); service=build_concurrency_governance(root)
+    args=parser.parse_args(argv); root=(args.root or discover_project_root(__file__)).resolve(); service=build_concurrency_governance(root, exact=args.command in {'gate','baseline'})
     if args.command=='baseline':
         snapshot=service.accept_baseline(); print(f'CONCURRENCY_BASELINE_ACCEPTED hotspots={len(snapshot.hotspots)} blockers={snapshot.blocker_count}')
     elif args.command=='gate':

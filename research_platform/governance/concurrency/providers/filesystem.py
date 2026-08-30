@@ -43,9 +43,28 @@ class FilesystemConcurrencySnapshotStore:
         atomic_replace_bytes(self._history/f'{snapshot.generated_unix_ns}-{snapshot.source_digest[:12]}.json',self._bytes(snapshot))
     def load_baseline(self)->ConcurrencyBaseline|None:
         if not self._baseline.exists(): return None
-        data=json.loads(self._baseline.read_text())
+        data=json.loads(self._baseline.read_text(encoding="utf-8"))
+        schema=str(data.get('schema_version',''))
+        if schema == "concurrency-baseline.v2":
+            expected={
+                "schema_version","source_authority","source_revision","source_digest",
+                "analyzer_revision","analyzer_implementation_digest","blocker_fingerprints",
+            }
+            if set(data) != expected:
+                raise ValueError("concurrency baseline v2 has unexpected fields")
+            revision=data["source_revision"]
+            if revision is not None and not isinstance(revision,str):
+                raise ValueError("concurrency baseline source_revision must be string or null")
+            return ConcurrencyBaseline(
+                schema_version=schema, source_authority=str(data["source_authority"]),
+                source_revision=revision, source_digest=str(data["source_digest"]),
+                analyzer_revision=str(data["analyzer_revision"]),
+                analyzer_implementation_digest=str(data["analyzer_implementation_digest"]),
+                blocker_fingerprints=tuple(str(x) for x in data["blocker_fingerprints"]),
+            )
         return ConcurrencyBaseline(
-            schema_version=str(data['schema_version']), analyzer_revision=str(data['analyzer_revision']),
+            schema_version=schema, source_authority="legacy", source_revision=None, source_digest="",
+            analyzer_revision=str(data.get('analyzer_revision','')), analyzer_implementation_digest="",
             blocker_fingerprints=tuple(str(x) for x in data.get('blocker_fingerprints',())),
         )
     def publish_baseline(self,baseline:ConcurrencyBaseline)->None:

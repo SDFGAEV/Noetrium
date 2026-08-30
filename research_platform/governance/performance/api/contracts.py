@@ -87,6 +87,9 @@ class PerformanceSnapshot:
     hotspots: tuple[PerformanceHotspot, ...]
     coverage: tuple[PerformanceCoverage, ...]
     generated_unix_ns: int
+    source_authority: str = "filesystem"
+    source_revision: str | None = None
+    analyzer_implementation_digest: str = ""
 
     @property
     def finding_count(self) -> int:
@@ -112,7 +115,11 @@ class PerformanceSnapshot:
 @dataclass(frozen=True, slots=True)
 class PerformanceBaseline:
     schema_version: str
+    source_authority: str
+    source_revision: str | None
+    source_digest: str
     analyzer_revision: str
+    analyzer_implementation_digest: str
     blocker_fingerprints: tuple[str, ...]
 
 

@@ -1,0 +1,31 @@
+# Governance Baseline Provenance Contract
+
+## Scope
+
+This contract governs the Concurrency and Performance release baselines. It is additive to Algorithm Governance, which has a richer symbol-level lower-bound migration authority. The shared rule is that a baseline is a reviewed projection of one immutable Git source cut under one immutable analyzer implementation identity; a revision label alone is never authority.
+
+## Baseline v2 identity
+
+A Concurrency or Performance baseline v2 records the lane, immutable Git source revision, reconstructible lane source digest, analyzer revision, analyzer implementation digest, and the accepted blocker-fingerprint set. The semantic baseline digest is canonical over exactly those fields. Generated timestamps and local filesystem paths are not part of authority.
+
+Analyzer implementation identity uses the canonical source-text digest for the owned governance lane package. Only CRLF/CR to LF normalization is permitted so a clean Windows and Linux checkout of identical Git text has one implementation identity. Raw repository source authority remains Git-object/source-byte based.
+
+## Exact gate behavior
+
+Release and baseline commands use an immutable `GitRepositorySourceTree`; ReleaseQuality passes the same frozen `RepositorySourceIndexPort` to Architecture, Algorithm, Concurrency and Performance. The running lane implementation must come from the audited repository root and its canonical implementation digest must equal the immutable Git cut.
+
+A legacy baseline, missing Git provenance, analyzer implementation drift, historical source-digest mismatch, or historical blocker-fingerprint mismatch stops the lane at one parent provenance blocker. The gate does not emit child producer regressions until baseline provenance is reconstructible. This corrects attribution only; it never suppresses a genuine concurrency or performance hazard after provenance is valid.
+
+## Baseline acceptance authority
+
+A Git-authoritative baseline cannot be written merely by invoking `baseline`. ROLE00 must supply an external `governance-baseline-approval.v1` record bound to lane, exact source SHA/digest, analyzer revision/implementation digest and semantic baseline digest. The approval file itself and every record are SHA-256 bound; stale, wrong-lane, malformed, duplicate-identity or tampered approvals contribute zero authority.
+
+Filesystem-mode component tests may create local baselines for test isolation, but those baselines are not release authority and cannot satisfy an exact Git gate.
+
+## Replay invariant
+
+Baseline migration must preserve the frozen business comparison source. A provenance migration replays that historical Git revision with the reviewed current analyzer implementation, records the resulting v2 identity, and requires ROLE00 approval before replacing the repository baseline. It must not baseline the current producer tree merely to erase newly observed debt.
+
+## External approval transport
+
+The shared ROLE00 approval set is supplied out-of-repository through `RESEARCH_PLATFORM_GOVERNANCE_BASELINE_APPROVALS` together with `RESEARCH_PLATFORM_GOVERNANCE_BASELINE_APPROVALS_SHA256`. Supplying only one is invalid. Git discovery for exact source authority uses the existing `RESEARCH_PLATFORM_GIT_EXECUTABLE` route when required.

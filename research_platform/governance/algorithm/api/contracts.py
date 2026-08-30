@@ -154,22 +154,26 @@ class AlgorithmGovernanceApprovalSet:
     ] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
+        approved_baselines = tuple(row for row in self.baseline_approvals if row.approved)
         baseline_index = {
             (
                 row.source_git_sha, row.source_digest, row.analyzer_revision,
                 row.analyzer_implementation_digest, row.snapshot_digest,
             ): row
-            for row in self.baseline_approvals
-            if row.approved
+            for row in approved_baselines
         }
+        approved_migrations = tuple(row for row in self.complexity_migrations if row.approved)
         complexity_index = {
             (
                 row.symbol_id, row.source_git_sha, row.source_digest, row.analyzer_revision,
                 row.analyzer_implementation_digest, row.old_complexity, row.new_complexity,
             ): row
-            for row in self.complexity_migrations
-            if row.approved
+            for row in approved_migrations
         }
+        if len(baseline_index) != len(approved_baselines):
+            raise ValueError("approved algorithm baseline identities must be unique")
+        if len(complexity_index) != len(approved_migrations):
+            raise ValueError("approved algorithm complexity migration identities must be unique")
         object.__setattr__(self, "_baseline_index", MappingProxyType(baseline_index))
         object.__setattr__(self, "_complexity_index", MappingProxyType(complexity_index))
 

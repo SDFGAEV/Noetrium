@@ -16,7 +16,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--report", type=Path)
     args = parser.parse_args(argv)
     root = (args.root or discover_project_root(__file__)).resolve()
-    service = build_performance_governance(root)
+    service = build_performance_governance(root, exact=args.command in {"gate", "baseline"})
     if args.command == "baseline":
         snapshot = service.accept_baseline()
         print(
