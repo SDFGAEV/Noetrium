@@ -1,2 +1,29 @@
 from .authorities import ModelAuthorities
-__all__ = ["ModelAuthorities"]
+from .project import (
+    ModelBindingDiagnostic,
+    ModelBindingDiagnosticCode,
+    ModelBindingDiagnosticSeverity,
+    ModelCapabilityRequirement,
+    ModelProjectBindingError,
+    ModelProviderProfile,
+    ProjectModelBinding,
+    ProjectModelClientPort,
+    ProjectModelProviderPort,
+    ProjectModelRequest,
+    ProjectModelResponse,
+)
+
+__all__ = [
+    "ModelAuthorities",
+    "ModelBindingDiagnostic",
+    "ModelBindingDiagnosticCode",
+    "ModelBindingDiagnosticSeverity",
+    "ModelCapabilityRequirement",
+    "ModelProjectBindingError",
+    "ModelProviderProfile",
+    "ProjectModelBinding",
+    "ProjectModelClientPort",
+    "ProjectModelProviderPort",
+    "ProjectModelRequest",
+    "ProjectModelResponse",
+]
