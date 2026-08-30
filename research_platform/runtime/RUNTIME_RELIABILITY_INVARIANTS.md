@@ -45,3 +45,11 @@ Server-operation WAL records reject unsafe durable identities and non-canonical 
 - Heartbeats may advance `last_heartbeat_at` but must never rewrite the original readiness authority.
 - `ServiceStartOutcome` and `ServiceReadyObservation` project the exact persisted `ready_at`; consumers must not synthesize a replacement wall-clock timestamp.
 - Durable service-state codec v3 fails closed when readiness evidence and readiness time are incomplete or non-finite.
+
+## Forensic directory-entry mutation authority
+
+- Linux segmented-ledger ownership uses inotify; Windows uses `FindFirstChangeNotificationW` / `WaitForSingleObject` / `FindNextChangeNotification` for file/directory-name changes.
+- Windows must not treat directory `stat()` metadata as authoritative because fresh child creation can leave the observed directory metadata unchanged.
+- Kernel directory-entry signals keep steady-state append O(1): no segment-directory enumeration is introduced on the hot path.
+- Any unacknowledged create/delete/rename signal fails closed before append and forces full ledger verification; writer-owned changes are acknowledged only after the owned append completes.
+- Failure to create, wait on, advance, or close the Windows notification handle is surfaced rather than silently degrading to the nondeterministic stat fallback.

@@ -38,6 +38,29 @@ _DIRECTORY_MUTATION_MASK = (
 )
 
 
+_FILE_NOTIFY_CHANGE_FILE_NAME = 0x00000001
+_FILE_NOTIFY_CHANGE_DIR_NAME = 0x00000002
+_WAIT_OBJECT_0 = 0x00000000
+_WAIT_TIMEOUT = 0x00000102
+_WAIT_FAILED = 0xFFFFFFFF
+_INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
+
+
+def _open_windows_directory_watch(root: Path) -> int | None:
+    if sys.platform != "win32":
+        return None
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    find_first = kernel32.FindFirstChangeNotificationW
+    find_first.argtypes = [ctypes.c_wchar_p, ctypes.c_int, ctypes.c_uint32]
+    find_first.restype = ctypes.c_void_p
+    handle = find_first(str(root), 0, _FILE_NOTIFY_CHANGE_FILE_NAME | _FILE_NOTIFY_CHANGE_DIR_NAME)
+    value = ctypes.cast(handle, ctypes.c_void_p).value
+    if value in (None, _INVALID_HANDLE_VALUE):
+        error = ctypes.get_last_error()
+        raise OSError(error, "failed to open Windows directory change notification", str(root))
+    return int(value)
+
+
 def _open_linux_directory_watch(root: Path) -> int | None:
     """Open a non-blocking inotify watch, or return None when unavailable."""
     if not sys.platform.startswith("linux"):
@@ -66,8 +89,8 @@ def _open_linux_directory_watch(root: Path) -> int | None:
 class DirectoryChangeSignal:
     """Detect directory-entry mutations without enumerating the directory.
 
-    Linux production uses the kernel event queue.  Filesystems/platforms without
-    inotify use the directory stat as a portable fallback.  The caller owns the
+    Linux uses inotify and Windows uses a kernel change-notification handle.
+    Other platforms use directory stat only as a portability fallback.  The caller owns the
     authoritative expected signature; this object only owns the event cursor and
     a fail-closed pending bit.
     """
@@ -75,12 +98,17 @@ class DirectoryChangeSignal:
     def __init__(self, root: Path) -> None:
         self.root = root
         self._fd = _open_linux_directory_watch(root)
+        self._windows_handle = _open_windows_directory_watch(root)
         self._pending = False
         self._close_error: OSError | None = None
 
     @property
     def mode(self) -> str:
-        return "inotify" if self._fd is not None else "stat"
+        if self._fd is not None:
+            return "inotify"
+        if self._windows_handle is not None:
+            return "windows-notify"
+        return "stat"
 
     def _drain_events(self) -> bool:
         if self._fd is None:
@@ -114,6 +142,24 @@ class DirectoryChangeSignal:
                     changed = True
                 offset += record_length
 
+    def _windows_changed(self) -> bool:
+        handle = self._windows_handle
+        if handle is None:
+            return False
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        wait = kernel32.WaitForSingleObject
+        wait.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+        wait.restype = ctypes.c_uint32
+        result = int(wait(ctypes.c_void_p(handle), 0))
+        if result == _WAIT_OBJECT_0:
+            return True
+        if result == _WAIT_TIMEOUT:
+            return False
+        if result == _WAIT_FAILED:
+            error = ctypes.get_last_error()
+            raise OSError(error, "Windows directory change notification wait failed", str(self.root))
+        raise OSError(f"unexpected Windows wait result: {result}")
+
     def changed_since(
         self,
         expected_signature: tuple[int, int, int, int] | None,
@@ -124,7 +170,10 @@ class DirectoryChangeSignal:
         if self._drain_events():
             self._pending = True
             return True
-        if self._fd is None and stat_signature(self.root) != expected_signature:
+        if self._windows_changed():
+            self._pending = True
+            return True
+        if self._fd is None and self._windows_handle is None and stat_signature(self.root) != expected_signature:
             self._pending = True
             return True
         return False
@@ -132,6 +181,14 @@ class DirectoryChangeSignal:
     def acknowledge(self) -> None:
         """Consume mutations caused by the owning writer and clear the latch."""
         self._drain_events()
+        if self._windows_handle is not None and self._windows_changed():
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            advance = kernel32.FindNextChangeNotification
+            advance.argtypes = [ctypes.c_void_p]
+            advance.restype = ctypes.c_int
+            if not advance(ctypes.c_void_p(self._windows_handle)):
+                error = ctypes.get_last_error()
+                raise OSError(error, "failed to advance Windows directory change notification", str(self.root))
         self._pending = False
 
     def close(self) -> None:
@@ -142,6 +199,17 @@ class DirectoryChangeSignal:
             except OSError as exc:
                 self._close_error = exc
                 raise
+        handle, self._windows_handle = self._windows_handle, None
+        if handle is not None:
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            close = kernel32.FindCloseChangeNotification
+            close.argtypes = [ctypes.c_void_p]
+            close.restype = ctypes.c_int
+            if not close(ctypes.c_void_p(handle)):
+                error = ctypes.get_last_error()
+                exc = OSError(error, "failed to close Windows directory change notification", str(self.root))
+                self._close_error = exc
+                raise exc
 
     def __del__(self) -> None:
         try:
