@@ -157,16 +157,23 @@ class SQLiteTelemetryReader:
                 for low, high, _ in positions.values()
                 for position in (low, high)
             })
-            selected: dict[int, float] = {}
-            for position in required:
-                row = db.execute(
-                    f"SELECT value FROM metric_observations INDEXED BY {index} "
-                    "WHERE run_id=? AND metric=? ORDER BY value LIMIT 1 OFFSET ?",
-                    (run_id, metric, position),
-                ).fetchone()
-                if row is None or len(row) != 1:
-                    raise TelemetryMetricCorruptionError("telemetry percentile lookup is incomplete")
-                selected[position] = _finite_number(row[0], label="metric percentile value")
+            placeholders = ",".join("?" for _ in required)
+            percentile_rows = db.execute(
+                f"WITH ordered AS ("
+                f"SELECT value, ROW_NUMBER() OVER (ORDER BY value) - 1 AS position "
+                f"FROM metric_observations INDEXED BY {index} "
+                "WHERE run_id=? AND metric=?"
+                ") SELECT position,value FROM ordered "
+                f"WHERE position IN ({placeholders}) ORDER BY position",
+                (run_id, metric, *required),
+            ).fetchall()
+            selected = {
+                int(row[0]): _finite_number(row[1], label="metric percentile value")
+                for row in percentile_rows
+                if len(row) == 2 and isinstance(row[0], int) and not isinstance(row[0], bool)
+            }
+            if set(selected) != set(required):
+                raise TelemetryMetricCorruptionError("telemetry percentile lookup is incomplete")
 
         def percentile(q: float) -> float:
             low, high, fraction = positions[q]

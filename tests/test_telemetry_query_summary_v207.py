@@ -4,6 +4,7 @@ from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from research_platform.observability.telemetry.metric.api import TelemetryMetricCorruptionError
 from research_platform.observability.telemetry.metric.composition import build_default_registry
@@ -71,6 +72,35 @@ class TelemetryQuerySummaryTests(unittest.TestCase):
                 self.assertNotIn("USE TEMP B-TREE FOR ORDER BY", plan)
             finally:
                 db.close()
+
+    def test_summary_percentiles_use_one_database_roundtrip(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "metrics.sqlite3"
+            store = self._store(path)
+            context = self._context()
+            for value in range(1, 21):
+                store.observe(context, "operation.latency", float(value), component="c", operation="op", status="ok")
+            reader = SQLiteTelemetryReader(path)
+            real = reader._connect()
+
+            class CountingConnection:
+                def __init__(self, connection: sqlite3.Connection) -> None:
+                    self.connection = connection
+                    self.percentile_queries = 0
+
+                def execute(self, sql: str, parameters=()):
+                    if "WITH ordered AS" in sql:
+                        self.percentile_queries += 1
+                    return self.connection.execute(sql, parameters)
+
+                def close(self) -> None:
+                    self.connection.close()
+
+            counted = CountingConnection(real)
+            with patch.object(reader, "_connect", return_value=counted):
+                summary = reader.summarize(run_id="summary-run", metric="operation.latency")
+            self.assertAlmostEqual(summary.p95, 19.05)
+            self.assertEqual(counted.percentile_queries, 1)
 
     def test_reader_rejects_corrupt_json_shape(self) -> None:
         with tempfile.TemporaryDirectory() as td:
