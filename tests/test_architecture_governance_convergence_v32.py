@@ -348,3 +348,12 @@ def test_source_invariant_paths_use_canonical_posix_identity(tmp_path: Path) -> 
     source = tmp_path / "research_platform" / "execution" / "admission" / "api" / "boundary.py"
     row = violation(tmp_path, source, "test", 1, "detail")
     assert row.path == "research_platform/execution/admission/api/boundary.py"
+
+def test_role04_proposal_tracks_current_exact_import_delta_and_projection() -> None:
+    root = Path(__file__).resolve().parents[1]
+    budget = load_architecture_complexity_budget(root)
+    migration = next(row for row in budget.migrations if row.owner_role == "ROLE04")
+    assert migration.migration_id == "role04-participant-model-v1"
+    assert migration.delta.import_edges == 41
+    assert migration.module_prefixes == ("research_platform.participant", "research_platform.model")
+    assert migration.import_projection_sha256 == "dcd7c1e5a32e7a57e466c8f0a1a1b866bde249f7f6cc57d1af1362fff38ae25e"

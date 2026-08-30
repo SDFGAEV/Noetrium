@@ -74,10 +74,16 @@
         "subsystems": 0,
         "contract_declarations": 0,
         "authorities": 0,
-        "import_edges": 38
+        "import_edges": 41
       },
-      "justification": "Current Agent and Model proposal adds thirty-eight typed request, participant, qualification, prompt and immutable-value authority dependencies.",
-      "applicability": null
+      "justification": "Current Agent and Model proposal adds forty-one typed request, participant, qualification, prompt and immutable-value authority dependencies on the exact reviewed ROLE04 source family.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.participant",
+          "research_platform.model"
+        ],
+        "import_projection_sha256": "dcd7c1e5a32e7a57e466c8f0a1a1b866bde249f7f6cc57d1af1362fff38ae25e"
+      }
     },
     {
       "migration_id": "role05-environment-evidence-v1",

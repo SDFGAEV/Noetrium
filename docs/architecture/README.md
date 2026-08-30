@@ -77,3 +77,9 @@ The Git provider consumes raw object-database bytes with `ls-tree`/`cat-file`, n
 `git archive`, because archive output can be affected by host EOL/export settings.
 Synthetic filesystem tests must inject their source index explicitly; production
 release-quality never silently falls back from Git authority to a mutable checkout.
+
+## Architecture gate failure projection
+
+`ArchitectureReportGate` is a fail-closed adapter, not an exception suppressor or a fallback source authority. If immutable source acquisition, provenance verification, or architecture report construction fails, evaluation returns a non-passing `governance.architecture` child report containing exactly the ERROR finding `ARCHITECTURE_SOURCE_UNAVAILABLE`. The finding exposes only the exception type; exception messages, secrets, paths, and tracebacks are not projected into gate evidence.
+
+`CompositeGate` therefore retains the architecture child in provenance even when report construction cannot complete. This behavior must never be replaced by a mutable-filesystem retry, an omitted child, or a false-green empty report. Synthetic non-Git callers that need architecture analysis must inject an explicit source index at the architecture composition boundary rather than relying on production fallback.
