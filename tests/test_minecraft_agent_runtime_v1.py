@@ -146,5 +146,47 @@ class MinecraftAgentRuntimeTest(unittest.TestCase):
         self.assertEqual(build.steps[0].action_type, "place_block")
 
 
+    def test_high_level_skills_accept_frozen_tuple_arrays_and_reject_invalid_shapes(self) -> None:
+        catalog = MinecraftAgentSkillCatalog()
+        context = ExecutionContext("run", "trace", "span")
+        build = catalog.expand(
+            AgentSkillSelection(
+                "minecraft.build",
+                {"blocks": ({"item": "oak_planks", "position": {"x": 1, "y": 64, "z": 1}, "level": 0},)},
+            ),
+            observation=None,  # type: ignore[arg-type]
+            context=context,
+            sequence_id="frozen-build",
+        )
+        self.assertEqual(build.steps[0].action_type, "place_block")
+
+        plan = catalog.expand(
+            AgentSkillSelection(
+                "minecraft.resource_plan",
+                {"steps": ({"action_type": "wait", "payload": {"ms": 1}},)},
+            ),
+            observation=None,  # type: ignore[arg-type]
+            context=context,
+            sequence_id="frozen-plan",
+        )
+        self.assertEqual(plan.steps[0].action_type, "wait")
+
+        with self.assertRaises(ValueError):
+            catalog.expand(
+                AgentSkillSelection("minecraft.build", {"blocks": "not-an-array"}),
+                observation=None,  # type: ignore[arg-type]
+                context=context,
+                sequence_id="invalid-build",
+            )
+        with self.assertRaises(ValueError):
+            catalog.expand(
+                AgentSkillSelection("minecraft.resource_plan", {"steps": {"bad": "shape"}}),
+                observation=None,  # type: ignore[arg-type]
+                context=context,
+                sequence_id="invalid-plan",
+            )
+
+
+
 if __name__ == "__main__":
     unittest.main()

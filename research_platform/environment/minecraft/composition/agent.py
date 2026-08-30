@@ -70,7 +70,8 @@ def _grounded_action_receipt(receipt: AgentStepReceipt | None) -> bool:
     return bool(
         receipt
         and receipt.accepted
-        and (receipt.verified is True or receipt.effect_certainty == "confirmed")
+        and receipt.effect_certainty == "confirmed"
+        and receipt.verified is not False
     )
 
 
@@ -163,7 +164,7 @@ class MinecraftAgentSkillCatalog(AgentSkillCatalogPort):
         if selection.skill_id == "minecraft.build":
             raw_blocks = selection.arguments.get("blocks", [])
             observed = selection.arguments.get("observed_blocks", {})
-            if not isinstance(raw_blocks, list) or not isinstance(observed, Mapping):
+            if not isinstance(raw_blocks, (list, tuple)) or not isinstance(observed, Mapping):
                 raise ValueError("minecraft.build requires blocks list and observed_blocks mapping")
             blocks = tuple(
                 MinecraftBlueprintBlock(dict(row["position"]), str(row["item"]), int(row.get("level", 0)))
@@ -178,7 +179,7 @@ class MinecraftAgentSkillCatalog(AgentSkillCatalogPort):
             ))
         if selection.skill_id == "minecraft.resource_plan":
             raw_steps = selection.arguments.get("steps", [])
-            if not isinstance(raw_steps, list):
+            if not isinstance(raw_steps, (list, tuple)):
                 raise ValueError("minecraft.resource_plan requires a steps list")
             steps: list[AgentActionStep] = []
             for index, row in enumerate(raw_steps):
@@ -260,7 +261,7 @@ class MinecraftAgentCompletion(AgentCompletionPort):
         if kind == "planner_finish":
             return planner_finished and _grounded_action_receipt(last_receipt)
         if kind == "last_action_verified":
-            return bool(last_receipt and last_receipt.verified is True)
+            return _grounded_action_receipt(last_receipt)
         if kind == "health_positive":
             return _number(observation.state.get("health"), 0) > 0
         if kind == "inventory_min":

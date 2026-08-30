@@ -47,9 +47,12 @@ experience.
 
 ### Completion and reconciliation authority
 
-Planner intent is never completion authority. A `planner_finish` goal can close only when
-the last action receipt is accepted and either explicitly verified or carries a confirmed
-effect certainty. Accepted-but-unverified/possible effects remain incomplete.
+Planner intent is never completion authority. A `planner_finish` or
+`last_action_verified` goal can close only when the last action receipt is accepted, its
+authoritative effect certainty is `confirmed`, and an explicit verification value is not
+`False`. A Boolean `verified=True` cannot override `possible`, `unknown`, or `rejected`
+effect certainty; contradictory receipts therefore fail closed. Accepted-but-unconfirmed
+or explicitly unverified effects remain incomplete.
 
 Environment-to-agent receipts preserve the kernel effect certainty instead of inferring it
 from a Boolean verification field: confirmed effects map to `confirmed`, possible effects
@@ -61,6 +64,15 @@ Prepared-action and generic reconciliation preserve the same four-way semantics:
 `APPLIED -> EFFECT_CONFIRMED`, `REJECTED -> EFFECT_REJECTED`,
 `NOT_APPLIED -> NO_EFFECT`, and `UNKNOWN` produces no terminal effect truth. A missing
 action-recovery record is therefore unknown, never retry-safe absence.
+
+### Frozen JSON-array consumer contract
+
+High-level `minecraft.build` block arrays and `minecraft.resource_plan` step arrays accept
+the Participant public frozen JSON-array representation (tuple-backed) as well as the
+legacy in-process list shape. Array elements remain Minecraft-validated mappings; strings,
+mappings used as arrays, and malformed element/payload shapes fail closed. Environment
+therefore consumes the typed immutable Participant boundary without reintroducing mutable
+builtin inheritance.
 
 ## Craft and resource invariants
 

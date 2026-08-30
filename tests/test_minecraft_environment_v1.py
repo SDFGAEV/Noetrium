@@ -1258,6 +1258,35 @@ def test_planner_finish_requires_action_receipt() -> None:
 
 
 
+def test_last_action_verified_requires_grounded_non_contradictory_receipt() -> None:
+    from research_platform.environment.minecraft.composition import MinecraftAgentCompletion
+    from research_platform.participant.agent.api import AgentGoal, AgentObservation, AgentStepReceipt
+
+    completion = MinecraftAgentCompletion()
+    goal = AgentGoal(
+        "goal:last-action-grounded",
+        "finish",
+        context={"success": {"kind": "last_action_verified"}},
+    )
+    observation = AgentObservation("obs:last-action-grounded", "world-v1", {})
+    contradictory = AgentStepReceipt(
+        "action:rejected", "wait", "minecraft.wait", "sequence:1", False, True,
+        effect_id="minecraft-action:rejected", effect_certainty="rejected",
+    )
+    uncertain = AgentStepReceipt(
+        "action:possible", "wait", "minecraft.wait", "sequence:2", True, True,
+        effect_id="minecraft-action:possible", effect_certainty="possible",
+    )
+    grounded = AgentStepReceipt(
+        "action:confirmed", "wait", "minecraft.wait", "sequence:3", True, True,
+        effect_id="minecraft-action:confirmed", effect_certainty="confirmed",
+    )
+
+    assert completion.is_complete(goal, observation, planner_finished=False, last_receipt=contradictory) is False
+    assert completion.is_complete(goal, observation, planner_finished=False, last_receipt=uncertain) is False
+    assert completion.is_complete(goal, observation, planner_finished=False, last_receipt=grounded) is True
+
+
 def test_minecraft_agent_executor_preserves_effect_identity_and_possible_certainty() -> None:
     from research_platform.environment.api import ActionResult
     from research_platform.environment.minecraft.composition import MinecraftAgentActionExecutor
