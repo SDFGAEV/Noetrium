@@ -342,4 +342,3 @@ def test_adapter_rejects_foreign_evidence_identity(monkeypatch):
     application, _control = _application(monkeypatch, _EvidenceControl())
     with pytest.raises(ValueError, match="evidence identity drifted"):
         application.execute(ResearchRequest(ResearchAction.EVIDENCE, "run-1"))
-
