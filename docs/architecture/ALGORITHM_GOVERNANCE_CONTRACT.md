@@ -13,3 +13,22 @@ JavaScript function symbols own their own control-flow bodies. Nested callbacks/
 The classifier must never infer a finite bound from an unknown call or mutable input. Mutation of a previously bounded container invalidates its bounded status. Adversarial tests must prove both sides: finite control loops do not create false `N^2`/database-in-loop findings, while an unknown-cardinality loop containing a database call continues to emit the P1 amplification finding.
 
 Analyzer semantic changes require a new analyzer revision. A reviewed baseline for an earlier revision is intentionally stale and the Algorithm Gate must stop at the parent analyzer-migration blocker before reporting per-symbol regressions. Baseline provenance/replay and externally approved lower-bound migrations are separate typed authorities; changing the classifier does not grant or refresh those authorities.
+
+
+## Exact source and analyzer identity
+
+Release-authoritative Algorithm Governance uses `algorithm-snapshot.v3`. An exact snapshot binds `source_authority=git`, one exact 40-character Git revision, the deterministic digest of all analyzed source documents, the aggregate language analyzer revision string, and `analyzer_implementation_digest`. The implementation digest is computed from the immutable source blobs for `research_platform/governance/algorithm/**` plus the shared repository-source API/provider used to select the cut.
+
+`exact=True` is not an alias for "disable cache". The builder requires an immutable `RepositorySourceIndexPort`, verifies that the running Algorithm package physically belongs to the audited repository root, and verifies that the local implementation bytes equal the selected immutable source cut. Dirty analyzer bytes therefore fail before release classification. Advisory cache keys include both the language revision and analyzer implementation digest.
+
+## Baseline provenance and replay
+
+The repository baseline is a reviewed historical observation, not a mutable exemption list. A release gate accepts only `algorithm-snapshot.v3` Git baselines. Before any per-symbol comparison, it checks source/analyzer identity and replays the baseline's exact historical Git revision through the current approved analyzer implementation. The replayed source digest and semantic snapshot digest (all snapshot facts except generation time) must equal the stored baseline. Any legacy schema, stale analyzer revision, changed analyzer implementation, unreconstructible source digest, or replay mismatch yields exactly one parent provenance/migration blocker and an empty symbol diff.
+
+Git-authoritative baseline writes require an external ROLE00 record. The record binds exact source Git SHA, analyzed-source digest, analyzer revision, analyzer implementation digest, and semantic snapshot digest. Local filesystem baselines remain available only for non-release unit tests; they are never accepted as release authority.
+
+## External reviewed migrations
+
+External Algorithm Governance approvals are loaded only when both `RESEARCH_PLATFORM_ALGORITHM_GOVERNANCE_APPROVALS` and `RESEARCH_PLATFORM_ALGORITHM_GOVERNANCE_APPROVALS_SHA256` are supplied. The approval file is SHA-256 bound, strict JSON with duplicate-field rejection, and every record carries its own canonical digest. Authority is exactly `ROLE00`; default decision is `not_approved`.
+
+A lower-bound migration binds one exact symbol, candidate Git SHA/source digest, analyzer revision/implementation digest, old complexity, new complexity, rationale, and review evidence. An exact approved match may reclassify only that complexity transition from blocker to reviewed warning. It does not suppress new P0/P1 findings, risk-score regressions, unrelated symbols, or later source/analyzer revisions. Stale, malformed, rejected, or mismatched records contribute zero authority.

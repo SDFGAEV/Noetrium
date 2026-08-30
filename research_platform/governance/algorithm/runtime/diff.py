@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 from research_platform.governance.algorithm.api import (
+    AlgorithmComplexityMigrationApproval,
     AlgorithmDiff,
     AlgorithmGateReport,
     AlgorithmPriority,
@@ -104,7 +105,37 @@ def diff_snapshots(old: AlgorithmSnapshot, new: AlgorithmSnapshot) -> AlgorithmD
     )
 
 
-def gate_against_baseline(old: AlgorithmSnapshot, new: AlgorithmSnapshot) -> AlgorithmGateReport:
+def _approved_complexity_migration(
+    before: AlgorithmSymbol,
+    after: AlgorithmSymbol,
+    *,
+    current: AlgorithmSnapshot,
+    approvals: tuple[AlgorithmComplexityMigrationApproval, ...],
+) -> AlgorithmComplexityMigrationApproval | None:
+    if current.source_revision is None:
+        return None
+    for approval in approvals:
+        if not approval.approved:
+            continue
+        if (
+            approval.symbol_id == after.symbol_id
+            and approval.source_git_sha == current.source_revision
+            and approval.source_digest == current.source_digest
+            and approval.analyzer_revision == current.analyzer_revision
+            and approval.analyzer_implementation_digest == current.analyzer_implementation_digest
+            and approval.old_complexity == before.metrics.estimated_complexity
+            and approval.new_complexity == after.metrics.estimated_complexity
+        ):
+            return approval
+    return None
+
+
+def gate_against_baseline(
+    old: AlgorithmSnapshot,
+    new: AlgorithmSnapshot,
+    *,
+    complexity_migrations: tuple[AlgorithmComplexityMigrationApproval, ...] = (),
+) -> AlgorithmGateReport:
     diff = diff_snapshots(old, new)
     if old.analyzer_revision != new.analyzer_revision:
         return AlgorithmGateReport(
@@ -137,10 +168,19 @@ def gate_against_baseline(old: AlgorithmSnapshot, new: AlgorithmSnapshot) -> Alg
         before_rank = _COMPLEXITY_RANK.get(before.metrics.estimated_complexity, 99)
         after_rank = _COMPLEXITY_RANK.get(after.metrics.estimated_complexity, 99)
         if after_rank > before_rank:
-            blockers.append(
-                f"complexity regression {delta.symbol_id}: "
-                f"{before.metrics.estimated_complexity} -> {after.metrics.estimated_complexity}"
+            approval = _approved_complexity_migration(
+                before, after, current=new, approvals=complexity_migrations
             )
+            if approval is not None:
+                warnings.append(
+                    f"approved lower-bound complexity migration {approval.migration_id}: "
+                    f"{delta.symbol_id} {before.metrics.estimated_complexity} -> {after.metrics.estimated_complexity}"
+                )
+            else:
+                blockers.append(
+                    f"complexity regression {delta.symbol_id}: "
+                    f"{before.metrics.estimated_complexity} -> {after.metrics.estimated_complexity}"
+                )
         elif after.metrics.risk_score >= before.metrics.risk_score + 15:
             blockers.append(
                 f"risk-score regression {delta.symbol_id}: "

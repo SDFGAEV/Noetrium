@@ -82,10 +82,69 @@ class AlgorithmSnapshot:
     symbols: tuple[AlgorithmSymbol, ...]
     coverage: tuple[LanguageCoverage, ...]
     generated_unix_ns: int
+    source_authority: str = "filesystem"
+    source_revision: str | None = None
+    analyzer_implementation_digest: str = ""
 
     @property
     def candidate_count(self) -> int:
         return sum(1 for symbol in self.symbols if symbol.findings)
+
+
+@dataclass(frozen=True, slots=True)
+class AlgorithmBaselineApproval:
+    approval_id: str
+    source_git_sha: str
+    source_digest: str
+    analyzer_revision: str
+    analyzer_implementation_digest: str
+    snapshot_digest: str
+    decision: str
+    authority: str
+    scope: str
+    review_state: str
+    review_evidence_refs: tuple[str, ...]
+    issued_at: str
+    note: str
+    approval_record_sha256: str
+
+    @property
+    def approved(self) -> bool:
+        return self.decision == "approved"
+
+
+@dataclass(frozen=True, slots=True)
+class AlgorithmComplexityMigrationApproval:
+    migration_id: str
+    symbol_id: str
+    source_git_sha: str
+    source_digest: str
+    analyzer_revision: str
+    analyzer_implementation_digest: str
+    old_complexity: str
+    new_complexity: str
+    decision: str
+    authority: str
+    scope: str
+    review_state: str
+    review_evidence_refs: tuple[str, ...]
+    issued_at: str
+    rationale: str
+    approval_record_sha256: str
+
+    @property
+    def approved(self) -> bool:
+        return self.decision == "approved"
+
+
+@dataclass(frozen=True, slots=True)
+class AlgorithmGovernanceApprovalSet:
+    schema_version: str
+    authority: str
+    baseline_approvals: tuple[AlgorithmBaselineApproval, ...]
+    complexity_migrations: tuple[AlgorithmComplexityMigrationApproval, ...]
+    default_decision: str
+    rule: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,7 +184,10 @@ class FileAnalysis:
 
 
 __all__ = [
+    "AlgorithmBaselineApproval",
+    "AlgorithmComplexityMigrationApproval",
     "AlgorithmDiff",
+    "AlgorithmGovernanceApprovalSet",
     "AlgorithmFinding",
     "AlgorithmGateReport",
     "AlgorithmLanguage",
