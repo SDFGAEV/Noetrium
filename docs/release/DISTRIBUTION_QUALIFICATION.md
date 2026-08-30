@@ -65,3 +65,18 @@ The GitHub workflow runs source-bound product assurance, wheel/sdist qualificati
 The SBOM records package license fields as `NOASSERTION` until project ownership selects an explicit OSS license. ROLE 06 does not invent or silently apply a legal license policy. A formal public OSS release therefore still requires ROLE 00/project-owner license selection if no repository `LICENSE` is present.
 
 The container image installs only the already-qualified formal wheel; it does not rebuild Platform code from a mutable checkout. Container qualification verifies wheel/RECORD integrity, effective non-root UID/GID, doctor, and the full reference lifecycle with networking disabled.
+
+## Section-37 NPE clean-room gate
+
+New Project Experience qualification is a separate, stricter authority from the historical Operator smoke above:
+
+```bash
+python scripts/verify_npe_cleanroom.py <qualified-wheel-or-sdist> \
+  --output npe-clean-room.json
+```
+
+The verifier creates a fresh virtual environment and workspace, removes ambient `PYTHONPATH/PYTHONHOME`, installs only the supplied artifact, and proves `research_platform.api` resolves inside that verification environment. It then runs the installed `research project create`, `project doctor`, and generated `project test` surfaces and records public-import-boundary readiness from the typed doctor receipt.
+
+`npe_verified` remains false unless the complete Section-37 acceptance sequence is implemented and passes. In particular, a missing canonical reference project profile is reported as `REFERENCE_PROFILE_UNAVAILABLE`; a green doctor without a producer-owned reference lifecycle is reported as `REFERENCE_LIFECYCLE_DRIVER_UNAVAILABLE`. Neither condition may inherit a PASS from the legacy `research_platform.operator.reference` smoke fixture.
+
+The current clean-room receipt is intentionally fail-closed while the producer-owned reference Environment/runtime doctor seams remain unresolved. ROLE 06 is not `READY_FOR_REVIEW` until an exact qualified artifact produces `npe_verified=true` and fresh-process lifecycle/recovery/evidence verification is bound to ROLE 01-05 public authorities.
