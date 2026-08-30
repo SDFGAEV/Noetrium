@@ -117,31 +117,40 @@ class CapabilityKey:
         return f"{self.namespace}.{self.name}.v{self.major_version}"
 
 
+def _public_interface_members(base: type) -> dict[str, dict[str, str]]:
+    """Materialize one MRO level; total work is linear in that level's members."""
+
+    rows: dict[str, dict[str, str]] = {}
+    for name, member in base.__dict__.items():
+        if name.startswith("_"):
+            continue
+        if isinstance(member, property):
+            getter = member.fget
+            signature = str(inspect.signature(getter)) if getter is not None else ""
+            rows[name] = {"name": name, "kind": "property", "signature": signature}
+        elif callable(member):
+            rows[name] = {
+                "name": name,
+                "kind": "callable",
+                "signature": str(inspect.signature(member)),
+            }
+    return rows
+
+
 def interface_contract_digest(interface: type) -> str:
     """Fingerprint the effective public callable/property surface of a port.
 
     Inherited members are part of the ABI. Walking the MRO from least to most
     specific preserves normal Python override semantics while preventing a
     parent Protocol signature change from leaving a child port digest stale.
+    Runtime is O(N log N) for N total public members because each MRO level is
+    visited once and only the final effective member names are sorted.
     """
 
     resolved: dict[str, dict[str, str]] = {}
     for base in reversed(interface.__mro__):
-        if base is object:
-            continue
-        for name, member in base.__dict__.items():
-            if name.startswith("_"):
-                continue
-            if isinstance(member, property):
-                getter = member.fget
-                signature = str(inspect.signature(getter)) if getter is not None else ""
-                resolved[name] = {"name": name, "kind": "property", "signature": signature}
-            elif callable(member):
-                resolved[name] = {
-                    "name": name,
-                    "kind": "callable",
-                    "signature": str(inspect.signature(member)),
-                }
+        if base is not object:
+            resolved.update(_public_interface_members(base))
     members = tuple(resolved[name] for name in sorted(resolved))
     return canonical_digest(
         {"module": interface.__module__, "qualname": interface.__qualname__, "members": members}

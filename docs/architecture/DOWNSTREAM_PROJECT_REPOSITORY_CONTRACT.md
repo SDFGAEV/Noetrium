@@ -93,3 +93,42 @@ Generic fixes discovered while developing a downstream project should be promote
 ## Split milestone
 
 Platform version `0.43.0` establishes the pure-platform repository boundary. Earlier revisions may contain mixed project/platform history; they remain Git history, not current-tree ownership.
+
+## Canonical New Project Experience contract
+
+ROLE 01 owns one project identity/manifest authority for downstream onboarding:
+
+- `research_platform.portfolio.api.ProjectIdentity`
+- `research_platform.portfolio.api.ProjectManifest`
+- `research_platform.portfolio.api.ProjectCapabilityRequirement`
+- `research_platform.portfolio.api.ProjectConfigurationReference`
+- `research_platform.portfolio.api.ProjectMethodRequirement`
+- `encode_project_manifest(...)`
+- `decode_project_manifest_bytes(...)` / `decode_project_manifest_document(...)`
+
+`research_platform.portfolio.project.api` is only a leaf projection of those exact same types. It must not define a second `ProjectDefinition`/manifest identity model.
+
+The manifest wire schema is `research-platform.project-manifest.v1`. The document contains an exact field set plus `semantic_digest`; the digest is computed from the semantic payload without the digest field. Strict decoding rejects unsupported schema versions, duplicate JSON keys, unknown fields, malformed field types, non-canonical identities/digests, non-finite JSON values, and semantic digest drift.
+
+Project-owned facts are kept separate from Platform capability truth:
+
+- `method_requirements`, `configuration_refs`, and `study_ids` are project/scientific configuration references;
+- `capability_requirements` are explicit Platform binding inputs and carry capability identity, interface digest, cardinality, and optionality;
+- a manifest never selects a concrete Runtime/Model/Environment provider or stores an ambient service-locator key.
+
+A project identity is a composition subject, not a system-registry node. Creating a new project therefore requires no `research_platform/**` edit and no `governance/system_registry/catalog.json` entry.
+
+## Machine-verifiable downstream import policy
+
+`research_platform.governance.repository_boundary.audit_downstream_project_imports(root)` classifies every Python import in an independent downstream root as one of:
+
+1. `common_platform_api` ? stable common path such as `research_platform.portfolio.api` or another top-level `<system>.api`;
+2. `provider_development_api` ? advanced/leaf contract path such as `research_platform.environment.catalog.api` or `research_platform.governance.architecture.api`;
+3. `forbidden_private_implementation` ? Platform imports outside an explicit API package, including Runtime/Provider/Composition implementation paths;
+4. `external` ? non-Platform dependencies.
+
+A downstream root that vendors its own `research_platform/` directory is also rejected. Source parse failures are blocking rather than silently omitted. This audit is intended for ROLE 06 `project doctor` / generated-project conformance and for the ROLE 00 clean-room NPE gate.
+
+## ROLE 06 producer handoff
+
+ROLE 06 project creation/doctor must consume the exact Portfolio types/codecs above rather than duplicating manifest parsing or project identity. For advanced composition, the public typed composition contracts are exported from `research_platform.governance.architecture.api`; generated common-path project code should normally remain on `research_platform.portfolio.api` plus the producer-owned domain APIs it actually implements/consumes.

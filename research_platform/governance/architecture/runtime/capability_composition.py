@@ -6,6 +6,8 @@ Only composition roots import this implementation. Projects receive the
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from research_platform.governance.architecture.api.capability_composition import (
     AmbiguousCapabilityProvider,
     BindingEdge,
@@ -30,6 +32,22 @@ from research_platform.governance.architecture.api.capability_composition import
 from research_platform.governance.system_registry.api import SystemRegistryPort
 from research_platform.platform.kernel import canonical_digest
 from research_platform.scope.api import ScopeIdentity, ScopeRegistryPort
+
+
+@dataclass(frozen=True, slots=True)
+class _CapabilityOfferGroup:
+    by_interface: dict[str, tuple[CapabilityOffer, ...]]
+    offer_ids: tuple[str, ...]
+
+
+def _freeze_offer_group(
+    rows: dict[str, list[CapabilityOffer]],
+    offer_ids: list[str],
+) -> _CapabilityOfferGroup:
+    by_interface: dict[str, tuple[CapabilityOffer, ...]] = {}
+    for digest, offers in rows.items():
+        by_interface[digest] = tuple(offers)
+    return _CapabilityOfferGroup(by_interface, tuple(sorted(offer_ids)))
 
 
 class CapabilityCompositionPlanner(CapabilityCompositionPlannerPort):
@@ -224,32 +242,32 @@ class CapabilityCompositionPlanner(CapabilityCompositionPlannerPort):
     @staticmethod
     def _index_offers(
         offers: tuple[CapabilityOffer, ...],
-    ) -> dict[CapabilityKey, dict[str, tuple[CapabilityOffer, ...]]]:
+    ) -> dict[CapabilityKey, _CapabilityOfferGroup]:
         """Index providers once so requirement lookup avoids whole-plan rescans."""
         staged: dict[CapabilityKey, dict[str, list[CapabilityOffer]]] = {}
+        offer_ids: dict[CapabilityKey, list[str]] = {}
         for offer in offers:
             by_interface = staged.setdefault(offer.capability, {})
             by_interface.setdefault(offer.interface_digest, []).append(offer)
+            offer_ids.setdefault(offer.capability, []).append(offer.offer_id)
         return {
-            capability: {digest: tuple(rows) for digest, rows in by_interface.items()}
+            capability: _freeze_offer_group(by_interface, offer_ids[capability])
             for capability, by_interface in staged.items()
         }
 
     def _candidates(
         self,
         requirement: CapabilityRequirement,
-        offer_index: dict[CapabilityKey, dict[str, tuple[CapabilityOffer, ...]]],
+        offer_index: dict[CapabilityKey, _CapabilityOfferGroup],
     ) -> tuple[CapabilityOffer, ...]:
-        by_interface = offer_index.get(requirement.capability)
-        if not by_interface:
+        group = offer_index.get(requirement.capability)
+        if group is None:
             return ()
-        same_interface = by_interface.get(requirement.interface_digest)
+        same_interface = group.by_interface.get(requirement.interface_digest)
         if same_interface is None:
-            offered = ", ".join(
-                sorted(offer.offer_id for rows in by_interface.values() for offer in rows)
-            )
             raise CapabilityInterfaceMismatch(
-                f"interface digest mismatch for {requirement.address.value}; offers={offered}"
+                f"interface digest mismatch for {requirement.address.value}; "
+                f"offers={', '.join(group.offer_ids)}"
             )
         return tuple(
             offer for offer in same_interface if self._visible_at_scope(offer, requirement.scope)

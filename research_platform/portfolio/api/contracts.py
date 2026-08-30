@@ -1,8 +1,66 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
+import json
+import re
+from typing import cast
 
+from research_platform.platform.kernel import (
+    CanonicalEncodingError,
+    JsonDocument,
+    JsonInput,
+    canonical_bytes,
+    canonical_digest,
+)
 from research_platform.scope.api import ScopeIdentity, ScopeKind
+
+
+PROJECT_MANIFEST_SCHEMA = "research-platform.project-manifest.v1"
+PROJECT_TEMPLATE_REVISION = "research-project-template.v1"
+_TOKEN = re.compile(r"[a-z][a-z0-9_.-]*")
+_VERSION = re.compile(r"[0-9A-Za-z][0-9A-Za-z._+-]*")
+_SHA256 = re.compile(r"[0-9a-f]{64}")
+
+
+class ProjectManifestDecodeError(ValueError):
+    """A project manifest is malformed, non-canonical, or digest-inconsistent."""
+
+
+def _require_token(value: str, field: str) -> None:
+    if not _TOKEN.fullmatch(value):
+        raise ValueError(f"{field} must be a canonical lowercase token")
+
+
+def _require_text(value: str, field: str) -> None:
+    if not value.strip() or value != value.strip():
+        raise ValueError(f"{field} must be non-empty canonical text")
+
+
+def _require_sha256(value: str, field: str) -> None:
+    if not _SHA256.fullmatch(value):
+        raise ValueError(f"{field} must be a lowercase SHA-256 digest")
+
+
+@dataclass(frozen=True, slots=True, order=True)
+class ProjectIdentity:
+    """Stable project identity reused by Portfolio, Scope, and composition inputs."""
+
+    project_id: str
+    version: str
+
+    def __post_init__(self) -> None:
+        _require_token(self.project_id, "project_id")
+        if not _VERSION.fullmatch(self.version):
+            raise ValueError("project version is not canonical")
+
+    @property
+    def key(self) -> str:
+        return f"{self.project_id}@{self.version}"
+
+    @property
+    def scope(self) -> ScopeIdentity:
+        return ScopeIdentity(ScopeKind.PROJECT, self.project_id)
 
 
 @dataclass(frozen=True, slots=True)
@@ -10,6 +68,10 @@ class WorkspaceSpec:
     workspace_id: str
     name: str
     description: str = ""
+
+    def __post_init__(self) -> None:
+        _require_token(self.workspace_id, "workspace_id")
+        _require_text(self.name, "workspace name")
 
     @property
     def scope(self) -> ScopeIdentity:
@@ -23,6 +85,11 @@ class ProgramSpec:
     name: str
     description: str = ""
 
+    def __post_init__(self) -> None:
+        _require_token(self.program_id, "program_id")
+        _require_token(self.workspace_id, "workspace_id")
+        _require_text(self.name, "program name")
+
     @property
     def scope(self) -> ScopeIdentity:
         return ScopeIdentity(ScopeKind.PROGRAM, self.program_id)
@@ -30,26 +97,476 @@ class ProgramSpec:
 
 @dataclass(frozen=True, slots=True)
 class ProjectSpec:
-    project_id: str
+    identity: ProjectIdentity
     program_id: str
     name: str
     description: str = ""
     tags: tuple[str, ...] = ()
 
+    def __post_init__(self) -> None:
+        _require_token(self.program_id, "program_id")
+        _require_text(self.name, "project name")
+        if len(self.tags) != len(set(self.tags)):
+            raise ValueError("project tags must be unique")
+        for tag in self.tags:
+            _require_token(tag, "project tag")
+
+    @property
+    def project_id(self) -> str:
+        return self.identity.project_id
+
     @property
     def scope(self) -> ScopeIdentity:
-        return ScopeIdentity(ScopeKind.PROJECT, self.project_id)
+        return self.identity.scope
+
+
+class ProjectRequirementCardinality(StrEnum):
+    EXACTLY_ONE = "exactly_one"
+    ONE_OR_MORE = "one_or_more"
+
+
+@dataclass(frozen=True, slots=True, order=True)
+class ProjectCapabilityRequirement:
+    """Platform capability binding input declared by a project, not a provider choice."""
+
+    requirement_id: str
+    namespace: str
+    name: str
+    major_version: int
+    interface_digest: str
+    cardinality: ProjectRequirementCardinality = ProjectRequirementCardinality.EXACTLY_ONE
+    optional: bool = False
+
+    def __post_init__(self) -> None:
+        _require_token(self.requirement_id, "requirement_id")
+        _require_token(self.namespace, "capability namespace")
+        _require_token(self.name, "capability name")
+        if type(self.major_version) is not int or self.major_version <= 0:
+            raise ValueError("capability major_version must be a positive integer")
+        _require_sha256(self.interface_digest, "capability interface_digest")
+        if type(self.optional) is not bool:
+            raise ValueError("capability optional must be boolean")
+
+    @property
+    def capability_key(self) -> str:
+        return f"{self.namespace}.{self.name}.v{self.major_version}"
+
+
+@dataclass(frozen=True, slots=True, order=True)
+class ProjectMethodRequirement:
+    """Project-owned scientific/method requirement, separate from Platform capability truth."""
+
+    method_id: str
+    treatment_id: str
+
+    def __post_init__(self) -> None:
+        _require_token(self.method_id, "method_id")
+        _require_token(self.treatment_id, "treatment_id")
+
+
+@dataclass(frozen=True, slots=True, order=True)
+class ProjectConfigurationReference:
+    """Content-addressed project-owned configuration fact."""
+
+    configuration_id: str
+    artifact_ref: str
+    content_sha256: str
+
+    def __post_init__(self) -> None:
+        _require_token(self.configuration_id, "configuration_id")
+        _require_text(self.artifact_ref, "configuration artifact_ref")
+        _require_sha256(self.content_sha256, "configuration content_sha256")
+
+
+@dataclass(frozen=True, slots=True, order=True)
+class ProjectToolProvenance:
+    """Installed Platform/tool identity that created or last rewrote the manifest."""
+
+    tool_id: str
+    tool_version: str
+    platform_artifact_sha256: str
+
+    def __post_init__(self) -> None:
+        _require_token(self.tool_id, "tool_id")
+        if not _VERSION.fullmatch(self.tool_version):
+            raise ValueError("tool_version is not canonical")
+        _require_sha256(self.platform_artifact_sha256, "platform_artifact_sha256")
+
+
+@dataclass(frozen=True, slots=True, order=True)
+class ProjectProviderBinding:
+    """Explicit provider choice bound to one declared capability requirement."""
+
+    binding_id: str
+    requirement_id: str
+    provider_identity: str
+    provider_version: str
+    configuration_digest: str
+
+    def __post_init__(self) -> None:
+        _require_token(self.binding_id, "binding_id")
+        _require_token(self.requirement_id, "binding requirement_id")
+        _require_text(self.provider_identity, "provider_identity")
+        if not _VERSION.fullmatch(self.provider_version):
+            raise ValueError("provider_version is not canonical")
+        _require_sha256(self.configuration_digest, "provider configuration_digest")
 
 
 @dataclass(frozen=True, slots=True)
 class ProjectManifest:
+    """Canonical project manifest authority for Portfolio and downstream onboarding."""
+
     project: ProjectSpec
-    method_implementation_id: str | None = None
-    agent_implementation_id: str | None = None
-    environment_implementation_id: str | None = None
-    default_environment_spec_id: str | None = None
-    model_assignments: tuple[tuple[str, str], ...] = ()
+    template_revision: str
+    provenance: ProjectToolProvenance
+    capability_requirements: tuple[ProjectCapabilityRequirement, ...] = ()
+    provider_bindings: tuple[ProjectProviderBinding, ...] = ()
+    method_requirements: tuple[ProjectMethodRequirement, ...] = ()
+    configuration_refs: tuple[ProjectConfigurationReference, ...] = ()
     study_ids: tuple[str, ...] = ()
 
+    def __post_init__(self) -> None:
+        if self.template_revision != PROJECT_TEMPLATE_REVISION:
+            raise ValueError("unsupported project template revision")
+        requirement_ids = tuple(row.requirement_id for row in self.capability_requirements)
+        if len(requirement_ids) != len(set(requirement_ids)):
+            raise ValueError("project capability requirement ids must be unique")
+        requirement_by_id = {row.requirement_id: row for row in self.capability_requirements}
+        binding_ids = tuple(row.binding_id for row in self.provider_bindings)
+        if len(binding_ids) != len(set(binding_ids)):
+            raise ValueError("project provider binding ids must be unique")
+        binding_keys = tuple((row.requirement_id, row.provider_identity) for row in self.provider_bindings)
+        if len(binding_keys) != len(set(binding_keys)):
+            raise ValueError("project provider bindings must be unique")
+        binding_counts: dict[str, int] = {}
+        for binding in self.provider_bindings:
+            requirement = requirement_by_id.get(binding.requirement_id)
+            if requirement is None:
+                raise ValueError("project provider binding names an unknown requirement")
+            binding_counts[binding.requirement_id] = binding_counts.get(binding.requirement_id, 0) + 1
+            if (
+                requirement.cardinality is ProjectRequirementCardinality.EXACTLY_ONE
+                and binding_counts[binding.requirement_id] > 1
+            ):
+                raise ValueError("exactly-one capability has multiple provider bindings")
+        method_keys = tuple((row.method_id, row.treatment_id) for row in self.method_requirements)
+        if len(method_keys) != len(set(method_keys)):
+            raise ValueError("project method requirements must be unique")
+        config_ids = tuple(row.configuration_id for row in self.configuration_refs)
+        if len(config_ids) != len(set(config_ids)):
+            raise ValueError("project configuration ids must be unique")
+        if len(self.study_ids) != len(set(self.study_ids)):
+            raise ValueError("project study ids must be unique")
+        for study_id in self.study_ids:
+            _require_token(study_id, "study_id")
 
-__all__ = ["ProgramSpec", "ProjectManifest", "ProjectSpec", "WorkspaceSpec"]
+    @property
+    def identity(self) -> ProjectIdentity:
+        return self.project.identity
+
+    @property
+    def binding_inputs(self) -> tuple[ProjectCapabilityRequirement, ...]:
+        """Explicit capability inputs consumed by composition/doctor; no ambient lookup."""
+        return self.capability_requirements
+
+    @property
+    def semantic_digest(self) -> str:
+        return canonical_digest(_project_manifest_payload(self))
+
+
+def _project_manifest_payload(manifest: ProjectManifest) -> dict[str, JsonInput]:
+    project = manifest.project
+    return {
+        "template_revision": manifest.template_revision,
+        "provenance": {
+            "tool_id": manifest.provenance.tool_id,
+            "tool_version": manifest.provenance.tool_version,
+            "platform_artifact_sha256": manifest.provenance.platform_artifact_sha256,
+        },
+        "project": {
+            "identity": {
+                "project_id": project.identity.project_id,
+                "version": project.identity.version,
+            },
+            "program_id": project.program_id,
+            "name": project.name,
+            "description": project.description,
+            "tags": project.tags,
+        },
+        "capability_requirements": tuple(
+            {
+                "requirement_id": row.requirement_id,
+                "namespace": row.namespace,
+                "name": row.name,
+                "major_version": row.major_version,
+                "interface_digest": row.interface_digest,
+                "cardinality": row.cardinality.value,
+                "optional": row.optional,
+            }
+            for row in manifest.capability_requirements
+        ),
+        "provider_bindings": tuple(
+            {
+                "binding_id": row.binding_id,
+                "requirement_id": row.requirement_id,
+                "provider_identity": row.provider_identity,
+                "provider_version": row.provider_version,
+                "configuration_digest": row.configuration_digest,
+            }
+            for row in manifest.provider_bindings
+        ),
+        "method_requirements": tuple(
+            {"method_id": row.method_id, "treatment_id": row.treatment_id}
+            for row in manifest.method_requirements
+        ),
+        "configuration_refs": tuple(
+            {
+                "configuration_id": row.configuration_id,
+                "artifact_ref": row.artifact_ref,
+                "content_sha256": row.content_sha256,
+            }
+            for row in manifest.configuration_refs
+        ),
+        "study_ids": manifest.study_ids,
+    }
+
+
+def project_manifest_document(manifest: ProjectManifest) -> JsonDocument:
+    payload = _project_manifest_payload(manifest)
+    return {
+        "schema": PROJECT_MANIFEST_SCHEMA,
+        "semantic_digest": canonical_digest(payload),
+        **payload,
+    }
+
+
+def encode_project_manifest(manifest: ProjectManifest) -> bytes:
+    """Encode canonical finite JSON bytes including a semantic digest binding."""
+    return canonical_bytes(project_manifest_document(manifest))
+
+
+def _reject_json_constant(value: str) -> None:
+    raise ProjectManifestDecodeError(f"non-finite JSON constant is forbidden: {value}")
+
+
+def _unique_json_object(pairs: list[tuple[str, JsonInput]]) -> dict[str, JsonInput]:
+    result: dict[str, JsonInput] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ProjectManifestDecodeError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
+def decode_project_manifest_bytes(raw: bytes) -> ProjectManifest:
+    """Decode strict UTF-8 JSON and verify exact schema plus semantic digest."""
+    if not isinstance(raw, bytes):
+        raise ProjectManifestDecodeError("project manifest input must be bytes")
+    try:
+        text = raw.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise ProjectManifestDecodeError("project manifest must be canonical UTF-8") from exc
+    try:
+        value = json.loads(
+            text,
+            parse_constant=_reject_json_constant,
+            object_pairs_hook=_unique_json_object,
+        )
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise ProjectManifestDecodeError("project manifest is not strict JSON") from exc
+    if not isinstance(value, dict):
+        raise ProjectManifestDecodeError("project manifest root must be an object")
+    document = cast(JsonDocument, value)
+    try:
+        if raw != canonical_bytes(document):
+            raise ProjectManifestDecodeError("project manifest bytes are not canonical JSON")
+    except CanonicalEncodingError as exc:
+        raise ProjectManifestDecodeError(str(exc)) from exc
+    return decode_project_manifest_document(document)
+
+
+def _object(value: JsonInput, field: str) -> dict[str, JsonInput]:
+    if not isinstance(value, dict):
+        raise ProjectManifestDecodeError(f"{field} must be an object")
+    return value
+
+
+def _array(value: JsonInput, field: str) -> tuple[JsonInput, ...]:
+    if not isinstance(value, (list, tuple)):
+        raise ProjectManifestDecodeError(f"{field} must be an array")
+    return tuple(value)
+
+
+def _text(value: JsonInput, field: str) -> str:
+    if type(value) is not str:
+        raise ProjectManifestDecodeError(f"{field} must be a string")
+    return value
+
+
+def _bool(value: JsonInput, field: str) -> bool:
+    if type(value) is not bool:
+        raise ProjectManifestDecodeError(f"{field} must be boolean")
+    return value
+
+
+def _int(value: JsonInput, field: str) -> int:
+    if type(value) is not int:
+        raise ProjectManifestDecodeError(f"{field} must be an integer")
+    return value
+
+
+def _exact_fields(value: dict[str, JsonInput], expected: frozenset[str], field: str) -> None:
+    if frozenset(value) != expected:
+        raise ProjectManifestDecodeError(f"{field} fields are not exact")
+
+
+def _decode_project_manifest_document(document: JsonDocument) -> ProjectManifest:
+    """Decode an already parsed manifest while preserving finite/canonical semantics."""
+    try:
+        canonical_bytes(document)
+    except CanonicalEncodingError as exc:
+        raise ProjectManifestDecodeError(str(exc)) from exc
+    if not isinstance(document, dict):
+        document = dict(document)
+    root = cast(dict[str, JsonInput], document)
+    _exact_fields(
+        root,
+        frozenset({
+            "schema", "semantic_digest", "template_revision", "provenance", "project",
+            "capability_requirements", "provider_bindings", "method_requirements",
+            "configuration_refs", "study_ids",
+        }),
+        "project manifest",
+    )
+    if _text(root["schema"], "schema") != PROJECT_MANIFEST_SCHEMA:
+        raise ProjectManifestDecodeError("unsupported project manifest schema")
+    expected_digest = _text(root["semantic_digest"], "semantic_digest")
+    if not _SHA256.fullmatch(expected_digest):
+        raise ProjectManifestDecodeError("semantic_digest must be lowercase SHA-256")
+    template_revision = _text(root["template_revision"], "template_revision")
+    if template_revision != PROJECT_TEMPLATE_REVISION:
+        raise ProjectManifestDecodeError("unsupported project template revision")
+    provenance_raw = _object(root["provenance"], "provenance")
+    _exact_fields(
+        provenance_raw,
+        frozenset({"tool_id", "tool_version", "platform_artifact_sha256"}),
+        "provenance",
+    )
+    provenance = ProjectToolProvenance(
+        _text(provenance_raw["tool_id"], "provenance.tool_id"),
+        _text(provenance_raw["tool_version"], "provenance.tool_version"),
+        _text(provenance_raw["platform_artifact_sha256"], "provenance.platform_artifact_sha256"),
+    )
+
+    project_raw = _object(root["project"], "project")
+    _exact_fields(project_raw, frozenset({"identity", "program_id", "name", "description", "tags"}), "project")
+    identity_raw = _object(project_raw["identity"], "project.identity")
+    _exact_fields(identity_raw, frozenset({"project_id", "version"}), "project.identity")
+    identity = ProjectIdentity(
+        _text(identity_raw["project_id"], "project.identity.project_id"),
+        _text(identity_raw["version"], "project.identity.version"),
+    )
+    tags = tuple(_text(item, "project.tags[]") for item in _array(project_raw["tags"], "project.tags"))
+    project = ProjectSpec(
+        identity,
+        _text(project_raw["program_id"], "project.program_id"),
+        _text(project_raw["name"], "project.name"),
+        _text(project_raw["description"], "project.description"),
+        tags,
+    )
+
+    capabilities: list[ProjectCapabilityRequirement] = []
+    cap_fields = frozenset({
+        "requirement_id", "namespace", "name", "major_version", "interface_digest", "cardinality", "optional",
+    })
+    for item in _array(root["capability_requirements"], "capability_requirements"):
+        row = _object(item, "capability_requirements[]")
+        _exact_fields(row, cap_fields, "capability_requirements[]")
+        try:
+            cardinality = ProjectRequirementCardinality(_text(row["cardinality"], "capability cardinality"))
+        except ValueError as exc:
+            raise ProjectManifestDecodeError("invalid capability cardinality") from exc
+        capabilities.append(ProjectCapabilityRequirement(
+            _text(row["requirement_id"], "capability requirement_id"),
+            _text(row["namespace"], "capability namespace"),
+            _text(row["name"], "capability name"),
+            _int(row["major_version"], "capability major_version"),
+            _text(row["interface_digest"], "capability interface_digest"),
+            cardinality,
+            _bool(row["optional"], "capability optional"),
+        ))
+
+    provider_bindings: list[ProjectProviderBinding] = []
+    binding_fields = frozenset({
+        "binding_id", "requirement_id", "provider_identity", "provider_version", "configuration_digest",
+    })
+    for item in _array(root["provider_bindings"], "provider_bindings"):
+        row = _object(item, "provider_bindings[]")
+        _exact_fields(row, binding_fields, "provider_bindings[]")
+        provider_bindings.append(ProjectProviderBinding(
+            _text(row["binding_id"], "binding_id"),
+            _text(row["requirement_id"], "binding requirement_id"),
+            _text(row["provider_identity"], "provider_identity"),
+            _text(row["provider_version"], "provider_version"),
+            _text(row["configuration_digest"], "provider configuration_digest"),
+        ))
+
+    methods: list[ProjectMethodRequirement] = []
+    for item in _array(root["method_requirements"], "method_requirements"):
+        row = _object(item, "method_requirements[]")
+        _exact_fields(row, frozenset({"method_id", "treatment_id"}), "method_requirements[]")
+        methods.append(ProjectMethodRequirement(
+            _text(row["method_id"], "method_id"),
+            _text(row["treatment_id"], "treatment_id"),
+        ))
+
+    configs: list[ProjectConfigurationReference] = []
+    for item in _array(root["configuration_refs"], "configuration_refs"):
+        row = _object(item, "configuration_refs[]")
+        _exact_fields(row, frozenset({"configuration_id", "artifact_ref", "content_sha256"}), "configuration_refs[]")
+        configs.append(ProjectConfigurationReference(
+            _text(row["configuration_id"], "configuration_id"),
+            _text(row["artifact_ref"], "artifact_ref"),
+            _text(row["content_sha256"], "content_sha256"),
+        ))
+
+    studies = tuple(_text(item, "study_ids[]") for item in _array(root["study_ids"], "study_ids"))
+    manifest = ProjectManifest(
+        project, template_revision, provenance, tuple(capabilities), tuple(provider_bindings),
+        tuple(methods), tuple(configs), studies,
+    )
+    if manifest.semantic_digest != expected_digest:
+        raise ProjectManifestDecodeError("project manifest semantic digest mismatch")
+    return manifest
+
+
+def decode_project_manifest_document(document: JsonDocument) -> ProjectManifest:
+    """Fail-closed public decoder with one typed error surface."""
+    try:
+        return _decode_project_manifest_document(document)
+    except ProjectManifestDecodeError:
+        raise
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ProjectManifestDecodeError(str(exc)) from exc
+
+
+__all__ = [
+    "PROJECT_MANIFEST_SCHEMA",
+    "PROJECT_TEMPLATE_REVISION",
+    "ProgramSpec",
+    "ProjectCapabilityRequirement",
+    "ProjectConfigurationReference",
+    "ProjectIdentity",
+    "ProjectManifest",
+    "ProjectManifestDecodeError",
+    "ProjectProviderBinding",
+    "ProjectMethodRequirement",
+    "ProjectRequirementCardinality",
+    "ProjectSpec",
+    "ProjectToolProvenance",
+    "WorkspaceSpec",
+    "decode_project_manifest_bytes",
+    "decode_project_manifest_document",
+    "encode_project_manifest",
+    "project_manifest_document",
+]

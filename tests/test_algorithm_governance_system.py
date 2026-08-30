@@ -32,6 +32,34 @@ def _doc(text: str, language: AlgorithmLanguage = AlgorithmLanguage.PYTHON, path
     return SourceDocument(path, language, hashlib.sha256(text.encode()).hexdigest(), text)
 
 
+def test_role01_capability_composition_hotspots_preserve_reviewed_complexity() -> None:
+    root = Path(__file__).resolve().parents[1]
+    analyzer = PythonAlgorithmAnalyzer()
+    cases = (
+        (
+            "research_platform/governance/architecture/api/capability_composition.py",
+            "interface_contract_digest",
+            "O(N log N)",
+        ),
+        (
+            "research_platform/governance/architecture/runtime/capability_composition.py",
+            "CapabilityCompositionPlanner._index_offers",
+            "O(N)",
+        ),
+        (
+            "research_platform/governance/architecture/runtime/capability_composition.py",
+            "CapabilityCompositionPlanner._candidates",
+            "O(N)",
+        ),
+    )
+    for relative, qualified_name, expected in cases:
+        text = (root / relative).read_text(encoding="utf-8")
+        analysis = analyzer.analyze(_doc(text, path=relative))
+        symbol = next(row for row in analysis.symbols if row.qualified_name == qualified_name)
+        assert symbol.metrics.estimated_complexity == expected
+        assert not any(row.priority.value == "P1" for row in symbol.findings)
+
+
 def test_python_analyzer_detects_nested_loop_db_without_false_subprocess_recursion() -> None:
     source = '''\ndef run(rows, connection):\n    for row in rows:\n        connection.execute("SELECT 1")\n        subprocess.run(["true"])\n    return rows\n'''
     symbol = PythonAlgorithmAnalyzer().analyze(_doc(source)).symbols[0]

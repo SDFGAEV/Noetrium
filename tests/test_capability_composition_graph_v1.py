@@ -266,6 +266,7 @@ def test_project_subject_binds_imported_system_offer_without_becoming_a_system_n
     assert plan.bindings_for(requirement.address)[0].offer == logging_offer
     assert plan.contracts[0].subject == project
     assert plan.contracts[0].subject.kind.value == "project"
+    assert not systems.contains("example-project")
 
     with pytest.raises(CompositionTopologyError):
         planner.freeze(

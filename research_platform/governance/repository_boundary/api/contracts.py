@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,4 +21,36 @@ class RepositoryBoundaryReport:
         return not self.violations
 
 
-__all__ = ["RepositoryBoundaryReport", "RepositoryBoundaryViolation"]
+class DownstreamImportKind(StrEnum):
+    EXTERNAL = "external"
+    COMMON_PLATFORM_API = "common_platform_api"
+    PROVIDER_DEVELOPMENT_API = "provider_development_api"
+    FORBIDDEN_PRIVATE_IMPLEMENTATION = "forbidden_private_implementation"
+
+
+@dataclass(frozen=True, slots=True, order=True)
+class DownstreamImportObservation:
+    path: str
+    line: int
+    module: str
+    kind: DownstreamImportKind
+
+
+@dataclass(frozen=True, slots=True)
+class DownstreamProjectImportReport:
+    schema: str
+    observations: tuple[DownstreamImportObservation, ...]
+    violations: tuple[RepositoryBoundaryViolation, ...]
+
+    @property
+    def passed(self) -> bool:
+        return not self.violations
+
+
+__all__ = [
+    "DownstreamImportKind",
+    "DownstreamImportObservation",
+    "DownstreamProjectImportReport",
+    "RepositoryBoundaryReport",
+    "RepositoryBoundaryViolation",
+]

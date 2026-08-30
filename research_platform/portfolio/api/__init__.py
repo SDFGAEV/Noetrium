@@ -1,4 +1,43 @@
-from .contracts import ProgramSpec, ProjectManifest, ProjectSpec, WorkspaceSpec
+from .contracts import (
+    PROJECT_MANIFEST_SCHEMA,
+    PROJECT_TEMPLATE_REVISION,
+    ProgramSpec,
+    ProjectCapabilityRequirement,
+    ProjectConfigurationReference,
+    ProjectIdentity,
+    ProjectManifest,
+    ProjectManifestDecodeError,
+    ProjectProviderBinding,
+    ProjectMethodRequirement,
+    ProjectRequirementCardinality,
+    ProjectSpec,
+    ProjectToolProvenance,
+    WorkspaceSpec,
+    decode_project_manifest_bytes,
+    decode_project_manifest_document,
+    encode_project_manifest,
+    project_manifest_document,
+)
 from .ports import PortfolioCatalogPort
 
-__all__ = ["PortfolioCatalogPort", "ProgramSpec", "ProjectManifest", "ProjectSpec", "WorkspaceSpec"]
+__all__ = [
+    "PROJECT_MANIFEST_SCHEMA",
+    "PROJECT_TEMPLATE_REVISION",
+    "PortfolioCatalogPort",
+    "ProgramSpec",
+    "ProjectCapabilityRequirement",
+    "ProjectConfigurationReference",
+    "ProjectIdentity",
+    "ProjectManifest",
+    "ProjectManifestDecodeError",
+    "ProjectProviderBinding",
+    "ProjectMethodRequirement",
+    "ProjectRequirementCardinality",
+    "ProjectSpec",
+    "ProjectToolProvenance",
+    "WorkspaceSpec",
+    "decode_project_manifest_bytes",
+    "decode_project_manifest_document",
+    "encode_project_manifest",
+    "project_manifest_document",
+]
