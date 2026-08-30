@@ -37,7 +37,7 @@ from research_platform.participant.core.api.contracts import (
 )
 from research_platform.participant.core.api.runtime import ParticipantRuntimeHandle
 from research_platform.participant.providers import RuntimeParticipantProjectProvider
-from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity
+from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity, canonical_digest
 
 
 D = {
@@ -140,10 +140,11 @@ def _endpoint_factory(binding: QualifiedModelEndpointBinding) -> _Endpoint:
 
 def _envelope(
     model: ImmutableModelIdentity,
-    *, prompt_digest: str = D["prompt"],
+    *, body: object | None = None, prompt_digest: str = D["prompt"],
     prompt_generation: str = "prompt-generation-v1",
     tool_digest: str = D["tool"],
 ) -> ModelRequestEnvelope:
+    visible_body = {"messages": []} if body is None else body
     return ModelRequestEnvelope(
         schema_version="model-request.v1",
         request_id="request-1",
@@ -153,9 +154,15 @@ def _envelope(
         prompt_generation_id=prompt_generation,
         prompt_id="planner.v1",
         prompt_digest=prompt_digest,
-        request_body=ContentRef("9" * 64, 2, "application/json"),
+        request_body=ContentRef(canonical_digest(visible_body), 2, "application/json"),
         tool_schema_bundle=ContentRef(tool_digest, 2, "application/json"),
     )
+
+
+class _RequestVerifier:
+    def verify_visible_request(self, envelope: ModelRequestEnvelope, actual_body: object) -> None:
+        if canonical_digest(actual_body) != envelope.request_body.sha256:
+            raise RuntimeError("model-visible request drift")
 
 
 def _provider(binding: QualifiedModelEndpointBinding) -> QualifiedModelProjectProvider:
@@ -163,6 +170,7 @@ def _provider(binding: QualifiedModelEndpointBinding) -> QualifiedModelProjectPr
         ModelProviderProfile("qualified-local", ("chat", "tools")),
         _BindingPort(binding),
         _endpoint_factory,
+        _RequestVerifier(),  # type: ignore[arg-type]
     )
 
 
@@ -225,13 +233,15 @@ def test_model_provider_conformance_and_binding_hide_route_process_details() -> 
 def test_model_request_binds_exact_prompt_tool_and_deployment_provenance() -> None:
     requirement = _requirement()
     client = _provider(_qualified_binding()).bind(requirement)
-    envelope = _envelope(client.binding.model)
     body = {"messages": [{"role": "user", "content": "hello"}]}
+    envelope = _envelope(client.binding.model, body=body)
     request = ProjectModelRequest(requirement.digest(), envelope, body)
     body["messages"][0]["content"] = "mutated"
     response = client.complete(request)
     assert response.request_digest == request.request_digest
     assert response.binding_digest == client.binding.digest()
+    assert response.text == "ok"
+    assert not hasattr(response, "response")
     assert request.body["messages"][0]["content"] == "hello"
 
 
@@ -271,10 +281,10 @@ def test_model_provider_swap_preserves_project_requirement_and_logic() -> None:
     def project_logic(client: ProjectModelClientPort) -> str:
         request = ProjectModelRequest(
             requirement.digest(),
-            _envelope(client.binding.model),
+            _envelope(client.binding.model, body={"messages": [{"role": "user", "content": "plan"}]}),
             {"messages": [{"role": "user", "content": "plan"}]},
         )
-        return client.complete(request).response.text
+        return client.complete(request).text
 
     assert project_logic(first) == "ok"
     assert project_logic(second) == "ok"
@@ -294,6 +304,7 @@ def test_model_doctor_diagnostics_are_typed_and_do_not_echo_provider_secrets() -
         ModelProviderProfile("qualified-local", ("chat", "tools")),
         _FailingBindingPort(),
         _endpoint_factory,
+        _RequestVerifier(),  # type: ignore[arg-type]
     )
     diagnostics = provider.diagnose(requirement)
     assert diagnostics[0].code is ModelBindingDiagnosticCode.QUALIFIED_BINDING_UNAVAILABLE
@@ -307,6 +318,7 @@ def test_model_doctor_reports_capability_and_context_failures_without_endpoint_m
         ModelProviderProfile("small", ("chat",)),
         _BindingPort(_qualified_binding()),
         lambda binding: (_ for _ in ()).throw(AssertionError("must not materialize")),
+        _RequestVerifier(),  # type: ignore[arg-type]
     )
     assert missing.diagnose(_requirement())[0].code is ModelBindingDiagnosticCode.CAPABILITY_MISSING
     short = _provider(_qualified_binding(model=ImmutableModelIdentity(
@@ -437,3 +449,57 @@ def test_provider_ports_fail_closed_on_untyped_requirements() -> None:
         _provider(_qualified_binding()).diagnose(object())  # type: ignore[arg-type]
     with pytest.raises(TypeError, match="typed"):
         _participant_provider().diagnose(object())  # type: ignore[arg-type]
+
+
+def test_common_public_modules_do_not_export_provider_runtime_constructors() -> None:
+    import research_platform.model.api as model_api
+    import research_platform.participant.api as participant_api
+
+    assert not hasattr(model_api, "QualifiedModelProjectProvider")
+    assert not hasattr(model_api, "EndpointFactory")
+    assert not hasattr(participant_api, "RuntimeParticipantProjectProvider")
+    assert not hasattr(participant_api, "RuntimeSelector")
+    assert not hasattr(participant_api, "ParticipantSessionRuntimeIdentity")
+
+
+def test_project_client_does_not_expose_endpoint_authority() -> None:
+    client = _provider(_qualified_binding()).bind(_requirement())
+    assert not hasattr(client, "endpoint")
+    assert not hasattr(client, "route")
+    assert not hasattr(client, "base_url")
+
+
+def test_actual_model_visible_body_drift_fails_closed() -> None:
+    requirement = _requirement()
+    client = _provider(_qualified_binding()).bind(requirement)
+    envelope = _envelope(client.binding.model, body={"messages": []})
+    request = ProjectModelRequest(
+        requirement.digest(), envelope,
+        {"messages": [{"role": "user", "content": "different"}]},
+    )
+    with pytest.raises(RuntimeError, match="model-visible request drift"):
+        client.complete(request)
+
+
+class _DriftResponseEndpoint(_Endpoint):
+    def complete(self, request: ModelEndpointRequest) -> ModelEndpointResponse:
+        return ModelEndpointResponse(
+            request_id="other-request",
+            deployment_id=request.deployment_id,
+            text="wrong provenance",
+        )
+
+
+def test_model_response_provenance_drift_fails_closed() -> None:
+    requirement = _requirement()
+    provider = QualifiedModelProjectProvider(
+        ModelProviderProfile("qualified-local", ("chat", "tools")),
+        _BindingPort(_qualified_binding()),
+        lambda binding: _DriftResponseEndpoint(_endpoint_factory(binding).route, []),
+        _RequestVerifier(),  # type: ignore[arg-type]
+    )
+    client = provider.bind(requirement)
+    body = {"messages": []}
+    request = ProjectModelRequest(requirement.digest(), _envelope(client.binding.model, body=body), body)
+    with pytest.raises(ValueError, match="response provenance drift"):
+        client.complete(request)

@@ -7,7 +7,6 @@ from typing import Protocol, runtime_checkable
 
 from research_platform.model.request._immutable_json import freeze_json_object
 from research_platform.model.request.api import ModelRequestEnvelope
-from research_platform.model.serving.endpoint.api import ModelEndpointResponse
 from research_platform.platform.kernel import (
     ImmutableModelIdentity,
     JsonInput,
@@ -182,13 +181,23 @@ class ProjectModelRequest:
 class ProjectModelResponse:
     request_digest: str
     binding_digest: str
-    response: ModelEndpointResponse
+    response_digest: str
+    text: str
+    finish_reason: str | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
 
     def __post_init__(self) -> None:
         _sha256(self.request_digest, "project model response request_digest")
         _sha256(self.binding_digest, "project model response binding_digest")
-        if not isinstance(self.response, ModelEndpointResponse):
-            raise TypeError("project model response must carry ModelEndpointResponse")
+        _sha256(self.response_digest, "project model response response_digest")
+        _text(self.text, "project model response text")
+        if self.finish_reason is not None and not isinstance(self.finish_reason, str):
+            raise TypeError("project model response finish_reason must be text when provided")
+        for field_name in ("input_tokens", "output_tokens"):
+            value = getattr(self, field_name)
+            if value is not None and (type(value) is not int or value < 0):
+                raise ValueError(f"project model response {field_name} must be non-negative")
 
 
 class ModelBindingDiagnosticSeverity(StrEnum):

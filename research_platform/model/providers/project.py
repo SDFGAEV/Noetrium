@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
 
 from research_platform.model.api.project import (
     ModelBindingDiagnostic,
@@ -16,6 +15,7 @@ from research_platform.model.api.project import (
     ProjectModelRequest,
     ProjectModelResponse,
 )
+from research_platform.model.request.api import ModelRequestRecorderPort
 from research_platform.model.serving.endpoint.api import (
     ModelEndpointPort,
     ModelEndpointRequest,
@@ -42,48 +42,73 @@ def _diagnostic(
     )
 
 
-@dataclass(frozen=True, slots=True)
 class _QualifiedProjectModelClient:
-    binding: ProjectModelBinding
-    requirement: ModelCapabilityRequirement
-    endpoint: ModelEndpointPort
+    __slots__ = ("_binding", "_requirement", "_endpoint", "_model_requests")
+
+    def __init__(
+        self,
+        binding: ProjectModelBinding,
+        requirement: ModelCapabilityRequirement,
+        endpoint: ModelEndpointPort,
+        model_requests: ModelRequestRecorderPort,
+    ) -> None:
+        self._binding = binding
+        self._requirement = requirement
+        self._endpoint = endpoint
+        self._model_requests = model_requests
+
+    @property
+    def binding(self) -> ProjectModelBinding:
+        return self._binding
 
     def complete(self, request: ProjectModelRequest) -> ProjectModelResponse:
-        if request.requirement_digest != self.binding.requirement_digest:
+        if not isinstance(request, ProjectModelRequest):
+            raise TypeError("project model request must be typed")
+        if request.requirement_digest != self._binding.requirement_digest:
             raise ValueError("project model request requirement drift")
         envelope = request.envelope
-        if envelope.role != self.binding.role or envelope.model != self.binding.model:
+        if envelope.role != self._binding.role or envelope.model != self._binding.model:
             raise ValueError("project model request model binding drift")
         if (
-            envelope.prompt_generation_id != self.requirement.prompt_generation_id
-            or envelope.prompt_id != self.requirement.prompt_id
-            or envelope.prompt_digest != self.requirement.prompt_digest
+            envelope.prompt_generation_id != self._requirement.prompt_generation_id
+            or envelope.prompt_id != self._requirement.prompt_id
+            or envelope.prompt_digest != self._requirement.prompt_digest
         ):
             raise ValueError("project model request prompt provenance drift")
-        if self.requirement.tool_schema_sha256 is not None:
+        if self._requirement.tool_schema_sha256 is not None:
             if (
                 envelope.tool_schema_bundle is None
-                or envelope.tool_schema_bundle.sha256 != self.requirement.tool_schema_sha256
+                or envelope.tool_schema_bundle.sha256 != self._requirement.tool_schema_sha256
             ):
                 raise ValueError("project model request tool schema provenance drift")
-        route = self.endpoint.route
+        self._model_requests.verify_visible_request(envelope, request.body)
+        route = self._endpoint.route
         if (
-            route.deployment_id != self.binding.deployment_id
-            or route.deployment_generation != self.binding.deployment_generation
+            route.deployment_id != self._binding.deployment_id
+            or route.deployment_generation != self._binding.deployment_generation
         ):
             raise ValueError("project model endpoint route provenance drift")
-        response = self.endpoint.complete(
+        response = self._endpoint.complete(
             ModelEndpointRequest(
                 request=envelope,
-                deployment_id=self.binding.deployment_id,
-                deployment_generation=self.binding.deployment_generation,
+                deployment_id=self._binding.deployment_id,
+                deployment_generation=self._binding.deployment_generation,
                 body=request.body,
             )
         )
+        if (
+            response.request_id != envelope.request_id
+            or response.deployment_id != self._binding.deployment_id
+        ):
+            raise ValueError("project model response provenance drift")
         return ProjectModelResponse(
             request_digest=request.request_digest,
-            binding_digest=self.binding.digest(),
-            response=response,
+            binding_digest=self._binding.digest(),
+            response_digest=response.response_digest,
+            text=response.text,
+            finish_reason=response.finish_reason,
+            input_tokens=response.input_tokens,
+            output_tokens=response.output_tokens,
         )
 
 
@@ -95,12 +120,14 @@ class QualifiedModelProjectProvider(ProjectModelProviderPort):
         profile: ModelProviderProfile,
         bindings: QualifiedModelEndpointBindingPort,
         endpoint_factory: EndpointFactory,
+        model_requests: ModelRequestRecorderPort,
     ) -> None:
         if not isinstance(profile, ModelProviderProfile):
             raise TypeError("project model provider profile must be typed")
         self._profile = profile
         self._bindings = bindings
         self._endpoint_factory = endpoint_factory
+        self._model_requests = model_requests
 
     @property
     def profile(self) -> ModelProviderProfile:
@@ -217,7 +244,9 @@ class QualifiedModelProjectProvider(ProjectModelProviderPort):
                     ),
                 )
             )
-        return _QualifiedProjectModelClient(project_binding, requirement, endpoint)
+        return _QualifiedProjectModelClient(
+            project_binding, requirement, endpoint, self._model_requests
+        )
 
 
 __all__ = ["EndpointFactory", "QualifiedModelProjectProvider"]

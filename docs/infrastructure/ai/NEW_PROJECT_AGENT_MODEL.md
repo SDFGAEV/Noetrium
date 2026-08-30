@@ -56,7 +56,9 @@ It deliberately does **not** expose serving URLs, HTTP paths, process IDs, proce
 - required tool-schema digest;
 - deployment ID and deployment generation.
 
-The request body is recursively frozen at construction and receives its own request digest. The returned `ProjectModelResponse` binds that request digest and the immutable project binding digest to the existing `ModelEndpointResponse`.
+The request body is recursively frozen at construction and receives its own request digest. Before dispatch, the reference adapter also calls the existing `ModelRequestRecorderPort.verify_visible_request()` authority, so a valid envelope cannot be rebound to different actual model-visible bytes.
+
+The low-level endpoint route and response stay inside the provider. After dispatch, request ID and deployment ID must still match the bound envelope/deployment. `ProjectModelResponse` then projects only request/binding/response digests, text, finish reason, and token counts; it does not expose the endpoint response object.
 
 This preserves existing content-addressed model-visible request authority while allowing a provider/deployment swap to remain a composition change when the same public requirement is satisfied.
 ## Doctor diagnostics and provider conformance
@@ -82,4 +84,4 @@ ROLE06 may build the canonical Python facade, project scaffold, provider templat
 
 ROLE06 must not recreate Participant runtime selection, serving endpoint construction, qualification decisions, request provenance, or model/Participant truth inside its facade. Provider templates may implement the public provider ports; common generated project code should depend only on the public API packages above.
 
-The focused conformance gate is `tests/test_typed_project_agent_model_npe_v1.py`. It verifies public-only project imports, Agent behavior definition, provider substitution, exact prompt/tool/model provenance, typed doctor failures, no route/process leakage, and provider-author structural conformance.
+The focused conformance gate is `tests/test_typed_project_agent_model_npe_v1.py`. It verifies public-only project imports, Agent behavior definition, provider substitution, exact prompt/tool/model provenance, durable body/envelope equality, fail-closed response provenance, typed doctor failures, no route/process leakage, and provider-author structural conformance.
