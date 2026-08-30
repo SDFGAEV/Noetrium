@@ -44,6 +44,7 @@ class ServiceReadinessCommitter:
             ServicePhase.RUNNING,
             process=process,
             ready_evidence_ref=ready_ref,
+            ready_at=ready.ready_at,
             stdout_capture_ref=stdout_ref,
             stderr_capture_ref=stderr_ref,
             last_heartbeat_at=ready.ready_at,

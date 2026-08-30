@@ -1140,7 +1140,7 @@ class _FakeServiceRuntime:
 
     def verify_ready_exact(self, contract):
         self.calls.append("verify")
-        return ServiceReadyObservation(contract.digest(), self.process, "ready-ref", ("ready-ref",))
+        return ServiceReadyObservation(contract.digest(), self.process, "ready-ref", 1234.5, ("ready-ref",))
 
     def stop_exact(self, contract):
         self.calls.append("stop")

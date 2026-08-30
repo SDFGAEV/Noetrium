@@ -37,3 +37,11 @@ The same strict decoder validates an event before append so production cannot du
 ## Durable server-operation evidence semantics
 
 Server-operation WAL records reject unsafe durable identities and non-canonical request/profile/output/error digests before publication. Persisted success must prove `return_code=0` with `failure_kind=none`; timeout must carry `failure_kind=timeout`; failed records cannot claim a success failure-kind; and exception type/digest evidence is all-or-nothing. These invariants apply at the durable codec boundary so in-memory diagnostic projections remain independent from WAL identity requirements.
+
+## Authoritative readiness time
+
+- A service READY transition persists its producer-observed `ready_at` independently from `last_heartbeat_at`.
+- `ready_at` is finite, positive, immutable for that process generation, and is cleared before a new child generation starts.
+- Heartbeats may advance `last_heartbeat_at` but must never rewrite the original readiness authority.
+- `ServiceStartOutcome` and `ServiceReadyObservation` project the exact persisted `ready_at`; consumers must not synthesize a replacement wall-clock timestamp.
+- Durable service-state codec v3 fails closed when readiness evidence and readiness time are incomplete or non-finite.

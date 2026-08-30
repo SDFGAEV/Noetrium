@@ -3,6 +3,7 @@ from __future__ import annotations
 from research_platform.runtime.service.api import ServiceProcessIdentity
 from dataclasses import dataclass
 import time
+import math
 
 from .contracts import ServiceExitClass, ServicePhase
 
@@ -21,6 +22,13 @@ class ServiceSupervisorState:
     last_failure_id: str | None
     last_exit_class: ServiceExitClass | None
     updated_at: float
+    ready_at: float | None = None
+
+    def __post_init__(self) -> None:
+        if self.ready_at is not None and (
+            not math.isfinite(float(self.ready_at)) or self.ready_at <= 0
+        ):
+            raise ValueError("service ready_at must be finite and positive")
 
     @classmethod
     def initial(cls, service_id: str, contract_digest: str) -> "ServiceSupervisorState":
