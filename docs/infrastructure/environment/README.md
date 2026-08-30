@@ -6,6 +6,10 @@ This document defines the ROLE05-owned environment/provider seam intended for do
 
 Downstream projects should depend on:
 
+- `research_platform.environment.api.ExecutionContext`
+- `research_platform.environment.api.EffectReceipt`
+- `research_platform.environment.api.EffectClass`
+- `research_platform.environment.api.EffectCertainty`
 - `research_platform.environment.api.EnvironmentProviderPort`
 - `research_platform.environment.api.EnvironmentProviderCapabilities`
 - `research_platform.environment.api.EnvironmentCapability`
@@ -18,6 +22,7 @@ Downstream projects should depend on:
 - `research_platform.environment.api.verify_environment_provider_conformance`
 
 Projects must not import provider-private runtime state, Minecraft bridge internals, state-machine checkpoint codecs, or platform service locators.
+Provider-author tests should obtain the canonical execution context through `research_platform.environment.api.ExecutionContext`; downstream source must not import `research_platform.platform.kernel` directly. This is a public alias of the same Platform type, not a second context authority.
 
 ## Provider shape
 

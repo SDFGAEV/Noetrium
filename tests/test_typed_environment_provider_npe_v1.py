@@ -11,13 +11,16 @@ from research_platform.environment.api import (
     EnvironmentCapabilityUnsupported,
     EnvironmentIdentity,
     EnvironmentConformanceProbe,
+    ExecutionContext,
+    EffectClass,
+    EffectCertainty,
+    EffectReceipt,
     EnvironmentProviderCapabilities,
     EnvironmentProviderConformanceReceipt,
     EnvironmentProviderPort,
     verify_environment_provider_conformance,
 )
 from research_platform.environment.providers import reference_counter_environment
-from research_platform.platform.kernel import ExecutionContext
 
 
 def _context() -> ExecutionContext:
@@ -179,3 +182,14 @@ def test_conformance_requires_typed_unsupported_optional_capabilities() -> None:
         "restore_unsupported",
     )
     assert receipt.snapshot_sha256 is None
+
+
+def test_provider_author_effect_primitives_are_public_aliases() -> None:
+    receipt = EffectReceipt(
+        "effect-public",
+        "a" * 64,
+        EffectClass.RECONCILABLE,
+        EffectCertainty.EFFECT_CONFIRMED,
+    )
+    assert receipt.certainty is EffectCertainty.EFFECT_CONFIRMED
+    assert receipt.effect_class is EffectClass.RECONCILABLE

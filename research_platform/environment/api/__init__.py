@@ -1,4 +1,6 @@
 from .contracts import SystemIdentity, SystemSpec
+from research_platform.platform.kernel import ExecutionContext
+from research_platform.platform.kernel.operation import EffectClass, EffectCertainty, EffectReceipt
 from .ports import SystemPort
 from .conformance import (
     EnvironmentConformanceProbe,
@@ -50,7 +52,8 @@ from research_platform.environment.runtime.api import (
 )
 
 __all__=[
-    "SystemIdentity","SystemSpec","SystemPort",
+    "SystemIdentity","SystemSpec","SystemPort", "ExecutionContext",
+    "EffectClass", "EffectCertainty", "EffectReceipt",
     "ActionIdentityViolation", "ActionNotApplied", "ActionRecoveryRequired",
     "ActionReconciliationDisposition", "ActionReconciliationResult",
     "ActionRequest", "ActionResult", "ActionSafetyCapabilityMissing",
