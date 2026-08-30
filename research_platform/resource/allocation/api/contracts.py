@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 import math
+import re
 
 from research_platform.platform.kernel import canonical_digest
 from research_platform.resource.lease.api import (
@@ -12,6 +13,26 @@ from research_platform.resource.lease.api import (
     ResourceOwnership,
 )
 from research_platform.scope.api import PLATFORM_SCOPE, ScopeIdentity
+
+
+_SHA256 = re.compile(r"[0-9a-f]{64}")
+
+
+def _require_sha256_or_none(value: str | None, field: str) -> None:
+    if value is not None and not _SHA256.fullmatch(value):
+        raise ValueError(f"{field} must be a canonical lowercase SHA-256 digest")
+
+
+def _require_positive_finite_or_none(value: float | None, field: str) -> None:
+    if value is not None and (not math.isfinite(float(value)) or value <= 0):
+        raise ValueError(f"{field} must be finite and positive")
+
+
+def _binding_proof_presence(
+    proof_digest: str | None, binder_digest: str | None, evidence_ref: str | None, bound_at: float | None
+) -> tuple[bool, bool]:
+    present = (proof_digest is not None, binder_digest is not None, evidence_ref is not None, bound_at is not None)
+    return any(present), all(present)
 
 
 class EndpointProtocol(StrEnum):
@@ -175,54 +196,44 @@ class EndpointAllocation:
     bound_at_epoch_s: float | None = None
 
     def __post_init__(self) -> None:
-        if any(
-            not value.strip()
-            for value in (
-                self.allocation_id,
-                self.lease_id,
-                self.purpose,
-                self.request_digest,
-            )
+        if not (
+            self.allocation_id.strip()
+            and self.lease_id.strip()
+            and self.purpose.strip()
+            and self.request_digest.strip()
         ):
             raise ValueError("endpoint allocation identity is incomplete")
         if self.lease_holder_generation < 1 or self.lease_fencing_token < 1:
             raise ValueError("endpoint allocation lease generation/fencing must be >= 1")
-        if self.lease_expires_at_epoch_s is not None and (
-            not math.isfinite(float(self.lease_expires_at_epoch_s))
-            or self.lease_expires_at_epoch_s <= 0
-        ):
-            raise ValueError("endpoint allocation lease expiry must be finite and positive")
-        if self.bound_at_epoch_s is not None and (
-            not math.isfinite(float(self.bound_at_epoch_s)) or self.bound_at_epoch_s <= 0
-        ):
-            raise ValueError("endpoint allocation bound timestamp must be finite and positive")
-        proof_fields = (
-            self.binding_proof_digest, self.binding_binder_identity_digest,
-            self.binding_evidence_ref, self.bound_at_epoch_s,
+        _require_positive_finite_or_none(
+            self.lease_expires_at_epoch_s, "endpoint allocation lease expiry"
         )
-        if self.binding_proof_digest is not None and (
-            len(self.binding_proof_digest) != 64
-            or self.binding_proof_digest != self.binding_proof_digest.lower()
-            or any(character not in "0123456789abcdef" for character in self.binding_proof_digest)
-        ):
-            raise ValueError("endpoint allocation binding proof must be a canonical lowercase SHA-256 digest")
-        if self.binding_binder_identity_digest is not None and (
-            len(self.binding_binder_identity_digest) != 64
-            or self.binding_binder_identity_digest != self.binding_binder_identity_digest.lower()
-            or any(character not in "0123456789abcdef" for character in self.binding_binder_identity_digest)
-        ):
-            raise ValueError("endpoint allocation binder identity must be a canonical lowercase SHA-256 digest")
+        _require_positive_finite_or_none(
+            self.bound_at_epoch_s, "endpoint allocation bound timestamp"
+        )
+        _require_sha256_or_none(
+            self.binding_proof_digest, "endpoint allocation binding proof"
+        )
+        _require_sha256_or_none(
+            self.binding_binder_identity_digest, "endpoint allocation binder identity"
+        )
         if self.binding_evidence_ref is not None and not self.binding_evidence_ref.strip():
             raise ValueError("endpoint allocation binding evidence reference must be non-empty")
-        has_proof = tuple(value is not None for value in proof_fields)
-        if any(has_proof) and not all(has_proof):
+        any_proof, complete_proof = _binding_proof_presence(
+            self.binding_proof_digest,
+            self.binding_binder_identity_digest,
+            self.binding_evidence_ref,
+            self.bound_at_epoch_s,
+        )
+        if any_proof and not complete_proof:
             raise ValueError("endpoint binding proof metadata must be complete or absent")
-        if self.state is EndpointAllocationState.RESERVED and any(has_proof):
+        if self.state is EndpointAllocationState.RESERVED and any_proof:
             raise ValueError("reserved endpoint allocation cannot carry binding proof metadata")
-        if self.state is EndpointAllocationState.BOUND and not all(has_proof):
+        if self.state is EndpointAllocationState.BOUND and not complete_proof:
             raise ValueError("bound endpoint allocation requires complete binding proof metadata")
         # RELEASED may retain a complete historical binding proof. Release changes
         # allocation liveness, not the evidence of which binder previously owned it.
+
 
 
 @dataclass(frozen=True, slots=True)

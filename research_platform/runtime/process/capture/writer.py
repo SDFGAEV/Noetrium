@@ -29,15 +29,10 @@ class ActiveCaptureWriter:
         self.fsync_every_bytes = fsync_every_bytes
         self.tail_bytes = tail_bytes
 
-        sized_files = storage.sized_files()
-        total = sum(size for _path, size in sized_files)
-        index = len(sized_files) - 1 if sized_files else 0
-        active_size = sized_files[-1][1] if sized_files else 0
-        self._state = CaptureStateCell(
-            CaptureWriterState(index, total, 0, storage.manifest_path.exists(), active_size)
-        )
-        self._tail = BoundedTail(tail_bytes, storage.load_tail(total, tail_bytes))
-        self._fd = CaptureFD(storage.path(index))
+        resume_state = storage.resume_state()
+        self._state = CaptureStateCell(resume_state)
+        self._tail = BoundedTail(tail_bytes, storage.load_tail_from_state(resume_state, tail_bytes))
+        self._fd = CaptureFD(storage.path(resume_state.index))
         if not self._state.value.sealed:
             self._fd.open()
 
@@ -85,6 +80,7 @@ class ActiveCaptureWriter:
         self._fd.sync()
         synced = state.since_sync
         self._state.synced()
+        self.storage.write_resume_state(self._state.value)
         return CaptureSyncReceipt(
             self.storage.stream,
             state.index,
@@ -101,12 +97,18 @@ class ActiveCaptureWriter:
         return self._tail.read(length)
 
     def close_for_seal(self) -> CaptureWriterState:
-        state = self._state.value
         self._fd.close(sync=True)
-        return state
+        self._state.synced()
+        self.storage.write_resume_state(self._state.value)
+        return self._state.value
 
     def mark_sealed(self, total_bytes: int) -> None:
         self._state.sealed(total_bytes)
+        self.storage.write_resume_state(self._state.value)
 
     def close(self) -> None:
-        self._fd.close(sync=bool(self._state.value.since_sync))
+        state = self._state.value
+        self._fd.close(sync=bool(state.since_sync))
+        if not state.sealed:
+            self._state.synced()
+            self.storage.write_resume_state(self._state.value)

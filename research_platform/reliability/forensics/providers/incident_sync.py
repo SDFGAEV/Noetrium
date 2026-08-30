@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from itertools import chain
+
 from research_platform.reliability.failure.api import fingerprint_failure
 from research_platform.reliability.diagnostics.api import IncidentProjectionSync
 from research_platform.reliability.forensics.providers.incident_db import IncidentSQLiteStore
@@ -24,15 +26,17 @@ class IncidentLedgerSynchronizer:
                 cut=ledger.verified_cut_after(0)
                 rebuilt=True
             added=0
-            for batch in ledger.iter_verified_payload_batches(cut, batch_size=512):
-                for payload in batch:
-                    failure_id=str(payload.get("failure_id") or "")
-                    if not failure_id:
-                        continue
-                    if self.writer.project(
-                        db,fingerprint_failure(payload),failure_id,
-                        timestamp=float(payload.get("created_at") or 0.0),
-                    ):
-                        added+=1
+            payloads = chain.from_iterable(
+                ledger.iter_verified_payload_batches(cut, batch_size=512)
+            )
+            for payload in payloads:
+                failure_id=str(payload.get("failure_id") or "")
+                if not failure_id:
+                    continue
+                if self.writer.project(
+                    db,fingerprint_failure(payload),failure_id,
+                    timestamp=float(payload.get("created_at") or 0.0),
+                ):
+                    added+=1
             self.store.set_freshness(db,cut.total_rows,cut.tail_hash)
         return IncidentProjectionSync(cut.total_rows,cut.tail_hash,added,rebuilt)

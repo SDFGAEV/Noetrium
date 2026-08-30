@@ -25,6 +25,15 @@ class EffectJournalDocumentCodec:
     DOCUMENT_SCHEMA = "effect-intent.v1"
 
     @staticmethod
+    def _require_index_match(
+        intent_id: str, field: str, observed: object, authoritative: object
+    ) -> None:
+        if observed != authoritative:
+            raise EffectJournalIntegrityError(
+                f"effect journal {field} index mismatch: {intent_id}"
+            )
+
+    @staticmethod
     def _handle_payload(handle: PreparedEffectHandle | None) -> dict[str, object] | None:
         if handle is None:
             return None
@@ -176,17 +185,14 @@ class EffectJournalDocumentCodec:
                     f"effect intent document checksum mismatch: {encoded.intent_id}"
                 )
             intent = self.decode_intent(encoded.intent_json)
-            indexed = (
-                ("intent_id", encoded.intent_id, intent.intent_id),
-                ("request_digest", encoded.request_digest, intent.request_digest),
-                ("run_id", encoded.run_id, intent.run_id),
-                ("lifetime_id", encoded.lifetime_id, intent.lifetime_id),
+            self._require_index_match(encoded.intent_id, "intent_id", encoded.intent_id, intent.intent_id)
+            self._require_index_match(
+                encoded.intent_id, "request_digest", encoded.request_digest, intent.request_digest
             )
-            for field, observed, authoritative in indexed:
-                if observed != authoritative:
-                    raise EffectJournalIntegrityError(
-                        f"effect journal {field} index mismatch: {encoded.intent_id}"
-                    )
+            self._require_index_match(encoded.intent_id, "run_id", encoded.run_id, intent.run_id)
+            self._require_index_match(
+                encoded.intent_id, "lifetime_id", encoded.lifetime_id, intent.lifetime_id
+            )
 
             phase = EffectIntentPhase(encoded.phase)
             effect = self.decode_effect(encoded.effect_json)
