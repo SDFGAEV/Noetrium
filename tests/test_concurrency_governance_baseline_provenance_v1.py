@@ -12,6 +12,7 @@ from research_platform.governance.api import (
     GovernanceBaselineApproval,
     GovernanceBaselineApprovalSet,
     GovernanceBaselineLane,
+    governance_baseline_semantic_digest,
 )
 from research_platform.governance.concurrency.api import ConcurrencyBaseline, ConcurrencySnapshot
 from research_platform.governance.concurrency.runtime import (
@@ -27,7 +28,6 @@ from research_platform.governance.providers import (
     GovernanceBaselineApprovalError,
     load_governance_baseline_approval_set,
 )
-from research_platform.governance.runtime import governance_baseline_semantic_digest
 
 
 def _concurrency_snapshot(*, implementation: str = "3" * 64) -> ConcurrencySnapshot:

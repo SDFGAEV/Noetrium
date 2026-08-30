@@ -4,6 +4,7 @@ from .baseline_authority import (
     GovernanceBaselineApproval,
     GovernanceBaselineApprovalSet,
     GovernanceBaselineLane,
+    governance_baseline_semantic_digest,
 )
 from .repository_source import (
     RepositorySourceBlob,
@@ -21,6 +22,7 @@ __all__ = [
     "GovernanceBaselineApproval",
     "GovernanceBaselineApprovalSet",
     "GovernanceBaselineLane",
+    "governance_baseline_semantic_digest",
     "RepositorySourceBlob",
     "RepositorySourceFailure",
     "RepositorySourceFailureKind",

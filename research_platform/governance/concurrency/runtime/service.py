@@ -3,8 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
-from research_platform.governance.api import GovernanceBaselineApprovalSet, GovernanceBaselineLane
-from research_platform.governance.runtime import governance_baseline_semantic_digest
+from research_platform.governance.api import (
+    GovernanceBaselineApprovalSet,
+    GovernanceBaselineLane,
+    governance_baseline_semantic_digest,
+)
 from research_platform.governance.concurrency.api import ConcurrencyBaseline, ConcurrencyGateReport, ConcurrencySnapshot
 from research_platform.governance.concurrency.api.ports import ConcurrencySnapshotStorePort
 from .scanner import ConcurrencyScanner

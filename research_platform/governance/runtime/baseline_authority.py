@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-import hashlib
-import json
-from collections.abc import Iterable
-
 from research_platform.governance.api import (
     GovernanceBaselineLane,
     RepositorySourceIndexPort,
@@ -21,36 +17,4 @@ def governance_lane_implementation_digest(
     )
 
 
-def governance_baseline_semantic_digest(
-    *,
-    lane: GovernanceBaselineLane,
-    source_revision: str,
-    source_digest: str,
-    analyzer_revision: str,
-    analyzer_implementation_digest: str,
-    observed_blocker_fingerprints: Iterable[str],
-    accepted_blocker_fingerprints: Iterable[str],
-) -> str:
-    payload = {
-        "lane": lane.value,
-        "source_revision": source_revision,
-        "source_digest": source_digest,
-        "analyzer_revision": analyzer_revision,
-        "analyzer_implementation_digest": analyzer_implementation_digest,
-        "observed_blocker_fingerprints": sorted(str(item) for item in observed_blocker_fingerprints),
-        "accepted_blocker_fingerprints": sorted(str(item) for item in accepted_blocker_fingerprints),
-    }
-    raw = json.dumps(
-        payload,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-        allow_nan=False,
-    ).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
-
-
-__all__ = [
-    "governance_baseline_semantic_digest",
-    "governance_lane_implementation_digest",
-]
+__all__ = ["governance_lane_implementation_digest"]

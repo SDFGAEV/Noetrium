@@ -33,3 +33,7 @@ The shared ROLE00 approval set is supplied out-of-repository through `RESEARCH_P
 ## Historical baseline cutover command
 
 The `baseline` command is exact and requires `--source-revision <git-sha>` for Git-authoritative acceptance. It replays that historical source with the running reviewed analyzer identity and checks the external ROLE00 approval before writing the repository baseline. Omitting the historical revision fails closed; the current producer tree is never substituted implicitly.
+
+## Public dependency seam
+
+The canonical Concurrency/Performance baseline semantic digest is a `research_platform.governance.api` contract. Lane runtime services consume that public API and never import sibling `governance.runtime` implementation. Lane implementation fingerprinting remains a composition/runtime concern. Architecture must reject any reintroduction of a concrete sibling-runtime dependency.
