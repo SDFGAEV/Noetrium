@@ -131,7 +131,7 @@ def prepare_container_context(
     if output.exists():
         shutil.rmtree(output)
     output.mkdir(parents=True)
-    shutil.copyfile(wheel, output / "research_platform.whl")
+    shutil.copyfile(wheel, output / wheel.name)
     (output / "Dockerfile").write_bytes(dockerfile_raw)
     (output / "container-entrypoint.sh").write_bytes(entrypoint_raw)
     receipt = ContainerContextReceipt(

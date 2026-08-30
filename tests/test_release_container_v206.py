@@ -64,7 +64,7 @@ def _fake_outputs(inspect_document: list[dict], smoke: dict):
 
 def test_container_definition_uses_only_prebuilt_distribution_wheel():
     dockerfile = (ROOT / "deploy" / "Dockerfile").read_text(encoding="utf-8")
-    assert "COPY research_platform.whl" in dockerfile
+    assert "COPY *.whl" in dockerfile
     assert "COPY research_platform " not in dockerfile
     assert "python -m pip wheel" not in dockerfile
     assert "PLATFORM_WHEEL_SHA256" in dockerfile
@@ -228,7 +228,7 @@ def test_prepare_context_uses_exact_git_blobs_not_mutable_checkout(monkeypatch):
         output = root / "ctx"
         receipt = context.prepare_container_context(dist, output, expected_source_sha=SHA)
         assert seen == [(SHA, "deploy/Dockerfile"), (SHA, "deploy/container-entrypoint.sh")]
-        assert (output / "research_platform.whl").read_bytes() == b"exact-wheel"
+        assert (output / wheel.name).read_bytes() == b"exact-wheel"
         assert (output / "Dockerfile").read_bytes() == b"FROM exact\n"
         assert receipt.wheel_sha256 == wheel_sha
         assert receipt.distribution_evidence_sha256 == hashlib.sha256(evidence_path.read_bytes()).hexdigest()

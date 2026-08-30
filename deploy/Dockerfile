@@ -17,11 +17,15 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PLATFORM_EMBEDDED_WHEEL=/opt/research-platform-artifact/research_platform.whl
 
 WORKDIR /opt/research-platform
-COPY research_platform.whl /opt/research-platform-artifact/research_platform.whl
+COPY *.whl /tmp/wheelhouse/
 COPY container-entrypoint.sh /usr/local/bin/research-platform-entrypoint
 
-RUN printf '%s  %s\n' "$PLATFORM_WHEEL_SHA256" "$PLATFORM_EMBEDDED_WHEEL" | sha256sum -c - \
-    && python -m pip install --no-deps "$PLATFORM_EMBEDDED_WHEEL" \
+RUN wheel="$(find /tmp/wheelhouse -maxdepth 1 -type f -name '*.whl' -print)" \
+    && test "$(find /tmp/wheelhouse -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 1 \
+    && printf '%s  %s\n' "$PLATFORM_WHEEL_SHA256" "$wheel" | sha256sum -c - \
+    && python -m pip install --no-deps "$wheel" \
+    && cp "$wheel" "$PLATFORM_EMBEDDED_WHEEL" \
+    && rm -rf /tmp/wheelhouse \
     && chmod 0444 "$PLATFORM_EMBEDDED_WHEEL" \
     && chmod 0755 /usr/local/bin/research-platform-entrypoint
 
