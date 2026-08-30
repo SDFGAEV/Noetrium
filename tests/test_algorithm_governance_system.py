@@ -102,6 +102,116 @@ def test_javascript_keywords_are_not_reported_as_functions() -> None:
     assert [s.qualified_name for s in symbols] == ["work"]
 
 
+def test_javascript_brace_nesting_does_not_multiply_one_entity_scan() -> None:
+    source = """
+function findNearbyDroppedItem (entities) {
+  let nearest = null
+  for (const entity of Object.values(entities)) {
+    if (!entity) continue
+    if (entity.distance > 6) continue
+    if (entity.score < 2) {
+      nearest = entity
+    }
+  }
+  return nearest
+}
+"""
+    symbol = JavaScriptAlgorithmAnalyzer().analyze(
+        _doc(source, AlgorithmLanguage.JAVASCRIPT, "runtime.js")
+    ).symbols[0]
+    assert symbol.metrics.loops == 1
+    assert symbol.metrics.max_loop_depth == 1
+    assert symbol.metrics.estimated_complexity == "O(N)"
+    assert not any(f.code in {"nested-loop", "deep-nested-loop"} for f in symbol.findings)
+
+
+def test_javascript_nested_callback_loop_is_an_independent_symbol() -> None:
+    source = """
+function captureItemDropNear (entities) {
+  const onDrop = entity => {
+    if (!entity) return
+  }
+  const pickupTarget = () => {
+    let nearest = null
+    for (const entity of Object.values(entities)) {
+      if (!entity) continue
+      nearest = entity
+    }
+    return nearest
+  }
+  return { onDrop, pickupTarget }
+}
+"""
+    symbols = JavaScriptAlgorithmAnalyzer().analyze(
+        _doc(source, AlgorithmLanguage.JAVASCRIPT, "runtime.js")
+    ).symbols
+    by_name = {symbol.qualified_name: symbol for symbol in symbols}
+    assert by_name["captureItemDropNear"].metrics.max_loop_depth == 0
+    assert by_name["captureItemDropNear"].metrics.estimated_complexity == "O(1)"
+    assert by_name["pickupTarget"].metrics.max_loop_depth == 1
+    assert by_name["pickupTarget"].metrics.estimated_complexity == "O(N)"
+
+
+def test_javascript_fixed_literal_offset_mask_is_constant_factor() -> None:
+    source = """
+function nearby (entities) {
+  let count = 0
+  for (const entity of entities) {
+    for (const dx of [-1, 0, 1]) {
+      for (const dz of [-1, 0, 1]) {
+        if (entity.x === dx && entity.z === dz) count += 1
+      }
+    }
+  }
+  return count
+}
+"""
+    symbol = JavaScriptAlgorithmAnalyzer().analyze(
+        _doc(source, AlgorithmLanguage.JAVASCRIPT, "runtime.js")
+    ).symbols[0]
+    assert symbol.metrics.loops == 3
+    assert symbol.metrics.max_loop_depth == 1
+    assert symbol.metrics.estimated_complexity == "O(N)"
+    assert not any(f.code in {"nested-loop", "deep-nested-loop"} for f in symbol.findings)
+
+
+def test_python_fixed_percentile_positions_do_not_create_database_amplification() -> None:
+    source = """
+def summarize(db, count):
+    positions = {
+        q: (0, 1, q)
+        for q in (0.50, 0.95, 0.99)
+    }
+    required = sorted({
+        position
+        for low, high, _fraction in positions.values()
+        for position in (low, high)
+    })
+    selected = {}
+    for position in required:
+        selected[position] = db.execute("SELECT value LIMIT 1 OFFSET ?", (position,)).fetchone()
+    return selected
+"""
+    symbol = PythonAlgorithmAnalyzer().analyze(_doc(source)).symbols[0]
+    assert symbol.metrics.loops == 4
+    assert symbol.metrics.max_loop_depth == 0
+    assert symbol.metrics.database_calls_in_loops == 0
+    assert symbol.metrics.estimated_complexity == "O(1)"
+    assert not any(f.code == "database-in-loop" for f in symbol.findings)
+
+
+def test_python_unknown_cardinality_database_loop_still_fails_closed() -> None:
+    source = """
+def lookup(rows, db):
+    for row in rows:
+        db.execute("SELECT value WHERE id=?", (row,)).fetchone()
+"""
+    symbol = PythonAlgorithmAnalyzer().analyze(_doc(source)).symbols[0]
+    assert symbol.metrics.max_loop_depth == 1
+    assert symbol.metrics.database_calls_in_loops == 2
+    assert any(f.code == "database-in-loop" and f.priority.value == "P1" for f in symbol.findings)
+
+
 def test_shell_loop_external_process_is_detected() -> None:
     source = '''\nwork() {\n  for item in "$@"; do\n    curl "$item"\n  done\n}\n'''
     symbol = ShellAlgorithmAnalyzer().analyze(_doc(source, AlgorithmLanguage.SHELL, "x.sh")).symbols[0]
