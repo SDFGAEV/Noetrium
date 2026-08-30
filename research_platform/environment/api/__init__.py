@@ -1,5 +1,10 @@
 from .contracts import SystemIdentity, SystemSpec
 from .ports import SystemPort
+from .conformance import (
+    EnvironmentConformanceProbe,
+    EnvironmentProviderConformanceReceipt,
+    verify_environment_provider_conformance,
+)
 from .provider import (
     EnvironmentCapability,
     EnvironmentDiagnosticsPort,
@@ -51,6 +56,8 @@ __all__=[
     "ActionRequest", "ActionResult", "ActionSafetyCapabilityMissing",
     "ActionScientificCommitContradiction", "ActionSemanticIdentity",
     "EnvironmentCapabilityUnsupported", "EnvironmentCapability",
+    "EnvironmentConformanceProbe", "EnvironmentProviderConformanceReceipt",
+    "verify_environment_provider_conformance",
     "EnvironmentDiagnosticsPort", "EnvironmentProviderCapabilities",
     "EnvironmentProviderPort", "EnvironmentSessionDiagnostics",
     "EnvironmentSessionServices",

@@ -10,14 +10,13 @@ from research_platform.environment.api import (
     EnvironmentCapability,
     EnvironmentCapabilityUnsupported,
     EnvironmentIdentity,
-    EnvironmentProviderCapabilities,
-    EnvironmentProviderPort,
-)
-from research_platform.environment.providers import (
     EnvironmentConformanceProbe,
-    reference_counter_environment,
+    EnvironmentProviderCapabilities,
+    EnvironmentProviderConformanceReceipt,
+    EnvironmentProviderPort,
     verify_environment_provider_conformance,
 )
+from research_platform.environment.providers import reference_counter_environment
 from research_platform.platform.kernel import ExecutionContext
 
 

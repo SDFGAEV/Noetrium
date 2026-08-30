@@ -13,7 +13,9 @@ Downstream projects should depend on:
 - `research_platform.environment.api.EnvironmentSessionDiagnostics`
 - `research_platform.environment.api.EnvironmentDiagnosticsPort`
 - `research_platform.environment.api.EnvironmentCapabilityUnsupported`
-- `research_platform.environment.providers.verify_environment_provider_conformance`
+- `research_platform.environment.api.EnvironmentConformanceProbe`
+- `research_platform.environment.api.EnvironmentProviderConformanceReceipt`
+- `research_platform.environment.api.verify_environment_provider_conformance`
 
 Projects must not import provider-private runtime state, Minecraft bridge internals, state-machine checkpoint codecs, or platform service locators.
 
@@ -53,11 +55,11 @@ Diagnostics are inspection data. They do not become lifecycle, action, checkpoin
 
 ## Minimal non-Minecraft reference provider
 
-`research_platform.environment.providers.reference_counter_environment()` is the bundled clean-room reference environment.
+`research_platform.environment.providers.reference_counter_environment()` is the bundled Platform-owned clean-room reference implementation. It is intentionally **not** a downstream common-path import; generated project source must stay on `research_platform.environment.api`.
 
 It is deliberately tiny: a deterministic counter with `increment` and non-mutating `reject` actions. It uses the generic state-machine runtime, so the example exercises real action identity, effect receipts, snapshot/restore, reconciliation, diagnostics, and close semantics without requiring Java, Node, Minecraft, a server, or a benchmark-specific world.
 
-A generated project can use this provider for its first `doctor`, `test`, `run`, `inspect`, `resume`, and `reconcile` path before replacing it with a project-owned environment adapter.
+Platform-owned doctor/conformance tests may instantiate this reference provider to prove the generic seam. A downstream project should implement or compose its own provider against `research_platform.environment.api` and can run the same public conformance function without importing `environment.providers` or runtime internals.
 
 Provider conformance is exercised with:
 

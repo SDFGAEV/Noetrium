@@ -3,18 +3,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from hashlib import sha256
 
-from research_platform.environment.api import (
-    ActionRequest,
-    ActionResult,
+from .provider import (
     EnvironmentCapability,
-    EnvironmentCapabilityUnsupported,
     EnvironmentDiagnosticsPort,
-    EnvironmentIdentity,
     EnvironmentProviderCapabilities,
     EnvironmentProviderPort,
-    EnvironmentSession,
     EnvironmentSessionDiagnostics,
     EnvironmentSessionServices,
+)
+from .errors import EnvironmentCapabilityUnsupported
+from .contracts import (
+    ActionRequest,
+    ActionResult,
+    EnvironmentIdentity,
+    EnvironmentSession,
     Observation,
 )
 from research_platform.platform.kernel import EffectReceipt, ExecutionContext, canonical_digest
