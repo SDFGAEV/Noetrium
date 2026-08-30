@@ -19,7 +19,12 @@ class ServiceStartOutcome:
     contract_digest: str
     process: ServiceProcessIdentity
     ready_evidence_ref: str
+    ready_at: float
     evidence_refs: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(float(self.ready_at)) or self.ready_at <= 0:
+            raise ValueError("service readiness timestamp must be finite and positive")
 
 
 @dataclass(frozen=True, slots=True)

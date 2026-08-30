@@ -29,6 +29,7 @@ class ExactServiceRuntimeEndpoint:
             contract_digest=state.contract_digest,
             process=state.process,
             ready_evidence_ref=state.ready_evidence_ref,
+            ready_at=state.ready_at,
             evidence_refs=tuple(report.evidence_refs),
         )
 

@@ -1136,7 +1136,7 @@ class _FakeServiceRuntime:
 
     def start_exact(self, contract):
         self.calls.append("start")
-        return ServiceStartOutcome(contract.digest(), self.process, "ready-ref", ("start-ref",))
+        return ServiceStartOutcome(contract.digest(), self.process, "ready-ref", 1234.5, ("start-ref",))
 
     def verify_ready_exact(self, contract):
         self.calls.append("verify")
