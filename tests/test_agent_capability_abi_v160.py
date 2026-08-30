@@ -89,6 +89,7 @@ def test_agent_turn_json_boundary_is_deeply_immutable():
         result.output["plan"][0]["action"] = "tampered"
     with pytest.raises(TypeError): result.diagnostics["trace"]["verified"] = False
     with pytest.raises(TypeError): dict.__setitem__(result.output, "bypass", True)
+    with pytest.raises(TypeError): dict.__setitem__(result.diagnostics, "bypass", True)
     with pytest.raises(TypeError): list.append(result.output["plan"], {"action": "bypass"})
 
 

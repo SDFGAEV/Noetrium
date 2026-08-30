@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
@@ -53,7 +54,7 @@ class AgentTurnResult:
     output: JsonValue
     agent_generation: str | None = None
     artifacts: tuple[str, ...] = ()
-    diagnostics: dict[str, JsonValue] = field(default_factory=dict)
+    diagnostics: Mapping[str, JsonValue] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "output", freeze_json_value(self.output, field="agent turn output"))
@@ -78,7 +79,7 @@ class AgentSession(Protocol):
     def run_turn(self, request: AgentTurnRequest, capabilities: CapabilityPort) -> AgentTurnResult: ...
     def checkpoint(self) -> AgentSnapshot: ...
     def restore(self, snapshot: AgentSnapshot) -> None: ...
-    def diagnostics(self) -> dict[str, JsonValue]: ...
+    def diagnostics(self) -> Mapping[str, JsonValue]: ...
     def close(self) -> None: ...
 
 

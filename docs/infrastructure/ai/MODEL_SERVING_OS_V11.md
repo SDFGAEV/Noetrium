@@ -18,6 +18,8 @@ The resource envelope records measured peak GPU/host memory, maximum qualified c
 
 Durable host-inventory, runtime-qualification, and runtime-canary evidence is bound inside its checksummed document to the exact runtime-manifest digest that owns it. Directory placement alone is not authority: copying otherwise valid evidence into another manifest namespace must fail closed, and identical evidence publication is immutable/idempotent rather than overwriteable.
 
+Qualification interpretation also freezes its package-index lookup views: the package and `(package, index)` indexes are immutable mappings over captured `DeploymentCapabilityFacts`, so backend/package selection cannot be changed by mutating an internal index after the facts digest is bound.
+
 Persisted host inventory and resource-delta evidence is immutable and fail-closed. Each evidence document is checksum-protected, bound inside the document to the exact runtime-manifest digest, and decoded through exact schema/type/range invariants. Rebinding a valid receipt under another manifest path, recomputing a checksum over malformed typed facts, changing the phase identity, or overwriting an existing manifest/phase evidence identity is rejected. The embedded runtime snapshot is a frozen typed `RuntimeInventory` value rather than a mutable nested mapping, so a digested receipt cannot be mutated in memory after validation.
 
 ## Backpressure, not degradation
