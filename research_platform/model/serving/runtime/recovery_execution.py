@@ -8,7 +8,7 @@ from .recovery_transaction import RecoveryTransaction, RecoveryTxnState
 
 
 class RecoveryStepExecutor(Protocol):
-    def execute(self, step: RecoveryStep, plan: RecoveryPlan) -> tuple[str, ...]: ...
+    def run_step(self, step: RecoveryStep, plan: RecoveryPlan) -> tuple[str, ...]: ...
 
 
 class RecoveryExecutionError(RuntimeError):
@@ -53,7 +53,7 @@ class ExactRecoveryCoordinator:
         evidence: list[RecoveryStepEvidence] = []
         for step in plan.steps:
             try:
-                refs = tuple(self._executor.execute(step, plan))
+                refs = tuple(self._executor.run_step(step, plan))
             except Exception as exc:
                 txn.fail(step)
                 raise RecoveryExecutionError(step, exc, tuple(txn.completed_steps)) from exc

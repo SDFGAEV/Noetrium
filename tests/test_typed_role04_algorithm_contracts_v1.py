@@ -12,6 +12,8 @@ from research_platform.model.qualification.api import (
     RuntimeCheckReceipt,
 )
 from research_platform.model.serving.endpoint.api import QualifiedModelEndpointBinding
+from research_platform.model.serving.runtime import RecoveryStepExecutor
+from research_platform.model.serving.runtime.durable_recovery import DurableRecoveryExecutor
 from research_platform.participant.agent.api.cognition import AgentObservation
 from research_platform.participant.agent.runtime.conversation import ConversationMessage
 from research_platform.platform.kernel import ImmutableModelIdentity
@@ -79,3 +81,9 @@ def test_conversation_message_checks_last_metadata_value() -> None:
             "m", "peer", "sender", "text", 1,
             metadata={"a": "1", "b": "2", "tail": 3},
         )
+
+def test_recovery_executor_contract_uses_step_semantics_not_database_execute_name() -> None:
+    assert hasattr(DurableRecoveryExecutor, "run_step")
+    assert not hasattr(DurableRecoveryExecutor, "execute")
+    assert hasattr(RecoveryStepExecutor, "run_step")
+    assert not hasattr(RecoveryStepExecutor, "execute")
