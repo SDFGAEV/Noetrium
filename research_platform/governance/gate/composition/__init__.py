@@ -15,7 +15,18 @@ class ArchitectureReportGate(GatePort):
     gate_id = "governance.architecture"
 
     def evaluate(self, request: GateRequest) -> GateReport:
-        report = build_architecture_report(Path(request.root))
+        try:
+            report = build_architecture_report(Path(request.root))
+        except Exception as exc:
+            return GateReport(
+                self.gate_id,
+                (GateFinding(
+                    self.gate_id,
+                    GateSeverity.ERROR,
+                    "ARCHITECTURE_SOURCE_UNAVAILABLE",
+                    f"error_type={type(exc).__name__}",
+                ),),
+            )
         findings: list[GateFinding] = []
         for violation in report.import_violations:
             findings.append(GateFinding(self.gate_id, GateSeverity.ERROR, "IMPORT_BOUNDARY", str(asdict(violation))))
