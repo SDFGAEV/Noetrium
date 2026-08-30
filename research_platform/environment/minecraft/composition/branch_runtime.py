@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import replace
-import time
+import math
 from typing import Protocol
 
 from research_platform.environment.runtime.api import DurablePreparedActionSession, EnvironmentSession
 from research_platform.resource.allocation.api import (
     EndpointAllocation,
+    EndpointAllocationState,
     EndpointBindingProof,
     EndpointAllocationPort,
     EndpointLeaseGuardFactoryPort,
@@ -24,6 +25,7 @@ from ..api import (
     MinecraftEnvironmentSpec,
     MinecraftServerSpec,
     MinecraftServerLifecyclePort,
+    MinecraftServerEndpointBindingPort,
     MinecraftSessionServices,
 )
 from .environment import MinecraftEnvironmentAssembly
@@ -65,7 +67,118 @@ class MinecraftBranchCheckpointFactoryPort(Protocol):
         server: MinecraftServerLifecyclePort,
         server_spec: MinecraftServerSpec,
         environment_generation: str,
+        endpoint_binding: MinecraftServerEndpointBindingPort,
     ) -> MinecraftCheckpointPort: ...
+
+
+class _EndpointGenerationAllocationPort(EndpointAllocationPort, Protocol):
+    """ROLE02 generation-fenced endpoint authority required by MC restarts."""
+
+    def replace_bound(
+        self,
+        proof: EndpointBindingProof,
+        *,
+        expected_previous_binding_proof_digest: str,
+    ) -> EndpointAllocation: ...
+
+
+class _MinecraftEndpointBindingAuthority(MinecraftServerEndpointBindingPort):
+    """Bind each exact server process generation to its reserved endpoints."""
+
+    def __init__(
+        self,
+        *,
+        allocation: EndpointAllocation,
+        rcon_allocation: EndpointAllocation | None,
+        endpoint_allocations: _EndpointGenerationAllocationPort,
+        environment_generation: str,
+    ) -> None:
+        self.allocation = allocation
+        self.rcon_allocation = rcon_allocation
+        self._endpoint_allocations = endpoint_allocations
+        self._environment_generation = environment_generation
+
+    @staticmethod
+    def _ready_at(readiness: ServiceReadyObservation) -> float:
+        try:
+            observed_at = readiness.ready_at
+        except AttributeError as exc:
+            raise MinecraftBranchRuntimeError(
+                "branch readiness omitted authoritative ready_at",
+                phase="bind",
+                cause=exc,
+            ) from exc
+        if (
+            isinstance(observed_at, bool)
+            or not isinstance(observed_at, (int, float))
+            or not math.isfinite(float(observed_at))
+            or observed_at <= 0
+        ):
+            raise MinecraftBranchRuntimeError(
+                "branch readiness ready_at is not finite and positive",
+                phase="bind",
+            )
+        return float(observed_at)
+
+    def _confirm(
+        self,
+        allocation: EndpointAllocation,
+        *,
+        readiness: ServiceReadyObservation,
+        binder_identity_digest: str,
+        observed_at: float,
+    ) -> EndpointAllocation:
+        proof = EndpointBindingProof(
+            allocation_id=allocation.allocation_id,
+            endpoint=allocation.endpoint,
+            lease_fencing_token=allocation.lease_fencing_token,
+            binder_identity_digest=binder_identity_digest,
+            observed_at_epoch_s=observed_at,
+            evidence_ref=readiness.ready_evidence_ref,
+        )
+        proof_digest = proof.digest()
+        if allocation.state is EndpointAllocationState.RESERVED:
+            return self._endpoint_allocations.confirm_bound(proof)
+        if allocation.state is not EndpointAllocationState.BOUND:
+            raise MinecraftBranchRuntimeError(
+                "branch endpoint is neither reserved nor bound",
+                phase="bind",
+            )
+        if allocation.binding_proof_digest == proof_digest:
+            return self._endpoint_allocations.confirm_bound(proof)
+        previous = allocation.binding_proof_digest
+        if previous is None:
+            raise MinecraftBranchRuntimeError(
+                "bound branch endpoint has no prior binding proof digest",
+                phase="bind",
+            )
+        return self._endpoint_allocations.replace_bound(
+            proof,
+            expected_previous_binding_proof_digest=previous,
+        )
+
+    def bind_ready(self, readiness: ServiceReadyObservation) -> None:
+        observed_at = self._ready_at(readiness)
+        binder_identity_digest = canonical_digest(
+            {
+                "contract_digest": readiness.contract_digest,
+                "process": readiness.process,
+                "environment_generation": self._environment_generation,
+            }
+        )
+        self.allocation = self._confirm(
+            self.allocation,
+            readiness=readiness,
+            binder_identity_digest=binder_identity_digest,
+            observed_at=observed_at,
+        )
+        if self.rcon_allocation is not None:
+            self.rcon_allocation = self._confirm(
+                self.rcon_allocation,
+                readiness=readiness,
+                binder_identity_digest=binder_identity_digest,
+                observed_at=observed_at,
+            )
 
 
 class _LeaseGuardedEnvironmentSession:
@@ -129,8 +242,7 @@ class MinecraftBranchRuntimeBinding(MinecraftBranchRuntimePort):
     def __init__(
         self,
         *,
-        allocation: EndpointAllocation,
-        rcon_allocation: EndpointAllocation | None,
+        endpoint_binding: _MinecraftEndpointBindingAuthority,
         implementation: MinecraftEnvironmentImplementation,
         environment_runtime: MinecraftEnvironmentRuntime,
         server: MinecraftServerLifecyclePort,
@@ -138,8 +250,7 @@ class MinecraftBranchRuntimeBinding(MinecraftBranchRuntimePort):
         endpoint_allocations: EndpointAllocationPort,
         lease_guard: EndpointLeaseGuardPort,
     ) -> None:
-        self.allocation = allocation
-        self.rcon_allocation = rcon_allocation
+        self._endpoint_binding = endpoint_binding
         self.implementation = implementation
         self._environment_runtime = environment_runtime
         self._server = server
@@ -151,39 +262,19 @@ class MinecraftBranchRuntimeBinding(MinecraftBranchRuntimePort):
         self._released_allocation_ids: set[str] = set()
 
     @property
+    def allocation(self) -> EndpointAllocation:
+        return self._endpoint_binding.allocation
+
+    @property
+    def rcon_allocation(self) -> EndpointAllocation | None:
+        return self._endpoint_binding.rcon_allocation
+
+    @property
     def environment_generation(self) -> str:
         return self.implementation.identity.artifact_digest
 
     def _confirm_bound_endpoints(self, readiness: ServiceReadyObservation) -> None:
-        if not isinstance(readiness, ServiceReadyObservation):
-            raise MinecraftBranchRuntimeError(
-                "branch server readiness did not return typed evidence",
-                phase="bind",
-            )
-        binder_identity_digest = canonical_digest(
-            {
-                "contract_digest": readiness.contract_digest,
-                "process": readiness.process,
-                "environment_generation": self.environment_generation,
-            }
-        )
-        observed_at = time.time()
-
-        def confirm(allocation: EndpointAllocation) -> EndpointAllocation:
-            return self._endpoint_allocations.confirm_bound(
-                EndpointBindingProof(
-                    allocation_id=allocation.allocation_id,
-                    endpoint=allocation.endpoint,
-                    lease_fencing_token=allocation.lease_fencing_token,
-                    binder_identity_digest=binder_identity_digest,
-                    observed_at_epoch_s=observed_at,
-                    evidence_ref=readiness.ready_evidence_ref,
-                )
-            )
-
-        self.allocation = confirm(self.allocation)
-        if self.rcon_allocation is not None:
-            self.rcon_allocation = confirm(self.rcon_allocation)
+        self._endpoint_binding.bind_ready(readiness)
 
     def open_session(self, services: MinecraftSessionServices) -> EnvironmentSession:
         if self._closed:
@@ -289,7 +380,7 @@ class MinecraftBranchRuntimeFactory(MinecraftBranchRuntimeFactoryPort):
     def __init__(
         self,
         *,
-        endpoint_allocations: EndpointAllocationPort,
+        endpoint_allocations: _EndpointGenerationAllocationPort,
         environment_factory: MinecraftBranchEnvironmentFactoryPort,
         server_factory: MinecraftBranchServerFactoryPort,
         checkpoint_factory: MinecraftBranchCheckpointFactoryPort | None = None,
@@ -350,6 +441,12 @@ class MinecraftBranchRuntimeFactory(MinecraftBranchRuntimeFactoryPort):
                     ),
                 )
             environment_generation = environment_spec.scientific_identity_digest()
+            endpoint_binding = _MinecraftEndpointBindingAuthority(
+                allocation=allocation,
+                rcon_allocation=rcon_allocation,
+                endpoint_allocations=self._endpoint_allocations,
+                environment_generation=environment_generation,
+            )
             server = self._server_factory.create(
                 server_spec,
                 environment_generation=environment_generation,
@@ -360,6 +457,7 @@ class MinecraftBranchRuntimeFactory(MinecraftBranchRuntimeFactoryPort):
                     server=server,
                     server_spec=server_spec,
                     environment_generation=environment_generation,
+                    endpoint_binding=endpoint_binding,
                 )
                 environment = self._environment_factory.compose(
                     environment_spec,
@@ -375,8 +473,7 @@ class MinecraftBranchRuntimeFactory(MinecraftBranchRuntimeFactoryPort):
                     phase="compose",
                 )
             return MinecraftBranchRuntimeBinding(
-                allocation=allocation,
-                rcon_allocation=rcon_allocation,
+                endpoint_binding=endpoint_binding,
                 implementation=environment.implementation,
                 environment_runtime=environment.runtime,
                 server=server,

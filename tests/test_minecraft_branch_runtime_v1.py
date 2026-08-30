@@ -28,12 +28,7 @@ from research_platform.resource.allocation.api import (
 )
 from research_platform.resource.allocation.runtime import InMemoryEndpointAllocator
 from research_platform.resource.lease.runtime import InMemoryResourceLeaseRegistry
-from research_platform.runtime.service.api import (
-    ServiceProcessIdentity,
-    ServiceReadyObservation,
-    ServiceStartOutcome,
-    ServiceStopOutcome,
-)
+from research_platform.runtime.service.api import ServiceProcessIdentity
 from research_platform.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
 
 
@@ -73,27 +68,48 @@ class RecordingEnvironmentRuntime:
         return RecordingSession(self.events)
 
 
+class _ReadyObservation:
+    def __init__(
+        self,
+        contract_digest: str,
+        process: ServiceProcessIdentity,
+        ready_evidence_ref: str,
+        ready_at: float,
+    ) -> None:
+        self.contract_digest = contract_digest
+        self.process = process
+        self.ready_evidence_ref = ready_evidence_ref
+        self.ready_at = ready_at
+        self.evidence_refs = ("ready",)
+
+
 class RecordingServer:
     def __init__(self, events: list[str]) -> None:
         self.events = events
         self.contract_digest = "c" * 64
         self.process = ServiceProcessIdentity(9001, "start-9001", 9001)
+        self.ready_at = 1234.5
+        self.ready_evidence_ref = "minecraft-ready:verified:9001"
 
-    def start(self) -> ServiceStartOutcome:
+    def advance_generation(self, *, pid: int, ready_at: float) -> None:
+        self.process = ServiceProcessIdentity(pid, f"start-{pid}", pid)
+        self.ready_at = ready_at
+        self.ready_evidence_ref = f"minecraft-ready:verified:{pid}"
+
+    def start(self) -> None:
         self.events.append("server.start")
-        return ServiceStartOutcome(
-            self.contract_digest, self.process, "minecraft-ready:start", ("start",)
-        )
 
-    def verify_ready(self) -> ServiceReadyObservation:
+    def verify_ready(self):
         self.events.append("server.ready")
-        return ServiceReadyObservation(
-            self.contract_digest, self.process, "minecraft-ready:verified", ("ready",)
+        return _ReadyObservation(
+            self.contract_digest,
+            self.process,
+            self.ready_evidence_ref,
+            self.ready_at,
         )
 
-    def stop(self) -> ServiceStopOutcome:
+    def stop(self) -> None:
         self.events.append("server.stop")
-        return ServiceStopOutcome(self.contract_digest, True, ("stop",))
 
 
 def _request() -> MinecraftBranchRuntimeRequest:
@@ -166,7 +182,8 @@ def test_branch_runtime_binds_branch_endpoint_and_releases_in_reverse_order() ->
     assert session is not None
     assert not isinstance(session, DurablePreparedActionSession)
     assert binding.allocation.state is EndpointAllocationState.BOUND
-    assert binding.allocation.binding_evidence_ref == "minecraft-ready:verified"
+    assert binding.allocation.binding_evidence_ref == "minecraft-ready:verified:9001"
+    assert binding.allocation.bound_at_epoch_s == 1234.5
     assert allocations.get(binding.allocation.allocation_id).state is EndpointAllocationState.BOUND
     assert created_specs[0].workdir == r"C:\mc\branches\candidate-a"
     assert created_specs[0].level_name == "candidate-a-world"
@@ -180,6 +197,219 @@ def test_branch_runtime_binds_branch_endpoint_and_releases_in_reverse_order() ->
         "server.stop",
     ]
     assert not allocations.active()
+
+
+def test_branch_runtime_rebinds_new_server_generation_with_prior_proof_cas() -> None:
+    leases = InMemoryResourceLeaseRegistry()
+    delegate = InMemoryEndpointAllocator(
+        ownership=leases,
+        leases=leases,
+        probe=AlwaysAvailableProbe(),
+    )
+
+    class GenerationAwareAllocator:
+        def __init__(self) -> None:
+            self.replacements: list[tuple[str, str]] = []
+
+        def __getattr__(self, name):
+            return getattr(delegate, name)
+
+        def replace_bound(self, proof, *, expected_previous_binding_proof_digest: str):
+            current = delegate.get(proof.allocation_id)
+            assert current.binding_proof_digest == expected_previous_binding_proof_digest
+            updated = replace(
+                current,
+                binding_proof_digest=proof.digest(),
+                binding_evidence_ref=proof.evidence_ref,
+                bound_at_epoch_s=proof.observed_at_epoch_s,
+            )
+            delegate._allocations[proof.allocation_id] = updated
+            self.replacements.append(
+                (expected_previous_binding_proof_digest, proof.digest())
+            )
+            return updated
+
+    allocations = GenerationAwareAllocator()
+    events: list[str] = []
+    servers: list[RecordingServer] = []
+
+    def compose_environment(spec: MinecraftEnvironmentSpec) -> MinecraftEnvironmentAssembly:
+        implementation = MinecraftEnvironmentImplementation(
+            spec=spec, bridge_factory=lambda _: object()
+        )
+        return MinecraftEnvironmentAssembly(
+            implementation, RecordingEnvironmentRuntime(events)
+        )
+
+    class ServerFactory:
+        def create(self, spec: MinecraftServerSpec, *, environment_generation: str) -> RecordingServer:
+            server = RecordingServer(events)
+            servers.append(server)
+            return server
+
+    factory = MinecraftBranchRuntimeFactory(
+        endpoint_allocations=allocations,
+        lease_guard_factory=NoopGuardFactory(),
+        environment_factory=type(
+            "EnvironmentFactory", (), {"compose": staticmethod(compose_environment)}
+        )(),
+        server_factory=ServerFactory(),
+    )
+    binding = factory.open(_request())
+    binding.open_session(services=object())
+    previous = binding.allocation.binding_proof_digest
+    assert previous is not None
+
+    server = servers[0]
+    server.advance_generation(pid=9002, ready_at=2345.5)
+    readiness = server.verify_ready()
+    binding._confirm_bound_endpoints(readiness)
+
+    assert len(allocations.replacements) == 1
+    assert allocations.replacements[0][0] == previous
+    assert binding.allocation.binding_proof_digest == allocations.replacements[0][1]
+    assert binding.allocation.binding_proof_digest != previous
+    assert binding.allocation.binding_evidence_ref == "minecraft-ready:verified:9002"
+    assert binding.allocation.bound_at_epoch_s == 2345.5
+
+    # Exact replay of the same READY generation is idempotent, not a CAS replace.
+    binding._confirm_bound_endpoints(readiness)
+    assert len(allocations.replacements) == 1
+    binding.close()
+    assert not delegate.active()
+
+
+def test_branch_runtime_fails_closed_without_authoritative_ready_at() -> None:
+    leases = InMemoryResourceLeaseRegistry()
+    allocations = InMemoryEndpointAllocator(
+        ownership=leases,
+        leases=leases,
+        probe=AlwaysAvailableProbe(),
+    )
+    events: list[str] = []
+
+    def compose_environment(spec: MinecraftEnvironmentSpec) -> MinecraftEnvironmentAssembly:
+        implementation = MinecraftEnvironmentImplementation(
+            spec=spec, bridge_factory=lambda _: object()
+        )
+        return MinecraftEnvironmentAssembly(
+            implementation, RecordingEnvironmentRuntime(events)
+        )
+
+    class MissingReadyAtServer(RecordingServer):
+        def verify_ready(self):
+            self.events.append("server.ready")
+            class MissingReadyAt:
+                contract_digest = self.contract_digest
+                process = self.process
+                ready_evidence_ref = self.ready_evidence_ref
+            return MissingReadyAt()
+
+    class ServerFactory:
+        def create(self, spec: MinecraftServerSpec, *, environment_generation: str):
+            return MissingReadyAtServer(events)
+
+    factory = MinecraftBranchRuntimeFactory(
+        endpoint_allocations=allocations,
+        lease_guard_factory=NoopGuardFactory(),
+        environment_factory=type(
+            "EnvironmentFactory", (), {"compose": staticmethod(compose_environment)}
+        )(),
+        server_factory=ServerFactory(),
+    )
+    binding = factory.open(_request())
+    with pytest.raises(Exception, match="branch runtime start failed") as raised:
+        binding.open_session(services=object())
+    assert raised.value.phase == "start"
+    assert raised.value.cause is not None
+    assert raised.value.cause.phase == "bind"
+    assert "authoritative ready_at" in str(raised.value.cause)
+    assert not allocations.active()
+
+
+def test_branch_runtime_rebinds_game_and_rcon_generation_together() -> None:
+    leases = InMemoryResourceLeaseRegistry()
+    delegate = InMemoryEndpointAllocator(
+        ownership=leases,
+        leases=leases,
+        probe=AlwaysAvailableProbe(),
+    )
+
+    class GenerationAwareAllocator:
+        def __init__(self) -> None:
+            self.replaced: list[str] = []
+        def __getattr__(self, name):
+            return getattr(delegate, name)
+        def replace_bound(self, proof, *, expected_previous_binding_proof_digest: str):
+            current = delegate.get(proof.allocation_id)
+            assert current.binding_proof_digest == expected_previous_binding_proof_digest
+            updated = replace(
+                current,
+                binding_proof_digest=proof.digest(),
+                binding_evidence_ref=proof.evidence_ref,
+                bound_at_epoch_s=proof.observed_at_epoch_s,
+            )
+            delegate._allocations[proof.allocation_id] = updated
+            self.replaced.append(proof.allocation_id)
+            return updated
+
+    allocations = GenerationAwareAllocator()
+    events: list[str] = []
+    servers: list[RecordingServer] = []
+
+    def compose_environment(spec: MinecraftEnvironmentSpec) -> MinecraftEnvironmentAssembly:
+        implementation = MinecraftEnvironmentImplementation(
+            spec=spec, bridge_factory=lambda _: object()
+        )
+        return MinecraftEnvironmentAssembly(
+            implementation, RecordingEnvironmentRuntime(events)
+        )
+
+    class ServerFactory:
+        def create(self, spec: MinecraftServerSpec, *, environment_generation: str):
+            server = RecordingServer(events)
+            servers.append(server)
+            return server
+
+    request = _request()
+    request = replace(
+        request,
+        server_template=replace(
+            request.server_template,
+            rcon_endpoint=MinecraftRconEndpoint(port=25575),
+        ),
+        rcon_endpoint_allocation=EndpointAllocationRequest(
+            allocation_id="candidate-a-rcon-generation",
+            holder_scope=ScopeIdentity(ScopeKind.BRANCH, "candidate-a"),
+            purpose="candidate branch rcon generation",
+            host="127.0.0.1",
+            candidate_ports=(25578,),
+            owner_scope=PLATFORM_SCOPE,
+        ),
+    )
+    factory = MinecraftBranchRuntimeFactory(
+        endpoint_allocations=allocations,
+        lease_guard_factory=NoopGuardFactory(),
+        environment_factory=type(
+            "EnvironmentFactory", (), {"compose": staticmethod(compose_environment)}
+        )(),
+        server_factory=ServerFactory(),
+    )
+    binding = factory.open(request)
+    binding.open_session(services=object())
+    server = servers[0]
+    server.advance_generation(pid=9003, ready_at=3456.5)
+    binding._confirm_bound_endpoints(server.verify_ready())
+
+    assert allocations.replaced == [
+        "candidate-a-endpoint",
+        "candidate-a-rcon-generation",
+    ]
+    assert binding.allocation.bound_at_epoch_s == 3456.5
+    assert binding.rcon_allocation is not None
+    assert binding.rcon_allocation.bound_at_epoch_s == 3456.5
+    binding.close()
+    assert not delegate.active()
 
 
 def test_branch_runtime_binds_recovery_root_outside_world_and_preserves_prepared_capability() -> None:
@@ -339,8 +569,8 @@ def test_branch_runtime_allocates_and_rebinds_rcon_endpoint_as_part_of_branch_tr
     assert binding.allocation.state is EndpointAllocationState.BOUND
     assert binding.rcon_allocation is not None
     assert binding.rcon_allocation.state is EndpointAllocationState.BOUND
-    assert binding.allocation.binding_evidence_ref == "minecraft-ready:verified"
-    assert binding.rcon_allocation.binding_evidence_ref == "minecraft-ready:verified"
+    assert binding.allocation.binding_evidence_ref == "minecraft-ready:verified:9001"
+    assert binding.rcon_allocation.binding_evidence_ref == "minecraft-ready:verified:9001"
     binding.close()
     assert not allocations.active()
 

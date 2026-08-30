@@ -14,6 +14,7 @@ from ..api import (
     MinecraftCheckpointPort,
     MinecraftRconEndpoint,
     MinecraftServerLifecyclePort,
+    MinecraftServerEndpointBindingPort,
     MinecraftServerSpec,
     MinecraftWorldCut,
 )
@@ -45,6 +46,7 @@ class FilesystemMinecraftBranchCheckpointProvider(MinecraftCheckpointPort):
         server_spec: MinecraftServerSpec,
         world_cuts: FilesystemMinecraftWorldCutProvider,
         environment_generation: str,
+        endpoint_binding: MinecraftServerEndpointBindingPort,
     ) -> None:
         if not environment_generation.strip():
             raise ValueError("branch checkpoint requires environment generation")
@@ -52,6 +54,7 @@ class FilesystemMinecraftBranchCheckpointProvider(MinecraftCheckpointPort):
         self._server_spec = server_spec
         self._world_cuts = world_cuts
         self._environment_generation = environment_generation
+        self._endpoint_binding = endpoint_binding
         workdir = self._workdir()
         self._restore_journal_path = workdir.parent / f".{workdir.name}.checkpoint-restore.json"
         self._restore_journal = MinecraftBranchRestoreJournal(
@@ -149,7 +152,8 @@ class FilesystemMinecraftBranchCheckpointProvider(MinecraftCheckpointPort):
         try:
             if workdir.is_dir():
                 self._server.start()
-                self._server.verify_ready()
+                readiness = self._server.verify_ready()
+                self._endpoint_binding.bind_ready(readiness)
         except BaseException as exc:
             recovery_errors.append(exc)
         if recovery_errors:
@@ -226,7 +230,8 @@ class FilesystemMinecraftBranchCheckpointProvider(MinecraftCheckpointPort):
                     "restored branch workdir does not match checkpoint manifest"
                 )
             self._server.start()
-            self._server.verify_ready()
+            readiness = self._server.verify_ready()
+            self._endpoint_binding.bind_ready(readiness)
             restore_document = self._set_restore_phase(restore_document, "committed")
             shutil.rmtree(backup)
             fsync_directory(workdir.parent)
