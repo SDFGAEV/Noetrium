@@ -18,7 +18,7 @@
       "delta": {
         "top_level_systems": 0,
         "subsystems": 1,
-        "contract_declarations": 11,
+        "contract_declarations": 12,
         "authorities": 1,
         "import_edges": 31
       },

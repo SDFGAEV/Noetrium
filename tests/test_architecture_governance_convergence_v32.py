@@ -69,7 +69,7 @@ def _baseline_complexity(import_edges: int = 4749) -> dict[str, int]:
     return {
         "top_level_systems": 17,
         "subsystems": 174,
-        "contract_declarations": 140,
+        "contract_declarations": 141,
         "authorities": 191,
         "import_edges": import_edges,
     }
@@ -260,7 +260,7 @@ def _multidim_budget_document(projection: str) -> dict[str, object]:
         "schema_version": "architecture-complexity-budget.v3",
         "baseline": {
             "git_sha": "1" * 40, "source_digest": "2" * 64,
-            "complexity": {"top_level_systems":17,"subsystems":173,"contract_declarations":139,"authorities":190,"import_edges":4749},
+            "complexity": {"top_level_systems":17,"subsystems":173,"contract_declarations":140,"authorities":190,"import_edges":4749},
         },
         "migrations": [{
             "migration_id": "test-reviewed-migration", "owner_role": "ROLE01",
@@ -276,8 +276,8 @@ def _multidim_budget_document(projection: str) -> dict[str, object]:
 def _multidim_resolver(projection: str, owner_digest: str):
     def resolve(sha: str, prefixes: tuple[str, ...]):
         if sha == "1" * 40:
-            return "2" * 64, ArchitectureMigrationObservation(ArchitectureComplexity(17,173,139,190,4749),None,None)
-        return "b" * 64, ArchitectureMigrationObservation(ArchitectureComplexity(17,174,140,191,4750),projection,owner_digest)
+            return "2" * 64, ArchitectureMigrationObservation(ArchitectureComplexity(17,173,140,190,4749),None,None)
+        return "b" * 64, ArchitectureMigrationObservation(ArchitectureComplexity(17,174,141,191,4750),projection,owner_digest)
     return resolve
 
 def test_v2_approval_file_decodes_complete_complexity_delta(tmp_path: Path) -> None:
@@ -326,7 +326,7 @@ def test_v2_full_complexity_approval_authorizes_exact_multidimensional_migration
         verify_provenance=True)
     assert violations == () and budget is not None
     assert budget.applicable_migration_ids == ("test-reviewed-migration",)
-    assert budget.limits == ArchitectureComplexity(17,174,140,191,4750)
+    assert budget.limits == ArchitectureComplexity(17,174,141,191,4750)
 
 def test_v2_mismatched_complexity_delta_contributes_zero_headroom(tmp_path: Path) -> None:
     pairs=(("research_platform.governance.a","research_platform.platform.b"),)
@@ -501,6 +501,11 @@ def test_current_downstream_proposals_have_exact_applicability_without_self_appr
         assert migration.import_projection_sha256 == projection
 
 
+def test_portfolio_catalog_declares_canonical_manifest_dependencies() -> None:
+    descriptor = next(row for row in system_catalog() if row.identity.key == "portfolio")
+    assert descriptor.requires == ("platform", "scope")
+
+
 def test_operator_catalog_declares_run_control_dependencies() -> None:
     descriptor = next(row for row in system_catalog() if row.identity.key == "operator")
     assert descriptor.requires == (
@@ -534,7 +539,7 @@ def test_run_control_standard_shape_is_registered(tmp_path: Path) -> None:
 
 def test_role01_run_control_catalog_growth_is_budgeted() -> None:
     migration=next(row for row in load_architecture_complexity_budget(Path(__file__).resolve().parents[1]).migrations if row.owner_role=="ROLE01")
-    assert (migration.delta.subsystems,migration.delta.contract_declarations,migration.delta.authorities,migration.delta.import_edges)==(1,11,1,31)
+    assert (migration.delta.subsystems,migration.delta.contract_declarations,migration.delta.authorities,migration.delta.import_edges)==(1,12,1,31)
     assert migration.module_prefixes==("research_platform.platform","research_platform.governance","research_platform.scope","research_platform.portfolio")
     assert migration.import_projection_sha256=="f1f77c3e85117adc449c56dd807bdd46b3f3d1b4412f677bcb40b8b2548f0699"
 
