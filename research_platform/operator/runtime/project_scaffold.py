@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import shutil
-import tempfile
 from pathlib import Path
 
 from research_platform.operator.api import (
@@ -13,6 +11,7 @@ from research_platform.operator.api import (
 )
 from research_platform.operator.runtime.project_layout import project_package_name
 from research_platform.operator.runtime.project_platform_identity import installed_platform_identity
+from research_platform.platform.kernel.durability import InterprocessFileLock, atomic_replace_bytes
 from research_platform.portfolio.api import (
     ProjectIdentity,
     ProjectManifest,
@@ -120,11 +119,20 @@ def _verify_existing(root: Path, files: dict[str, bytes]) -> None:
             )
 
 
-def _write_stage(stage: Path, files: dict[str, bytes]) -> None:
-    for relative, content in sorted(files.items()):
-        target = stage / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(content)
+def _write_new_project(root: Path, files: dict[str, bytes]) -> None:
+    root.mkdir(parents=False, exist_ok=False)
+    marker = ".research-platform-template"
+    ordered = [name for name in sorted(files) if name != marker]
+    if marker in files:
+        ordered.append(marker)
+    try:
+        for relative in ordered:
+            target = root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            atomic_replace_bytes(target, files[relative])
+    except BaseException:
+        shutil.rmtree(root, ignore_errors=True)
+        raise
 
 
 def create_project(request: ProjectCreateRequest) -> ProjectCreateReceipt:
@@ -132,19 +140,15 @@ def create_project(request: ProjectCreateRequest) -> ProjectCreateReceipt:
     root = request.destination.expanduser().absolute()
     if root.is_symlink():
         raise ValueError("project destination must not be a symlink")
-    if root.exists():
-        if not root.is_dir():
-            raise ValueError("project destination exists and is not a directory")
-        _verify_existing(root, files)
-    else:
-        root.parent.mkdir(parents=True, exist_ok=True)
-        stage = Path(tempfile.mkdtemp(prefix=f".{root.name}.research-create-", dir=root.parent))
-        try:
-            _write_stage(stage, files)
-            os.replace(stage, root)
-        finally:
-            if stage.exists():
-                shutil.rmtree(stage, ignore_errors=True)
+    root.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = root.parent / f".{root.name}.research-create.lock"
+    with InterprocessFileLock(lock_path):
+        if root.exists():
+            if not root.is_dir():
+                raise ValueError("project destination exists and is not a directory")
+            _verify_existing(root, files)
+        else:
+            _write_new_project(root, files)
     return ProjectCreateReceipt(
         project_id=request.project_id,
         version=request.version,

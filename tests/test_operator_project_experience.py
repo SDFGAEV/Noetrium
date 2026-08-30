@@ -72,24 +72,43 @@ def test_project_create_rejects_drift_without_rewriting(
     assert readme.read_text(encoding="utf-8") == "user change\n"
 
 
-def test_project_create_cleans_partial_stage_on_failure(
+def test_project_create_cleans_partial_publication_on_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _bind_fixed_platform(monkeypatch)
     root = tmp_path / "demo-project"
     request = ProjectCreateRequest("demo-project", "0.1.0", root)
+    original = project_scaffold.atomic_replace_bytes
+    calls = 0
 
-    def fail_stage(stage: Path, files: dict[str, bytes]) -> None:
-        del files
-        (stage / "partial.txt").write_text("partial", encoding="utf-8")
-        raise OSError("injected stage failure")
+    def fail_publication(path: Path, payload: bytes) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError("injected publication failure")
+        original(path, payload)
 
-    monkeypatch.setattr(project_scaffold, "_write_stage", fail_stage)
-    with pytest.raises(OSError, match="injected stage failure"):
+    monkeypatch.setattr(project_scaffold, "atomic_replace_bytes", fail_publication)
+    with pytest.raises(OSError, match="injected publication failure"):
         project_scaffold.create_project(request)
 
     assert not root.exists()
-    assert not tuple(tmp_path.glob(".demo-project.research-create-*"))
+
+
+def test_project_create_rejects_incomplete_crash_residue_without_repair(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _bind_fixed_platform(monkeypatch)
+    root = tmp_path / "demo-project"
+    root.mkdir()
+    partial = root / "README.md"
+    partial.write_text("partial crash residue\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="identical generated scaffold"):
+        project_scaffold.create_project(ProjectCreateRequest("demo-project", "0.1.0", root))
+
+    assert partial.read_text(encoding="utf-8") == "partial crash residue\n"
+    assert not (root / ".research-platform-template").exists()
 
 
 def test_project_doctor_rejects_manifest_and_private_import_drift(
