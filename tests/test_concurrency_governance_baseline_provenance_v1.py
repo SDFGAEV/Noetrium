@@ -328,3 +328,38 @@ def test_duplicate_approved_governance_baseline_identity_is_rejected() -> None:
             default_decision="not_approved",
             rule="Exact lane/source/analyzer/baseline identity only.",
         )
+
+def test_lane_implementation_digest_covers_lane_source_bytes(tmp_path: Path) -> None:
+    from research_platform.governance.api import GovernanceBaselineLane
+    from research_platform.governance.providers import RepositorySourceTree
+    from research_platform.governance.runtime import governance_lane_implementation_digest
+
+    source = tmp_path / "research_platform" / "governance" / "concurrency" / "runtime" / "x.py"
+    source.parent.mkdir(parents=True)
+    source.write_text("VALUE = 1\n", encoding="utf-8")
+    first = governance_lane_implementation_digest(
+        RepositorySourceTree(tmp_path).index(), GovernanceBaselineLane.CONCURRENCY
+    )
+    source.write_text("VALUE = 2\n", encoding="utf-8")
+    second = governance_lane_implementation_digest(
+        RepositorySourceTree(tmp_path).index(), GovernanceBaselineLane.CONCURRENCY
+    )
+    assert first != second
+
+
+def test_lane_implementation_digest_is_line_ending_independent(tmp_path: Path) -> None:
+    from research_platform.governance.api import GovernanceBaselineLane
+    from research_platform.governance.providers import RepositorySourceTree
+    from research_platform.governance.runtime import governance_lane_implementation_digest
+
+    source = tmp_path / "research_platform" / "governance" / "performance" / "runtime" / "x.py"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"VALUE = 1\r\n")
+    crlf = governance_lane_implementation_digest(
+        RepositorySourceTree(tmp_path).index(), GovernanceBaselineLane.PERFORMANCE
+    )
+    source.write_bytes(b"VALUE = 1\n")
+    lf = governance_lane_implementation_digest(
+        RepositorySourceTree(tmp_path).index(), GovernanceBaselineLane.PERFORMANCE
+    )
+    assert crlf == lf

@@ -17,7 +17,7 @@ def governance_lane_implementation_digest(
 ) -> str:
     return repository_source_scope_text_digest(
         source_index,
-        (f"research_platform.governance.{lane.value}",),
+        path_prefixes=(f"research_platform/governance/{lane.value}",),
     )
 
 
