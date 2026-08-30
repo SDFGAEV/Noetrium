@@ -26,7 +26,8 @@ def _baseline_from_snapshot(snapshot: ConcurrencySnapshot) -> ConcurrencyBaselin
         source_digest=snapshot.source_digest,
         analyzer_revision=snapshot.analyzer_revision,
         analyzer_implementation_digest=snapshot.analyzer_implementation_digest,
-        blocker_fingerprints=snapshot.blocker_fingerprints,
+        observed_blocker_fingerprints=snapshot.blocker_fingerprints,
+        accepted_blocker_fingerprints=snapshot.blocker_fingerprints,
     )
 
 
@@ -39,7 +40,8 @@ def _baseline_digest(baseline: ConcurrencyBaseline) -> str:
         source_digest=baseline.source_digest,
         analyzer_revision=baseline.analyzer_revision,
         analyzer_implementation_digest=baseline.analyzer_implementation_digest,
-        blocker_fingerprints=baseline.blocker_fingerprints,
+        observed_blocker_fingerprints=baseline.observed_blocker_fingerprints,
+        accepted_blocker_fingerprints=baseline.accepted_blocker_fingerprints,
     )
 
 
@@ -68,8 +70,8 @@ def _provenance_blocker(
         return "concurrency baseline analyzer revision is not reproducible"
     if historical.analyzer_implementation_digest != baseline.analyzer_implementation_digest:
         return "concurrency baseline analyzer implementation identity is not reproducible"
-    if historical.blocker_fingerprints != baseline.blocker_fingerprints:
-        return "concurrency baseline blocker fingerprints are not reproducible from immutable source"
+    if historical.blocker_fingerprints != baseline.observed_blocker_fingerprints:
+        return "concurrency baseline observed blocker fingerprints are not reproducible from immutable source"
     return None
 
 
@@ -120,7 +122,7 @@ class ConcurrencyGovernanceService:
             blocker=_provenance_blocker(baseline,snapshot,self.baseline_replay)
             if blocker is not None:
                 return snapshot, ConcurrencyGateReport(False,(blocker,),())
-        current=set(snapshot.blocker_fingerprints); accepted=set(baseline.blocker_fingerprints)
+        current=set(snapshot.blocker_fingerprints); accepted=set(baseline.accepted_blocker_fingerprints)
         new=tuple(sorted(current-accepted))
         parse_errors=sum(row.parse_errors for row in snapshot.coverage)
         blockers=list(new)

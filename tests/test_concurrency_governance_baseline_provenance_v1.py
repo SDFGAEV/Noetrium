@@ -66,7 +66,8 @@ def _concurrency_baseline(snapshot: ConcurrencySnapshot) -> ConcurrencyBaseline:
         source_digest=snapshot.source_digest,
         analyzer_revision=snapshot.analyzer_revision,
         analyzer_implementation_digest=snapshot.analyzer_implementation_digest,
-        blocker_fingerprints=snapshot.blocker_fingerprints,
+        observed_blocker_fingerprints=snapshot.blocker_fingerprints,
+        accepted_blocker_fingerprints=snapshot.blocker_fingerprints,
     )
 
 
@@ -78,7 +79,8 @@ def _performance_baseline(snapshot: PerformanceSnapshot) -> PerformanceBaseline:
         source_digest=snapshot.source_digest,
         analyzer_revision=snapshot.analyzer_revision,
         analyzer_implementation_digest=snapshot.analyzer_implementation_digest,
-        blocker_fingerprints=snapshot.blocker_fingerprints,
+        observed_blocker_fingerprints=snapshot.blocker_fingerprints,
+        accepted_blocker_fingerprints=snapshot.blocker_fingerprints,
     )
 
 
@@ -109,7 +111,8 @@ def _approval_for(snapshot, lane: GovernanceBaselineLane) -> GovernanceBaselineA
         source_digest=snapshot.source_digest,
         analyzer_revision=snapshot.analyzer_revision,
         analyzer_implementation_digest=snapshot.analyzer_implementation_digest,
-        blocker_fingerprints=snapshot.blocker_fingerprints,
+        observed_blocker_fingerprints=snapshot.blocker_fingerprints,
+        accepted_blocker_fingerprints=snapshot.blocker_fingerprints,
     )
     return GovernanceBaselineApproval(
         approval_id=f"{lane.value}-baseline-001",
@@ -139,7 +142,8 @@ def test_concurrency_legacy_baseline_stops_at_one_parent_provenance_blocker() ->
         source_digest="",
         analyzer_revision=current.analyzer_revision,
         analyzer_implementation_digest="",
-        blocker_fingerprints=("fake-child-debt",),
+        observed_blocker_fingerprints=(),
+        accepted_blocker_fingerprints=("fake-child-debt",),
     )
     store, _saved = _service_store(legacy)
     service = ConcurrencyGovernanceService(
@@ -163,7 +167,8 @@ def test_performance_legacy_baseline_stops_at_one_parent_provenance_blocker() ->
         source_digest="",
         analyzer_revision=current.analyzer_revision,
         analyzer_implementation_digest="",
-        blocker_fingerprints=("fake-child-debt",),
+        observed_blocker_fingerprints=(),
+        accepted_blocker_fingerprints=("fake-child-debt",),
     )
     store, _saved = _service_store(legacy)
     service = PerformanceGovernanceService(
@@ -208,7 +213,7 @@ def test_same_revision_with_changed_performance_implementation_identity_is_stale
 
 def test_concurrency_replay_mismatch_fails_before_current_debt_diff() -> None:
     current = _concurrency_snapshot()
-    baseline = replace(_concurrency_baseline(current), blocker_fingerprints=("tampered",))
+    baseline = replace(_concurrency_baseline(current), observed_blocker_fingerprints=("tampered",))
     store, _saved = _service_store(baseline)
     service = ConcurrencyGovernanceService(
         scanner=SimpleNamespace(scan=lambda: current), store=store,
@@ -216,13 +221,13 @@ def test_concurrency_replay_mismatch_fails_before_current_debt_diff() -> None:
     )
     _snapshot, report = service.gate()
     assert report.blockers == (
-        "concurrency baseline blocker fingerprints are not reproducible from immutable source",
+        "concurrency baseline observed blocker fingerprints are not reproducible from immutable source",
     )
 
 
 def test_performance_replay_mismatch_fails_before_current_debt_diff() -> None:
     current = _performance_snapshot()
-    baseline = replace(_performance_baseline(current), blocker_fingerprints=("tampered",))
+    baseline = replace(_performance_baseline(current), observed_blocker_fingerprints=("tampered",))
     store, _saved = _service_store(baseline)
     service = PerformanceGovernanceService(
         scanner=SimpleNamespace(scan=lambda: current), store=store,
@@ -230,7 +235,7 @@ def test_performance_replay_mismatch_fails_before_current_debt_diff() -> None:
     )
     _snapshot, report = service.gate()
     assert report.blockers == (
-        "performance baseline blocker fingerprints are not reproducible from immutable source",
+        "performance baseline observed blocker fingerprints are not reproducible from immutable source",
     )
 
 
@@ -328,6 +333,60 @@ def test_duplicate_approved_governance_baseline_identity_is_rejected() -> None:
             default_decision="not_approved",
             rule="Exact lane/source/analyzer/baseline identity only.",
         )
+
+def test_reproducible_concurrency_observation_is_not_implicitly_accepted() -> None:
+    from research_platform.governance.concurrency.api import (
+        ConcurrencyFinding, ConcurrencyHotspot, ConcurrencyMetrics, ConcurrencyPriority,
+    )
+    finding = ConcurrencyFinding(ConcurrencyPriority.P1, "historical-risk", "must remain blocking", 2)
+    hotspot = ConcurrencyHotspot(
+        hotspot_id="pkg/a.py::f", relative_path="pkg/a.py", language=__import__(
+            "research_platform.governance.concurrency.api", fromlist=["ConcurrencyLanguage"]
+        ).ConcurrencyLanguage.PYTHON, qualified_name="f", line_start=1, line_end=2,
+        metrics=ConcurrencyMetrics(), findings=(finding,),
+    )
+    current = replace(_concurrency_snapshot(), hotspots=(hotspot,))
+    historical = current
+    baseline = replace(
+        _concurrency_baseline(current),
+        observed_blocker_fingerprints=current.blocker_fingerprints,
+        accepted_blocker_fingerprints=(),
+    )
+    store, _saved = _service_store(baseline)
+    service = ConcurrencyGovernanceService(
+        scanner=SimpleNamespace(scan=lambda: current), store=store,
+        baseline_replay=lambda _revision: historical,
+    )
+    _snapshot, report = service.gate()
+    assert not report.passed
+    assert report.blockers == current.blocker_fingerprints
+
+
+def test_reproducible_performance_observation_is_not_implicitly_accepted() -> None:
+    from research_platform.governance.performance.api import (
+        PerformanceFinding, PerformanceHotspot, PerformanceLanguage, PerformanceMetrics, PerformancePriority,
+    )
+    finding = PerformanceFinding(PerformancePriority.P1, "historical-risk", "must remain blocking", 20)
+    hotspot = PerformanceHotspot(
+        hotspot_id="pkg/a.py::f", relative_path="pkg/a.py", language=PerformanceLanguage.PYTHON,
+        qualified_name="f", line_start=1, line_end=2, metrics=PerformanceMetrics(), findings=(finding,),
+    )
+    current = replace(_performance_snapshot(), hotspots=(hotspot,))
+    historical = current
+    baseline = replace(
+        _performance_baseline(current),
+        observed_blocker_fingerprints=current.blocker_fingerprints,
+        accepted_blocker_fingerprints=(),
+    )
+    store, _saved = _service_store(baseline)
+    service = PerformanceGovernanceService(
+        scanner=SimpleNamespace(scan=lambda: current), store=store,
+        baseline_replay=lambda _revision: historical,
+    )
+    _snapshot, report = service.gate()
+    assert not report.passed
+    assert report.blockers == current.blocker_fingerprints
+
 
 def test_lane_implementation_digest_covers_lane_source_bytes(tmp_path: Path) -> None:
     from research_platform.governance.api import GovernanceBaselineLane

@@ -56,7 +56,7 @@ class FilesystemPerformanceSnapshotStore:
         if schema == "performance-baseline.v2":
             expected = {
                 "schema_version", "source_authority", "source_revision", "source_digest",
-                "analyzer_revision", "analyzer_implementation_digest", "blocker_fingerprints",
+                "analyzer_revision", "analyzer_implementation_digest", "observed_blocker_fingerprints", "accepted_blocker_fingerprints",
             }
             if set(data) != expected:
                 raise ValueError("performance baseline v2 has unexpected fields")
@@ -68,12 +68,14 @@ class FilesystemPerformanceSnapshotStore:
                 source_revision=revision, source_digest=str(data["source_digest"]),
                 analyzer_revision=str(data["analyzer_revision"]),
                 analyzer_implementation_digest=str(data["analyzer_implementation_digest"]),
-                blocker_fingerprints=tuple(str(x) for x in data["blocker_fingerprints"]),
+                observed_blocker_fingerprints=tuple(str(x) for x in data["observed_blocker_fingerprints"]),
+                accepted_blocker_fingerprints=tuple(str(x) for x in data["accepted_blocker_fingerprints"]),
             )
         return PerformanceBaseline(
             schema_version=schema, source_authority="legacy", source_revision=None, source_digest="",
             analyzer_revision=str(data.get("analyzer_revision", "")), analyzer_implementation_digest="",
-            blocker_fingerprints=tuple(str(x) for x in data.get("blocker_fingerprints", ())),
+            observed_blocker_fingerprints=(),
+            accepted_blocker_fingerprints=tuple(str(x) for x in data.get("blocker_fingerprints", ())),
         )
 
     def publish_baseline(self, baseline: PerformanceBaseline) -> None:

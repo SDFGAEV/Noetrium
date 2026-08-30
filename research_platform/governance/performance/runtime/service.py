@@ -27,7 +27,8 @@ def _baseline_from_snapshot(snapshot: PerformanceSnapshot) -> PerformanceBaselin
         source_digest=snapshot.source_digest,
         analyzer_revision=snapshot.analyzer_revision,
         analyzer_implementation_digest=snapshot.analyzer_implementation_digest,
-        blocker_fingerprints=snapshot.blocker_fingerprints,
+        observed_blocker_fingerprints=snapshot.blocker_fingerprints,
+        accepted_blocker_fingerprints=snapshot.blocker_fingerprints,
     )
 
 
@@ -40,7 +41,8 @@ def _baseline_digest(baseline: PerformanceBaseline) -> str:
         source_digest=baseline.source_digest,
         analyzer_revision=baseline.analyzer_revision,
         analyzer_implementation_digest=baseline.analyzer_implementation_digest,
-        blocker_fingerprints=baseline.blocker_fingerprints,
+        observed_blocker_fingerprints=baseline.observed_blocker_fingerprints,
+        accepted_blocker_fingerprints=baseline.accepted_blocker_fingerprints,
     )
 
 
@@ -69,8 +71,8 @@ def _provenance_blocker(
         return "performance baseline analyzer revision is not reproducible"
     if historical.analyzer_implementation_digest != baseline.analyzer_implementation_digest:
         return "performance baseline analyzer implementation identity is not reproducible"
-    if historical.blocker_fingerprints != baseline.blocker_fingerprints:
-        return "performance baseline blocker fingerprints are not reproducible from immutable source"
+    if historical.blocker_fingerprints != baseline.observed_blocker_fingerprints:
+        return "performance baseline observed blocker fingerprints are not reproducible from immutable source"
     return None
 
 
