@@ -66,6 +66,37 @@ class TelemetryQuerySummaryTests(unittest.TestCase):
             self.assertAlmostEqual(summary.p95, 95.05)
             self.assertAlmostEqual(summary.p99, 99.01)
 
+
+    def test_summary_fetches_all_percentile_positions_in_one_query(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "metrics.sqlite3"
+            store = self._store(path)
+            context = self._context()
+            for value in range(1, 101):
+                store.observe(
+                    context, "operation.latency", float(value),
+                    component="c", operation="op", status="ok",
+                )
+
+            statements: list[str] = []
+
+            class TracingReader(SQLiteTelemetryReader):
+                def _connect(self) -> sqlite3.Connection:
+                    db = super()._connect()
+                    db.set_trace_callback(statements.append)
+                    return db
+
+            summary = TracingReader(path).summarize(
+                run_id="summary-run", metric="operation.latency"
+            )
+            self.assertAlmostEqual(summary.p99, 99.01)
+            percentile_queries = [
+                statement for statement in statements
+                if "ROW_NUMBER() OVER (ORDER BY value)" in statement
+            ]
+            self.assertEqual(len(percentile_queries), 1)
+            self.assertNotIn(" OFFSET ", percentile_queries[0])
+
     def test_summary_mean_preserves_sorted_accumulation_order(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "metrics.sqlite3"

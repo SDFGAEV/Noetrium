@@ -69,7 +69,7 @@ class SQLiteTelemetryReader:
         metric: str | None = None,
         decision_cycle_id: str | None = None,
         limit: int = 1000,
-    ) -> tuple[dict[str, int | float | str | None | dict[str, str]], ...]:
+    ) -> tuple[dict[str, object], ...]:
         if limit <= 0:
             return ()
         clauses = ["run_id=?"]
@@ -88,7 +88,7 @@ class SQLiteTelemetryReader:
         )
         with closing(self._connect()) as db:
             rows = db.execute(sql, args).fetchall()
-        result: list[dict[str, int | float | str | None | dict[str, str]]] = []
+        result: list[dict[str, object]] = []
         for row in rows:
             if len(row) != 12:
                 raise TelemetryMetricCorruptionError("telemetry query row has an invalid field count")
@@ -148,34 +148,38 @@ class SQLiteTelemetryReader:
             maximum = _finite_number(aggregate[2], label="metric maximum")
             total = _finite_number(aggregate[3], label="metric sum")
 
-            p50_low, p50_high, p50_fraction = self._percentile_positions(count, 0.50)
-            p95_low, p95_high, p95_fraction = self._percentile_positions(count, 0.95)
-            p99_low, p99_high, p99_fraction = self._percentile_positions(count, 0.99)
-            percentile_row = db.execute(
-                f"WITH ordered AS ("
-                f"SELECT value, ROW_NUMBER() OVER (ORDER BY value) - 1 AS position "
+            positions = {
+                q: self._percentile_positions(count, q)
+                for q in (0.50, 0.95, 0.99)
+            }
+            required = sorted({
+                position
+                for low, high, _ in positions.values()
+                for position in (low, high)
+            })
+            placeholders = ",".join("?" for _ in required)
+            percentile_rows = db.execute(
+                "WITH ranked AS ("
+                "SELECT ROW_NUMBER() OVER (ORDER BY value) - 1 AS position, value "
                 f"FROM metric_observations INDEXED BY {index} "
                 "WHERE run_id=? AND metric=?"
-                ") SELECT "
-                "MAX(CASE WHEN position=? THEN value END),"
-                "MAX(CASE WHEN position=? THEN value END),"
-                "MAX(CASE WHEN position=? THEN value END),"
-                "MAX(CASE WHEN position=? THEN value END),"
-                "MAX(CASE WHEN position=? THEN value END),"
-                "MAX(CASE WHEN position=? THEN value END) FROM ordered",
-                (
-                    run_id, metric,
-                    p50_low, p50_high, p95_low, p95_high, p99_low, p99_high,
-                ),
-            ).fetchone()
-            if percentile_row is None or len(percentile_row) != 6:
+                ") SELECT position,value FROM ranked "
+                f"WHERE position IN ({placeholders}) ORDER BY position",
+                (run_id, metric, *required),
+            ).fetchall()
+            selected: dict[int, float] = {}
+            for row in percentile_rows:
+                if len(row) != 2 or isinstance(row[0], bool) or not isinstance(row[0], int):
+                    raise TelemetryMetricCorruptionError("telemetry percentile lookup row is invalid")
+                selected[row[0]] = _finite_number(row[1], label="metric percentile value")
+            if tuple(sorted(selected)) != tuple(required):
                 raise TelemetryMetricCorruptionError("telemetry percentile lookup is incomplete")
-            p50_low_value = _finite_number(percentile_row[0], label="metric percentile value")
-            p50_high_value = _finite_number(percentile_row[1], label="metric percentile value")
-            p95_low_value = _finite_number(percentile_row[2], label="metric percentile value")
-            p95_high_value = _finite_number(percentile_row[3], label="metric percentile value")
-            p99_low_value = _finite_number(percentile_row[4], label="metric percentile value")
-            p99_high_value = _finite_number(percentile_row[5], label="metric percentile value")
+
+        def percentile(q: float) -> float:
+            low, high, fraction = positions[q]
+            low_value = selected[low]
+            high_value = selected[high]
+            return low_value + (high_value - low_value) * fraction
 
         return MetricSummary(
             metric=metric,
@@ -183,9 +187,9 @@ class SQLiteTelemetryReader:
             minimum=minimum,
             maximum=maximum,
             mean=total / count,
-            p50=p50_low_value + (p50_high_value - p50_low_value) * p50_fraction,
-            p95=p95_low_value + (p95_high_value - p95_low_value) * p95_fraction,
-            p99=p99_low_value + (p99_high_value - p99_low_value) * p99_fraction,
+            p50=percentile(0.50),
+            p95=percentile(0.95),
+            p99=percentile(0.99),
         )
 
 
