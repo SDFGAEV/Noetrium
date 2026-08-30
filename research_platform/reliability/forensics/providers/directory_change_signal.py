@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import ctypes
 import errno
+import math
 import os
+import select
 import struct
 import sys
 from pathlib import Path
@@ -142,7 +144,7 @@ class DirectoryChangeSignal:
                     changed = True
                 offset += record_length
 
-    def _windows_changed(self) -> bool:
+    def _windows_changed(self, timeout_ms: int = 0) -> bool:
         handle = self._windows_handle
         if handle is None:
             return False
@@ -150,7 +152,7 @@ class DirectoryChangeSignal:
         wait = kernel32.WaitForSingleObject
         wait.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
         wait.restype = ctypes.c_uint32
-        result = int(wait(ctypes.c_void_p(handle), 0))
+        result = int(wait(ctypes.c_void_p(handle), timeout_ms))
         if result == _WAIT_OBJECT_0:
             return True
         if result == _WAIT_TIMEOUT:
@@ -177,6 +179,31 @@ class DirectoryChangeSignal:
             self._pending = True
             return True
         return False
+
+    def wait_changed_since(
+        self,
+        expected_signature: tuple[int, int, int, int] | None,
+        *,
+        timeout_seconds: float,
+    ) -> bool:
+        """Boundedly await one directory mutation without weakening the pending latch."""
+        if isinstance(timeout_seconds, bool) or not math.isfinite(float(timeout_seconds)) or timeout_seconds < 0:
+            raise ValueError("directory change wait must be finite and non-negative")
+        if self.changed_since(expected_signature) or timeout_seconds == 0:
+            return self._pending
+        if self._windows_handle is not None:
+            timeout_ms = min(0xFFFFFFFE, max(1, math.ceil(timeout_seconds * 1000.0)))
+            if self._windows_changed(timeout_ms):
+                self._pending = True
+                return True
+            return False
+        if self._fd is not None:
+            readable, _, _ = select.select((self._fd,), (), (), timeout_seconds)
+            if readable and self._drain_events():
+                self._pending = True
+                return True
+            return self._pending
+        return self.changed_since(expected_signature)
 
     def acknowledge(self) -> None:
         """Consume mutations caused by the owning writer and clear the latch."""

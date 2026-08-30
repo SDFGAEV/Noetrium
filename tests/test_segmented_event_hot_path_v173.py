@@ -100,5 +100,38 @@ class SegmentedEventHotPathV173Tests(unittest.TestCase):
                 ledger.append({"event": 1})
 
 
+    def test_owned_segment_creation_boundedly_waits_for_delayed_notification(self) -> None:
+        with TemporaryDirectory() as td:
+            root = Path(td) / "events"
+            ledger = SegmentedHashChainedJSONL(root, fsync_every=4)
+            with patch.object(ledger._directory_signal, "changed_since", return_value=False), patch.object(
+                ledger._directory_signal, "wait_changed_since", return_value=True
+            ) as waited:
+                ledger.append({"event": 1})
+            waited.assert_called_once()
+            self.assertEqual(ledger.cached_tail[0], 1)
+            ledger.close()
+
+    def test_owned_segment_creation_notification_timeout_fails_closed(self) -> None:
+        with TemporaryDirectory() as td:
+            root = Path(td) / "events"
+            ledger = SegmentedHashChainedJSONL(root, fsync_every=4)
+            with patch.object(ledger._directory_signal, "changed_since", return_value=False), patch.object(
+                ledger._directory_signal, "wait_changed_since", return_value=False
+            ) as waited:
+                with self.assertRaisesRegex(HashChainError, "was not observed"):
+                    ledger.append({"event": 1})
+            self.assertEqual(waited.call_count, 1)
+            ledger.close()
+
+    def test_directory_change_wait_rejects_non_finite_budget(self) -> None:
+        with TemporaryDirectory() as td:
+            root = Path(td) / "events"; root.mkdir()
+            signal = DirectoryChangeSignal(root)
+            with self.assertRaises(ValueError):
+                signal.wait_changed_since(None, timeout_seconds=float("nan"))
+            signal.close()
+
+
 if __name__ == "__main__":
     unittest.main()

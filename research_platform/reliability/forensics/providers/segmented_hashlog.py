@@ -19,6 +19,9 @@ from research_platform.reliability.forensics.providers.segmented_state import Se
 from research_platform.reliability.forensics.providers.segmented_writer import SegmentedLedgerWriter
 
 
+_OWNED_SEGMENT_NOTIFICATION_WAIT_SECONDS = 0.25
+
+
 class SegmentedHashChainedJSONL:
     """Global hash chain façade over verifier, state cell, writer and manifest store."""
 
@@ -167,6 +170,11 @@ class SegmentedHashChainedJSONL:
             receipt=self._writer.append(payload)
             changed=self._directory_signal.changed_since(before.directory_signature)
             if receipt.created_segment:
+                if not changed:
+                    changed = self._directory_signal.wait_changed_since(
+                        before.directory_signature,
+                        timeout_seconds=_OWNED_SEGMENT_NOTIFICATION_WAIT_SECONDS,
+                    )
                 if not changed:
                     raise HashChainError("owned segment creation was not observed by directory authority")
                 self._assert_owned_directory_namespace()

@@ -11,6 +11,7 @@ from research_platform.runtime.service.runtime.state_storage import FileServiceS
 from research_platform.platform.kernel.durability import ChecksummedDocumentFailureCode
 from research_platform.runtime.service.runtime import (
     ServiceExitClass,
+    ServiceReadyEvidence,
     ServiceStateIntegrityError,
     ServiceSupervisorState,
 )
@@ -115,19 +116,28 @@ class ServiceReadyProjectionV32Tests(unittest.TestCase):
         class Store:
             def __init__(self): self.state = None
             def write(self, state): self.state = state
+        proof = ServiceReadyEvidence(
+            contract.digest(), process, "ready:producer", "stdout:producer", "stderr:producer", 1777.25
+        )
         class Adapter:
             def wait_ready(self, observed_process, observed_contract):
                 self.assertions = (observed_process, observed_contract)
-                return "ready:producer", "stdout:producer", "stderr:producer"
+                return proof
 
         store = Store(); adapter = Adapter()
         transitions = ServiceStateTransitionWriter(store)
         committer = ServiceReadinessCommitter(adapter, transitions)
         initial = ServiceSupervisorState.initial(contract.service_id, contract.digest())
-        with patch("research_platform.runtime.service.runtime.start_flow_common.time.time", return_value=1777.25):
+        with patch("research_platform.runtime.service.runtime.state_transition.time.time", return_value=2000.0):
             state, _refs = committer.commit(contract, initial, process)
         self.assertEqual(state.ready_at, 1777.25)
         self.assertEqual(state.last_heartbeat_at, 1777.25)
+        second_store = Store()
+        second = ServiceReadinessCommitter(Adapter(), ServiceStateTransitionWriter(second_store))
+        with patch("research_platform.runtime.service.runtime.state_transition.time.time", return_value=3000.0):
+            second_state, _ = second.commit(contract, initial, process)
+        self.assertEqual((state.ready_at, second_state.ready_at), (1777.25, 1777.25))
+        self.assertEqual((state.updated_at, second_state.updated_at), (2000.0, 3000.0))
         heartbeat = transitions.persist(state, ServicePhase.RUNNING, last_heartbeat_at=1888.0)
         self.assertEqual(heartbeat.ready_at, 1777.25)
 
@@ -138,6 +148,63 @@ class ServiceReadyProjectionV32Tests(unittest.TestCase):
         observation = ExactServiceRuntimeEndpoint(Supervisor()).verify_ready_exact(contract)
         self.assertEqual(observation.ready_at, 1777.25)
         self.assertEqual(observation.ready_evidence_ref, "ready:producer")
+
+
+class ServiceReadinessReceiptAuthorityV32Tests(unittest.TestCase):
+    def _contract(self):
+        from research_platform.runtime.service.api import ServiceLaunchContract
+        return ServiceLaunchContract(
+            "svc", "g1", "/opt/rp/python", ("/opt/rp/python", "-m", "svc"), "/srv/rp",
+            "a" * 64, "b" * 64, "c" * 64, 10.0, 10.0, 1.0,
+        )
+
+    def test_local_adapter_freezes_timestamped_identity_bound_receipt_at_probe_success(self):
+        from unittest.mock import patch
+        from research_platform.runtime.service.api import ServiceProcessIdentity
+        from research_platform.runtime.service.runtime import LocalServiceProcessAdapter
+        from research_platform.runtime.service.runtime.capture_paths import DirectoryCapturePathProvider
+        contract = self._contract(); process = ServiceProcessIdentity(42, "start:42")
+        backend = object()
+        class Probe:
+            def wait_ready(self, observed_process, observed_contract, observed_backend):
+                self.observed = (observed_process, observed_contract, observed_backend)
+                return "ready:probe"
+        probe = Probe()
+        with TemporaryDirectory() as td, patch(
+            "research_platform.runtime.service.runtime.process_adapter.time.time", return_value=1555.5
+        ):
+            adapter = LocalServiceProcessAdapter(object(), DirectoryCapturePathProvider(Path(td)), backend, probe)
+            receipt = adapter.wait_ready(process, contract)
+        self.assertEqual(receipt.contract_digest, contract.digest())
+        self.assertEqual(receipt.process, process)
+        self.assertEqual(receipt.readiness_ref, "ready:probe")
+        self.assertEqual(receipt.ready_at, 1555.5)
+        self.assertEqual(probe.observed, (process, contract, backend))
+
+    def test_readiness_receipt_rejects_noncanonical_identity_and_nonfinite_time(self):
+        from research_platform.runtime.service.api import ServiceProcessIdentity
+        process = ServiceProcessIdentity(42, "start:42")
+        with self.assertRaises(ValueError):
+            ServiceReadyEvidence("A" * 64, process, "ready", "stdout", "stderr", 1.0)
+        with self.assertRaises(ValueError):
+            ServiceReadyEvidence("a" * 64, process, "ready", "stdout", "stderr", float("nan"))
+        with self.assertRaises(ValueError):
+            ServiceReadyEvidence("a" * 64, process, "ready", "stdout", "stderr", True)
+
+    def test_committer_rejects_receipt_rebound_to_different_process(self):
+        from research_platform.runtime.service.api import ServiceProcessIdentity
+        from research_platform.runtime.service.runtime import ServiceReadinessProofMismatch
+        from research_platform.runtime.service.runtime.start_flow_common import ServiceReadinessCommitter
+        from research_platform.runtime.service.runtime.state_transition import ServiceStateTransitionWriter
+        contract = self._contract(); process = ServiceProcessIdentity(42, "start:42")
+        forged = ServiceReadyEvidence(contract.digest(), ServiceProcessIdentity(99, "start:99"), "ready", "stdout", "stderr", 5.0)
+        class Store:
+            def write(self, state): self.state = state
+        class Adapter:
+            def wait_ready(self, observed_process, observed_contract): return forged
+        committer = ServiceReadinessCommitter(Adapter(), ServiceStateTransitionWriter(Store()))
+        with self.assertRaises(ServiceReadinessProofMismatch):
+            committer.commit(contract, ServiceSupervisorState.initial(contract.service_id, contract.digest()), process)
 
 
 if __name__ == "__main__":

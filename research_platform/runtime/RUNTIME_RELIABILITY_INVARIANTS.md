@@ -41,6 +41,8 @@ Server-operation WAL records reject unsafe durable identities and non-canonical 
 ## Authoritative readiness time
 
 - A service READY transition persists its producer-observed `ready_at` independently from `last_heartbeat_at`.
+- The Runtime-owned `LocalServiceProcessAdapter` is the readiness receipt authority: immediately after the endpoint/process readiness probe returns success, it freezes contract digest, exact process identity, readiness ref, capture refs, and epoch `ready_at` into immutable `ServiceReadyEvidence`.
+- `ServiceReadinessCommitter` accepts only that typed receipt, rejects contract/process rebinding, and has no wall-clock authority of its own.
 - `ready_at` is finite, positive, immutable for that process generation, and is cleared before a new child generation starts.
 - Heartbeats may advance `last_heartbeat_at` but must never rewrite the original readiness authority.
 - `ServiceStartOutcome` and `ServiceReadyObservation` project the exact persisted `ready_at`; consumers must not synthesize a replacement wall-clock timestamp.
@@ -53,5 +55,5 @@ Server-operation WAL records reject unsafe durable identities and non-canonical 
 - Kernel directory-entry signals keep steady-state append O(1): no segment-directory enumeration is introduced on the hot path.
 - Any unacknowledged create/delete/rename signal fails closed before append and forces full ledger verification; writer-owned changes are acknowledged only after the owned append completes.
 - The segmented writer returns an internal append receipt and creates new segment files exclusively; a signal observed after an ordinary active-file append is never acknowledged as writer-owned.
-- When an append legitimately creates a segment, the slow path verifies the exact owned directory namespace before consuming the expected kernel notification, so coalesced external entries cannot hide behind rotation.
+- When an append legitimately creates a segment, the slow path may boundedly wait up to 250 ms for the same kernel notification handle, then verifies the exact owned directory namespace before consuming the expected notification; notification timeout still fails closed, and coalesced external entries cannot hide behind rotation.
 - Failure to create, wait on, advance, or close the Windows notification handle is surfaced rather than silently degrading to the nondeterministic stat fallback.

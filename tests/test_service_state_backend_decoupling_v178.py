@@ -7,6 +7,7 @@ import hashlib
 import unittest
 
 from research_platform.runtime.service.composition import build_service_supervisor
+from service_os_test_support import ready_evidence
 from research_platform.runtime.service.runtime import ServicePhase
 from research_platform.runtime.service.runtime.service_state_contracts import ServiceSupervisorState
 from research_platform.runtime.service.runtime.start_intent_store import DirectoryServiceStartIntentStore
@@ -41,7 +42,7 @@ class Adapter:
         return ServiceProcessIdentity(7, "pid:7:start:1", 7), ("start",)
 
     def wait_ready(self, process, contract):
-        return "ready", "stdout", "stderr"
+        return ready_evidence(process, contract)
 
     def stop(self, process, contract):
         return ("stop",)

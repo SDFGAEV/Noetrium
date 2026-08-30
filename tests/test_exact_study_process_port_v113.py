@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from research_platform.runtime.service.api import ServiceLaunchContract, ServiceProcessIdentity
-from service_os_test_support import make_service_supervisor
+from service_os_test_support import make_service_supervisor, ready_evidence
 
 from tests_support import context_action_runtime_bindings, frozen_runtime_manifest
 
@@ -28,7 +28,7 @@ class Adapter:
     def __init__(self): self.calls=[]; self.live=None
     def reconcile(self,state,c): self.calls.append("reconcile"); return state.process if self.live is not False else None,("reconcile",)
     def start(self,c): self.calls.append("start"); self.live=True; return ServiceProcessIdentity(77,"start:77",77),("start",)
-    def wait_ready(self,p,c): self.calls.append("ready"); return "ready","stdout","stderr"
+    def wait_ready(self,p,c): self.calls.append("ready"); return ready_evidence(p,c)
     def stop(self,p,c): self.calls.append("stop"); self.live=False; return ()
 
 
