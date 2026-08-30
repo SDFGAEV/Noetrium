@@ -19,6 +19,15 @@ def _require_sha256(value: object, field: str) -> str:
     return value
 
 
+_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+
+
+def _require_sha256(value: object, field: str) -> str:
+    if not isinstance(value, str) or _SHA256.fullmatch(value) is None:
+        raise ValueError(f"{field} must be lowercase SHA-256")
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class ModelEndpointRequest:
     """One request sent to an already-bound, qualified model endpoint."""
