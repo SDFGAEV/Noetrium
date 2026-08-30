@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 from threading import Event
+import asyncio
+import gc
 import os
 import time
 
@@ -22,6 +24,7 @@ from research_platform.platform.concurrency.api import (
 )
 from research_platform.platform.concurrency.composition import build_concurrency_runtime
 from research_platform.platform.concurrency.providers import (
+    AsyncIoExecutor,
     BoundedThreadExecutor,
     HeapTimerScheduler,
     SharedSerialExecutionLaneFactory,
@@ -1258,6 +1261,88 @@ def test_async_io_snapshot_reports_running_after_coroutine_enters() -> None:
     finally:
         release.set()
         runtime.close()
+
+
+def test_async_io_capacity_releases_only_after_cancelled_source_physically_finishes() -> None:
+    executor = AsyncIoExecutor(max_in_flight=1)
+    started = Event()
+    cleanup_started = Event()
+    cleanup_done = Event()
+    second_started = Event()
+
+    async def cancellation_cleanup() -> int:
+        started.set()
+        try:
+            await asyncio.sleep(10)
+        except asyncio.CancelledError:
+            cleanup_started.set()
+            await asyncio.sleep(0.12)
+            cleanup_done.set()
+            raise
+
+    async def second() -> int:
+        second_started.set()
+        return 2
+
+    first = executor.submit(cancellation_cleanup)
+    try:
+        assert started.wait(1)
+        assert first.cancel()
+        assert cleanup_started.wait(1)
+        with pytest.raises(TimeoutError, match="capacity wait deadline expired"):
+            executor.submit(second, deadline=Deadline.after(0.03))
+        assert not second_started.is_set()
+        assert cleanup_done.wait(1)
+        deadline = time.monotonic() + 1
+        while time.monotonic() < deadline and not first.done():
+            time.sleep(0.002)
+        assert first.done() and first.cancelled()
+        followup = executor.submit(second)
+        assert followup.result(1) == 2
+        assert second_started.is_set()
+    finally:
+        executor.close()
+
+
+def test_async_io_provider_retrieves_source_exception_after_logical_cancel() -> None:
+    executor = AsyncIoExecutor(max_in_flight=1)
+    started = Event()
+    handler_installed = Event()
+    loop_errors: list[dict[str, object]] = []
+
+    def install_handler() -> None:
+        executor._loop.set_exception_handler(
+            lambda _loop, context: loop_errors.append(dict(context))
+        )
+        handler_installed.set()
+
+    executor._loop.call_soon_threadsafe(install_handler)
+    assert handler_installed.wait(1)
+
+    async def fail_after_cancellation_cleanup() -> None:
+        started.set()
+        try:
+            await asyncio.sleep(10)
+        except asyncio.CancelledError:
+            await asyncio.sleep(0.02)
+            raise TaskCancelled("source cleanup terminal exception")
+
+    handle = executor.submit(fail_after_cancellation_cleanup)
+    assert started.wait(1)
+    assert handle.cancel()
+    deadline = time.monotonic() + 1
+    while time.monotonic() < deadline and not handle.done():
+        time.sleep(0.002)
+    assert handle.done()
+    # Do not retrieve the proxy result: the provider must still own/retrieve the
+    # source asyncio Task exception independently of caller result consumption.
+    executor.close()
+    del handle
+    gc.collect()
+    assert not [
+        row for row in loop_errors
+        if row.get("message") == "Task exception was never retrieved"
+    ]
 
 
 def test_async_io_executor_releases_fast_completion_admission_without_tracking_leak() -> None:
