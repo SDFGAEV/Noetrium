@@ -86,7 +86,9 @@ class HarnessPatternsV190Tests(unittest.TestCase):
             reconstructed=reconstructed_full.request_body
             self.assertEqual(canonical_bytes(reconstructed),canonical_bytes(body))
             with self.assertRaises(TypeError): reconstructed_full.tool_schema_bundle[0]["name"]="tampered"
+            self.assertFalse(isinstance(reconstructed, dict))
             with self.assertRaises(TypeError): reconstructed["messages"]=[]
+            with self.assertRaises(TypeError): dict.__setitem__(reconstructed,"bypass",True)
             with self.assertRaises(TypeError): reconstructed["messages"][0]["content"]="tampered"
             recorder.verify_visible_request(env,body)
             body["messages"][0]["content"]="caller-mutated"
@@ -97,6 +99,23 @@ class HarnessPatternsV190Tests(unittest.TestCase):
             other_ref=content.put(b'{"x":1}',media_type="application/json")
             with self.assertRaises(RuntimeError):
                 ledger.append(replace(env,request_body=other_ref,envelope_digest=""))
+
+    def test_model_request_recorder_rejects_non_json_visible_authority(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td)
+            recorder=ReconstructableModelRequestRecorder(
+                DirectoryContentAddressedStore(root/"blobs"),
+                DirectoryModelRequestLedger(root/"ledger"),
+            )
+            common=dict(
+                request_id="rq-bad-json", context=self.context(), role="planner",
+                model=ImmutableModelIdentity("planner","m","rev","engine","1","bf16",None,4096),
+                prompt_generation_id="g1", prompt_id="planner.v1", prompt_digest="a"*64,
+            )
+            with self.assertRaises(TypeError):
+                recorder.record(**common, request_body={"bad": object()})
+            with self.assertRaises(TypeError):
+                recorder.record(**common, request_body={"messages": []}, tool_schema_bundle={"bad": object()})
 
     def test_scope_disposal_waits_for_active_lease_and_then_rejects_new_use(self):
         scope=ScopedRegistrationRuntime("root")

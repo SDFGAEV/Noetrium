@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 
-from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity, canonical_bytes
-from research_platform.model.request._immutable_json import FrozenJsonObject, freeze_json_object, freeze_json_value
+from research_platform.platform.kernel import (
+    ExecutionContext, ImmutableModelIdentity, JsonInput, JsonObject, canonical_bytes,
+)
+from research_platform.model.request._immutable_json import freeze_json_object, freeze_json_value
 from research_platform.model.request.api import (
     ContentAddressedStorePort,
     ModelRequestEnvelope,
@@ -33,9 +36,9 @@ class ReconstructableModelRequestRecorder:
         prompt_generation_id: str,
         prompt_id: str,
         prompt_digest: str,
-        request_body: dict[str, object],
+        request_body: Mapping[str, JsonInput],
         compiled_prompt_text: str | None = None,
-        tool_schema_bundle: object | None = None,
+        tool_schema_bundle: JsonInput | None = None,
         source_artifact_refs: tuple[str, ...] = (),
         source_state_refs: tuple[str, ...] = (),
     ) -> ModelRequestEnvelope:
@@ -81,10 +84,12 @@ class ReconstructableModelRequestRecorder:
             tools = json.loads(self._content.get(envelope.tool_schema_bundle))
         return ReconstructedModelRequest(body, compiled, tools)
 
-    def reconstruct_request_body(self, envelope: ModelRequestEnvelope) -> FrozenJsonObject:
+    def reconstruct_request_body(self, envelope: ModelRequestEnvelope) -> JsonObject:
         return self.reconstruct(envelope).request_body
 
-    def verify_visible_request(self, envelope: ModelRequestEnvelope, actual_body: dict[str, object]) -> None:
+    def verify_visible_request(
+        self, envelope: ModelRequestEnvelope, actual_body: Mapping[str, JsonInput]
+    ) -> None:
         if _canonical_json(actual_body) != self._content.get(envelope.request_body):
             raise RuntimeError("model-visible request drift: actual bytes are not durably referenced")
 

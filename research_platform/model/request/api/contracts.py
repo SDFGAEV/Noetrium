@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from typing import Protocol, runtime_checkable
 
-from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity, canonical_digest
-from research_platform.model.request._immutable_json import FrozenJsonObject, freeze_json_object, freeze_json_value
+from research_platform.platform.kernel import (
+    ExecutionContext, ImmutableModelIdentity, JsonInput, JsonObject, JsonValue, canonical_digest,
+)
+from research_platform.model.request._immutable_json import freeze_json_object, freeze_json_value
 
 
 _MODEL_REQUEST_SCHEMAS = frozenset({"model-request.v1", "runtime-canary-request.v1"})
@@ -109,9 +112,9 @@ class ModelRequestEnvelope:
 
 @dataclass(frozen=True, slots=True)
 class ReconstructedModelRequest:
-    request_body: FrozenJsonObject
+    request_body: JsonObject
     compiled_prompt_text: str | None
-    tool_schema_bundle: object | None
+    tool_schema_bundle: JsonValue | None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "request_body", freeze_json_object(self.request_body, field="reconstructed request body"))
@@ -147,16 +150,18 @@ class ModelRequestRecorderPort(Protocol):
         prompt_generation_id: str,
         prompt_id: str,
         prompt_digest: str,
-        request_body: dict[str, object],
+        request_body: Mapping[str, JsonInput],
         compiled_prompt_text: str | None = None,
-        tool_schema_bundle: object | None = None,
+        tool_schema_bundle: JsonInput | None = None,
         source_artifact_refs: tuple[str, ...] = (),
         source_state_refs: tuple[str, ...] = (),
     ) -> ModelRequestEnvelope: ...
 
     def reconstruct(self, envelope: ModelRequestEnvelope) -> ReconstructedModelRequest: ...
-    def reconstruct_request_body(self, envelope: ModelRequestEnvelope) -> dict[str, object]: ...
-    def verify_visible_request(self, envelope: ModelRequestEnvelope, actual_body: dict[str, object]) -> None: ...
+    def reconstruct_request_body(self, envelope: ModelRequestEnvelope) -> JsonObject: ...
+    def verify_visible_request(
+        self, envelope: ModelRequestEnvelope, actual_body: Mapping[str, JsonInput]
+    ) -> None: ...
 
 
 __all__ = [
