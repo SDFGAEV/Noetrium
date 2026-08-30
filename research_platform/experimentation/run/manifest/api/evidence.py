@@ -102,23 +102,33 @@ def _require_unique_ordered_ids(values: tuple[str, ...], field: str) -> None:
         raise ValueError(f"{field} must be unique and ordered")
 
 
-def _validate_stream_collection(streams: tuple[EvidenceStreamDescriptor, ...]) -> tuple[str, ...]:
+def _validate_stream_collection(
+    streams: tuple[EvidenceStreamDescriptor, ...],
+    run_id: str,
+    status: EvidenceBundleStatus,
+) -> tuple[str, ...]:
     if type(streams) is not tuple or not streams:
         raise ValueError("evidence bundle requires at least one stream")
-    if any(type(stream) is not EvidenceStreamDescriptor for stream in streams):
-        raise ValueError("evidence bundle streams must be typed descriptors")
-    stream_ids = tuple(stream.stream_id for stream in streams)
-    _require_unique_ordered_ids(stream_ids, "evidence streams")
-    if not any(stream.required and stream.source_of_truth for stream in streams):
+    stream_ids: list[str] = []
+    previous_stream_id: str | None = None
+    has_authoritative_required = False
+    for stream in streams:
+        if type(stream) is not EvidenceStreamDescriptor:
+            raise ValueError("evidence bundle streams must be typed descriptors")
+        if previous_stream_id is not None and stream.stream_id <= previous_stream_id:
+            raise ValueError("evidence streams must be unique and ordered")
+        previous_stream_id = stream.stream_id
+        stream_ids.append(stream.stream_id)
+        if stream.artifact_receipt.run_id != run_id:
+            raise ValueError("evidence stream artifact receipt belongs to a different run")
+        if stream.required and stream.source_of_truth:
+            has_authoritative_required = True
+        if status is EvidenceBundleStatus.COMPLETE and stream.required and stream.record_count == 0:
+            raise ValueError("complete evidence bundle cannot have an empty required stream")
+    if not has_authoritative_required:
         raise ValueError("evidence bundle requires an authoritative required stream")
-    return stream_ids
+    return tuple(stream_ids)
 
-
-def _validate_complete_streams(status: EvidenceBundleStatus, streams: tuple[EvidenceStreamDescriptor, ...]) -> None:
-    if status is EvidenceBundleStatus.COMPLETE and any(
-        stream.required and stream.record_count == 0 for stream in streams
-    ):
-        raise ValueError("complete evidence bundle cannot have an empty required stream")
 
 def _validate_artifacts(
     artifacts: tuple[DerivedEvidenceArtifact, ...],
@@ -160,11 +170,7 @@ class EvidenceBundleManifest:
             raise ValueError("evidence bundle status must be EvidenceBundleStatus")
         if self.source_checkpoint_id is not None:
             _require_non_empty_string(self.source_checkpoint_id, "source_checkpoint_id")
-        stream_ids = _validate_stream_collection(self.streams)
-        for stream in self.streams:
-            if stream.artifact_receipt.run_id != self.run_id:
-                raise ValueError("evidence stream artifact receipt belongs to a different run")
-        _validate_complete_streams(self.status, self.streams)
+        stream_ids = _validate_stream_collection(self.streams, self.run_id, self.status)
         _validate_artifacts(self.derived_artifacts, stream_ids)
 
     @property

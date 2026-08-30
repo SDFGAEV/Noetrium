@@ -11,6 +11,17 @@ from research_platform.execution.command.api import CommandId
 _SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
 
 
+def _normalize_optional_effect_text(value: object, field: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise TypeError(f"{field} must be text or null")
+    normalized = value.strip()
+    if not normalized:
+        raise ValueError(f"{field} cannot be blank")
+    return normalized
+
+
 class OperationState(StrEnum):
     CREATED="created"; QUEUED="queued"; ADMITTED="admitted"; RUNNING="running"; CANCELLING="cancelling"
     RECOVERING="recovering"; UNKNOWN_EFFECT="unknown_effect"; COMPLETED="completed"; FAILED="failed"; CANCELLED="cancelled"
@@ -126,14 +137,10 @@ class OperationSnapshot:
             raise ValueError("operation cannot be its own parent")
         if self.effect_id is not None and not isinstance(self.effect_id, EffectId):
             raise TypeError("effect_id must be EffectId or null")
-        for value, field in ((self.effect_request_id, "effect_request_id"), (self.effect_request_digest, "effect_request_digest")):
-            if value is not None and not isinstance(value, str):
-                raise TypeError(f"{field} must be text or null")
-            if isinstance(value, str):
-                normalized = value.strip()
-                if not normalized:
-                    raise ValueError(f"{field} cannot be blank")
-                object.__setattr__(self, field, normalized)
+        request_id = _normalize_optional_effect_text(self.effect_request_id, "effect_request_id")
+        request_digest = _normalize_optional_effect_text(self.effect_request_digest, "effect_request_digest")
+        object.__setattr__(self, "effect_request_id", request_id)
+        object.__setattr__(self, "effect_request_digest", request_digest)
         if not isinstance(self.effect_profile, OperationEffectProfile):
             raise TypeError("effect_profile must be OperationEffectProfile")
         if not isinstance(self.effect_certainty, OperationEffectCertainty):
@@ -149,12 +156,12 @@ class OperationSnapshot:
             if self.state is not OperationState.COMPLETED:
                 raise ValueError("operation result_digest is valid only for COMPLETED state")
             object.__setattr__(self, "result_digest", digest)
-        effect_identity = (self.effect_id, self.effect_request_id, self.effect_request_digest)
-        if self.effect_profile is not OperationEffectProfile.NONE and any(value is None for value in effect_identity):
-            raise ValueError("effectful operation requires stable effect_id/request_id/request_digest before execution")
+        if self.effect_profile is not OperationEffectProfile.NONE:
+            if self.effect_id is None or request_id is None or request_digest is None:
+                raise ValueError("effectful operation requires stable effect_id/request_id/request_digest before execution")
+        elif self.effect_id is not None or request_id is not None or request_digest is not None:
+            raise ValueError("effect-free operation cannot carry external effect identity")
         if self.effect_profile is OperationEffectProfile.NONE:
-            if any(value is not None for value in effect_identity):
-                raise ValueError("effect-free operation cannot carry external effect identity")
             if self.effect_certainty is not OperationEffectCertainty.NOT_EXECUTED:
                 raise ValueError("effect-free operation must remain NOT_EXECUTED")
         if self.state is OperationState.UNKNOWN_EFFECT:

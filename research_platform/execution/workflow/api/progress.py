@@ -9,6 +9,14 @@ _SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
 from research_platform.execution.operation.api import EffectId, OperationId
 
 
+def _optional_binding_text(value: object, field: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"workflow binding {field} must be non-empty text")
+    return value.strip()
+
+
 @dataclass(frozen=True, slots=True)
 class WorkflowRunId:
     value: str
@@ -39,14 +47,15 @@ class WorkflowOperationBinding:
             raise TypeError("workflow binding operation_id must be OperationId")
         if self.effect_id is not None and not isinstance(self.effect_id, EffectId):
             raise TypeError("workflow binding effect_id must be EffectId or null")
-        effect_identity = (self.effect_id, self.effect_request_id, self.effect_request_digest)
-        if any(value is None for value in effect_identity) and any(value is not None for value in effect_identity):
+        request_id = _optional_binding_text(self.effect_request_id, "effect_request_id")
+        request_digest = _optional_binding_text(self.effect_request_digest, "effect_request_digest")
+        if self.effect_id is None:
+            if request_id is not None or request_digest is not None:
+                raise ValueError("workflow binding effect identity must be all-present or all-null")
+        elif request_id is None or request_digest is None:
             raise ValueError("workflow binding effect identity must be all-present or all-null")
-        for value, field in ((self.effect_request_id, "effect_request_id"), (self.effect_request_digest, "effect_request_digest")):
-            if value is not None and (not isinstance(value, str) or not value.strip()):
-                raise ValueError(f"workflow binding {field} must be non-empty text")
-            if isinstance(value, str):
-                object.__setattr__(self, field, value.strip())
+        object.__setattr__(self, "effect_request_id", request_id)
+        object.__setattr__(self, "effect_request_digest", request_digest)
         object.__setattr__(self, "step_id", step_id)
 
 

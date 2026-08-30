@@ -78,3 +78,6 @@ Every `RunControlReceipt` carries an explicit `RunOutcomeProjection`. Execution 
 ## Validation rule
 
 Persistence/checkpoint/recovery/evidence-finalization changes require Windows plus Server2 validation from the same committed SHA. Protected SEM execution roots, GPU0/1, and the Qwen endpoint are outside this validation path.
+
+### Algorithm-quality note
+Fixed-cardinality effect identity validation is expressed as explicit constant-time checks rather than iterable scans. Evidence-stream manifest validation performs run binding, ordering, authoritative-source, and complete-stream checks in one O(N) collection pass; the manifest constructor does not add a second stream traversal.
