@@ -44,7 +44,14 @@
         "import_edges": 6
       },
       "justification": "Current Runtime and Reliability proposal adds six explicit typed resource, readiness, reconciliation and durable-operation authority dependencies.",
-      "applicability": null
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.runtime",
+          "research_platform.resource",
+          "research_platform.reliability"
+        ],
+        "import_projection_sha256": "ab8d9871e6e0a2b1793a979e6834c5faba7a72077cae600db409f61dee314cc2"
+      }
     },
     {
       "migration_id": "role03-import-edges-c42ba99b4847",
@@ -96,7 +103,15 @@
         "import_edges": 2
       },
       "justification": "Current Environment and Evidence proposal adds two typed environment, evidence and durable-observation authority dependencies without topology growth.",
-      "applicability": null
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.environment",
+          "research_platform.data",
+          "research_platform.artifact",
+          "research_platform.observability"
+        ],
+        "import_projection_sha256": "6f9fdf4f5d64703e1be10d2707b49109e365bb7343cd5118a05e73a6e3a5e62b"
+      }
     },
     {
       "migration_id": "role06-product-assurance-v1",
@@ -109,7 +124,13 @@
         "import_edges": 15
       },
       "justification": "Current Product and Assurance proposal adds fifteen explicit operator, release, distribution and verification authority dependencies without topology growth.",
-      "applicability": null
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.operator",
+          "research_platform.api"
+        ],
+        "import_projection_sha256": "e45b24a8e4676d756ad2cf3f956b7f2a2f8c3bfd6ea574bbd1c62ada7c1ec79b"
+      }
     }
   ]
 }
