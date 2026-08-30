@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 from enum import StrEnum
 from typing import Mapping
 
@@ -75,8 +76,13 @@ class AgentGoal:
             for value in (self.max_steps, self.max_replans, self.no_progress_limit, self.same_action_limit)
         ):
             raise ValueError("agent goal integer limits must be positive")
-        if isinstance(self.max_seconds, bool) or self.max_seconds <= 0:
-            raise ValueError("agent goal max_seconds must be positive")
+        if (
+            isinstance(self.max_seconds, bool)
+            or not isinstance(self.max_seconds, (int, float))
+            or not math.isfinite(float(self.max_seconds))
+            or self.max_seconds <= 0
+        ):
+            raise ValueError("agent goal max_seconds must be finite and positive")
 
     @property
     def digest(self) -> str:

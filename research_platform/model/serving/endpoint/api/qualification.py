@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from typing import Protocol
 
 from research_platform.platform.kernel import ImmutableModelIdentity
@@ -42,8 +43,13 @@ class QualifiedModelEndpointBinding:
             raise ValueError("qualified model binding route/prompt identity is required")
         if not self.completion_path.startswith("/"):
             raise ValueError("qualified model binding completion_path must be absolute")
-        if self.timeout_s <= 0:
-            raise ValueError("qualified model binding timeout_s must be positive")
+        if (
+            isinstance(self.timeout_s, bool)
+            or not isinstance(self.timeout_s, (int, float))
+            or not math.isfinite(float(self.timeout_s))
+            or self.timeout_s <= 0
+        ):
+            raise ValueError("qualified model binding timeout_s must be finite and positive")
         if type(self.max_admitted_concurrency) is not int or self.max_admitted_concurrency <= 0:
             raise ValueError("qualified model binding concurrency must be positive")
         if type(self.runtime_canary_evidence_digests) is not tuple or not self.runtime_canary_evidence_digests:

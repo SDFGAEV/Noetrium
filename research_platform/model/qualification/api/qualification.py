@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+import math
 from pathlib import Path
 from typing import Protocol
 
@@ -107,6 +108,15 @@ class GpuCapabilityFacts:
     pci_bus_id: str | None = None
     numa_node: int | None = None
     power_limit_watts: float | None = None
+
+    def __post_init__(self) -> None:
+        if self.power_limit_watts is not None and (
+            isinstance(self.power_limit_watts, bool)
+            or not isinstance(self.power_limit_watts, (int, float))
+            or not math.isfinite(float(self.power_limit_watts))
+            or self.power_limit_watts < 0
+        ):
+            raise ValueError("GPU power_limit_watts must be finite and non-negative")
 
 
 @dataclass(frozen=True, slots=True)
@@ -247,6 +257,15 @@ class DeploymentCapabilityFacts:
     fabric: GpuFabricFacts = field(default_factory=GpuFabricFacts)
     storage: StorageCapabilityFacts = field(default_factory=lambda: StorageCapabilityFacts("unknown"))
 
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.captured_at_unix, bool)
+            or not isinstance(self.captured_at_unix, (int, float))
+            or not math.isfinite(float(self.captured_at_unix))
+            or self.captured_at_unix < 0
+        ):
+            raise ValueError("deployment capability captured_at_unix must be finite and non-negative")
+
     def digest(self) -> str:
         return canonical_digest(self)
 
@@ -280,8 +299,13 @@ class DeploymentQualificationRequest:
             raise ValueError("deployment qualification python_environment_id must be non-empty")
         if not self.backends or any(not value.strip() for value in self.backends):
             raise ValueError("deployment qualification requires at least one backend")
-        if self.probe_timeout_seconds <= 0:
-            raise ValueError("deployment qualification probe timeout must be positive")
+        if (
+            isinstance(self.probe_timeout_seconds, bool)
+            or not isinstance(self.probe_timeout_seconds, (int, float))
+            or not math.isfinite(float(self.probe_timeout_seconds))
+            or self.probe_timeout_seconds <= 0
+        ):
+            raise ValueError("deployment qualification probe timeout must be finite and positive")
 
     def digest(self) -> str:
         return canonical_digest(self)
@@ -367,6 +391,13 @@ class DeploymentQualificationEvidenceRecord:
     record_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
+        if (
+            isinstance(self.captured_at_unix, bool)
+            or not isinstance(self.captured_at_unix, (int, float))
+            or not math.isfinite(float(self.captured_at_unix))
+            or self.captured_at_unix < 0
+        ):
+            raise ValueError("qualification evidence captured_at_unix must be finite and non-negative")
         if self.plan.request_digest != self.request.digest():
             raise ValueError("qualification evidence request digest does not match plan")
         if self.plan.facts_digest != self.facts.digest():

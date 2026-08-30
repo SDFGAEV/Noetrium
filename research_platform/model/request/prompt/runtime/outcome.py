@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 
 
 @dataclass(frozen=True, slots=True)
@@ -15,6 +16,16 @@ class PromptOutcomeLink:
     utility: float | None
     contract_repairs: int
 
+    def __post_init__(self) -> None:
+        if self.utility is not None and (
+            isinstance(self.utility, bool)
+            or not isinstance(self.utility, (int, float))
+            or not math.isfinite(float(self.utility))
+        ):
+            raise ValueError("prompt outcome utility must be finite")
+        if type(self.contract_repairs) is not int or self.contract_repairs < 0:
+            raise ValueError("prompt outcome contract_repairs must be non-negative")
+
 
 @dataclass(frozen=True, slots=True)
 class PromptOutcomeSummary:
@@ -24,6 +35,27 @@ class PromptOutcomeSummary:
     task_success_rate: float | None
     mean_utility: float | None
     effect_claim_authorized: bool = False
+
+    def __post_init__(self) -> None:
+        if type(self.observations) is not int or self.observations < 0:
+            raise ValueError("prompt outcome observations must be non-negative")
+        for field in ("verified_action_success_rate", "task_success_rate"):
+            value = getattr(self, field)
+            if value is None:
+                continue
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+                or not 0 <= value <= 1
+            ):
+                raise ValueError(f"prompt outcome {field} must be finite and within [0, 1]")
+        if self.mean_utility is not None and (
+            isinstance(self.mean_utility, bool)
+            or not isinstance(self.mean_utility, (int, float))
+            or not math.isfinite(float(self.mean_utility))
+        ):
+            raise ValueError("prompt outcome mean_utility must be finite")
 
 
 def summarize_outcomes(prompt_digest: str, links: tuple[PromptOutcomeLink, ...]) -> PromptOutcomeSummary:

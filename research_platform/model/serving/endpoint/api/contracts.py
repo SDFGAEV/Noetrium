@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from typing import Mapping
 from urllib.parse import urlparse
 
@@ -68,8 +69,13 @@ class ModelEndpointRoute:
             raise ValueError("model endpoint route base_url must be an absolute HTTP(S) URL")
         if not self.completion_path.startswith("/"):
             raise ValueError("model endpoint completion_path must be absolute")
-        if isinstance(self.timeout_s, bool) or not isinstance(self.timeout_s, (int, float)) or self.timeout_s <= 0:
-            raise ValueError("model endpoint timeout_s must be positive")
+        if (
+            isinstance(self.timeout_s, bool)
+            or not isinstance(self.timeout_s, (int, float))
+            or not math.isfinite(float(self.timeout_s))
+            or self.timeout_s <= 0
+        ):
+            raise ValueError("model endpoint timeout_s must be finite and positive")
 
     @property
     def completion_url(self) -> str:

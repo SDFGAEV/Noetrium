@@ -18,6 +18,7 @@ Downstream projects may map multiple logical roles to one or more qualified endp
 Related documents:
 
 - [AGENT_COGNITION_RUNTIME.md](AGENT_COGNITION_RUNTIME.md)
+- [FINITE_NUMERIC_AUTHORITY.md](FINITE_NUMERIC_AUTHORITY.md)
 - [`MODEL_SERVING_OS.md`](MODEL_SERVING_OS.md)
 - [`DEPLOYMENT_QUALIFICATION_SYSTEM.md`](DEPLOYMENT_QUALIFICATION_SYSTEM.md)
 - [`PROMPT_OS_V4.md`](PROMPT_OS_V4.md)

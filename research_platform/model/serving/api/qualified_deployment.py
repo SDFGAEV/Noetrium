@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 import hashlib
 import json
+import math
 
 from .placement import DeploymentPlacement
 from research_platform.model.stack.api import ModelStackSpec
@@ -26,6 +27,15 @@ class ResourceEnvelope:
             raise ValueError("resource envelope requires measured positive memory peaks")
         if type(self.max_qualified_concurrency) is not int or self.max_qualified_concurrency <= 0:
             raise ValueError("qualified concurrency must be positive")
+        for field in ("ttft_p99_seconds", "tpot_p99_seconds", "minimum_output_tokens_per_second"):
+            value = getattr(self, field)
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+                or value <= 0
+            ):
+                raise ValueError(f"resource envelope {field} must be finite and positive")
 
 
 @dataclass(frozen=True, slots=True)

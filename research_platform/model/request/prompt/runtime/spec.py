@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 import json
+import math
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,6 +24,22 @@ class PromptSpec:
     temperature: float
     top_p: float
     max_output_tokens: int
+
+    def __post_init__(self) -> None:
+        if any(not isinstance(value, str) or not value.strip() for value in (self.prompt_id, self.role, self.version, self.model_family, self.output_schema)):
+            raise ValueError("prompt spec identity fields must be non-empty")
+        if type(self.sections) is not tuple or not self.sections:
+            raise ValueError("prompt spec requires at least one section")
+        for field in ("temperature", "top_p"):
+            value = getattr(self, field)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+                raise ValueError(f"prompt spec {field} must be finite")
+        if self.temperature < 0:
+            raise ValueError("prompt spec temperature must be non-negative")
+        if not 0 < self.top_p <= 1:
+            raise ValueError("prompt spec top_p must be within (0, 1]")
+        if type(self.max_output_tokens) is not int or self.max_output_tokens <= 0:
+            raise ValueError("prompt spec max_output_tokens must be positive")
 
     def compile(self) -> str:
         return "\n\n".join(s.text.strip() for s in sorted(self.sections, key=lambda x: (x.priority, x.section_id))) + "\n"
