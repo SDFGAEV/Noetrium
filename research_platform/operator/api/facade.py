@@ -77,6 +77,16 @@ class ResearchResult:
         object.__setattr__(self, "payload", _freeze_json(self.payload, path="result.payload"))
 
 
+class ResearchOperationFailure(RuntimeError):
+    """Authoritative application result for an operation that did not complete safely."""
+
+    def __init__(self, result: ResearchResult) -> None:
+        if type(result) is not ResearchResult:
+            raise TypeError("research operation failure requires ResearchResult")
+        self.result = result
+        super().__init__(f"research {result.action.value} entered {result.state}")
+
+
 class ResearchApplicationPort(Protocol):
     """Application-owned authority behind the topology-hiding product facade."""
 
@@ -127,6 +137,7 @@ __all__ = [
     "ResearchAction",
     "ResearchApplicationPort",
     "ResearchFacade",
+    "ResearchOperationFailure",
     "ResearchRequest",
     "ResearchResult",
 ]

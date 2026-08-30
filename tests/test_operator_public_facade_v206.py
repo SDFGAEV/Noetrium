@@ -8,6 +8,7 @@ import pytest
 from research_platform.api import (
     ResearchAction,
     ResearchFacade,
+    ResearchOperationFailure,
     ResearchRequest,
     ResearchResult,
 )
@@ -95,6 +96,36 @@ def test_lifecycle_cli_delegates_to_explicit_application(capsys):
     assert output["result"]["action"] == "run"
     assert output["result"]["target"] == "run-7"
     assert app.requests[0].payload["seed"] == 7
+
+
+def test_lifecycle_cli_preserves_authoritative_operation_failure(capsys):
+    class _FailingApplication:
+        def execute(self, request: ResearchRequest) -> ResearchResult:
+            raise ResearchOperationFailure(
+                ResearchResult(
+                    request.action,
+                    request.target,
+                    "recovery_required",
+                    {"control_generation": 3, "operation_id": "a" * 64},
+                )
+            )
+
+    with patch(
+        "research_platform.operator.runtime.research_cli.load_research_application",
+        return_value=_FailingApplication(),
+    ):
+        rc = main([
+            "--application", "sample:factory", "reconcile", "run-7",
+            "--payload", '{"expected_generation": 3}',
+        ])
+    assert rc == 3
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    error = json.loads(captured.err)
+    assert error["ok"] is False
+    assert error["command"] == "reconcile"
+    assert error["result"]["state"] == "recovery_required"
+    assert error["result"]["payload"]["control_generation"] == 3
 
 
 def test_manage_route_preserves_foreign_cli_arguments_verbatim():

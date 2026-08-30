@@ -2,6 +2,7 @@ from .facade import (
     ResearchAction,
     ResearchApplicationPort,
     ResearchFacade,
+    ResearchOperationFailure,
     ResearchRequest,
     ResearchResult,
 )
@@ -13,6 +14,7 @@ __all__ = [
     "ResearchAction",
     "ResearchApplicationPort",
     "ResearchFacade",
+    "ResearchOperationFailure",
     "ResearchRequest",
     "ResearchResult",
 ]

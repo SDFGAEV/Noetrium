@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 import sys
 
-from research_platform.operator.api import ResearchAction, ResearchFacade
+from research_platform.operator.api import ResearchAction, ResearchFacade, ResearchOperationFailure
 from research_platform.platform.kernel.errors import describe_exception
 
 from .application_loader import ResearchApplicationFactorySpec, load_research_application
@@ -108,6 +108,9 @@ def run_research_cli(
     args = build_research_parser().parse_args(raw_argv)
     try:
         return _run_application(args)
+    except ResearchOperationFailure as exc:
+        _emit({"ok": False, "command": args.command, "result": exc.result}, stream=sys.stderr)
+        return 3
     except _EXPECTED_ERRORS as exc:
         descriptor = describe_exception(exc)
         _emit(
