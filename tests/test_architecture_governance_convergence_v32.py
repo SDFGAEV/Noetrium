@@ -477,14 +477,17 @@ def test_source_invariant_paths_use_canonical_posix_identity(tmp_path: Path) -> 
     row = violation(tmp_path, source, "test", 1, "detail")
     assert row.path == "research_platform/execution/admission/api/boundary.py"
 
-def test_role04_proposal_tracks_current_exact_import_delta_and_projection() -> None:
+def test_role04_historical_and_npe_architecture_allowances_are_preserved() -> None:
     root = Path(__file__).resolve().parents[1]
-    budget = load_architecture_complexity_budget(root)
-    migration = next(row for row in budget.migrations if row.owner_role == "ROLE04")
-    assert migration.migration_id == "role04-participant-model-v1"
-    assert migration.delta.import_edges == 41
-    assert migration.module_prefixes == ("research_platform.participant", "research_platform.model")
-    assert migration.import_projection_sha256 == "dcd7c1e5a32e7a57e466c8f0a1a1b866bde249f7f6cc57d1af1362fff38ae25e"
+    rows = {row.migration_id: row for row in load_architecture_complexity_budget(root).migrations}
+    historical = rows["role04-participant-model-v1"]
+    current = rows["role04-npe-participant-model-248d67c"]
+    assert historical.delta.import_edges == 41
+    assert historical.module_prefixes == ("research_platform.participant", "research_platform.model")
+    assert historical.import_projection_sha256 == "dcd7c1e5a32e7a57e466c8f0a1a1b866bde249f7f6cc57d1af1362fff38ae25e"
+    assert current.delta.import_edges == 60
+    assert current.module_prefixes == ("research_platform.participant", "research_platform.model")
+    assert current.import_projection_sha256 == "258324fc514e5aa069f069d5d9282f0433c35a20bbbdd3da8782530cef40b643"
 
 def test_current_downstream_proposals_have_exact_applicability_without_self_approval() -> None:
     root = Path(__file__).resolve().parents[1]

@@ -155,6 +155,25 @@
       }
     },
     {
+      "migration_id": "role04-npe-participant-model-248d67c",
+      "owner_role": "ROLE04",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 60
+      },
+      "justification": "Exact pushed NPE Agent/Model successor adds sixty owner-scoped import edges versus the frozen baseline; this proposal preserves the historical +41 cut and grants zero headroom without independent ROLE00 approval.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.participant",
+          "research_platform.model"
+        ],
+        "import_projection_sha256": "258324fc514e5aa069f069d5d9282f0433c35a20bbbdd3da8782530cef40b643"
+      }
+    },
+    {
       "migration_id": "role05-environment-evidence-v1",
       "owner_role": "ROLE05",
       "delta": {
