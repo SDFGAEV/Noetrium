@@ -6,11 +6,24 @@ from .facade import (
     ResearchRequest,
     ResearchResult,
 )
+from .project_experience import (
+    PROJECT_TEMPLATE_REVISION,
+    ProjectCreateReceipt,
+    ProjectCreateRequest,
+    ProjectDoctorCheck,
+    ProjectDoctorDisposition,
+    ProjectDoctorReport,
+    ProjectExperiencePort,
+    ProjectFacade,
+    ProjectTestReceipt,
+)
 from .routes import OperatorHandlerPort, OperatorRoutePort
 
 __all__ = [
-    "OperatorHandlerPort",
-    "OperatorRoutePort",
+    "OperatorHandlerPort", "OperatorRoutePort", "PROJECT_TEMPLATE_REVISION",
+    "ProjectCreateReceipt", "ProjectCreateRequest", "ProjectDoctorCheck",
+    "ProjectDoctorDisposition", "ProjectDoctorReport", "ProjectExperiencePort",
+    "ProjectFacade", "ProjectTestReceipt",
     "ResearchAction",
     "ResearchApplicationPort",
     "ResearchFacade",

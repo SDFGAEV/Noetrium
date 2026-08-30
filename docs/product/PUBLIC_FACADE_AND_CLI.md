@@ -66,3 +66,28 @@ The binding requires one explicit `run_id`, its exact `run_manifest_digest`, and
 The adapter rejects target, manifest, control-event-action, and evidence identity drift even if a downstream object is otherwise typed. A state-changing command that produces `failed` or `recovery_required`, or a ROLE 03 `RunControlActionFailure`, raises `ResearchOperationFailure` carrying the authoritative `ResearchResult`. The CLI serializes that result to stderr and exits with code `3`; it never rewrites an uncertain/recovery-required outcome into success.
 
 This closes the ROLE 06 consumer side of `CSR-06-GENERIC-RUN-LIFECYCLE-OPERATOR-HANDOFF-20260829`; final availability still depends on the ROLE 03 run-control implementation being present in the integrated source cut.
+
+## Downstream project experience
+
+`research project create <project-id> <destination> --version <version>` creates a deterministic downstream skeleton outside `research_platform/**`. The scaffold binds canonical Portfolio `ProjectManifest` identity/provenance and emits only public Participant, Model, Environment, Experimentation and product imports.
+
+The default scaffold is an **extension-author skeleton**, not a fake ready project. Participant/Model/Environment/Application placeholders expose typed public obligations and deliberately fail closed until real bindings are supplied. Therefore a skeleton may pass generated contract tests while `research project doctor --project .` correctly reports provider/application blockers.
+
+`research project test --project .` runs the generated conformance suite in an isolated Python process with user-site and ambient `PYTHONPATH` disabled. `research project doctor --project .` verifies the canonical manifest, installed Platform provenance, generated files, downstream import boundary, typed provider diagnostics, Environment readiness and application binding.
+
+Lifecycle commands may load one explicit project root without a service locator:
+
+```bash
+research run --project . run-123 --payload '{"expected_generation":0}'
+research inspect --project . run-123
+```
+
+The loader derives the package identity from the canonical manifest and rejects an application module that resolves outside the explicit project root. `--project` and `--application` are mutually exclusive authority sources.
+
+## NPE reference authority
+
+The historical `research_platform.operator.reference` workload remains a narrow CLI/distribution smoke fixture only. It persists its own synthetic phase/generation/event state and therefore is **not** Section-37 New Project Experience lifecycle evidence.
+
+Claim-grade NPE reference acceptance must instead compose producer-owned contracts: ROLE03 `RunControlPort`/checkpoint/evidence authority, ROLE05 public Environment provider/session authority, and ROLE02 typed runtime/resource/recovery facts where required. ROLE06 may translate those receipts but may not manufacture replacement lifecycle, effect, checkpoint, environment or evidence truth.
+
+Until the public producer seams required by the NPE acceptance ledger are present, installed-artifact NPE qualification must remain blocked rather than inheriting a PASS from the historical Operator smoke workload.
