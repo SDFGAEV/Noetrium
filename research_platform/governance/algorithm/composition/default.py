@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Callable
 
-from research_platform.governance.algorithm.api import AlgorithmGovernanceApprovalSet
+from research_platform.governance.algorithm.api import AlgorithmGovernanceApprovalSet, AlgorithmSnapshot
 from research_platform.governance.algorithm.providers import (
     FilesystemAlgorithmSnapshotStore,
     FilesystemFileAnalysisCache,
@@ -57,6 +58,72 @@ def _external_approval_set() -> AlgorithmGovernanceApprovalSet | None:
     return load_algorithm_governance_approval_set(Path(path), expected_sha256=digest)
 
 
+def _resolve_source(
+    root: Path,
+    *,
+    exact: bool,
+    source_inventory: RepositorySourcePort | None,
+    source_index: RepositorySourceIndexPort | None,
+    git_executable: str | Path | None,
+) -> tuple[RepositorySourcePort, RepositorySourceIndexPort | None]:
+    if source_index is not None and source_inventory is not None and source_index is not source_inventory:
+        raise ValueError("source_inventory and source_index must reference the same frozen source cut")
+    if source_index is not None:
+        return source_index, source_index
+    if exact:
+        if source_inventory is not None:
+            raise ValueError("exact algorithm governance requires a RepositorySourceIndexPort, not an unbound inventory")
+        resolved = GitRepositorySourceTree(root, git_executable=git_executable).index()
+        return resolved, resolved
+    return source_inventory or RepositorySourceTree(root), None
+
+
+def _verify_exact_runtime(
+    root: Path,
+    source_index: RepositorySourceIndexPort,
+    implementation_digest: str,
+) -> None:
+    runtime_package = Path(__file__).resolve().parents[1]
+    expected_package = (root / "research_platform" / "governance" / "algorithm").resolve()
+    if runtime_package != expected_package:
+        raise ValueError(
+            "exact algorithm governance must execute the analyzer implementation from the audited repository root"
+        )
+    if source_index.source_authority != "git" or source_index.source_revision is None:
+        raise ValueError("exact algorithm governance requires immutable Git source authority")
+    filesystem_index = RepositorySourceTree(root).index()
+    if algorithm_implementation_digest(filesystem_index) != implementation_digest:
+        raise ValueError(
+            "exact algorithm analyzer implementation bytes differ from the immutable source cut"
+        )
+
+
+def _baseline_replay_factory(
+    root: Path,
+    *,
+    implementation_digest: str,
+    git_executable: str | Path | None,
+) -> Callable[[str], AlgorithmSnapshot]:
+    def replay(revision: str) -> AlgorithmSnapshot:
+        historical = GitRepositorySourceTree(
+            root, revision=revision, git_executable=git_executable
+        ).index()
+        return _scanner(
+            historical,
+            source_index=historical,
+            cache=None,
+            use_cache=False,
+            implementation_digest=implementation_digest,
+        ).scan()
+    return replay
+
+
+def _resolved_approval_set(
+    supplied: AlgorithmGovernanceApprovalSet | None,
+) -> AlgorithmGovernanceApprovalSet | None:
+    return supplied if supplied is not None else _external_approval_set()
+
+
 def build_algorithm_governance(
     root: Path,
     *,
@@ -68,51 +135,25 @@ def build_algorithm_governance(
     git_executable: str | Path | None = None,
 ) -> AlgorithmGovernanceService:
     root = Path(root).resolve()
-    if source_index is not None and source_inventory is not None and source_index is not source_inventory:
-        raise ValueError("source_inventory and source_index must reference the same frozen source cut")
-    resolved_index = source_index
-    if resolved_index is None and exact:
-        if source_inventory is not None:
-            raise ValueError("exact algorithm governance requires a RepositorySourceIndexPort, not an unbound inventory")
-        resolved_index = GitRepositorySourceTree(
-            root, git_executable=git_executable
-        ).index()
-    source: RepositorySourcePort = resolved_index or source_inventory or RepositorySourceTree(root)
+    source, resolved_index = _resolve_source(
+        root,
+        exact=exact,
+        source_inventory=source_inventory,
+        source_index=source_index,
+        git_executable=git_executable,
+    )
     state = Path(state_root) if state_root is not None else root / ".local" / "algorithm-governance"
     cache = None if exact else FilesystemFileAnalysisCache(state / "cache")
-    implementation_digest = (
-        algorithm_implementation_digest(resolved_index) if resolved_index is not None else ""
-    )
+    implementation_digest = algorithm_implementation_digest(resolved_index) if resolved_index is not None else ""
     baseline_replay = None
     if exact:
         assert resolved_index is not None
-        runtime_package = Path(__file__).resolve().parents[1]
-        expected_package = (root / "research_platform" / "governance" / "algorithm").resolve()
-        if runtime_package != expected_package:
-            raise ValueError(
-                "exact algorithm governance must execute the analyzer implementation from the audited repository root"
-            )
-        if resolved_index.source_authority != "git" or resolved_index.source_revision is None:
-            raise ValueError("exact algorithm governance requires immutable Git source authority")
-        filesystem_index = RepositorySourceTree(root).index()
-        if algorithm_implementation_digest(filesystem_index) != implementation_digest:
-            raise ValueError(
-                "exact algorithm analyzer implementation bytes differ from the immutable source cut"
-            )
-
-        def replay(revision: str):
-            historical = GitRepositorySourceTree(
-                root, revision=revision, git_executable=git_executable
-            ).index()
-            return _scanner(
-                historical,
-                source_index=historical,
-                cache=None,
-                use_cache=False,
-                implementation_digest=implementation_digest,
-            ).scan()
-
-        baseline_replay = replay
+        _verify_exact_runtime(root, resolved_index, implementation_digest)
+        baseline_replay = _baseline_replay_factory(
+            root,
+            implementation_digest=implementation_digest,
+            git_executable=git_executable,
+        )
     scanner = _scanner(
         source,
         source_index=resolved_index,
@@ -120,13 +161,15 @@ def build_algorithm_governance(
         use_cache=not exact,
         implementation_digest=implementation_digest,
     )
-    repository_baseline = root / "docs" / "status" / "algorithm" / "ALGORITHM_BASELINE.json"
-    store = FilesystemAlgorithmSnapshotStore(state, baseline_path=repository_baseline)
+    store = FilesystemAlgorithmSnapshotStore(
+        state,
+        baseline_path=root / "docs" / "status" / "algorithm" / "ALGORITHM_BASELINE.json",
+    )
     return AlgorithmGovernanceService(
         scanner=scanner,
         store=store,
         baseline_replay=baseline_replay,
-        approval_set=approval_set if approval_set is not None else _external_approval_set(),
+        approval_set=_resolved_approval_set(approval_set),
     )
 
 

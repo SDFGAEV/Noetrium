@@ -62,6 +62,19 @@ def _algorithm_snapshot_with_complexity(
     )
 
 
+
+
+def _approval_set(*, baselines=(), complexity=()):
+    from research_platform.governance.algorithm.api import AlgorithmGovernanceApprovalSet
+    return AlgorithmGovernanceApprovalSet(
+        schema_version="algorithm-governance-approval-set.v1",
+        authority="ROLE00",
+        baseline_approvals=tuple(baselines),
+        complexity_migrations=tuple(complexity),
+        default_decision="not_approved",
+        rule="Exact source and analyzer identity only.",
+    )
+
 def test_algorithm_immutable_git_replay_is_semantically_reproducible(tmp_path: Path) -> None:
     import subprocess
     from research_platform.governance.algorithm.runtime import algorithm_snapshot_semantic_digest
@@ -75,6 +88,8 @@ def test_algorithm_immutable_git_replay_is_semantically_reproducible(tmp_path: P
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            encoding="utf-8",
+            errors="strict",
         )
         return completed.stdout.strip()
     run("init")
@@ -232,13 +247,13 @@ def test_exact_lower_bound_approval_allows_only_its_bound_complexity_transition(
         approval_record_sha256="6" * 64,
     )
     approved = gate_against_baseline(
-        baseline, current, complexity_migrations=(approval,)
+        baseline, current, approval_set=_approval_set(complexity=(approval,))
     )
     assert approved.passed
     assert any("approved lower-bound complexity migration" in row for row in approved.warnings)
     stale = replace(approval, source_git_sha="7" * 40)
     rejected = gate_against_baseline(
-        baseline, current, complexity_migrations=(stale,)
+        baseline, current, approval_set=_approval_set(complexity=(stale,))
     )
     assert not rejected.passed
     assert any("complexity regression" in row for row in rejected.blockers)
@@ -288,14 +303,7 @@ def test_git_baseline_acceptance_requires_exact_role00_approval() -> None:
         note="Reviewed immutable analyzer and source replay evidence.",
         approval_record_sha256="4" * 64,
     )
-    service.approval_set = AlgorithmGovernanceApprovalSet(
-        schema_version="algorithm-governance-approval-set.v1",
-        authority="ROLE00",
-        baseline_approvals=(approval,),
-        complexity_migrations=(),
-        default_decision="not_approved",
-        rule="Exact source and analyzer identity only.",
-    )
+    service.approval_set = _approval_set(baselines=(approval,))
     assert service.accept_baseline() == current
     assert saved == [current]
 
@@ -438,3 +446,52 @@ def test_implementation_text_digest_normalizes_only_line_endings(tmp_path: Path)
         path_prefixes=("research_platform/governance/algorithm",),
         suffixes=(".py",),
     ) != text_lf
+
+
+def test_algorithm_governance_authority_hotpaths_remain_constant_time() -> None:
+    import hashlib
+    from research_platform.governance.algorithm.api import AlgorithmLanguage, SourceDocument
+    from research_platform.governance.algorithm.runtime import PythonAlgorithmAnalyzer
+
+    root = Path(__file__).resolve().parents[1]
+    cases = (
+        (
+            "research_platform/governance/algorithm/composition/default.py",
+            "build_algorithm_governance",
+            "O(1)",
+            5,
+        ),
+        (
+            "research_platform/governance/algorithm/runtime/service.py",
+            "AlgorithmGovernanceService.accept_baseline",
+            "O(1)",
+            5,
+        ),
+        (
+            "research_platform/governance/algorithm/api/contracts.py",
+            "AlgorithmGovernanceApprovalSet.baseline_approval_for",
+            "O(1)",
+            1,
+        ),
+        (
+            "research_platform/governance/algorithm/api/contracts.py",
+            "AlgorithmGovernanceApprovalSet.complexity_migration_for",
+            "O(1)",
+            1,
+        ),
+    )
+    analyzer = PythonAlgorithmAnalyzer()
+    for relative, qualified_name, expected_complexity, max_risk in cases:
+        text = (root / relative).read_text(encoding="utf-8")
+        document = SourceDocument(
+            relative,
+            AlgorithmLanguage.PYTHON,
+            hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            text,
+        )
+        symbol = next(
+            row for row in analyzer.analyze(document).symbols
+            if row.qualified_name == qualified_name
+        )
+        assert symbol.metrics.estimated_complexity == expected_complexity
+        assert symbol.metrics.risk_score <= max_risk

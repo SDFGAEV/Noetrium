@@ -52,17 +52,18 @@ class AlgorithmGovernanceService:
             if error is not None:
                 raise AlgorithmBaselineApprovalMissing(error)
             digest = algorithm_snapshot_semantic_digest(snapshot)
-            approvals = self.approval_set.baseline_approvals if self.approval_set is not None else ()
-            matched = any(
-                approval.approved
-                and approval.source_git_sha == snapshot.source_revision
-                and approval.source_digest == snapshot.source_digest
-                and approval.analyzer_revision == snapshot.analyzer_revision
-                and approval.analyzer_implementation_digest == snapshot.analyzer_implementation_digest
-                and approval.snapshot_digest == digest
-                for approval in approvals
+            approval = (
+                self.approval_set.baseline_approval_for(
+                    source_git_sha=snapshot.source_revision,
+                    source_digest=snapshot.source_digest,
+                    analyzer_revision=snapshot.analyzer_revision,
+                    analyzer_implementation_digest=snapshot.analyzer_implementation_digest,
+                    snapshot_digest=digest,
+                )
+                if self.approval_set is not None
+                else None
             )
-            if not matched:
+            if approval is None:
                 raise AlgorithmBaselineApprovalMissing(
                     "ROLE00 exact algorithm baseline approval is missing for this source/analyzer/snapshot identity"
                 )
@@ -82,9 +83,8 @@ class AlgorithmGovernanceService:
                 return current, AlgorithmGateReport(
                     passed=False, blockers=(blocker,), warnings=(), diff=_empty_diff()
                 )
-        migrations = self.approval_set.complexity_migrations if self.approval_set is not None else ()
         return current, gate_against_baseline(
-            baseline, current, complexity_migrations=migrations
+            baseline, current, approval_set=self.approval_set
         )
 
 

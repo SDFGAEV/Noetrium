@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from types import MappingProxyType
 from enum import StrEnum
 from typing import Mapping
 
@@ -145,6 +146,51 @@ class AlgorithmGovernanceApprovalSet:
     complexity_migrations: tuple[AlgorithmComplexityMigrationApproval, ...]
     default_decision: str
     rule: str
+    _baseline_index: Mapping[tuple[str, str, str, str, str], AlgorithmBaselineApproval] = field(
+        init=False, repr=False, compare=False
+    )
+    _complexity_index: Mapping[
+        tuple[str, str, str, str, str, str, str], AlgorithmComplexityMigrationApproval
+    ] = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        baseline_index = {
+            (
+                row.source_git_sha, row.source_digest, row.analyzer_revision,
+                row.analyzer_implementation_digest, row.snapshot_digest,
+            ): row
+            for row in self.baseline_approvals
+            if row.approved
+        }
+        complexity_index = {
+            (
+                row.symbol_id, row.source_git_sha, row.source_digest, row.analyzer_revision,
+                row.analyzer_implementation_digest, row.old_complexity, row.new_complexity,
+            ): row
+            for row in self.complexity_migrations
+            if row.approved
+        }
+        object.__setattr__(self, "_baseline_index", MappingProxyType(baseline_index))
+        object.__setattr__(self, "_complexity_index", MappingProxyType(complexity_index))
+
+    def baseline_approval_for(
+        self, *, source_git_sha: str, source_digest: str, analyzer_revision: str,
+        analyzer_implementation_digest: str, snapshot_digest: str,
+    ) -> AlgorithmBaselineApproval | None:
+        return self._baseline_index.get((
+            source_git_sha, source_digest, analyzer_revision,
+            analyzer_implementation_digest, snapshot_digest,
+        ))
+
+    def complexity_migration_for(
+        self, *, symbol_id: str, source_git_sha: str, source_digest: str,
+        analyzer_revision: str, analyzer_implementation_digest: str,
+        old_complexity: str, new_complexity: str,
+    ) -> AlgorithmComplexityMigrationApproval | None:
+        return self._complexity_index.get((
+            symbol_id, source_git_sha, source_digest, analyzer_revision,
+            analyzer_implementation_digest, old_complexity, new_complexity,
+        ))
 
 
 @dataclass(frozen=True, slots=True)
