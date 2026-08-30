@@ -49,6 +49,18 @@ A successful rollback reports `ROLLED_BACK`; any rollback failure reports state 
 
 Checkpoint manifests bind run/study/workload/branch, source cut, environment generation, method generation, task manifest, execution cut, and component payload digests.
 
+## Durable generic run control
+
+`experimentation/run/control` is the generic operator-facing lifecycle authority for `run`, `inspect`, `stop`, `resume`, `reconcile`, and `evidence`. It binds every command to the exact `RunIdentity.digest()` and `RunLaunchManifest.digest()` and requires `expected_generation` on every state-changing request.
+
+Effectful lifecycle actions use a prepared-before-effect protocol. The directory ledger first atomically publishes an immutable `PREPARED` record with a deterministic operation ID and the exact base generation/checkpoint identity. Only after that publication returns may the lifecycle adapter perform an external effect. A separate immutable `TERMINAL` record advances the control generation only after an authoritative outcome exists.
+
+A restart that finds an unresolved `PREPARED` record reconstructs `RECOVERY_REQUIRED` at the prior generation. Replaying the same request returns that pending projection and never reissues the lifecycle effect; a different request conflicts. Resolution requires the Execution reconciliation projection of ROLE02 effect authority. `UNKNOWN`, possible/unknown effect certainty, or verification-required evidence remains pending and can never report `RUNNING`.
+
+If terminal publication fails after an effect may have happened, the pending prepared authority survives restart. If atomic terminal publication crossed its commit point before the caller observed an error, the controller re-reads the immutable ledger and returns the reconstructed terminal receipt instead of fabricating recovery. Corrupt, truncated, reordered, duplicate, or identity-drifted records fail closed.
+
+`inspect` and `evidence` are read-only and never advance the generation. `resume` additionally binds the exact checkpoint manifest digest and restore decision-cycle identity. Evidence replies accept only same-run/same-manifest `EvidenceBundleReceipt` values whose manifest artifact verifies through `RunArtifactVerificationPort`.
+
 ## Validation rule
 
 Persistence/checkpoint/recovery/evidence-finalization changes require Windows plus Server2 validation from the same committed SHA. Protected SEM execution roots, GPU0/1, and the Qwen endpoint are outside this validation path.

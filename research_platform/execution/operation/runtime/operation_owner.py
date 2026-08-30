@@ -1,10 +1,10 @@
 from __future__ import annotations
 import time
 from research_platform.execution.command.api import CommandId
-from research_platform.platform.kernel.operation import EffectCertainty
-from research_platform.reliability.effect.api import EffectReconciliationDisposition,EffectReconciliationProof
+from research_platform.reliability.effect.api import EffectReconciliationProof
 from research_platform.execution.operation.api import (EffectId,OperationEffectCertainty,OperationEffectProfile,OperationFailure,
-    OperationFailureKind,OperationId,OperationSnapshot,OperationState,OperationStorePort,revise_operation,transition_operation)
+    OperationFailureKind,OperationId,OperationSnapshot,OperationState,OperationStorePort,revise_operation,transition_operation,
+    EffectReconciliationOutcome,project_effect_reconciliation)
 
 class OperationOwner:
     """Single authority for operation identity, state and crash classification."""
@@ -85,30 +85,27 @@ class OperationOwner:
         return self._transition_from(current,OperationState.RECOVERING)
     @staticmethod
     def _reconciliation_outcome(current:OperationSnapshot,proof:EffectReconciliationProof)->str:
-        if not isinstance(proof,EffectReconciliationProof):
-            raise TypeError("operation reconciliation requires EffectReconciliationProof")
+        verdict=project_effect_reconciliation(proof)
         if current.effect_profile is OperationEffectProfile.NONE or current.effect_id is None:
             raise RuntimeError("effect-free operation does not accept external reconciliation proof")
-        if proof.request_id != current.effect_request_id:
+        if verdict.request_id != current.effect_request_id:
             raise ValueError("effect reconciliation request_id does not match durable operation identity")
-        if proof.disposition is EffectReconciliationDisposition.UNKNOWN:
+        if verdict.effect_id is not None:
+            if verdict.effect_id != current.effect_id.value:
+                raise ValueError("effect reconciliation effect_id does not match durable operation identity")
+            if verdict.request_digest != current.effect_request_digest:
+                raise ValueError("effect reconciliation request_digest does not match durable operation identity")
+        if verdict.outcome is EffectReconciliationOutcome.UNKNOWN:
             return "unknown"
-        effect=proof.effect
-        if effect is None:
-            raise ValueError("resolved effect reconciliation requires an effect receipt")
-        if effect.effect_id != current.effect_id.value:
-            raise ValueError("effect reconciliation effect_id does not match durable operation identity")
-        if effect.request_digest != current.effect_request_digest:
-            raise ValueError("effect reconciliation request_digest does not match durable operation identity")
-        if effect.verification_required:
+        if verdict.verification_required:
             raise ValueError("effect reconciliation requiring verification cannot resolve operation authority")
-        if proof.disposition is EffectReconciliationDisposition.APPLIED and effect.certainty is EffectCertainty.EFFECT_CONFIRMED:
+        if verdict.outcome is EffectReconciliationOutcome.EXECUTED:
             return "executed"
-        if proof.disposition is EffectReconciliationDisposition.NOT_APPLIED and effect.certainty is EffectCertainty.NO_EFFECT:
+        if verdict.outcome is EffectReconciliationOutcome.NOT_EXECUTED:
             return "not_executed"
-        if proof.disposition is EffectReconciliationDisposition.REJECTED and effect.certainty is EffectCertainty.EFFECT_REJECTED:
+        if verdict.outcome is EffectReconciliationOutcome.REJECTED:
             return "rejected"
-        raise ValueError("effect reconciliation disposition/certainty pair is not authoritative")
+        raise ValueError("effect reconciliation outcome is unsupported")
 
     def reconcile_effect(self,operation_id:OperationId,proof:EffectReconciliationProof)->OperationSnapshot:
         current=self.require(operation_id)
