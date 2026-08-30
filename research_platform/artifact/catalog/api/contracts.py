@@ -42,6 +42,11 @@ class ArtifactRecord:
     metadata: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
+        """Validate every lineage and metadata entry before accepting artifact authority.
+
+        Algorithm-Complexity: O(N)
+        Algorithm-Rationale: N is lineage plus metadata cardinality; non-empty and uniqueness checks must inspect the complete caller-supplied authority.
+        """
         if not self.artifact_id.strip() or not self.location.strip():
             raise ValueError("artifact identity and location must be non-empty")
         if len(self.digest) != 64 or any(char not in "0123456789abcdef" for char in self.digest):

@@ -148,15 +148,13 @@ class SQLiteTelemetryReader:
             maximum = _finite_number(aggregate[2], label="metric maximum")
             total = _finite_number(aggregate[3], label="metric sum")
 
-            positions = {
-                q: self._percentile_positions(count, q)
-                for q in (0.50, 0.95, 0.99)
-            }
-            required = sorted({
-                position
-                for low, high, _ in positions.values()
-                for position in (low, high)
-            })
+            p50 = self._percentile_positions(count, 0.50)
+            p95 = self._percentile_positions(count, 0.95)
+            p99 = self._percentile_positions(count, 0.99)
+            positions = {0.50: p50, 0.95: p95, 0.99: p99}
+            required = tuple(dict.fromkeys((
+                p50[0], p50[1], p95[0], p95[1], p99[0], p99[1],
+            )))
             placeholders = ",".join("?" for _ in required)
             percentile_rows = db.execute(
                 f"WITH ordered AS ("

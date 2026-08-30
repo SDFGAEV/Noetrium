@@ -28,6 +28,11 @@ class DurableFact:
     state_refs: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
+        """Validate every artifact/state reference before accepting durable fact authority.
+
+        Algorithm-Complexity: O(N)
+        Algorithm-Rationale: N is the total durable reference cardinality; every reference must be checked for non-empty identity and uniqueness.
+        """
         if not self.fact_id.strip() or not self.fact_type.strip() or not self.schema_version.strip():
             raise ValueError("durable fact identity fields must be non-empty")
         for name, refs in (("artifact_refs", self.artifact_refs), ("state_refs", self.state_refs)):

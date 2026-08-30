@@ -67,6 +67,11 @@ class TelemetryReadSession:
         decision_cycle_id: str | None,
         limit: int,
     ) -> tuple[TelemetryStorageReadRow, ...]:
+        """Decode every selected database row into one typed telemetry result.
+
+        Algorithm-Complexity: O(N)
+        Algorithm-Rationale: N is the requested result cardinality; a public query returning N typed rows must decode and materialize all N rows.
+        """
         clauses = ["run_id=?"]
         args: list[object] = [run_id]
         if metric is not None:

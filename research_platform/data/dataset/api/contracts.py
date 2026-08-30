@@ -11,6 +11,11 @@ class DatasetIdentity:
     version: str
 
     def __post_init__(self) -> None:
+        """Validate every parent/tag/metadata entry before accepting dataset authority.
+
+        Algorithm-Complexity: O(N)
+        Algorithm-Rationale: N is parent, tag, and metadata cardinality; fail-closed uniqueness and non-empty validation requires complete traversal.
+        """
         if not self.dataset_id.strip() or not self.version.strip():
             raise ValueError("dataset identity/version must be non-empty")
 
