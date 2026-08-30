@@ -163,6 +163,10 @@ function droppedItemName (entity) {
 }
 
 function captureItemDropNear (position, itemName = null, maxDistance = 0.5) {
+  const expectedNames = Array.isArray(itemName)
+    ? itemName.map(String).filter(Boolean)
+    : itemName ? [String(itemName)] : []
+  const matchesExpectedName = name => expectedNames.length === 0 || (name != null && expectedNames.includes(name))
   const activeBot = requireBot()
   const blockPos = position instanceof Vec3 ? position : new Vec3(Number(position.x), Number(position.y), Number(position.z))
   const center = blockPos.offset(0.5, 0.5, 0.5)
@@ -240,7 +244,7 @@ function captureItemDropNear (position, itemName = null, maxDistance = 0.5) {
     }
     if (!dropped) candidate.rejection = 'NOT_DROPPED_ITEM_ENTITY'
     else if (distance == null || distance > maxDistance) candidate.rejection = 'OUTSIDE_ASSOCIATION_RADIUS'
-    else if (itemName && observedName !== itemName) candidate.rejection = 'ITEM_NAME_MISMATCH'
+    else if (!matchesExpectedName(observedName)) candidate.rejection = 'ITEM_NAME_MISMATCH'
     else candidate.matched = true
     candidates.push(candidate)
     if (dropped && distance != null && distance <= maxDistance && entity.id != null) trackedEntities.set(entity.id, entity)
@@ -279,7 +283,7 @@ function captureItemDropNear (position, itemName = null, maxDistance = 0.5) {
     for (const entity of trackedEntities.values()) {
       if (!entity || entity.isValid === false || collectedByBot.has(entity.id)) continue
       const name = droppedItemName(entity)
-      if (itemName && name != null && name !== itemName) continue
+      if (expectedNames.length > 0 && name != null && !expectedNames.includes(name)) continue
       const distance = entity.position.distanceTo(activeBot.entity.position)
       if (distance < nearestDistance) {
         nearest = entity

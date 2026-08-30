@@ -153,34 +153,38 @@ test('chest_deposit closes the container and proves inventory removal', async ()
   assert.equal(closed, true)
 })
 
-test('mineflayer-pvp combat requires a grounded hurt signal for confirmation', async () => {
+test('mineflayer-pvp combat verifies only damage attributed to this bot', async () => {
   const items = [{ name: 'iron_sword', type: 8, count: 1, slot: 0 }]
   const bot = fakeBot(items)
-  const target = {
-    id: 2,
-    name: 'zombie',
-    displayName: 'Zombie',
-    type: 'mob',
-    isValid: true,
-    position: new Vec3(2, 64, 0)
-  }
+  const target = { id: 2, name: 'zombie', displayName: 'Zombie', type: 'mob', isValid: true, position: new Vec3(2, 64, 0) }
   bot.entities[2] = target
   bot.equip = async item => { bot.heldItem = item }
   bot.pvp = {
-    attack: entity => { setImmediate(() => bot.emit('entityHurt', entity)) },
+    attack: entity => { bot.emit('attackedTarget'); setTimeout(() => bot.emit('entityHurt', entity, bot.entity), 50) },
     stop: () => {}
   }
   runtime.bindBot(bot)
-
-  const result = await withoutMovementConstruction(() => combat.attack_nearest({
-    entity: 'zombie', max_distance: 8, max_hits: 1
-  }))
-
+  const result = await withoutMovementConstruction(() => combat.attack_nearest({ entity: 'zombie', max_distance: 8, max_hits: 1 }))
   assert.equal(result.verified, true)
   assert.equal(result.outcome.code, 'TARGET_HIT_CONFIRMED')
-  assert.equal(result.outcome.hurt_signals, 1)
+  assert.equal(result.outcome.attack_signals, 1)
+  assert.equal(result.outcome.own_hurt_signals, 1)
 })
 
+test('mineflayer-pvp combat does not attribute third-party damage to this bot', async () => {
+  const bot = fakeBot([])
+  const target = { id: 2, name: 'zombie', displayName: 'Zombie', type: 'mob', isValid: true, position: new Vec3(2, 64, 0) }
+  const other = { id: 99, name: 'skeleton', isValid: true, position: new Vec3(3, 64, 0) }
+  bot.entities[2] = target
+  bot.entities[99] = other
+  bot.pvp = { attack: entity => { bot.emit('attackedTarget'); bot.emit('entityHurt', entity, other) }, stop: () => {} }
+  runtime.bindBot(bot)
+  const result = await withoutMovementConstruction(() => combat.attack_nearest({ entity: 'zombie', max_distance: 8, max_hits: 1 }))
+  assert.equal(result.verified, false)
+  assert.equal(result.outcome.code, 'ATTACK_PERFORMED_HIT_UNCONFIRMED')
+  assert.equal(result.outcome.attack_signals, 1)
+  assert.equal(result.outcome.own_hurt_signals, 0)
+})
 test('runtime timeout cancels a hung provider operation', async () => {
   let cancelled = false
   await assert.rejects(
@@ -241,6 +245,22 @@ test('itemDrop capture binds the actual drop emitted for the dug block', async (
   assert.equal(watcher.candidates[0].matched, false)
   assert.equal(watcher.candidates[1].entity_id, 3)
   assert.equal(watcher.candidates[1].rejection, null)
+  assert.equal(watcher.candidates[1].matched, true)
+  watcher.cancel()
+})
+
+test('itemDrop capture accepts expected drop-name sets and rejects nearby unrelated items', async () => {
+  const bot = fakeBot([])
+  runtime.bindBot(bot)
+  const position = new Vec3(3, 64, 0)
+  const watcher = runtime.captureItemDropNear(position, ['cobblestone', 'raw_iron'], 0.5)
+  const wrong = { id: 70, name: 'item', position: position.offset(0.5, 0.5, 0.5), isValid: true, getDroppedItem: () => ({ name: 'dirt' }) }
+  const correct = { id: 71, name: 'item', position: position.offset(0.5, 0.5, 0.5), isValid: true, getDroppedItem: () => ({ name: 'cobblestone' }) }
+  bot.emit('itemDrop', wrong)
+  setImmediate(() => bot.emit('itemDrop', correct))
+  assert.equal(await watcher.promise, correct)
+  assert.equal(watcher.candidates[0].matched, false)
+  assert.equal(watcher.candidates[0].rejection, 'ITEM_NAME_MISMATCH')
   assert.equal(watcher.candidates[1].matched, true)
   watcher.cancel()
 })
@@ -404,4 +424,111 @@ test('drop capture records relevant raw protocol packet order without changing a
   watcher.cancel()
   bot._client.emit('packet', { entityId: 9 }, { name: 'spawn_entity' })
   assert.equal(watcher.protocol_packets.length, 4)
+})
+
+
+test('goto_entity delegates moving targets to runtime GoalFollow navigation', async () => {
+  const bot = fakeBot([])
+  const target = { id: 2, name: 'zombie', isValid: true, position: new Vec3(4, 64, 0) }
+  bot.entities[2] = target
+  runtime.bindBot(bot)
+  let dynamicCalls = 0
+  let staticCalls = 0
+  const oldDynamic = runtime.gotoEntity
+  const oldStatic = runtime.gotoPos
+  runtime.gotoEntity = async entity => { dynamicCalls += 1; return { entity_id: entity.id, valid: true } }
+  runtime.gotoPos = async () => { staticCalls += 1; return { distance: 0, within_radius: true } }
+  try {
+    const result = await movement.goto_entity({ entity: 'zombie', max_distance: 16, radius: 2.5 })
+    assert.equal(result.verified, true)
+    assert.equal(dynamicCalls, 1)
+    assert.equal(staticCalls, 0)
+  } finally {
+    runtime.gotoEntity = oldDynamic
+    runtime.gotoPos = oldStatic
+  }
+})
+
+
+test('collect_block rejects an unharvestable block before destructive dig', async () => {
+  const bot = fakeBot([])
+  const position = new Vec3(2, 64, 0)
+  const live = { name: 'stone', position, harvestTools: { 877: true }, canHarvest: () => false }
+  let digCalls = 0
+  bot.findBlock = () => live
+  bot.blockAt = () => live
+  bot.lookAt = async () => {}
+  bot.dig = async () => { digCalls += 1 }
+  runtime.bindBot(bot)
+  const result = await withoutMovementConstruction(() => resources.collect_block({
+    block: 'stone', count: 1, max_distance: 16, _action_timeout_ms: 2000
+  }))
+  assert.equal(result.verified, false)
+  assert.equal(result.outcome.code, 'HARVEST_TOOL_REQUIRED')
+  assert.equal(digCalls, 0)
+  assert.deepEqual(result.outcome.errors[0].required_tool_ids, [877])
+})
+
+
+test('collect_block follows the actual stone drop identity instead of the block name', async () => {
+  const items = []
+  const bot = fakeBot(items)
+  bot.registry.items = { 35: { id: 35, name: 'cobblestone' } }
+  bot.heldItem = { name: 'wooden_pickaxe', type: 877 }
+  const position = new Vec3(2, 64, 0)
+  const live = { name: 'stone', position, drops: [35], canHarvest: type => type === 877 }
+  bot.findBlock = () => live.name === 'stone' ? live : null
+  bot.blockAt = () => live
+  bot.lookAt = async () => {}
+  bot.dig = async block => {
+    block.name = 'air'
+    const drop = { id: 30, name: 'item', isValid: true, position: position.offset(0.5, 0.5, 0.5), getDroppedItem: () => ({ name: 'cobblestone' }) }
+    bot.entities[drop.id] = drop
+    setImmediate(() => bot.emit('itemDrop', drop))
+  }
+  runtime.bindBot(bot)
+  const oldGoto = runtime.gotoEntity
+  runtime.gotoEntity = async entity => {
+    items.push({ name: 'cobblestone', type: 35, count: 1, slot: 0 })
+    items.push({ name: 'dirt', type: 10, count: 5, slot: 1 })
+    bot.emit('playerCollect', bot.entity, entity)
+    entity.isValid = false
+    return { entity_id: entity.id, valid: false }
+  }
+  try {
+    const result = await withoutMovementConstruction(() => resources.collect_block({
+      block: 'stone', count: 1, max_distance: 16, _action_timeout_ms: 5000
+    }))
+    assert.equal(result.verified, true)
+    assert.equal(result.outcome.code, 'BLOCKS_COLLECTED')
+    assert.equal(result.outcome.inventory_delta.cobblestone, 1)
+    assert.equal(result.outcome.inventory_delta.dirt, 5)
+    assert.equal(result.outcome.collected_count, 1)
+    assert.equal(result.outcome.grounded_collected_items, 1)
+    assert.equal(result.outcome.grounded_collected_blocks, 1)
+  } finally {
+    runtime.gotoEntity = oldGoto
+  }
+})
+
+
+test('read-only observe_entities without action_id bypasses action recovery identity', async () => {
+  const { spawn } = require('node:child_process')
+  const path = require('node:path')
+  const child = spawn(process.execPath, [path.join(__dirname, 'bridge.js')], {
+    cwd: __dirname,
+    env: process.env,
+    stdio: ['pipe', 'pipe', 'pipe']
+  })
+  let output = ''
+  child.stdout.on('data', chunk => { output += chunk.toString() })
+  child.stderr.on('data', chunk => { output += chunk.toString() })
+  child.stdin.write(JSON.stringify({ cmd: 'observe_entities', request_id: 'node-test-observe', max_distance: 8, limit: 1 }) + '\n')
+  const deadline = Date.now() + 3000
+  while (!output.includes('node-test-observe') && Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, 25))
+  }
+  child.kill()
+  assert.ok(output.includes('node-test-observe'))
+  assert.ok(!output.includes('ACTION_RECOVERY_ACTION_ID_REQUIRED'))
 })
