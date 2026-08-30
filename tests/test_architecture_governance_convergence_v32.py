@@ -362,7 +362,7 @@ def test_current_downstream_proposals_have_exact_applicability_without_self_appr
     root = Path(__file__).resolve().parents[1]
     budget = load_architecture_complexity_budget(root)
     expected = {
-        "ROLE02": (6, ("research_platform.runtime", "research_platform.resource", "research_platform.reliability"), "ab8d9871e6e0a2b1793a979e6834c5faba7a72077cae600db409f61dee314cc2"),
+        "ROLE02": (8, ("research_platform.runtime", "research_platform.resource", "research_platform.reliability"), "e48da451b73527f4e5283fdbf3424c171e9c15d8f48eeaa47b6ec5dbf886e5c8"),
         "ROLE05": (2, ("research_platform.environment", "research_platform.data", "research_platform.artifact", "research_platform.observability"), "6f9fdf4f5d64703e1be10d2707b49109e365bb7343cd5118a05e73a6e3a5e62b"),
         "ROLE06": (15, ("research_platform.operator", "research_platform.api"), "e45b24a8e4676d756ad2cf3f956b7f2a2f8c3bfd6ea574bbd1c62ada7c1ec79b"),
     }

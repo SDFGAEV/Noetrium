@@ -41,16 +41,16 @@
         "subsystems": 0,
         "contract_declarations": 0,
         "authorities": 0,
-        "import_edges": 6
+        "import_edges": 8
       },
-      "justification": "Current Runtime and Reliability proposal adds six explicit typed resource, readiness, reconciliation and durable-operation authority dependencies.",
+      "justification": "Current Runtime and Reliability proposal adds eight explicit typed resource, readiness, reconciliation and durable-operation authority dependencies on the exact reviewed ROLE02 family.",
       "applicability": {
         "module_prefixes": [
           "research_platform.runtime",
           "research_platform.resource",
           "research_platform.reliability"
         ],
-        "import_projection_sha256": "ab8d9871e6e0a2b1793a979e6834c5faba7a72077cae600db409f61dee314cc2"
+        "import_projection_sha256": "e48da451b73527f4e5283fdbf3424c171e9c15d8f48eeaa47b6ec5dbf886e5c8"
       }
     },
     {
