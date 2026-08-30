@@ -141,7 +141,15 @@ class DirectoryRunControlLedger:
             raise RunControlIntegrityError(f"run control record cannot be decoded: {path.name}") from exc
         if not raw.endswith(b"\n"):
             raise RunControlIntegrityError(f"run control record is truncated: {path.name}")
-        if not isinstance(document, dict) or set(document) != _RECORD_FIELDS:
+        if not isinstance(document, dict):
+            raise RunControlIntegrityError("run control record is not a JSON object")
+        try:
+            canonical = _canonical_record(document)
+        except (TypeError, ValueError, UnicodeEncodeError) as exc:
+            raise RunControlIntegrityError("run control record is not canonical JSON") from exc
+        if canonical != raw:
+            raise RunControlIntegrityError("run control record bytes are not canonical JSON")
+        if set(document) != _RECORD_FIELDS:
             raise RunControlIntegrityError("run control record fields are not exact")
         if document["schema_version"] != _SCHEMA_VERSION:
             raise RunControlIntegrityError("run control record schema is unsupported")

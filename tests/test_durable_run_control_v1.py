@@ -282,6 +282,32 @@ def test_corrupt_control_ledger_fails_closed(tmp_path: Path, mutation: str) -> N
             RunControlRequest(RunControlAction.INSPECT, _target(fx, None))
         )
 
+
+@pytest.mark.parametrize("record_name", [
+    "00000000000000000001.json",
+    "00000000000000000002.json",
+])
+def test_semantically_equivalent_noncanonical_record_bytes_fail_closed(
+    tmp_path: Path, record_name: str
+) -> None:
+    import json
+
+    fx = _fixture()
+    control = _controller(tmp_path, fx)
+    control.execute(RunControlRequest(RunControlAction.RUN, _target(fx, 0)))
+    record = tmp_path / "control" / "records" / record_name
+    document = json.loads(record.read_text(encoding="utf-8"))
+    canonical = record.read_bytes()
+    mutated = json.dumps(document, ensure_ascii=False, sort_keys=False, indent=2).encode("utf-8") + b"\n"
+    assert mutated != canonical
+    record.write_bytes(mutated)
+
+    with pytest.raises(RunControlIntegrityError, match="bytes are not canonical JSON"):
+        _controller(tmp_path, fx).execute(
+            RunControlRequest(RunControlAction.INSPECT, _target(fx, None))
+        )
+
+
 def test_run_failure_is_durably_recovery_required_before_error_escapes(tmp_path: Path) -> None:
     fx = _fixture()
     control = _controller(tmp_path, fx, lifecycle=_Lifecycle(run_error=RuntimeError("open uncertain")))
