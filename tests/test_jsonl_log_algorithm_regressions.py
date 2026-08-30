@@ -7,6 +7,7 @@ import pytest
 
 from research_platform.observability.logging.context.api import DiagnosticAddress
 from research_platform.observability.logging.record.api import LogLevel, LogRecord
+import research_platform.observability.logging.storage.runtime.jsonl as jsonl_runtime
 from research_platform.observability.logging.storage.runtime.jsonl import (
     JsonlLogCorruptionError,
     JsonlLogStore as RuntimeJsonlLogStore,
@@ -108,6 +109,12 @@ def test_store_keeps_logical_path_identity_if_live_leaf_resolution_drifts(
         runtime.close()
 
 
+def _generation_segments(root: Path, generation: int) -> tuple[Path, ...]:
+    return tuple(sorted(root.glob(
+        f"events.jsonl.segment.{generation:020d}.*"
+    )))
+
+
 def test_query_limit_returns_globally_newest_records_without_rotation(tmp_path: Path) -> None:
     store = JsonlLogStore(tmp_path / "events.jsonl")
     for index in range(5):
@@ -120,7 +127,110 @@ def test_query_limit_returns_globally_newest_records_across_segments(tmp_path: P
     for index in range(5):
         store.append(_record(index))
     assert [row.log_id for row in store.query(limit=3)] == ["log-4", "log-3", "log-2"]
-    assert (tmp_path / "events.jsonl.4").exists()
+    assert len(_generation_segments(tmp_path, 4)) == 1
+
+
+def test_rotation_generation_not_mtime_controls_retention(tmp_path: Path) -> None:
+    path = tmp_path / "events.jsonl"
+    store = JsonlLogStore(path, max_bytes=1, max_segments=2)
+    store.append(_record(0))
+    store.append(_record(1))
+    store.append(_record(2))
+    (first,) = _generation_segments(tmp_path, 1)
+    (second,) = _generation_segments(tmp_path, 2)
+    collision_ns = 1_700_000_000_000_000_000
+    import os
+    os.utime(first, ns=(collision_ns, collision_ns))
+    os.utime(second, ns=(collision_ns, collision_ns))
+
+    store.append(_record(3))
+
+    (third,) = _generation_segments(tmp_path, 3)
+    assert not first.exists()
+    assert second.is_file()
+    assert third.is_file()
+    assert [row.log_id for row in store.query(limit=3)] == ["log-3", "log-2", "log-1"]
+
+
+def test_rotation_restart_recovers_monotonic_generation_order(tmp_path: Path) -> None:
+    path = tmp_path / "events.jsonl"
+    first_store = JsonlLogStore(path, max_bytes=1, max_segments=8)
+    for index in range(3):
+        first_store.append(_record(index))
+    assert len(_generation_segments(tmp_path, 1)) == 1
+    assert len(_generation_segments(tmp_path, 2)) == 1
+
+    restarted_store = JsonlLogStore(path, max_bytes=1, max_segments=8)
+    restarted_store.append(_record(3))
+
+    assert len(_generation_segments(tmp_path, 3)) == 1
+    assert [row.log_id for row in restarted_store.query(limit=10)] == [
+        "log-3", "log-2", "log-1", "log-0"
+    ]
+
+
+def test_duplicate_immutable_generation_fails_closed(tmp_path: Path) -> None:
+    path = tmp_path / "events.jsonl"
+    store = JsonlLogStore(path, max_bytes=1, max_segments=8)
+    store.append(_record(0))
+    store.append(_record(1))
+    (published,) = _generation_segments(tmp_path, 1)
+    duplicate = tmp_path / (
+        "events.jsonl.segment.00000000000000000001." + "f" * 32
+    )
+    duplicate.write_bytes(published.read_bytes())
+
+    with pytest.raises(JsonlLogCorruptionError, match="duplicate or invalid"):
+        store.query(limit=10)
+
+
+def test_rotation_prune_failure_preserves_published_generations(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "events.jsonl"
+    store = JsonlLogStore(path, max_bytes=1, max_segments=1)
+    store.append(_record(0))
+    store.append(_record(1))
+
+    def fail_prune(_path: Path) -> None:
+        raise OSError("simulated prune crash")
+
+    monkeypatch.setattr(jsonl_runtime, "durable_unlink", fail_prune)
+    with pytest.raises(OSError, match="simulated prune crash"):
+        store.append(_record(2))
+
+    assert not path.exists()
+    assert len(_generation_segments(tmp_path, 1)) == 1
+    assert len(_generation_segments(tmp_path, 2)) == 1
+    assert {row.log_id for row in store.query(limit=10)} == {"log-0", "log-1"}
+
+
+def test_rotation_publication_failure_keeps_active_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "events.jsonl"
+    store = JsonlLogStore(path, max_bytes=1, max_segments=2)
+    store.append(_record(0))
+    before = path.read_bytes()
+
+    def fail_publish(_source: Path, _target: Path) -> None:
+        raise OSError("simulated pre-publication crash")
+
+    monkeypatch.setattr(jsonl_runtime, "durable_replace_file", fail_publish)
+    with pytest.raises(OSError, match="simulated pre-publication crash"):
+        store.append(_record(1))
+
+    assert path.read_bytes() == before
+    assert tuple(tmp_path.glob("events.jsonl.segment.*")) == ()
+
+
+def test_malformed_immutable_segment_generation_fails_closed(tmp_path: Path) -> None:
+    path = tmp_path / "events.jsonl"
+    store = JsonlLogStore(path)
+    store.append(_record(0))
+    (tmp_path / "events.jsonl.segment.not-a-generation").write_bytes(b"{}\n")
+    with pytest.raises(JsonlLogCorruptionError, match="malformed immutable JSONL segment generation"):
+        store.query(limit=10)
 
 
 def test_wrong_schema_is_corruption_not_silently_decoded(tmp_path: Path) -> None:
@@ -216,6 +326,45 @@ def test_multiple_processes_append_and_rotate_without_overwrite(tmp_path: Path) 
     rows = JsonlLogStore(path, max_bytes=700, max_segments=64).query(limit=1000)
     assert len(rows) == 48
     assert len({row.log_id for row in rows}) == 48
+
+
+def _append_pruning_worker(path: str, worker: int, count: int) -> None:
+    runtime = build_concurrency_runtime()
+    group = runtime.open_task_group(f"multiprocess-log-pruner:{worker}")
+    store = build_jsonl_log_store(path, task_group=group, max_bytes=700, max_segments=4)
+    try:
+        for offset in range(count):
+            index = worker * 1000 + offset
+            store.append(_record(index))
+    finally:
+        runtime.close()
+
+
+def test_multiple_processes_rotate_and_prune_monotonic_generations(tmp_path: Path) -> None:
+    import multiprocessing
+
+    path = tmp_path / "events.jsonl"
+    context = multiprocessing.get_context("spawn")
+    processes = [
+        context.Process(target=_append_pruning_worker, args=(str(path), worker, 12))
+        for worker in range(4)
+    ]
+    for process in processes:
+        process.start()
+    for process in processes:
+        process.join(30)
+        assert process.exitcode == 0
+
+    segments = sorted(tmp_path.glob("events.jsonl.segment.*"))
+    assert 1 <= len(segments) <= 4
+    generations = sorted(
+        int(segment.name.split(".segment.", 1)[1].split(".", 1)[0])
+        for segment in segments
+    )
+    assert len(generations) == len(set(generations))
+    assert generations == list(range(generations[0], generations[-1] + 1))
+    rows = JsonlLogStore(path, max_bytes=700, max_segments=4).query(limit=1000)
+    assert len({row.log_id for row in rows}) == len(rows)
 
 
 def _query_worker(path: str, stop) -> None:

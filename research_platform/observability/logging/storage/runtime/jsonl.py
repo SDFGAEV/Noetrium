@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path
 from typing import ClassVar
+from uuid import uuid4
 
 from research_platform.observability.logging.record.api import LogLevel, LogRecord
 from research_platform.platform.kernel.durability.durable_file import durable_replace_file, durable_unlink, fsync_directory
@@ -77,26 +78,82 @@ class JsonlLogStore:
 
         self._writer_actor.call("append", append_owned)
 
-    def _segments(self) -> tuple[Path, ...]:
+    _SEGMENT_MARKER: ClassVar[str] = ".segment."
+    _SEGMENT_DIGITS: ClassVar[int] = 20
+
+    def _rotated_segment_entries(self) -> tuple[tuple[int, Path], ...]:
+        prefix = self.path.name + self._SEGMENT_MARKER
         rotated: list[tuple[int, Path]] = []
-        prefix = self.path.name + "."
+        seen: set[int] = set()
         for path in self.path.parent.glob(prefix + "*"):
             suffix = path.name[len(prefix):]
-            if suffix.isdigit():
-                rotated.append((int(suffix), path))
-        return tuple([self.path] + [path for _, path in sorted(rotated, reverse=True)])
+            parts = suffix.split(".")
+            if len(parts) != 2:
+                raise JsonlLogCorruptionError(
+                    f"malformed immutable JSONL segment generation: {path}"
+                )
+            generation_text, uniqueness = parts
+            if (
+                len(generation_text) != self._SEGMENT_DIGITS
+                or not generation_text.isdigit()
+                or len(uniqueness) != 32
+                or uniqueness.lower() != uniqueness
+                or any(character not in "0123456789abcdef" for character in uniqueness)
+            ):
+                raise JsonlLogCorruptionError(
+                    f"malformed immutable JSONL segment generation: {path}"
+                )
+            generation = int(generation_text)
+            if generation <= 0 or generation in seen:
+                raise JsonlLogCorruptionError(
+                    f"duplicate or invalid immutable JSONL segment generation: {path}"
+                )
+            if not path.is_file():
+                raise JsonlLogCorruptionError(
+                    f"immutable JSONL segment is not a regular file: {path}"
+                )
+            seen.add(generation)
+            rotated.append((generation, path))
+        rotated.sort(key=lambda item: item[0], reverse=True)
+        return tuple(rotated)
+
+    def _segments(self) -> tuple[Path, ...]:
+        return (self.path, *(path for _, path in self._rotated_segment_entries()))
+
+    def _next_generation(self) -> int:
+        entries = self._rotated_segment_entries()
+        generation = (entries[0][0] + 1) if entries else 1
+        if generation >= 10 ** self._SEGMENT_DIGITS:
+            raise RuntimeError("JSONL immutable segment generation exhausted")
+        return generation
+
+    def _segment_path(self, generation: int) -> Path:
+        return self.path.with_name(
+            f"{self.path.name}{self._SEGMENT_MARKER}"
+            f"{generation:0{self._SEGMENT_DIGITS}d}.{uuid4().hex}"
+        )
+
+    def _prune_rotated_segments(self) -> None:
+        entries = self._rotated_segment_entries()
+        for _, stale in entries[self.max_segments:]:
+            durable_unlink(stale)
 
     def _rotate_if_needed(self, incoming_bytes: int) -> None:
         if not self.path.is_file() or self.path.stat().st_size + incoming_bytes <= self.max_bytes:
             return
-        oldest = self.path.with_name(f"{self.path.name}.{self.max_segments}")
-        durable_unlink(oldest)
-        for index in range(self.max_segments - 1, 0, -1):
-            source = self.path.with_name(f"{self.path.name}.{index}")
-            destination = self.path.with_name(f"{self.path.name}.{index + 1}")
-            if source.exists():
-                durable_replace_file(source, destination)
-        durable_replace_file(self.path, self.path.with_name(f"{self.path.name}.1"))
+        generation = self._next_generation()
+        destination = self._segment_path(generation)
+        if destination.exists():
+            raise JsonlLogCorruptionError(
+                f"immutable JSONL generation already exists: {destination}"
+            )
+
+        # Publication is one durable rename.  Only after that rename is durable
+        # may retention prune older immutable generations.  A crash before the
+        # rename leaves the active file intact; a crash after it can only leave
+        # extra retained history, never a missing newest generation.
+        durable_replace_file(self.path, destination)
+        self._prune_rotated_segments()
 
     def _append_record(self, encoded: bytes) -> None:
         existed = self.path.exists()
@@ -224,7 +281,9 @@ class JsonlLogStore:
                 "corrupt_complete_lines": corrupt_complete_lines,
                 "partial_tail_ignored": partial_tail_ignored,
                 "scanned_lines": scanned_lines,
-                "rotated_segments": max(0, len(snapshot) - 1),
+                "rotated_segments": sum(
+                    1 for segment, *_ in snapshot if segment != self.path
+                ),
             }
             rows = [item[1] for item in selected]
             rows.sort(key=lambda row: (row.created_at, row.log_id), reverse=True)

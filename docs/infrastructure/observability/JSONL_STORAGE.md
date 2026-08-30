@@ -26,6 +26,21 @@ Inside that critical section the store checks the byte threshold, performs any r
 segment rotation, appends one complete UTF-8 JSON line, flushes the file, and preserves
 the directory metadata transitions required by the durability layer.
 
+Rotation publishes the active file exactly once to an immutable segment named with a
+20-digit monotonically increasing logical generation, for example
+`events.jsonl.segment.00000000000000000042.<uuid>`. Generation is derived while holding the
+cross-process guard from already durable segment names; wall-clock time, filesystem
+`mtime`, inode ordering, and random UUID ordering are never retention authority. The UUID
+is uniqueness-only; duplicate logical generations are corruption and fail closed. The
+active file is durably renamed first. Only after that publication succeeds may retention
+prune generations older than the newest `max_segments`. A crash before publication leaves
+the active generation intact; a crash after publication can at worst leave extra old
+segments, never require cascade renames or delete the newest durable generation.
+
+Malformed generation names and invalid generation identities fail closed instead of being
+silently omitted from evidence queries. This makes the immutable filenames themselves the
+durable cross-process ordering contract.
+
 The storage layer owns rotation ordering. Generic fsync/replace primitives remain owned
 by the platform durability subsystem; observability does not broaden or reinterpret their
 error semantics.
@@ -54,7 +69,10 @@ Windows and Linux qualification must cover all of the following:
 - no duplicate records from mixed segment generations;
 - stable logical path identity even when a live-leaf `resolve()` would report a renamed
   segment;
-- one cross-process guard domain for the active logical log path.
+- one cross-process guard domain for the active logical log path;
+- equal/colliding filesystem mtimes while retention still follows logical generation;
+- publication/prune fault injection proving publish-before-prune evidence preservation;
+- malformed immutable generation names failing closed.
 
 A retry-only change is not sufficient evidence for correctness. A qualifying fix must
 show that the lock/actor identity itself cannot drift with a rotating file object.
