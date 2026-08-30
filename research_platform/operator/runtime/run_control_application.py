@@ -3,9 +3,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 import importlib
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from research_platform.execution.decision.cycle_identity import DecisionCycleIdentity
+from research_platform.platform.kernel import JsonValue
 from research_platform.operator.api import (
     ResearchAction,
     ResearchOperationFailure,
@@ -45,17 +46,17 @@ def _require_generation(value: object) -> int:
     return value
 
 
-def _payload_mapping(request: ResearchRequest) -> Mapping[str, object]:
+def _payload_mapping(request: ResearchRequest) -> Mapping[str, JsonValue]:
     payload = request.payload
     if payload is None:
         return {}
     if not isinstance(payload, Mapping):
         raise TypeError("run control payload must be a JSON object")
-    return payload
+    return cast(Mapping[str, JsonValue], payload)
 
 
 def _require_fields(
-    payload: Mapping[str, object],
+    payload: Mapping[str, JsonValue],
     *,
     allowed: frozenset[str],
     required: frozenset[str],
