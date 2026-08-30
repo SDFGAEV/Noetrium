@@ -170,6 +170,7 @@ class EndpointAllocation:
     lease_fencing_token: int = 1
     lease_expires_at_epoch_s: float | None = None
     binding_proof_digest: str | None = None
+    binding_binder_identity_digest: str | None = None
     binding_evidence_ref: str | None = None
     bound_at_epoch_s: float | None = None
 
@@ -195,7 +196,24 @@ class EndpointAllocation:
             not math.isfinite(float(self.bound_at_epoch_s)) or self.bound_at_epoch_s <= 0
         ):
             raise ValueError("endpoint allocation bound timestamp must be finite and positive")
-        proof_fields = (self.binding_proof_digest, self.binding_evidence_ref, self.bound_at_epoch_s)
+        proof_fields = (
+            self.binding_proof_digest, self.binding_binder_identity_digest,
+            self.binding_evidence_ref, self.bound_at_epoch_s,
+        )
+        if self.binding_proof_digest is not None and (
+            len(self.binding_proof_digest) != 64
+            or self.binding_proof_digest != self.binding_proof_digest.lower()
+            or any(character not in "0123456789abcdef" for character in self.binding_proof_digest)
+        ):
+            raise ValueError("endpoint allocation binding proof must be a canonical lowercase SHA-256 digest")
+        if self.binding_binder_identity_digest is not None and (
+            len(self.binding_binder_identity_digest) != 64
+            or self.binding_binder_identity_digest != self.binding_binder_identity_digest.lower()
+            or any(character not in "0123456789abcdef" for character in self.binding_binder_identity_digest)
+        ):
+            raise ValueError("endpoint allocation binder identity must be a canonical lowercase SHA-256 digest")
+        if self.binding_evidence_ref is not None and not self.binding_evidence_ref.strip():
+            raise ValueError("endpoint allocation binding evidence reference must be non-empty")
         has_proof = tuple(value is not None for value in proof_fields)
         if any(has_proof) and not all(has_proof):
             raise ValueError("endpoint binding proof metadata must be complete or absent")

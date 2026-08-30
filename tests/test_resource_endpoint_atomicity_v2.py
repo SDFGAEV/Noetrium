@@ -177,7 +177,7 @@ def test_concurrent_schema_bootstrap_is_idempotent() -> None:
         with closing(sqlite3.connect(database)) as conn:
             assert conn.execute(
                 "SELECT value FROM endpoint_meta WHERE key='schema_version'"
-            ).fetchone() == ("3",)
+            ).fetchone() == ("4",)
             assert conn.execute(
                 "SELECT value FROM resource_meta WHERE key='schema_version'"
             ).fetchone() == ("2",)
@@ -264,7 +264,7 @@ def test_v2_active_endpoint_migrates_fail_closed_to_reserved() -> None:
                 "SELECT value FROM endpoint_meta WHERE key='schema_version'"
             ).fetchone()
         assert row == ("reserved", None, None, None)
-        assert version == ("3",)
+        assert version == ("4",)
 
 
 def test_endpoint_heartbeat_surfaces_background_renewal_failure() -> None:
@@ -301,3 +301,180 @@ def test_endpoint_heartbeat_surfaces_background_renewal_failure() -> None:
         guard.close()
     with pytest.raises(ExceptionGroup):
         runtime.close()
+
+
+# Endpoint BOUND-generation replacement supervisor regressions
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+import pytest
+
+from research_platform.resource.allocation.api import (
+    EndpointAllocationRequest,
+    EndpointBindingProof,
+    EndpointProbeResult,
+    NetworkEndpoint,
+)
+from research_platform.resource.allocation.runtime import (
+    AtomicEndpointAllocator,
+    EndpointAllocationConflict,
+    InMemoryEndpointAllocator,
+)
+from research_platform.resource.lease.runtime import InMemoryResourceLeaseRegistry
+from research_platform.resource.providers import SQLiteEndpointAllocationStore
+from research_platform.scope.api import ScopeIdentity, ScopeKind
+
+
+class _RebindAvailableProbe:
+    def probe(self, endpoint: NetworkEndpoint) -> EndpointProbeResult:
+        return EndpointProbeResult(endpoint, True, "available")
+
+
+def _rebind_request(name: str, port: int = 25565) -> EndpointAllocationRequest:
+    return EndpointAllocationRequest(
+        allocation_id=name,
+        holder_scope=ScopeIdentity(ScopeKind.BRANCH, f"branch-{name}"),
+        purpose="endpoint rebind test",
+        host="127.0.0.1",
+        candidate_ports=(port,),
+    )
+
+
+def _rebind_proof(allocation, generation: str, observed: float) -> EndpointBindingProof:
+    return EndpointBindingProof(
+        allocation_id=allocation.allocation_id,
+        endpoint=allocation.endpoint,
+        lease_fencing_token=allocation.lease_fencing_token,
+        binder_identity_digest=generation * 64,
+        observed_at_epoch_s=observed,
+        evidence_ref=f"ready:{generation}",
+    )
+
+
+def _rebind_in_memory(name: str = "mem"):
+    leases = InMemoryResourceLeaseRegistry()
+    allocator = InMemoryEndpointAllocator(
+        ownership=leases, leases=leases, probe=_RebindAvailableProbe()
+    )
+    return allocator, allocator.allocate(_rebind_request(name))
+
+
+def _assert_rebind_contract(allocator, reserved) -> None:
+    first = _rebind_proof(reserved, "a", 1000.0)
+    bound = allocator.confirm_bound(first)
+    assert bound.binding_binder_identity_digest == first.binder_identity_digest
+    assert allocator.confirm_bound(first) == bound
+    second = _rebind_proof(bound, "b", 1001.0)
+    rebound = allocator.replace_bound(
+        second, expected_previous_binding_proof_digest=first.digest()
+    )
+    assert rebound.binding_proof_digest == second.digest()
+    assert rebound.binding_binder_identity_digest == second.binder_identity_digest
+    assert rebound.bound_at_epoch_s == second.observed_at_epoch_s
+
+
+def test_rebind_in_memory_bound_generation_replacement_is_cas_fenced() -> None:
+    allocator, reserved = _rebind_in_memory()
+    _assert_rebind_contract(allocator, reserved)
+
+
+def test_rebind_in_memory_rebind_rejects_stale_prior_same_binder_and_stale_fence() -> None:
+    allocator, reserved = _rebind_in_memory("negatives")
+    first = _rebind_proof(reserved, "a", 1000.0)
+    bound = allocator.confirm_bound(first)
+    same_binder = _rebind_proof(bound, "a", 1001.0)
+    with pytest.raises(EndpointAllocationConflict, match="new binder generation"):
+        allocator.replace_bound(
+            same_binder, expected_previous_binding_proof_digest=first.digest()
+        )
+    second = _rebind_proof(bound, "b", 1002.0)
+    with pytest.raises(EndpointAllocationConflict, match="prior generation"):
+        allocator.replace_bound(second, expected_previous_binding_proof_digest="f" * 64)
+    stale = EndpointBindingProof(
+        bound.allocation_id, bound.endpoint, bound.lease_fencing_token + 1,
+        "c" * 64, 1003.0, "ready:c",
+    )
+    with pytest.raises(EndpointAllocationConflict, match="fencing lost"):
+        allocator.replace_bound(stale, expected_previous_binding_proof_digest=first.digest())
+    assert allocator.get(bound.allocation_id) == bound
+
+
+def test_rebind_in_memory_concurrent_rebind_has_exactly_one_winner() -> None:
+    allocator, reserved = _rebind_in_memory("race")
+    first = _rebind_proof(reserved, "a", 1000.0)
+    allocator.confirm_bound(first)
+    contenders = (_rebind_proof(reserved, "b", 1001.0), _rebind_proof(reserved, "c", 1002.0))
+
+    def attempt(proof):
+        try:
+            return allocator.replace_bound(
+                proof, expected_previous_binding_proof_digest=first.digest()
+            )
+        except EndpointAllocationConflict:
+            return None
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = tuple(pool.map(attempt, contenders))
+    winners = tuple(row for row in results if row is not None)
+    assert len(winners) == 1
+    assert allocator.get(reserved.allocation_id) == winners[0]
+    with pytest.raises(EndpointAllocationConflict, match="prior generation"):
+        allocator.replace_bound(
+            _rebind_proof(reserved, "d", 1003.0),
+            expected_previous_binding_proof_digest=first.digest(),
+        )
+
+
+def test_sqlite_rebind_persists_winning_generation_across_reopen() -> None:
+    with TemporaryDirectory() as directory:
+        database = Path(directory) / "platform.sqlite"
+        store = SQLiteEndpointAllocationStore(database)
+        allocator = AtomicEndpointAllocator(reservations=store, probe=_RebindAvailableProbe())
+        reserved = allocator.allocate(_rebind_request("sqlite", 25566))
+        _assert_rebind_contract(allocator, reserved)
+        reopened = SQLiteEndpointAllocationStore(database).get(reserved.allocation_id)
+        assert reopened is not None
+        assert reopened.binding_binder_identity_digest == "b" * 64
+        assert reopened.binding_evidence_ref == "ready:b"
+        assert reopened.bound_at_epoch_s == 1001.0
+
+
+def test_sqlite_concurrent_rebind_has_exactly_one_winner() -> None:
+    with TemporaryDirectory() as directory:
+        database = Path(directory) / "platform.sqlite"
+        left = AtomicEndpointAllocator(
+            reservations=SQLiteEndpointAllocationStore(database), probe=_RebindAvailableProbe()
+        )
+        reserved = left.allocate(_rebind_request("sqlite-race", 25567))
+        first = _rebind_proof(reserved, "a", 1000.0)
+        left.confirm_bound(first)
+        contenders = (_rebind_proof(reserved, "b", 1001.0), _rebind_proof(reserved, "c", 1002.0))
+
+        def attempt(proof):
+            allocator = AtomicEndpointAllocator(
+                reservations=SQLiteEndpointAllocationStore(database), probe=_RebindAvailableProbe()
+            )
+            try:
+                return allocator.replace_bound(
+                    proof, expected_previous_binding_proof_digest=first.digest()
+                )
+            except RuntimeError:
+                return None
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = tuple(pool.map(attempt, contenders))
+        winners = tuple(row for row in results if row is not None)
+        assert len(winners) == 1
+        persisted = SQLiteEndpointAllocationStore(database).get(reserved.allocation_id)
+        assert persisted == winners[0]
+        assert persisted is not None
+        assert persisted.binding_binder_identity_digest in {"b" * 64, "c" * 64}
+
+
+def test_binding_metadata_rejects_noncanonical_persisted_rebind_proof_digest() -> None:
+    allocator, reserved = _rebind_in_memory("metadata")
+    bound = allocator.confirm_bound(_rebind_proof(reserved, "a", 1000.0))
+    with pytest.raises(ValueError, match="binding proof"):
+        type(bound)(**{**{field: getattr(bound, field) for field in bound.__dataclass_fields__},
+                       "binding_proof_digest": "not-a-digest"})
