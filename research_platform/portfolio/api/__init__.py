@@ -1,6 +1,5 @@
 from .contracts import (
     PROJECT_MANIFEST_SCHEMA,
-    PROJECT_TEMPLATE_REVISION,
     ProgramSpec,
     ProjectCapabilityRequirement,
     ProjectConfigurationReference,
@@ -22,7 +21,6 @@ from .ports import PortfolioCatalogPort
 
 __all__ = [
     "PROJECT_MANIFEST_SCHEMA",
-    "PROJECT_TEMPLATE_REVISION",
     "PortfolioCatalogPort",
     "ProgramSpec",
     "ProjectCapabilityRequirement",

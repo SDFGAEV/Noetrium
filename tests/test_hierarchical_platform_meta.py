@@ -5,7 +5,6 @@ from research_platform.experimentation.experiment.api import ExperimentSpec
 from research_platform.experimentation.run.identity.api import RunIdentity
 from research_platform.experimentation.study import StudySpec
 from research_platform.portfolio.api import (
-    PROJECT_TEMPLATE_REVISION,
     ProgramSpec,
     ProjectCapabilityRequirement,
     ProjectConfigurationReference,
@@ -34,6 +33,9 @@ from research_platform.scope.api import ScopeIdentity, ScopeKind
 from research_platform.scope.runtime import InMemoryScopeRegistry
 
 
+EXAMPLE_TEMPLATE_REVISION = "research-project-template.v1"
+
+
 def _project_tool_provenance() -> ProjectToolProvenance:
     return ProjectToolProvenance("research", "1.0.0", "a" * 64)
 
@@ -45,7 +47,7 @@ def test_scope_portfolio_experiment_run_hierarchy_is_explicit():
     portfolio.register_program(ProgramSpec("prog", "ws", "Program"))
     portfolio.register_project(ProjectManifest(
         ProjectSpec(ProjectIdentity("paper", "1.0.0"), "prog", "Paper"),
-        PROJECT_TEMPLATE_REVISION,
+        EXAMPLE_TEMPLATE_REVISION,
         _project_tool_provenance(),
         study_ids=("main",),
     ))
@@ -123,7 +125,7 @@ def _project_manifest_fixture() -> ProjectManifest:
             "Example Project",
             tags=("example",),
         ),
-        PROJECT_TEMPLATE_REVISION,
+        EXAMPLE_TEMPLATE_REVISION,
         _project_tool_provenance(),
         capability_requirements=(
             ProjectCapabilityRequirement(
@@ -220,7 +222,7 @@ def test_project_manifest_bytes_reject_duplicate_keys_and_noncanonical_identity(
 def test_project_manifest_binds_template_tool_provenance_and_provider_choices() -> None:
     manifest = _project_manifest_fixture()
     document = project_manifest_document(manifest)
-    assert document["template_revision"] == PROJECT_TEMPLATE_REVISION
+    assert document["template_revision"] == EXAMPLE_TEMPLATE_REVISION
     assert document["provenance"]["tool_id"] == "research"
     assert document["provenance"]["platform_artifact_sha256"] == "a" * 64
     assert document["provider_bindings"][0]["binding_id"] == "logging-default"
@@ -238,13 +240,34 @@ def test_project_manifest_binds_template_tool_provenance_and_provider_choices() 
     assert changed.semantic_digest != manifest.semantic_digest
 
 
-def test_project_manifest_rejects_unsupported_template_and_duplicate_provider_binding_identity() -> None:
+def test_project_manifest_records_product_owned_template_revision_without_owning_compatibility() -> None:
     manifest = _project_manifest_fixture()
-    document = dict(project_manifest_document(manifest))
-    document["template_revision"] = "research-project-template.v999"
-    with pytest.raises(ProjectManifestDecodeError, match="unsupported project template revision"):
-        decode_project_manifest_document(document)
+    future_revision = "research-project-template.v999"
+    future = ProjectManifest(
+        project=manifest.project,
+        template_revision=future_revision,
+        provenance=manifest.provenance,
+        capability_requirements=manifest.capability_requirements,
+        provider_bindings=manifest.provider_bindings,
+        method_requirements=manifest.method_requirements,
+        configuration_refs=manifest.configuration_refs,
+        study_ids=manifest.study_ids,
+    )
+    decoded = decode_project_manifest_bytes(encode_project_manifest(future))
+    assert decoded.template_revision == future_revision
+    assert decoded.semantic_digest == future.semantic_digest
 
+    for invalid in ("", " research-project-template.v1", "research-project-template.v1 "):
+        with pytest.raises(ValueError, match="template_revision"):
+            ProjectManifest(
+                project=manifest.project,
+                template_revision=invalid,
+                provenance=manifest.provenance,
+            )
+
+
+def test_project_manifest_rejects_duplicate_provider_binding_identity() -> None:
+    manifest = _project_manifest_fixture()
     duplicate = ProjectProviderBinding(
         "logging-default", "logging", "another.logging", "1.0.0", "4" * 64
     )

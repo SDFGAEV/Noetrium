@@ -6,7 +6,6 @@ create a competing manifest/identity model.
 
 from research_platform.portfolio.api import (
     PROJECT_MANIFEST_SCHEMA,
-    PROJECT_TEMPLATE_REVISION,
     ProjectCapabilityRequirement,
     ProjectConfigurationReference,
     ProjectIdentity,
@@ -25,7 +24,6 @@ from research_platform.portfolio.api import (
 
 __all__ = [
     "PROJECT_MANIFEST_SCHEMA",
-    "PROJECT_TEMPLATE_REVISION",
     "ProjectCapabilityRequirement",
     "ProjectConfigurationReference",
     "ProjectIdentity",

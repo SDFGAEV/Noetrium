@@ -17,7 +17,6 @@ from research_platform.scope.api import ScopeIdentity, ScopeKind
 
 
 PROJECT_MANIFEST_SCHEMA = "research-platform.project-manifest.v1"
-PROJECT_TEMPLATE_REVISION = "research-project-template.v1"
 _TOKEN = re.compile(r"[a-z][a-z0-9_.-]*")
 _VERSION = re.compile(r"[0-9A-Za-z][0-9A-Za-z._+-]*")
 _SHA256 = re.compile(r"[0-9a-f]{64}")
@@ -226,8 +225,7 @@ class ProjectManifest:
     study_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        if self.template_revision != PROJECT_TEMPLATE_REVISION:
-            raise ValueError("unsupported project template revision")
+        _require_text(self.template_revision, "template_revision")
         requirement_ids = tuple(row.requirement_id for row in self.capability_requirements)
         if len(requirement_ids) != len(set(requirement_ids)):
             raise ValueError("project capability requirement ids must be unique")
@@ -444,8 +442,6 @@ def _decode_project_manifest_document(document: JsonDocument) -> ProjectManifest
     if not _SHA256.fullmatch(expected_digest):
         raise ProjectManifestDecodeError("semantic_digest must be lowercase SHA-256")
     template_revision = _text(root["template_revision"], "template_revision")
-    if template_revision != PROJECT_TEMPLATE_REVISION:
-        raise ProjectManifestDecodeError("unsupported project template revision")
     provenance_raw = _object(root["provenance"], "provenance")
     _exact_fields(
         provenance_raw,
@@ -552,7 +548,6 @@ def decode_project_manifest_document(document: JsonDocument) -> ProjectManifest:
 
 __all__ = [
     "PROJECT_MANIFEST_SCHEMA",
-    "PROJECT_TEMPLATE_REVISION",
     "ProgramSpec",
     "ProjectCapabilityRequirement",
     "ProjectConfigurationReference",
