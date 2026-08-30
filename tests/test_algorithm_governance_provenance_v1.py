@@ -392,3 +392,49 @@ def test_algorithm_cache_key_includes_analyzer_implementation_identity(tmp_path:
         analyzer_implementation_digest="2" * 64,
     ).scan()
     assert changed_identity.calls == 1
+
+
+
+def test_implementation_text_digest_normalizes_only_line_endings(tmp_path: Path) -> None:
+    from research_platform.governance.api import (
+        repository_source_scope_digest,
+        repository_source_scope_text_digest,
+    )
+
+    target = tmp_path / "research_platform" / "governance" / "algorithm" / "x.py"
+    target.parent.mkdir(parents=True)
+    target.write_bytes(b"def f():\r\n    return 1\r\n")
+    crlf = RepositorySourceTree(tmp_path).index()
+    byte_crlf = repository_source_scope_digest(
+        crlf,
+        path_prefixes=("research_platform/governance/algorithm",),
+        suffixes=(".py",),
+    )
+    text_crlf = repository_source_scope_text_digest(
+        crlf,
+        path_prefixes=("research_platform/governance/algorithm",),
+        suffixes=(".py",),
+    )
+
+    target.write_bytes(b"def f():\n    return 1\n")
+    lf = RepositorySourceTree(tmp_path).index()
+    byte_lf = repository_source_scope_digest(
+        lf,
+        path_prefixes=("research_platform/governance/algorithm",),
+        suffixes=(".py",),
+    )
+    text_lf = repository_source_scope_text_digest(
+        lf,
+        path_prefixes=("research_platform/governance/algorithm",),
+        suffixes=(".py",),
+    )
+    assert byte_crlf != byte_lf
+    assert text_crlf == text_lf
+
+    target.write_bytes(b"def f():\n    return 2\n")
+    changed = RepositorySourceTree(tmp_path).index()
+    assert repository_source_scope_text_digest(
+        changed,
+        path_prefixes=("research_platform/governance/algorithm",),
+        suffixes=(".py",),
+    ) != text_lf

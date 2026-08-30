@@ -8,7 +8,7 @@ from typing import Callable
 
 from research_platform.governance.api import (
     RepositorySourceIndexPort,
-    repository_source_scope_digest,
+    repository_source_scope_text_digest,
 )
 from research_platform.governance.algorithm.api import AlgorithmSnapshot
 
@@ -22,7 +22,7 @@ _IMPLEMENTATION_PATH_PREFIXES = (
 
 
 def algorithm_implementation_digest(source_index: RepositorySourceIndexPort) -> str:
-    return repository_source_scope_digest(
+    return repository_source_scope_text_digest(
         source_index,
         path_prefixes=_IMPLEMENTATION_PATH_PREFIXES,
         suffixes=(".py",),

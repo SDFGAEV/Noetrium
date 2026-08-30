@@ -9,6 +9,7 @@ from .repository_source import (
     RepositorySourcePort,
     RepositorySourceSnapshot,
     repository_source_scope_digest,
+    repository_source_scope_text_digest,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "RepositorySourcePort",
     "RepositorySourceSnapshot",
     "repository_source_scope_digest",
+    "repository_source_scope_text_digest",
 ]

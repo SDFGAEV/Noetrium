@@ -140,6 +140,49 @@ def repository_source_scope_digest(
     return hashlib.sha256(payload).hexdigest()
 
 
+def repository_source_scope_text_digest(
+    source_index: RepositorySourceIndexPort,
+    *,
+    path_prefixes: Iterable[str],
+    suffixes: Iterable[str] = (".py",),
+) -> str:
+    """Digest canonical UTF-8 source text while ignoring checkout line-ending policy.
+
+    This identity is for executable/analyzer implementation semantics: CRLF and LF
+    checkouts of the same Git source are equivalent, while every other text change
+    remains identity-changing. Raw repository byte identity stays available through
+    ``repository_source_scope_digest`` and the source index itself.
+    """
+
+    prefixes = tuple(str(value).strip().strip("/") for value in path_prefixes)
+    if not prefixes or any(
+        not value or "\\" in value or value.startswith("/")
+        or any(part in {"", ".", ".."} for part in value.split("/"))
+        for value in prefixes
+    ):
+        raise ValueError("path_prefixes must be canonical non-empty repository-relative POSIX paths")
+    if len(prefixes) != len(set(prefixes)):
+        raise ValueError("path_prefixes must be unique")
+    supported = tuple(str(value).strip().lower() for value in suffixes)
+    if not supported or any(not value.startswith(".") or len(value) < 2 for value in supported):
+        raise ValueError("suffixes must contain canonical file suffixes")
+    rows = []
+    for blob in source_index.documents(suffixes=supported):
+        if not any(
+            blob.relative_path == prefix
+            or blob.relative_path.startswith(prefix + "/")
+            for prefix in prefixes
+        ):
+            continue
+        canonical_text = blob.text.replace("\r\n", "\n").replace("\r", "\n")
+        rows.append((
+            blob.relative_path,
+            hashlib.sha256(canonical_text.encode("utf-8")).hexdigest(),
+        ))
+    payload = json.dumps(tuple(sorted(rows)), ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
 __all__ = [
     "RepositorySourceBlob",
     "RepositorySourceFailure",
@@ -149,4 +192,5 @@ __all__ = [
     "RepositorySourcePort",
     "RepositorySourceSnapshot",
     "repository_source_scope_digest",
+    "repository_source_scope_text_digest",
 ]
