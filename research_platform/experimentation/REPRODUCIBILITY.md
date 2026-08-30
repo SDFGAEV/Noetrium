@@ -8,10 +8,12 @@ The `RunLaunchManifest` is the launch identity for release, prompt/model deploym
 
 Its persisted wire format is an exact versioned envelope:
 
-- `schema_version = "1"`
+- `schema_version = "2"`
 - `manifest = { ... exact RunLaunchManifest fields ... }`
 
-Unknown, missing, extra, or untyped envelope/manifest fields fail decoding. Unsupported schema versions fail closed. There is no implicit forward-compatibility path.
+Schema v2 adds the required canonical `project_manifest_digest` to frozen launch identity. Schema v1 is intentionally rejected rather than upgraded implicitly.
+
+Unknown, missing, extra, or untyped envelope/manifest fields fail decoding. Unsupported schema versions and semantically equivalent noncanonical bytes fail closed. The encoded v2 bytes are therefore part of frozen launch authority; there is no implicit forward-compatibility path.
 
 The canonical `RunLaunchManifest.digest()` is the stable launch/source identity consumed by evidence publication.
 
@@ -49,6 +51,10 @@ A successful rollback reports `ROLLED_BACK`; any rollback failure reports state 
 
 Checkpoint manifests bind run/study/workload/branch, source cut, environment generation, method generation, task manifest, execution cut, and component payload digests.
 
+`RunCheckpointManifestCodec` treats canonical JSON bytes as part of immutable checkpoint authority: a payload must decode to the exact typed manifest, match its digest, and byte-for-byte equal the canonical re-encoding. Semantic-equivalent pretty/reordered JSON is corruption rather than an alternate representation.
+
+`experimentation.checkpoint.composition.build_project_run_checkpoint_store(project_state_root)` is the public project composition seam for the owner-defined crash-durable checkpoint provider. It places generic run checkpoints beneath the explicit project state root and returns only the public `RunCheckpointStore` contract; downstream common-path source need not import `experimentation.checkpoint.providers` or reproduce checkpoint durability.
+
 ## Durable generic run control
 
 `experimentation/run/control` is the generic operator-facing lifecycle authority for `run`, `inspect`, `stop`, `resume`, `reconcile`, and `evidence`. It binds every command to the exact `RunIdentity.digest()` and `RunLaunchManifest.digest()` and requires `expected_generation` on every state-changing request.
@@ -60,6 +66,14 @@ A restart that finds an unresolved `PREPARED` record reconstructs `RECOVERY_REQU
 If terminal publication fails after an effect may have happened, the pending prepared authority survives restart. If atomic terminal publication crossed its commit point before the caller observed an error, the controller re-reads the immutable ledger and returns the reconstructed terminal receipt instead of fabricating recovery. Corrupt, truncated, reordered, duplicate, identity-drifted, or semantically equivalent but noncanonical wire bytes fail closed; persisted immutable record authority therefore includes exact canonical bytes, not only decoded JSON meaning.
 
 `inspect` and `evidence` are read-only and never advance the generation. `resume` additionally binds the exact checkpoint manifest digest and restore decision-cycle identity. Evidence replies accept only same-run/same-manifest `EvidenceBundleReceipt` values whose manifest artifact verifies through `RunArtifactVerificationPort`.
+
+## New-project public construction and outcome authority
+
+`research_platform.experimentation.api.ProjectRunDefinition` is the common project-facing construction boundary. It consumes only the narrow public ROLE 01 project-manifest projection (`identity.project_id`, `study_ids`, `semantic_digest`) and joins that authority with the existing `ExperimentSpec`, `StudyProtocol`, `ExperimentRunSpec`, `RunIdentity`, and `RunLaunchManifest` authorities. It rejects project/experiment/study/repetition/task-manifest/seed/run/manifest identity drift. `RunLaunchManifest.project_manifest_digest` must equal the canonical project manifest semantic digest, so durable run-control and evidence identity remain bound to the exact project configuration after construction. The `definition_digest` is a reproducible projection of those existing authorities; it owns no lifecycle or persistence state and does not parse or persist ProjectManifest bytes.
+
+The same public package re-exports the producer-owned `RunControlPort` request/receipt contracts used by Operator and downstream projects. Projects therefore do not need to assemble checkpoint, workflow, or run-control stores in common-path code. Runtime composition injects one `RunControlPort`; the six application actions continue to execute against that sole ROLE 03 lifecycle authority.
+
+Every `RunControlReceipt` carries an explicit `RunOutcomeProjection`. Execution outcome is derived only from durable run-control phase, task outcome remains `NOT_EVALUATED` unless a task authority is added in a future version, evidence validity is `NOT_OBSERVED`, `NOT_FINALIZED`, or `FINALIZED_VALID` according to the evidence command/finalized receipt, and scientific validity remains `NOT_EVALUATED`. The receipt rejects contradictory or caller-forged cross-authority outcomes. Consequently execution success, task success, evidence validity, and scientific validity cannot collapse into one boolean or status string.
 
 ## Validation rule
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import pytest
@@ -27,6 +27,11 @@ from research_platform.experimentation.run.control.api import (
     RunControlStaleGeneration,
     RunControlTarget,
     RunControlTransitionOutcome,
+    RunEvidenceValidity,
+    RunExecutionOutcome,
+    RunOutcomeProjection,
+    RunScientificValidity,
+    RunTaskOutcome,
 )
 from research_platform.experimentation.run.control.providers import DirectoryRunControlLedger
 from research_platform.experimentation.run.control.runtime import DurableRunControl
@@ -762,3 +767,51 @@ def test_reconciliation_identity_mismatch_fails_closed_without_terminalizing(tmp
     )
     assert inspected.phase is RunControlPhase.RECOVERY_REQUIRED
     assert inspected.control_generation == 0
+
+
+def test_public_receipt_rejects_cross_authority_outcome_forgery(tmp_path: Path) -> None:
+    fx = _fixture()
+    receipt = _controller(tmp_path, fx).execute(
+        RunControlRequest(RunControlAction.RUN, _target(fx, 0))
+    )
+    with pytest.raises(ValueError, match="execution outcome contradicts"):
+        replace(
+            receipt,
+            outcomes=RunOutcomeProjection(
+                RunExecutionOutcome.SUCCEEDED,
+                RunTaskOutcome.NOT_EVALUATED,
+                RunEvidenceValidity.NOT_OBSERVED,
+                RunScientificValidity.NOT_EVALUATED,
+            ),
+        )
+    with pytest.raises(ValueError, match="cannot claim scientific validity"):
+        replace(
+            receipt,
+            outcomes=RunOutcomeProjection(
+                RunExecutionOutcome.IN_PROGRESS,
+                RunTaskOutcome.NOT_EVALUATED,
+                RunEvidenceValidity.NOT_OBSERVED,
+                RunScientificValidity.VALID,
+            ),
+        )
+
+
+def test_public_receipt_keeps_execution_task_evidence_and_scientific_outcomes_distinct(tmp_path: Path) -> None:
+    fx = _fixture()
+    control = _controller(tmp_path, fx)
+    running = control.execute(RunControlRequest(RunControlAction.RUN, _target(fx, 0)))
+    assert running.outcomes.execution is RunExecutionOutcome.IN_PROGRESS
+    assert running.outcomes.task is RunTaskOutcome.NOT_EVALUATED
+    assert running.outcomes.evidence is RunEvidenceValidity.NOT_OBSERVED
+    assert running.outcomes.scientific is RunScientificValidity.NOT_EVALUATED
+
+    absent = control.execute(RunControlRequest(RunControlAction.EVIDENCE, _target(fx, 1)))
+    assert absent.outcomes.evidence is RunEvidenceValidity.NOT_FINALIZED
+    assert absent.outcomes.task is RunTaskOutcome.NOT_EVALUATED
+    assert absent.outcomes.scientific is RunScientificValidity.NOT_EVALUATED
+
+    finalized = _controller(
+        tmp_path, fx, evidence=_Evidence(_evidence_receipt(fx)), verifier=_Verifier()
+    ).execute(RunControlRequest(RunControlAction.EVIDENCE, _target(fx, 1)))
+    assert finalized.outcomes.evidence is RunEvidenceValidity.FINALIZED_VALID
+    assert finalized.evidence_bundle_receipt is not None

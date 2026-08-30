@@ -1,8 +1,26 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import dataclass, replace
 
+from research_platform.experimentation.api import ProjectRunDefinition
+from research_platform.experimentation.experiment.api import ExperimentSpec
 from research_platform.experimentation.run.api import ExperimentRunSpec
+from research_platform.experimentation.run.identity.api import RunIdentity
+from research_platform.experimentation.run.manifest.api import CompositionPlanReference, RunLaunchManifest
+from research_platform.experimentation.study.api import StudyProtocol, StudyVariantSpec, VariantKind
+
+
+@dataclass(frozen=True)
+class _ProjectIdentity:
+    project_id: str
+
+
+@dataclass(frozen=True)
+class _ProjectManifest:
+    identity: _ProjectIdentity
+    semantic_digest: str
+    study_ids: tuple[str, ...]
 
 
 class ExperimentRunSpecTests(unittest.TestCase):
@@ -24,6 +42,73 @@ class ExperimentRunSpecTests(unittest.TestCase):
 
         self.assertEqual(len(spec.identity_digest()), 64)
         self.assertEqual(spec.repetitions, 2)
+
+
+    def _project_run_definition(self) -> ProjectRunDefinition:
+        seed = "e" * 64
+        tasks = "f" * 64
+        experiment = ExperimentSpec(
+            "experiment-1", "study-1", "project-1", (), "model", "prompt",
+            "workload", seed, 2, "workflow.v1",
+        )
+        study = StudyProtocol(
+            "study-1", "workload-1",
+            (StudyVariantSpec("control", VariantKind.CONTROL, "impl", "d" * 64),),
+            2, seed, ("score",), tasks,
+        )
+        run = ExperimentRunSpec(
+            "run-1", "project-1", "experiment-1", "study-1", "baseline",
+            tasks, seed, 2, "runs/run-1", "environment",
+        )
+        identity = RunIdentity("run-1", "session-1", "trace-1")
+        project_manifest = _ProjectManifest(_ProjectIdentity("project-1"), "9" * 64, ("study-1",))
+        manifest = RunLaunchManifest(
+            "release", "prompt-generation", "prompt-promotion", "models", (), "host",
+            "participant-impl", "participant-runtime", "participant-bindings",
+            project_manifest.semantic_digest, experiment.identity_digest(),
+            ("python", "-m", "demo"), "a" * 64, "b" * 64,
+            (("project", "config"),), "seed-0",
+            (CompositionPlanReference("plan", "owner", "scope", "c" * 64),),
+        )
+        return ProjectRunDefinition(project_manifest, experiment, study, run, identity, manifest)
+
+    def test_project_run_definition_binds_public_identities_and_control_target(self) -> None:
+        definition = self._project_run_definition()
+        self.assertEqual(len(definition.definition_digest), 64)
+        target = definition.control_target(3)
+        self.assertEqual(target.run_id, definition.identity.run_id)
+        self.assertEqual(target.run_manifest_digest, definition.manifest.digest())
+        self.assertEqual(target.expected_generation, 3)
+
+    def test_project_run_definition_rejects_cross_identity_drift(self) -> None:
+        definition = self._project_run_definition()
+        with self.assertRaisesRegex(ValueError, "project identity drifted"):
+            ProjectRunDefinition(
+                definition.project_manifest, definition.experiment, definition.study,
+                replace(definition.run, project_id="project-other"),
+                definition.identity, definition.manifest,
+            )
+        with self.assertRaisesRegex(ValueError, "launch manifest"):
+            ProjectRunDefinition(
+                definition.project_manifest, definition.experiment, definition.study,
+                definition.run, definition.identity,
+                replace(definition.manifest, experiment_spec_digest="wrong"),
+            )
+
+    def test_project_run_definition_rejects_project_manifest_binding_drift(self) -> None:
+        definition = self._project_run_definition()
+        with self.assertRaisesRegex(ValueError, "does not bind the ProjectManifest"):
+            ProjectRunDefinition(
+                definition.project_manifest, definition.experiment, definition.study,
+                definition.run, definition.identity,
+                replace(definition.manifest, project_manifest_digest="8" * 64),
+            )
+        undeclared = replace(definition.project_manifest, study_ids=("other-study",))
+        with self.assertRaisesRegex(ValueError, "not declared by ProjectManifest"):
+            ProjectRunDefinition(
+                undeclared, definition.experiment, definition.study,
+                definition.run, definition.identity, definition.manifest,
+            )
 
     def test_empty_provider_identity_is_rejected(self) -> None:
         with self.assertRaises(ValueError):

@@ -22,6 +22,15 @@ def test_run_launch_manifest_codec_round_trips_the_frozen_identity() -> None:
     assert decoded.digest() == manifest.digest()
 
 
+def test_run_launch_manifest_codec_rejects_semantically_equivalent_noncanonical_bytes() -> None:
+    encoded = encode_run_launch_manifest(frozen_runtime_manifest())
+    document = json.loads(encoded)
+    noncanonical = json.dumps(document, sort_keys=False, separators=(",", ":")).encode("utf-8")
+    assert noncanonical != encoded
+    with pytest.raises(RunLaunchManifestDecodeError):
+        decode_run_launch_manifest(noncanonical)
+
+
 def test_run_launch_manifest_codec_rejects_unknown_or_missing_fields() -> None:
     raw = json.loads(encode_run_launch_manifest(frozen_runtime_manifest()))
     raw["unexpected"] = "drift"
@@ -35,7 +44,7 @@ def test_run_launch_manifest_codec_rejects_unknown_or_missing_fields() -> None:
 
 
 def test_run_launch_manifest_codec_rejects_unsupported_or_untyped_wire_version() -> None:
-    for version in ("2", 1, True, None):
+    for version in ("1", "3", 2, True, None):
         raw = json.loads(encode_run_launch_manifest(frozen_runtime_manifest()))
         raw["schema_version"] = version
         with pytest.raises(RunLaunchManifestDecodeError):

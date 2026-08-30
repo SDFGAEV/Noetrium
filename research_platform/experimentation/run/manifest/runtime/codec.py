@@ -11,7 +11,7 @@ class RunLaunchManifestDecodeError(ValueError):
     """A launch-manifest document violates the frozen run contract."""
 
 
-RUN_LAUNCH_MANIFEST_SCHEMA_VERSION = "1"
+RUN_LAUNCH_MANIFEST_SCHEMA_VERSION = "2"
 _WIRE_FIELDS = frozenset({"schema_version", "manifest"})
 _FIELDS = frozenset(
     {
@@ -24,6 +24,7 @@ _FIELDS = frozenset(
         "participant_implementation_inventory_digest",
         "participant_runtime_inventory_digest",
         "participant_binding_manifest_digest",
+        "project_manifest_digest",
         "experiment_spec_digest",
         "command_argv",
         "launcher_binary_sha256",
@@ -140,6 +141,7 @@ def _build_manifest(document: dict[str, object]) -> RunLaunchManifest:
         participant_binding_manifest_digest=_require_string(
             document, "participant_binding_manifest_digest"
         ),
+        project_manifest_digest=_require_string(document, "project_manifest_digest"),
         experiment_spec_digest=_require_string(document, "experiment_spec_digest"),
         command_argv=_require_string_list(document["command_argv"], "command_argv"),
         launcher_binary_sha256=_require_string(
@@ -156,7 +158,10 @@ def _build_manifest(document: dict[str, object]) -> RunLaunchManifest:
 
 def decode_run_launch_manifest(raw: bytes) -> RunLaunchManifest:
     try:
-        return _build_manifest(_require_document(raw))
+        manifest = _build_manifest(_require_document(raw))
+        if raw != encode_run_launch_manifest(manifest):
+            raise ValueError("run launch manifest bytes are not canonical")
+        return manifest
     except (
         UnicodeDecodeError,
         json.JSONDecodeError,

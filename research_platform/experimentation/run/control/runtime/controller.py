@@ -26,10 +26,24 @@ from ..api.contracts import (
     RunControlPreparedOperation,
     RunControlProjection,
     RunControlReceipt,
+    RunEvidenceValidity,
+    RunExecutionOutcome,
+    RunOutcomeProjection,
+    RunScientificValidity,
+    RunTaskOutcome,
     RunControlReconciliationPort,
     RunControlRequest,
     RunControlTransitionOutcome,
 )
+
+
+_EXECUTION_OUTCOME_BY_PHASE = {
+    RunControlPhase.RUNNING: RunExecutionOutcome.IN_PROGRESS,
+    RunControlPhase.STOPPED: RunExecutionOutcome.STOPPED,
+    RunControlPhase.RECOVERY_REQUIRED: RunExecutionOutcome.RECOVERY_REQUIRED,
+    RunControlPhase.COMPLETED: RunExecutionOutcome.SUCCEEDED,
+    RunControlPhase.FAILED: RunExecutionOutcome.FAILED,
+}
 
 
 class DurableRunControl:
@@ -92,6 +106,18 @@ class DurableRunControl:
             latest_checkpoint_id=projection.latest_checkpoint_id,
             checkpoint_manifest_digest=projection.checkpoint_manifest_digest,
             evidence_bundle_receipt=evidence_receipt,
+            outcomes=RunOutcomeProjection(
+                _EXECUTION_OUTCOME_BY_PHASE[projection.phase],
+                RunTaskOutcome.NOT_EVALUATED,
+                (
+                    RunEvidenceValidity.FINALIZED_VALID
+                    if evidence_receipt is not None
+                    else RunEvidenceValidity.NOT_FINALIZED
+                    if request.action is RunControlAction.EVIDENCE
+                    else RunEvidenceValidity.NOT_OBSERVED
+                ),
+                RunScientificValidity.NOT_EVALUATED,
+            ),
             control_event_receipt=projection.event_receipt,
         )
 

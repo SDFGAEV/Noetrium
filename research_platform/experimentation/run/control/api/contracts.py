@@ -210,6 +210,46 @@ class RunControlProjection:
     pending_operation: RunControlPreparedOperation | None = None
 
 
+class RunExecutionOutcome(StrEnum):
+    IN_PROGRESS = "in_progress"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    STOPPED = "stopped"
+    RECOVERY_REQUIRED = "recovery_required"
+
+
+class RunTaskOutcome(StrEnum):
+    NOT_EVALUATED = "not_evaluated"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    BLOCKED = "blocked"
+
+
+class RunEvidenceValidity(StrEnum):
+    NOT_OBSERVED = "not_observed"
+    NOT_FINALIZED = "not_finalized"
+    FINALIZED_VALID = "finalized_valid"
+
+
+class RunScientificValidity(StrEnum):
+    NOT_EVALUATED = "not_evaluated"
+    VALID = "valid"
+    INVALID = "invalid"
+
+
+@dataclass(frozen=True, slots=True)
+class RunOutcomeProjection:
+    execution: RunExecutionOutcome
+    task: RunTaskOutcome
+    evidence: RunEvidenceValidity
+    scientific: RunScientificValidity
+
+    def __post_init__(self) -> None:
+        expected = (RunExecutionOutcome, RunTaskOutcome, RunEvidenceValidity, RunScientificValidity)
+        if tuple(type(value) for value in (self.execution, self.task, self.evidence, self.scientific)) != expected:
+            raise ValueError("run outcome projection fields must use their exact typed authorities")
+
+
 @dataclass(frozen=True, slots=True)
 class RunControlReceipt:
     action: RunControlAction
@@ -221,6 +261,7 @@ class RunControlReceipt:
     latest_checkpoint_id: str | None
     checkpoint_manifest_digest: str | None
     evidence_bundle_receipt: EvidenceBundleReceipt | None
+    outcomes: RunOutcomeProjection
     control_event_receipt: RunControlEventReceipt
 
     def __post_init__(self) -> None:
@@ -241,6 +282,30 @@ class RunControlReceipt:
             _require_sha256(checkpoint_digest, "run control checkpoint_manifest_digest")
         if self.evidence_bundle_receipt is not None and type(self.evidence_bundle_receipt) is not EvidenceBundleReceipt:
             raise ValueError("run control evidence_bundle_receipt must be EvidenceBundleReceipt or None")
+        if type(self.outcomes) is not RunOutcomeProjection:
+            raise ValueError("run control outcomes must be RunOutcomeProjection")
+        expected_execution = {
+            RunControlPhase.RUNNING: RunExecutionOutcome.IN_PROGRESS,
+            RunControlPhase.STOPPED: RunExecutionOutcome.STOPPED,
+            RunControlPhase.RECOVERY_REQUIRED: RunExecutionOutcome.RECOVERY_REQUIRED,
+            RunControlPhase.COMPLETED: RunExecutionOutcome.SUCCEEDED,
+            RunControlPhase.FAILED: RunExecutionOutcome.FAILED,
+        }[self.phase]
+        if self.outcomes.execution is not expected_execution:
+            raise ValueError("run control execution outcome contradicts lifecycle phase")
+        expected_evidence = (
+            RunEvidenceValidity.FINALIZED_VALID
+            if self.evidence_bundle_receipt is not None
+            else RunEvidenceValidity.NOT_FINALIZED
+            if self.action is RunControlAction.EVIDENCE
+            else RunEvidenceValidity.NOT_OBSERVED
+        )
+        if self.outcomes.evidence is not expected_evidence:
+            raise ValueError("run control evidence validity contradicts finalized evidence authority")
+        if self.outcomes.task is not RunTaskOutcome.NOT_EVALUATED:
+            raise ValueError("run control receipt cannot claim task outcome authority")
+        if self.outcomes.scientific is not RunScientificValidity.NOT_EVALUATED:
+            raise ValueError("run control receipt cannot claim scientific validity authority")
         if type(self.control_event_receipt) is not RunControlEventReceipt:
             raise ValueError("run control control_event_receipt must be RunControlEventReceipt")
         event = self.control_event_receipt
