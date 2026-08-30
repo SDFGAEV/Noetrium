@@ -1380,6 +1380,48 @@ def test_windows_interprocess_lock_unifies_extended_length_path_alias(tmp_path: 
             with InterprocessFileLock(extended, blocking=False):
                 raise AssertionError("equivalent Windows path alias entered a second lock domain")
 
+def test_deadline_residual_cancel_surfaces_logical_deadline_failure() -> None:
+    from concurrent.futures import CancelledError
+    from types import SimpleNamespace
+    from research_platform.platform.concurrency.runtime.cancellation import _DeadlineOwner
+    from research_platform.platform.concurrency.runtime.task_handles import _OwnedTaskHandle
+
+    failure = TaskDeadlineExceeded("task deadline exceeded: race-group/race-task")
+
+    class ResidualCancelledRaw:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def result(self, timeout=None):
+            self.calls += 1
+            if self.calls == 1:
+                raise TimeoutError
+            raise CancelledError
+
+    raw = ResidualCancelledRaw()
+
+    class FakeGroup:
+        group_id = "race-group"
+        cancellation = SimpleNamespace(reason=None)
+
+        def _task_failure(self, task_id: str):
+            return failure if raw.calls >= 1 else None
+
+        def _bounded_wait_timeout(self, deadline, timeout):
+            return 0.001
+
+        def _sync_terminal_from_raw(self, task_id: str) -> None:
+            return None
+
+    record = SimpleNamespace(
+        raw_handle=raw, task_id="race-task", deadline=Deadline.after(1.0),
+        deadline_owner=_DeadlineOwner.TASK, cancellation=SimpleNamespace(reason=None),
+    )
+    handle = _OwnedTaskHandle(FakeGroup(), record)
+    with pytest.raises(TaskDeadlineExceeded, match="race-group/race-task"):
+        handle.result(1.0)
+    assert raw.calls == 2
+
 def test_owned_task_handle_lane_kind_annotation_resolves_runtime_contract() -> None:
     from typing import get_type_hints
 
