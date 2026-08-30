@@ -13,7 +13,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 _SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
-_DISTRIBUTION_SCHEMA = "research-platform.distribution-release.v2"
+_DISTRIBUTION_SCHEMA = "research-platform.distribution-release.v3"
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,17 +61,24 @@ def _load_distribution_evidence(path: Path, *, expected_source_sha: str) -> tupl
         raise ValueError("distribution evidence schema is not current")
     if payload.get("source_sha") != expected_source_sha:
         raise ValueError("distribution evidence source SHA mismatch")
-    if payload.get("manifest_source") != "external-git-archive":
-        raise ValueError("distribution manifest is not bound to the exact archive source")
+    if payload.get("manifest_source") != "external-git-object-database":
+        raise ValueError("distribution manifest is not bound to raw Git object source")
     manifest_digest = payload.get("release_manifest_digest")
     if not isinstance(manifest_digest, str) or not _SHA256_RE.fullmatch(manifest_digest):
         raise ValueError("distribution release-manifest digest is invalid")
     build_command = payload.get("build_command")
     if not isinstance(build_command, dict) or build_command.get("source_sha") != expected_source_sha:
         raise ValueError("distribution build source identity is invalid")
-    archive_digest = build_command.get("source_archive_sha256")
-    if not isinstance(archive_digest, str) or not _SHA256_RE.fullmatch(archive_digest):
-        raise ValueError("distribution source-archive digest is invalid")
+    if build_command.get("cwd_mode") != "external-git-object-database":
+        raise ValueError("distribution build did not use raw Git object source")
+    if build_command.get("source_materialization_schema") != "research-platform.git-object-materialization.v1":
+        raise ValueError("distribution source materialization schema is invalid")
+    materialization_digest = build_command.get("source_materialization_sha256")
+    if not isinstance(materialization_digest, str) or not _SHA256_RE.fullmatch(materialization_digest):
+        raise ValueError("distribution source-materialization digest is invalid")
+    file_count = build_command.get("source_materialization_file_count")
+    if type(file_count) is not int or file_count < 1:
+        raise ValueError("distribution source-materialization file count is invalid")
     tree_digest = payload.get("source_tree_sha256")
     if not isinstance(tree_digest, str) or not _SHA256_RE.fullmatch(tree_digest):
         raise ValueError("distribution evidence source-tree digest is invalid")

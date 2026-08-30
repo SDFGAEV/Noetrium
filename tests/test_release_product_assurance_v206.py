@@ -54,6 +54,12 @@ def test_full_assurance_binds_source_and_uses_local_basetemp(monkeypatch):
     assert result.branch == "role06"
     assert result.source_tree_sha256 == "b" * 64
     assert result.source_clean is True
+    assert result.closing_source_sha == "a" * 40
+    assert result.closing_branch == "role06"
+    assert result.closing_source_tree_sha256 == "b" * 64
+    assert result.closing_source_clean is True
+    assert result.source_identity_rechecked is True
+    assert result.source_identity_consistent is True
     assert [name for name, _ in commands] == [
         "test-taxonomy", "provider-conformance", "architecture", "full-regression",
     ]
@@ -78,3 +84,20 @@ def test_full_assurance_blocks_dirty_source_before_commands(monkeypatch):
     assert result.passed is False
     assert result.source_clean is False
     assert result.commands == ()
+
+
+def test_product_assurance_rejects_closing_source_identity_drift(monkeypatch):
+    identities = iter((
+        ("a" * 40, "role06", "b" * 64, True),
+        ("c" * 40, "role06", "d" * 64, True),
+    ))
+    monkeypatch.setattr(assurance, "_source_identity", lambda: next(identities))
+    monkeypatch.setattr(assurance, "_run", lambda name, argv: _receipt(name, argv, 0))
+    result = assurance.evaluate(full=False)
+    assert result.passed is False
+    assert result.source_identity_rechecked is True
+    assert result.source_identity_consistent is False
+    assert result.source_sha == "a" * 40
+    assert result.closing_source_sha == "c" * 40
+    assert result.source_tree_sha256 == "b" * 64
+    assert result.closing_source_tree_sha256 == "d" * 64

@@ -36,6 +36,12 @@ class ProductAssuranceReceipt:
     source_sha: str
     source_tree_sha256: str
     source_clean: bool
+    closing_branch: str | None
+    closing_source_sha: str | None
+    closing_source_tree_sha256: str | None
+    closing_source_clean: bool | None
+    source_identity_rechecked: bool
+    source_identity_consistent: bool
     passed: bool
     commands: tuple[GateCommandReceipt, ...]
 
@@ -95,13 +101,19 @@ def evaluate(*, full: bool) -> ProductAssuranceReceipt:
     source_sha, branch, source_tree_sha256, source_clean = _source_identity()
     if full and not source_clean:
         return ProductAssuranceReceipt(
-            schema="research-platform.product-assurance-gate.v2",
+            schema="research-platform.product-assurance-gate.v3",
             generated_at_utc=datetime.now(timezone.utc).isoformat(),
             repository="agent-research-platform-system",
             branch=branch,
             source_sha=source_sha,
             source_tree_sha256=source_tree_sha256,
             source_clean=False,
+            closing_branch=None,
+            closing_source_sha=None,
+            closing_source_tree_sha256=None,
+            closing_source_clean=None,
+            source_identity_rechecked=False,
+            source_identity_consistent=False,
             passed=False,
             commands=(),
         )
@@ -136,19 +148,33 @@ def evaluate(*, full: bool) -> ProductAssuranceReceipt:
         receipts.append(receipt)
         if receipt.returncode != 0:
             break
+    closing_sha, closing_branch, closing_tree_sha256, closing_clean = _source_identity()
+    identity_consistent = (
+        closing_sha == source_sha
+        and closing_branch == branch
+        and closing_tree_sha256 == source_tree_sha256
+        and closing_clean == source_clean
+    )
     passed = (
         bool(receipts)
         and all(row.returncode == 0 for row in receipts)
         and len(receipts) == len(commands)
+        and identity_consistent
     )
     return ProductAssuranceReceipt(
-        schema="research-platform.product-assurance-gate.v2",
+        schema="research-platform.product-assurance-gate.v3",
         generated_at_utc=datetime.now(timezone.utc).isoformat(),
         repository="agent-research-platform-system",
         branch=branch,
         source_sha=source_sha,
         source_tree_sha256=source_tree_sha256,
         source_clean=source_clean,
+        closing_branch=closing_branch,
+        closing_source_sha=closing_sha,
+        closing_source_tree_sha256=closing_tree_sha256,
+        closing_source_clean=closing_clean,
+        source_identity_rechecked=True,
+        source_identity_consistent=identity_consistent,
         passed=passed,
         commands=tuple(receipts),
     )

@@ -6,7 +6,7 @@ A source-tree test pass is not sufficient release evidence. Formal Python distri
 python scripts/release_distribution.py <output-directory-outside-repository>
 ```
 
-The command fails unless the Git worktree is clean. It materializes one exact `git archive <SHA>` source root, builds the governance release manifest and both Python distributions from that same immutable cut, and re-checks HEAD/branch/clean state before publishing claim-grade evidence. A clean checkout that changes HEAD during qualification is rejected rather than silently pairing another source tree with the original SHA.
+The command fails unless the Git worktree is clean. It materializes one exact source root directly from raw Git object-database bytes using `git ls-tree` plus `git cat-file --batch`, builds the governance release manifest and both Python distributions from that same immutable cut, and re-checks HEAD/branch/clean state before publishing claim-grade evidence. A clean checkout that changes HEAD during qualification is rejected rather than silently pairing another source tree with the original SHA. Git archive/export attributes are never consulted, so `export-ignore` cannot omit tracked files and `export-subst` cannot rewrite tracked blob bytes in the formal build input.
 
 Each installed artifact must:
 
@@ -52,7 +52,7 @@ CI first runs:
 python scripts/product_assurance_gate.py --full --output product-assurance.json
 ```
 
-This emits one machine-readable receipt and exits nonzero on the first blocking failure. The full gate verifies the L0-L8 taxonomy assignment, the required provider-conformance matrix, the architecture gate and the complete pytest regression. The receipt also records repository, branch, exact HEAD SHA, release source-tree SHA-256, and whether the worktree was clean at evaluation time.
+This emits one machine-readable receipt and exits nonzero on the first blocking failure. The full gate verifies the L0-L8 taxonomy assignment, the required provider-conformance matrix, the architecture gate and the complete pytest regression. The receipt records repository, branch, exact HEAD SHA, release source-tree SHA-256 and clean state at both opening and closing source-identity checks. A clean HEAD/branch/tree drift during the gate makes the receipt non-passing even when every child command itself returned zero.
 
 Provider conformance is declared in `tests/PROVIDER_CONFORMANCE.json`. The matrix must contain exactly the durable, environment, model, effect and checkpoint classes and points to first-party behavior/recovery tests that are themselves classified exactly once by `tests/TEST_SYSTEM.json`.
 

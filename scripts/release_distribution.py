@@ -1,16 +1,14 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 import hashlib
-import io
 import json
 from pathlib import Path, PurePosixPath
 import shutil
 import subprocess
 import sys
-import tarfile
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,30 +52,116 @@ def _assert_source_identity(expected_sha: str, expected_branch: str) -> None:
         raise RuntimeError("source identity drifted during formal distribution qualification")
 
 
-def _git_archive(sha: str) -> bytes:
+@dataclass(frozen=True, slots=True)
+class GitBlobEntry:
+    mode: str
+    oid: str
+    path: str
+
+
+_MATERIALIZATION_SCHEMA = "research-platform.git-object-materialization.v1"
+_REGULAR_MODES = frozenset({"100644", "100755"})
+
+
+def _git_tree_entries(sha: str) -> tuple[GitBlobEntry, ...]:
     completed = subprocess.run(
-        ["git", "archive", "--format=tar", sha],
+        ["git", "ls-tree", "-r", "-z", "--full-tree", sha],
         cwd=ROOT,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         check=False,
     )
     if completed.returncode != 0:
-        raise RuntimeError(completed.stderr.decode("utf-8", "replace").strip() or "git archive failed")
-    return completed.stdout
+        raise RuntimeError(completed.stderr.decode("utf-8", "replace").strip() or "git ls-tree failed")
+    entries: list[GitBlobEntry] = []
+    portable_paths: set[str] = set()
+    for record in completed.stdout.split(b"\0"):
+        if not record:
+            continue
+        metadata, separator, raw_path = record.partition(b"\t")
+        if not separator:
+            raise RuntimeError("git ls-tree emitted malformed entry")
+        try:
+            mode, object_type, oid = metadata.decode("ascii").split(" ")
+            relative = raw_path.decode("utf-8")
+        except (UnicodeDecodeError, ValueError) as exc:
+            raise RuntimeError("git tree contains non-canonical source identity") from exc
+        parts = PurePosixPath(relative).parts
+        if not relative or relative.startswith("/") or "\\" in relative or any(part in {"", ".", ".."} for part in parts):
+            raise RuntimeError(f"unsafe tracked source path: {relative!r}")
+        portable = relative.casefold()
+        if portable in portable_paths:
+            raise RuntimeError(f"tracked source path is not portable across case-insensitive hosts: {relative!r}")
+        portable_paths.add(portable)
+        if object_type != "blob":
+            raise RuntimeError(f"tracked non-blob source entry is unsupported: {relative!r} ({object_type})")
+        if mode not in _REGULAR_MODES:
+            raise RuntimeError(f"tracked source mode is not host-neutral: {relative!r} ({mode})")
+        entries.append(GitBlobEntry(mode=mode, oid=oid, path=relative))
+    if not entries:
+        raise RuntimeError("exact Git source tree is empty")
+    return tuple(entries)
 
 
-def _materialize_exact_source(sha: str, destination: Path) -> str:
-    raw = _git_archive(sha)
+def _git_blob_batch(entries: tuple[GitBlobEntry, ...]) -> tuple[bytes, ...]:
+    query = b"".join(entry.oid.encode("ascii") + b"\n" for entry in entries)
+    completed = subprocess.run(
+        ["git", "cat-file", "--batch"],
+        cwd=ROOT,
+        input=query,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if completed.returncode != 0:
+        raise RuntimeError(completed.stderr.decode("utf-8", "replace").strip() or "git cat-file --batch failed")
+    raw = completed.stdout
+    cursor = 0
+    blobs: list[bytes] = []
+    for entry in entries:
+        header_end = raw.find(b"\n", cursor)
+        if header_end < 0:
+            raise RuntimeError("git cat-file batch response is truncated")
+        header = raw[cursor:header_end].split(b" ")
+        if len(header) != 3:
+            raise RuntimeError("git cat-file batch response header is malformed")
+        observed_oid, object_type, raw_size = header
+        try:
+            size = int(raw_size)
+        except ValueError as exc:
+            raise RuntimeError("git cat-file batch size is invalid") from exc
+        if observed_oid.decode("ascii") != entry.oid or object_type != b"blob" or size < 0:
+            raise RuntimeError("git cat-file batch identity does not match ls-tree authority")
+        cursor = header_end + 1
+        blob = raw[cursor:cursor + size]
+        if len(blob) != size or raw[cursor + size:cursor + size + 1] != b"\n":
+            raise RuntimeError("git cat-file batch blob is truncated")
+        blobs.append(blob)
+        cursor += size + 1
+    if cursor != len(raw):
+        raise RuntimeError("git cat-file batch emitted trailing unbound bytes")
+    return tuple(blobs)
+
+
+def _materialize_exact_source(sha: str, destination: Path) -> tuple[str, int]:
+    entries = _git_tree_entries(sha)
+    blobs = _git_blob_batch(entries)
     destination.mkdir(parents=True, exist_ok=False)
-    with tarfile.open(fileobj=io.BytesIO(raw), mode="r:") as archive:
-        for member in archive.getmembers():
-            parts = PurePosixPath(member.name).parts
-            if not member.name or member.name.startswith("/") or ".." in parts:
-                raise RuntimeError(f"unsafe git archive member: {member.name!r}")
-        archive.extractall(destination, filter="data")
-    return hashlib.sha256(raw).hexdigest()
-
+    digest = hashlib.sha256()
+    digest.update(_MATERIALIZATION_SCHEMA.encode("ascii") + b"\0")
+    for entry, blob in zip(entries, blobs, strict=True):
+        path_bytes = entry.path.encode("utf-8")
+        digest.update(entry.mode.encode("ascii") + b"\0")
+        digest.update(entry.oid.encode("ascii") + b"\0")
+        digest.update(len(path_bytes).to_bytes(4, "big") + path_bytes)
+        digest.update(len(blob).to_bytes(8, "big") + blob)
+        target = destination.joinpath(*PurePosixPath(entry.path).parts)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.exists():
+            raise RuntimeError(f"tracked source path collision during materialization: {entry.path!r}")
+        target.write_bytes(blob)
+        target.chmod(0o755 if entry.mode == "100755" else 0o644)
+    return digest.hexdigest(), len(entries)
 
 def _build_distributions(
     output: Path, *, sha: str
@@ -87,15 +171,19 @@ def _build_distributions(
     output.mkdir(parents=True)
     with tempfile.TemporaryDirectory(prefix="research-release-source-") as td:
         source_root = Path(td) / "source"
-        source_archive_sha256 = _materialize_exact_source(sha, source_root)
+        source_materialization_sha256, source_file_count = _materialize_exact_source(
+            sha, source_root
+        )
         manifest = build_release_manifest(source_root)
         argv = [sys.executable, "-m", "build", "--wheel", "--sdist", "--outdir", str(output)]
         completed = subprocess.run(argv, cwd=source_root, text=True, capture_output=True, check=False)
         command = {
             "argv": argv,
-            "cwd_mode": "external-git-archive",
+            "cwd_mode": "external-git-object-database",
             "source_sha": sha,
-            "source_archive_sha256": source_archive_sha256,
+            "source_materialization_schema": _MATERIALIZATION_SCHEMA,
+            "source_materialization_sha256": source_materialization_sha256,
+            "source_materialization_file_count": source_file_count,
             "returncode": completed.returncode,
             "stdout_sha256": hashlib.sha256(completed.stdout.encode()).hexdigest(),
             "stderr_sha256": hashlib.sha256(completed.stderr.encode()).hexdigest(),
@@ -187,8 +275,8 @@ def build_distribution_release(output: Path) -> dict:
         for path in (wheel, sdist, sbom_path, checksums_path)
     }
     evidence = {
-        "schema": "research-platform.distribution-release.v2",
-        "manifest_source": "external-git-archive",
+        "schema": "research-platform.distribution-release.v3",
+        "manifest_source": "external-git-object-database",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "repository": "agent-research-platform-system",
         "branch": branch,

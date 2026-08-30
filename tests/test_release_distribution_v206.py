@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+import subprocess
+import tarfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -89,7 +91,7 @@ def test_distribution_build_runs_from_external_exact_source(monkeypatch):
         assert sha == "a" * 40
         destination.mkdir(parents=True, exist_ok=False)
         seen["source"] = destination.resolve()
-        return "b" * 64
+        return "b" * 64, 123
 
     def fake_run(argv, *, cwd, text, capture_output, check):
         source_root = Path(cwd).resolve()
@@ -122,37 +124,50 @@ def test_distribution_build_runs_from_external_exact_source(monkeypatch):
         )
     assert wheel.name.endswith(".whl")
     assert sdist.name.endswith(".tar.gz")
-    assert receipt["cwd_mode"] == "external-git-archive"
+    assert receipt["cwd_mode"] == "external-git-object-database"
     assert receipt["source_sha"] == "a" * 40
-    assert receipt["source_archive_sha256"] == "b" * 64
+    assert receipt["source_materialization_schema"] == distribution._MATERIALIZATION_SCHEMA
+    assert receipt["source_materialization_sha256"] == "b" * 64
+    assert receipt["source_materialization_file_count"] == 123
     assert manifest.platform_code_version
     assert manifest.source_tree_sha256 == "c" * 64
     assert seen["manifest_root"] == seen["source"]
 
 
-def test_exact_source_materialization_uses_safe_tar_filter(monkeypatch):
-    buffer = distribution.io.BytesIO()
-    payload = b"release-source"
-    with distribution.tarfile.open(fileobj=buffer, mode="w") as archive:
-        member = distribution.tarfile.TarInfo("README.md")
-        member.size = len(payload)
-        archive.addfile(member, distribution.io.BytesIO(payload))
-    raw = buffer.getvalue()
-    seen: dict[str, object] = {}
-
-    def fake_extractall(self, path, members=None, *, numeric_owner=False, filter=None):
-        seen["filter"] = filter
-
-    monkeypatch.setattr(distribution, "_git_archive", lambda sha: raw)
-    monkeypatch.setattr(distribution.tarfile.TarFile, "extractall", fake_extractall)
-    local_root = distribution.ROOT / ".local"
-    local_root.mkdir(parents=True, exist_ok=True)
-    with TemporaryDirectory(prefix="release-safe-tar-", dir=local_root) as td:
-        destination = Path(td) / "source"
-        digest = distribution._materialize_exact_source("a" * 40, destination)
-    assert seen["filter"] == "data"
-    assert digest == hashlib.sha256(raw).hexdigest()
-
+def test_exact_source_materialization_uses_raw_git_objects_not_export_attributes(monkeypatch, tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    (repo / ".gitattributes").write_text(
+        "ignored.py export-ignore\nsubstituted.txt export-subst\n", encoding="utf-8"
+    )
+    ignored = b"TRACKED_BUT_EXPORT_IGNORED = True\n"
+    substituted = b"$Format:%H$\n"
+    (repo / "ignored.py").write_bytes(ignored)
+    (repo / "substituted.txt").write_bytes(substituted)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True)
+    subprocess.run(
+        ["git", "-c", "user.name=role06-test", "-c", "user.email=role06@test.invalid", "commit", "-qm", "fixture"],
+        cwd=repo,
+        check=True,
+    )
+    sha = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo, text=True, capture_output=True, check=True
+    ).stdout.strip()
+    archive_path = tmp_path / "archive.tar"
+    subprocess.run(["git", "archive", "-o", str(archive_path), sha], cwd=repo, check=True)
+    with tarfile.open(archive_path, "r:") as archive:
+        names = set(archive.getnames())
+        assert "ignored.py" not in names
+        member = archive.extractfile("substituted.txt")
+        assert member is not None and member.read() != substituted
+    monkeypatch.setattr(distribution, "ROOT", repo)
+    destination = tmp_path / "materialized"
+    digest, file_count = distribution._materialize_exact_source(sha, destination)
+    assert file_count == 3
+    assert len(digest) == 64
+    assert (destination / "ignored.py").read_bytes() == ignored
+    assert (destination / "substituted.txt").read_bytes() == substituted
 
 def test_distribution_closing_source_identity_rejects_clean_head_drift(monkeypatch):
     expected_sha = "a" * 40

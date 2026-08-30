@@ -176,9 +176,15 @@ def _write_distribution_evidence(
         "schema": context._DISTRIBUTION_SCHEMA,
         "source_sha": SHA,
         "source_tree_sha256": tree_sha,
-        "manifest_source": "external-git-archive",
+        "manifest_source": "external-git-object-database",
         "release_manifest_digest": "f" * 64,
-        "build_command": {"source_sha": SHA, "source_archive_sha256": "9" * 64},
+        "build_command": {
+            "source_sha": SHA,
+            "cwd_mode": "external-git-object-database",
+            "source_materialization_schema": "research-platform.git-object-materialization.v1",
+            "source_materialization_sha256": "9" * 64,
+            "source_materialization_file_count": 3000,
+        },
         "artifacts": {wheel.name: {"sha256": wheel_sha, "size": wheel.stat().st_size}},
     }
     evidence_path = dist / "DISTRIBUTION_RELEASE_EVIDENCE.json"
