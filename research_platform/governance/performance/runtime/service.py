@@ -19,7 +19,14 @@ class PerformanceBaselineApprovalMissing(RuntimeError):
     pass
 
 
-def _baseline_from_snapshot(snapshot: PerformanceSnapshot) -> PerformanceBaseline:
+def _baseline_from_snapshot(
+    snapshot: PerformanceSnapshot, *, accepted_blocker_fingerprints: tuple[str, ...] | None = None,
+) -> PerformanceBaseline:
+    accepted = (
+        snapshot.blocker_fingerprints
+        if accepted_blocker_fingerprints is None
+        else tuple(sorted(set(accepted_blocker_fingerprints) & set(snapshot.blocker_fingerprints)))
+    )
     return PerformanceBaseline(
         schema_version="performance-baseline.v2",
         source_authority=snapshot.source_authority,
@@ -28,7 +35,7 @@ def _baseline_from_snapshot(snapshot: PerformanceSnapshot) -> PerformanceBaselin
         analyzer_revision=snapshot.analyzer_revision,
         analyzer_implementation_digest=snapshot.analyzer_implementation_digest,
         observed_blocker_fingerprints=snapshot.blocker_fingerprints,
-        accepted_blocker_fingerprints=snapshot.blocker_fingerprints,
+        accepted_blocker_fingerprints=accepted,
     )
 
 
@@ -90,12 +97,32 @@ class PerformanceGovernanceService:
             self.store.append_history(snapshot)
         return snapshot
 
-    def accept_baseline(self) -> PerformanceSnapshot:
-        snapshot = self.scan(persist=True)
-        baseline = _baseline_from_snapshot(snapshot)
-        if snapshot.source_authority == "git":
+    def accept_baseline(self, *, source_revision: str | None = None) -> PerformanceSnapshot:
+        current = self.scan(persist=False)
+        if current.source_authority == "git":
+            if not source_revision:
+                raise PerformanceBaselineApprovalMissing(
+                    "exact performance baseline acceptance requires an explicit historical source revision"
+                )
+            if self.baseline_replay is None:
+                raise PerformanceBaselineApprovalMissing("performance baseline replay is unavailable")
+            snapshot = self.baseline_replay(source_revision)
+            if (
+                snapshot.analyzer_revision != current.analyzer_revision
+                or snapshot.analyzer_implementation_digest != current.analyzer_implementation_digest
+            ):
+                raise PerformanceBaselineApprovalMissing(
+                    "candidate performance baseline does not use the running reviewed analyzer identity"
+                )
+            previous = self.store.load_baseline()
+            inherited = previous.accepted_blocker_fingerprints if previous is not None else ()
+            baseline = _baseline_from_snapshot(
+                snapshot, accepted_blocker_fingerprints=inherited
+            )
             if snapshot.source_revision is None or not snapshot.analyzer_implementation_digest:
-                raise PerformanceBaselineApprovalMissing("candidate performance baseline lacks exact Git/analyzer identity")
+                raise PerformanceBaselineApprovalMissing(
+                    "candidate performance baseline lacks exact Git/analyzer identity"
+                )
             digest = _baseline_digest(baseline)
             approval = (
                 self.approval_set.approval_for(
@@ -112,6 +139,13 @@ class PerformanceGovernanceService:
                 raise PerformanceBaselineApprovalMissing(
                     "ROLE00 exact performance baseline approval is missing for this source/analyzer/baseline identity"
                 )
+        else:
+            if source_revision is not None:
+                raise PerformanceBaselineApprovalMissing(
+                    "historical source revision is only valid for Git-authoritative baseline acceptance"
+                )
+            snapshot = self.scan(persist=True)
+            baseline = _baseline_from_snapshot(snapshot)
         self.store.publish_baseline(baseline)
         return snapshot
 

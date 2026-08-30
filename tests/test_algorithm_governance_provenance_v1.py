@@ -284,9 +284,13 @@ def test_git_baseline_acceptance_requires_exact_role00_approval() -> None:
         publish_baseline=lambda snapshot: saved.append(snapshot),
     )
     scanner = SimpleNamespace(scan=lambda: current)
-    service = AlgorithmGovernanceService(scanner=scanner, store=store)
-    with pytest.raises(AlgorithmBaselineApprovalMissing, match="ROLE00 exact"):
+    service = AlgorithmGovernanceService(
+        scanner=scanner, store=store, baseline_replay=lambda _revision: current
+    )
+    with pytest.raises(AlgorithmBaselineApprovalMissing, match="historical source revision"):
         service.accept_baseline()
+    with pytest.raises(AlgorithmBaselineApprovalMissing, match="ROLE00 exact"):
+        service.accept_baseline(source_revision=current.source_revision)
     approval = AlgorithmBaselineApproval(
         approval_id="algorithm-baseline-001",
         source_git_sha=current.source_revision or "",
@@ -304,7 +308,7 @@ def test_git_baseline_acceptance_requires_exact_role00_approval() -> None:
         approval_record_sha256="4" * 64,
     )
     service.approval_set = _approval_set(baselines=(approval,))
-    assert service.accept_baseline() == current
+    assert service.accept_baseline(source_revision=current.source_revision) == current
     assert saved == [current]
 
 

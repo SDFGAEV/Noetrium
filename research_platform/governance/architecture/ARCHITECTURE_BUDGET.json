@@ -34,6 +34,27 @@
       }
     },
     {
+      "migration_id": "role01-governance-provenance-9ba9f6e",
+      "owner_role": "ROLE01",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 1,
+        "contract_declarations": 12,
+        "authorities": 1,
+        "import_edges": 56
+      },
+      "justification": "Current ROLE01 Governance/NPE/provenance convergence preserves the prior topology growth while adding exact Git-bound Algorithm, Concurrency and Performance governance dependencies, for a measured total import-edge delta of fifty-six.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.platform",
+          "research_platform.governance",
+          "research_platform.scope",
+          "research_platform.portfolio"
+        ],
+        "import_projection_sha256": "49e0ee63db04e96e738645ce5f00ff514bb9172c40e2d6e8f9d5312f0c52917e"
+      }
+    },
+    {
       "migration_id": "role02-runtime-reliability-v1",
       "owner_role": "ROLE02",
       "delta": {
@@ -71,6 +92,26 @@
           "research_platform.scientific"
         ],
         "import_projection_sha256": "aec91782b6e3cac009ea998614aa86594ed0fb2cfc917c8c49f7b81dedad8aa3"
+      }
+    },
+    {
+      "migration_id": "role03-npe-run-control-2722fe1",
+      "owner_role": "ROLE03",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 52
+      },
+      "justification": "Current ROLE03 NPE run-control proposal adds fifty-two measured typed execution, experimentation and scientific import edges on exact 2722fe1 while preserving the historical thirty-eight-edge migration record.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.execution",
+          "research_platform.experimentation",
+          "research_platform.scientific"
+        ],
+        "import_projection_sha256": "e69dbebfd7126e1c55c3c42c79073428f86ba547febc20630e0497a763aed87c"
       }
     },
     {

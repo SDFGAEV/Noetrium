@@ -16,6 +16,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--exact", action="store_true", help="disable advisory cache")
     parser.add_argument("--report", type=Path, help="write Markdown report")
     parser.add_argument("--git-executable", help="Git executable for immutable exact-source scans")
+    parser.add_argument("--source-revision", help="historical Git revision to replay for baseline acceptance")
     return parser
 
 
@@ -27,7 +28,7 @@ def main(argv: list[str] | None = None) -> int:
     service = build_algorithm_governance(root, exact=exact, git_executable=args.git_executable)
     if args.command == "baseline":
         try:
-            snapshot = service.accept_baseline()
+            snapshot = service.accept_baseline(source_revision=args.source_revision)
         except AlgorithmBaselineApprovalMissing as exc:
             print(f"ALGORITHM_BASELINE_NOT_APPROVED {exc}")
             return 2

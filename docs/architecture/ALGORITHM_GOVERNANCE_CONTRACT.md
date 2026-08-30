@@ -34,3 +34,7 @@ External Algorithm Governance approvals are loaded only when both `RESEARCH_PLAT
 A lower-bound migration binds one exact symbol, candidate Git SHA/source digest, analyzer revision/implementation digest, old complexity, new complexity, rationale, and review evidence. An exact approved match may reclassify only that complexity transition from blocker to reviewed warning. It does not suppress new P0/P1 findings, risk-score regressions, unrelated symbols, or later source/analyzer revisions. Stale, malformed, rejected, or mismatched records contribute zero authority.
 
 Approval records are decoded once into immutable identity indexes. Baseline acceptance and per-symbol lower-bound approval lookup are constant-time by exact source/analyzer/snapshot identity; the only O(N) approval cost is one-time approval-set construction. This prevents governance authority checks from becoming a scan inside every changed-symbol comparison.
+
+## Historical baseline cutover command
+
+The `baseline` command is exact and requires `--source-revision <git-sha>` for Git-authoritative acceptance. It replays that historical source with the running reviewed analyzer identity and checks the external ROLE00 approval before writing the repository baseline. Omitting the historical revision fails closed; the current producer tree is never substituted implicitly.

@@ -242,22 +242,32 @@ def test_performance_replay_mismatch_fails_before_current_debt_diff() -> None:
 def test_concurrency_exact_baseline_acceptance_requires_matching_role00_approval() -> None:
     current = _concurrency_snapshot()
     store, saved = _service_store(None)
-    service = ConcurrencyGovernanceService(scanner=SimpleNamespace(scan=lambda: current), store=store)
-    with pytest.raises(ConcurrencyBaselineApprovalMissing, match="ROLE00 exact"):
+    service = ConcurrencyGovernanceService(
+        scanner=SimpleNamespace(scan=lambda: current), store=store,
+        baseline_replay=lambda _revision: current,
+    )
+    with pytest.raises(ConcurrencyBaselineApprovalMissing, match="historical source revision"):
         service.accept_baseline()
+    with pytest.raises(ConcurrencyBaselineApprovalMissing, match="ROLE00 exact"):
+        service.accept_baseline(source_revision=current.source_revision)
     service.approval_set = _approval_set(_approval_for(current, GovernanceBaselineLane.CONCURRENCY))
-    assert service.accept_baseline() == current
+    assert service.accept_baseline(source_revision=current.source_revision) == current
     assert saved == [_concurrency_baseline(current)]
 
 
 def test_performance_exact_baseline_acceptance_requires_matching_role00_approval() -> None:
     current = _performance_snapshot()
     store, saved = _service_store(None)
-    service = PerformanceGovernanceService(scanner=SimpleNamespace(scan=lambda: current), store=store)
-    with pytest.raises(PerformanceBaselineApprovalMissing, match="ROLE00 exact"):
+    service = PerformanceGovernanceService(
+        scanner=SimpleNamespace(scan=lambda: current), store=store,
+        baseline_replay=lambda _revision: current,
+    )
+    with pytest.raises(PerformanceBaselineApprovalMissing, match="historical source revision"):
         service.accept_baseline()
+    with pytest.raises(PerformanceBaselineApprovalMissing, match="ROLE00 exact"):
+        service.accept_baseline(source_revision=current.source_revision)
     service.approval_set = _approval_set(_approval_for(current, GovernanceBaselineLane.PERFORMANCE))
-    assert service.accept_baseline() == current
+    assert service.accept_baseline(source_revision=current.source_revision) == current
     assert saved == [_performance_baseline(current)]
 
 
@@ -266,10 +276,11 @@ def test_governance_baseline_approval_wrong_lane_contributes_zero_authority() ->
     store, _saved = _service_store(None)
     service = ConcurrencyGovernanceService(
         scanner=SimpleNamespace(scan=lambda: current), store=store,
+        baseline_replay=lambda _revision: current,
         approval_set=_approval_set(_approval_for(current, GovernanceBaselineLane.PERFORMANCE)),
     )
     with pytest.raises(ConcurrencyBaselineApprovalMissing, match="ROLE00 exact"):
-        service.accept_baseline()
+        service.accept_baseline(source_revision=current.source_revision)
 
 
 def test_governance_baseline_approval_file_and_record_are_digest_bound(tmp_path: Path) -> None:

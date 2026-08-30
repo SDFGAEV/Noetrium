@@ -537,14 +537,22 @@ def test_run_control_standard_shape_is_registered(tmp_path: Path) -> None:
     (leaf/'__init__.py').write_text('',encoding='utf-8')
     assert audit_system_topology_completeness(tmp_path)==[]
 
-def test_role01_run_control_catalog_growth_is_budgeted() -> None:
-    migration=next(row for row in load_architecture_complexity_budget(Path(__file__).resolve().parents[1]).migrations if row.owner_role=="ROLE01")
-    assert (migration.delta.subsystems,migration.delta.contract_declarations,migration.delta.authorities,migration.delta.import_edges)==(1,12,1,31)
-    assert migration.module_prefixes==("research_platform.platform","research_platform.governance","research_platform.scope","research_platform.portfolio")
-    assert migration.import_projection_sha256=="f1f77c3e85117adc449c56dd807bdd46b3f3d1b4412f677bcb40b8b2548f0699"
+def test_role01_historical_and_current_architecture_allowances_are_preserved() -> None:
+    rows={row.migration_id:row for row in load_architecture_complexity_budget(Path(__file__).resolve().parents[1]).migrations}
+    historical=rows["role01-shared-source-index-v1"]
+    current=rows["role01-governance-provenance-9ba9f6e"]
+    assert (historical.delta.subsystems,historical.delta.contract_declarations,historical.delta.authorities,historical.delta.import_edges)==(1,12,1,31)
+    assert historical.import_projection_sha256=="f1f77c3e85117adc449c56dd807bdd46b3f3d1b4412f677bcb40b8b2548f0699"
+    assert (current.delta.subsystems,current.delta.contract_declarations,current.delta.authorities,current.delta.import_edges)==(1,12,1,56)
+    assert current.module_prefixes==("research_platform.platform","research_platform.governance","research_platform.scope","research_platform.portfolio")
+    assert current.import_projection_sha256=="49e0ee63db04e96e738645ce5f00ff514bb9172c40e2d6e8f9d5312f0c52917e"
 
-def test_role03_proposal_tracks_exact_693c481_run_control_delta() -> None:
-    migration=next(row for row in load_architecture_complexity_budget(Path(__file__).resolve().parents[1]).migrations if row.owner_role=="ROLE03")
-    assert migration.migration_id=="role03-run-control-693c4814d590"
-    assert migration.delta.import_edges==38
-    assert migration.import_projection_sha256=="aec91782b6e3cac009ea998614aa86594ed0fb2cfc917c8c49f7b81dedad8aa3"
+def test_role03_historical_and_npe_architecture_allowances_are_preserved() -> None:
+    rows={row.migration_id:row for row in load_architecture_complexity_budget(Path(__file__).resolve().parents[1]).migrations}
+    historical=rows["role03-run-control-693c4814d590"]
+    current=rows["role03-npe-run-control-2722fe1"]
+    assert historical.delta.import_edges==38
+    assert historical.import_projection_sha256=="aec91782b6e3cac009ea998614aa86594ed0fb2cfc917c8c49f7b81dedad8aa3"
+    assert current.delta.import_edges==52
+    assert current.module_prefixes==("research_platform.execution","research_platform.experimentation","research_platform.scientific")
+    assert current.import_projection_sha256=="e69dbebfd7126e1c55c3c42c79073428f86ba547febc20630e0497a763aed87c"

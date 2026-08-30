@@ -29,3 +29,7 @@ Baseline migration must preserve the frozen business comparison source. A proven
 ## External approval transport
 
 The shared ROLE00 approval set is supplied out-of-repository through `RESEARCH_PLATFORM_GOVERNANCE_BASELINE_APPROVALS` together with `RESEARCH_PLATFORM_GOVERNANCE_BASELINE_APPROVALS_SHA256`. Supplying only one is invalid. Git discovery for exact source authority uses the existing `RESEARCH_PLATFORM_GIT_EXECUTABLE` route when required.
+
+## Historical baseline cutover command
+
+The `baseline` command is exact and requires `--source-revision <git-sha>` for Git-authoritative acceptance. It replays that historical source with the running reviewed analyzer identity and checks the external ROLE00 approval before writing the repository baseline. Omitting the historical revision fails closed; the current producer tree is never substituted implicitly.
