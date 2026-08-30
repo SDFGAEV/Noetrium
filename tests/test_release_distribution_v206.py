@@ -105,11 +105,18 @@ def test_distribution_build_runs_from_external_exact_source(monkeypatch):
             "stderr": "",
         })()
 
+    def fake_manifest(root: Path):
+        resolved = Path(root).resolve()
+        assert resolved == seen["source"]
+        seen["manifest_root"] = resolved
+        return distribution.ReleaseManifest(1, (), "c" * 64, ">=3.11", "1.0")
+
     monkeypatch.setattr(distribution, "_materialize_exact_source", fake_materialize)
+    monkeypatch.setattr(distribution, "build_release_manifest", fake_manifest)
     monkeypatch.setattr(distribution.subprocess, "run", fake_run)
     with TemporaryDirectory(prefix="release-build-test-", dir=local_root) as td:
         output = Path(td) / "dist"
-        wheel, sdist, receipt = distribution._build_distributions(
+        wheel, sdist, receipt, manifest = distribution._build_distributions(
             output,
             sha="a" * 40,
         )
@@ -118,6 +125,9 @@ def test_distribution_build_runs_from_external_exact_source(monkeypatch):
     assert receipt["cwd_mode"] == "external-git-archive"
     assert receipt["source_sha"] == "a" * 40
     assert receipt["source_archive_sha256"] == "b" * 64
+    assert manifest.platform_code_version
+    assert manifest.source_tree_sha256 == "c" * 64
+    assert seen["manifest_root"] == seen["source"]
 
 
 def test_exact_source_materialization_uses_safe_tar_filter(monkeypatch):
@@ -142,3 +152,29 @@ def test_exact_source_materialization_uses_safe_tar_filter(monkeypatch):
         digest = distribution._materialize_exact_source("a" * 40, destination)
     assert seen["filter"] == "data"
     assert digest == hashlib.sha256(raw).hexdigest()
+
+
+def test_distribution_closing_source_identity_rejects_clean_head_drift(monkeypatch):
+    expected_sha = "a" * 40
+    expected_branch = "system/06-product-assurance-convergence"
+    values = {
+        ("status", "--porcelain=v1", "--untracked-files=all"): "",
+        ("rev-parse", "HEAD"): "b" * 40,
+        ("branch", "--show-current"): expected_branch,
+    }
+    monkeypatch.setattr(distribution, "_git", lambda *args: values[args])
+    with pytest.raises(RuntimeError, match="source identity drifted"):
+        distribution._assert_source_identity(expected_sha, expected_branch)
+
+
+def test_distribution_closing_source_identity_rejects_dirty_tree(monkeypatch):
+    expected_sha = "a" * 40
+    expected_branch = "system/06-product-assurance-convergence"
+    values = {
+        ("status", "--porcelain=v1", "--untracked-files=all"): " M research_platform/api.py",
+        ("rev-parse", "HEAD"): expected_sha,
+        ("branch", "--show-current"): expected_branch,
+    }
+    monkeypatch.setattr(distribution, "_git", lambda *args: values[args])
+    with pytest.raises(RuntimeError, match="source identity drifted"):
+        distribution._assert_source_identity(expected_sha, expected_branch)

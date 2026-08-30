@@ -6,7 +6,7 @@ A source-tree test pass is not sufficient release evidence. Formal Python distri
 python scripts/release_distribution.py <output-directory-outside-repository>
 ```
 
-The command fails unless the Git worktree is clean. It binds the release to the exact commit SHA and to the governance release source-tree digest, builds exactly one wheel and one sdist, then installs each into a fresh isolated virtual environment with `PYTHONPATH` removed and user site packages disabled.
+The command fails unless the Git worktree is clean. It materializes one exact `git archive <SHA>` source root, builds the governance release manifest and both Python distributions from that same immutable cut, and re-checks HEAD/branch/clean state before publishing claim-grade evidence. A clean checkout that changes HEAD during qualification is rejected rather than silently pairing another source tree with the original SHA.
 
 Each installed artifact must:
 
@@ -21,15 +21,26 @@ The evidence document binds source SHA, branch, release-manifest digest, source-
 
 ## Container qualification
 
-The release container is also source-bound. Formal builds pass the exact Git SHA into the image:
+The release container is distribution-bound rather than rebuilt from checkout source. CI first qualifies wheel/sdist, then prepares an exact container context from the already verified wheel and immutable Git blobs for the Dockerfile/entrypoint:
 
 ```bash
-docker build --build-arg PLATFORM_SOURCE_SHA="$GIT_SHA" -t "research-platform:$GIT_SHA" -f deploy/Dockerfile .
+python scripts/prepare_container_context.py <distribution-dir> <context-dir> \
+  --expected-source-sha "$GIT_SHA"
+docker build \
+  --build-arg PLATFORM_SOURCE_SHA="$GIT_SHA" \
+  --build-arg PLATFORM_WHEEL_SHA256="$WHEEL_SHA256" \
+  --build-arg PLATFORM_DISTRIBUTION_EVIDENCE_SHA256="$DISTRIBUTION_EVIDENCE_SHA256" \
+  -t "research-platform:$GIT_SHA" <context-dir>
 python scripts/verify_container_image.py "research-platform:$GIT_SHA" \
-  --expected-source-sha "$GIT_SHA" --output container-verification.json
+  --expected-source-sha "$GIT_SHA" \
+  --expected-wheel-sha256 "$WHEEL_SHA256" \
+  --expected-distribution-evidence-sha256 "$DISTRIBUTION_EVIDENCE_SHA256" \
+  --output container-verification.json
 ```
 
-The verifier rejects a revision-label mismatch, runs the image's non-root `doctor`, checks the installed canonical `research` CLI, and executes the full deterministic reference lifecycle inside the installed container. The receipt records the image ID, source SHA, package/Python versions, lifecycle actions, and command output digests.
+The image embeds that exact wheel as a read-only provenance artifact. Build-time verification rejects a wheel whose bytes do not match the authority digest. Runtime verification independently checks the revision/wheel/distribution-evidence labels, recomputes the embedded wheel SHA-256, verifies every hashed installed file against the wheel `RECORD`, attests effective UID/GID (not only Docker `Config.User`), requires both to be non-root, and then executes the full deterministic reference lifecycle with networking disabled. The receipt binds the image ID/digest to the exact wheel and distribution evidence.
+
+Changing mutable checkout Platform source after wheel qualification cannot alter the image code because no `research_platform/**` source tree enters the container build context. Modified installed `site-packages`, a forged wheel label, a stale distribution receipt, or effective root execution all fail closed.
 
 The container test does not create domain evidence. Minecraft/model/live qualification remains with the owning Roles and their explicitly allocated server windows.
 
@@ -51,4 +62,4 @@ The GitHub workflow runs source-bound product assurance, wheel/sdist qualificati
 
 The SBOM records package license fields as `NOASSERTION` until project ownership selects an explicit OSS license. ROLE 06 does not invent or silently apply a legal license policy. A formal public OSS release therefore still requires ROLE 00/project-owner license selection if no repository `LICENSE` is present.
 
-The container image uses a multi-stage build: source exists only in the builder stage, while the runtime stage installs the built wheel and carries no importable source checkout. Container qualification rejects root runtime users and runs doctor plus the full reference lifecycle with networking disabled.
+The container image installs only the already-qualified formal wheel; it does not rebuild Platform code from a mutable checkout. Container qualification verifies wheel/RECORD integrity, effective non-root UID/GID, doctor, and the full reference lifecycle with networking disabled.

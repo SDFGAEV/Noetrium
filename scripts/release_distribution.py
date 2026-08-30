@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from research_platform.governance.release.api import ReleaseManifest
 from research_platform.governance.release.runtime.manifest import build_release_manifest
 from scripts.verify_installed_artifact import verify_installed_artifact
 
@@ -45,6 +46,14 @@ def _require_clean_source() -> tuple[str, str]:
     return _git("rev-parse", "HEAD"), _git("branch", "--show-current")
 
 
+def _assert_source_identity(expected_sha: str, expected_branch: str) -> None:
+    dirty = _git("status", "--porcelain=v1", "--untracked-files=all")
+    observed_sha = _git("rev-parse", "HEAD")
+    observed_branch = _git("branch", "--show-current")
+    if dirty or observed_sha != expected_sha or observed_branch != expected_branch:
+        raise RuntimeError("source identity drifted during formal distribution qualification")
+
+
 def _git_archive(sha: str) -> bytes:
     completed = subprocess.run(
         ["git", "archive", "--format=tar", sha],
@@ -70,13 +79,16 @@ def _materialize_exact_source(sha: str, destination: Path) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-def _build_distributions(output: Path, *, sha: str) -> tuple[Path, Path, dict[str, object]]:
+def _build_distributions(
+    output: Path, *, sha: str
+) -> tuple[Path, Path, dict[str, object], ReleaseManifest]:
     if output.exists():
         shutil.rmtree(output)
     output.mkdir(parents=True)
     with tempfile.TemporaryDirectory(prefix="research-release-source-") as td:
         source_root = Path(td) / "source"
         source_archive_sha256 = _materialize_exact_source(sha, source_root)
+        manifest = build_release_manifest(source_root)
         argv = [sys.executable, "-m", "build", "--wheel", "--sdist", "--outdir", str(output)]
         completed = subprocess.run(argv, cwd=source_root, text=True, capture_output=True, check=False)
         command = {
@@ -94,7 +106,7 @@ def _build_distributions(output: Path, *, sha: str) -> tuple[Path, Path, dict[st
     sdists = tuple(output.glob("*.tar.gz"))
     if len(wheels) != 1 or len(sdists) != 1:
         raise RuntimeError("distribution build must produce exactly one wheel and one sdist")
-    return wheels[0], sdists[0], command
+    return wheels[0], sdists[0], command, manifest
 
 
 def _write_text_lf(path: Path, value: str) -> str:
@@ -149,10 +161,8 @@ def build_distribution_release(output: Path) -> dict:
     if output == ROOT or ROOT in output.parents:
         raise ValueError("distribution output must be outside the source tree")
     sha, branch = _require_clean_source()
-    manifest = build_release_manifest(ROOT)
-    wheel, sdist, build_command = _build_distributions(output, sha=sha)
-    if _git("status", "--porcelain=v1", "--untracked-files=all"):
-        raise RuntimeError("distribution build mutated tracked/untracked source state")
+    wheel, sdist, build_command, manifest = _build_distributions(output, sha=sha)
+    _assert_source_identity(sha, branch)
 
     verification_refs: dict[str, dict[str, str]] = {}
     for kind, artifact in (("wheel", wheel), ("sdist", sdist)):
@@ -177,7 +187,8 @@ def build_distribution_release(output: Path) -> dict:
         for path in (wheel, sdist, sbom_path, checksums_path)
     }
     evidence = {
-        "schema": "research-platform.distribution-release.v1",
+        "schema": "research-platform.distribution-release.v2",
+        "manifest_source": "external-git-archive",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "repository": "agent-research-platform-system",
         "branch": branch,
@@ -194,10 +205,17 @@ def build_distribution_release(output: Path) -> dict:
     }
     evidence_path = output / "DISTRIBUTION_RELEASE_EVIDENCE.json"
     evidence_sha = _write_json(evidence_path, evidence)
+    sidecar = output / "DISTRIBUTION_RELEASE_EVIDENCE.json.sha256"
     _write_text_lf(
-        output / "DISTRIBUTION_RELEASE_EVIDENCE.json.sha256",
+        sidecar,
         f"{evidence_sha}  {evidence_path.name}\n",
     )
+    try:
+        _assert_source_identity(sha, branch)
+    except Exception:
+        evidence_path.unlink(missing_ok=True)
+        sidecar.unlink(missing_ok=True)
+        raise
     return evidence
 
 
