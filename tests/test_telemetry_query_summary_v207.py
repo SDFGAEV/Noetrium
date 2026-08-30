@@ -127,6 +127,34 @@ class TelemetryQuerySummaryTests(unittest.TestCase):
             finally:
                 session.close()
 
+    def test_read_session_rejects_corrupt_tail_row_in_requested_result(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "metrics.sqlite3"
+            db = sqlite3.connect(path)
+            try:
+                initialize_telemetry_schema(db)
+                with db:
+                    for index in range(5):
+                        db.execute(
+                            "INSERT INTO metric_observations("
+                            "metric,value,timestamp,run_id,trace_id,span_id,participant_generations_json,dimensions_json"
+                            ") VALUES(?,?,?,?,?,?,?,?)",
+                            ("latency", float(index + 1), float(index), "run", "trace", "span", "{}", "{}"),
+                        )
+                    db.execute(
+                        "UPDATE metric_observations SET metric=? WHERE sequence=(SELECT MAX(sequence) FROM metric_observations)",
+                        (sqlite3.Binary(b"latency"),),
+                    )
+            finally:
+                db.close()
+            from research_platform.observability.telemetry.metric.providers.sqlite_reader import TelemetryReadSession
+            session = TelemetryReadSession(lambda: sqlite3.connect(path))
+            try:
+                with self.assertRaises(TelemetryMetricCorruptionError):
+                    session.query(run_id="run", metric=None, decision_cycle_id=None, limit=5)
+            finally:
+                session.close()
+
     def test_reader_rejects_corrupt_json_shape(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "metrics.sqlite3"

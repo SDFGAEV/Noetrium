@@ -20,7 +20,7 @@ from research_platform.environment.api import (
     EnvironmentProviderPort,
     verify_environment_provider_conformance,
 )
-from research_platform.environment.providers import reference_counter_environment
+from research_platform.environment.composition import reference_counter_environment
 
 
 def _context() -> ExecutionContext:

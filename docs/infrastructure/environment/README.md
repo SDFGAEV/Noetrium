@@ -60,11 +60,11 @@ Diagnostics are inspection data. They do not become lifecycle, action, checkpoin
 
 ## Minimal non-Minecraft reference provider
 
-`research_platform.environment.providers.reference_counter_environment()` is the bundled Platform-owned clean-room reference implementation. It is intentionally **not** a downstream common-path import; generated project source must stay on `research_platform.environment.api`.
+`research_platform.environment.composition.reference_counter_environment()` is the public Platform-owned clean-room reference composition. The implementation remains owned under `environment.providers`; downstream project source imports only the public `environment.api` contracts and, when it needs the bundled runnable reference, the public `environment.composition` factory.
 
 It is deliberately tiny: a deterministic counter with `increment` and non-mutating `reject` actions. It uses the generic state-machine runtime, so the example exercises real action identity, effect receipts, snapshot/restore, reconciliation, diagnostics, and close semantics without requiring Java, Node, Minecraft, a server, or a benchmark-specific world.
 
-Platform-owned doctor/conformance tests may instantiate this reference provider to prove the generic seam. A downstream project should implement or compose its own provider against `research_platform.environment.api` and can run the same public conformance function without importing `environment.providers` or runtime internals.
+Platform-owned and generated-project doctor/conformance tests may instantiate the reference through `research_platform.environment.composition` to prove the generic seam. A downstream project may instead implement its own provider against `research_platform.environment.api`; neither route requires importing `environment.providers` or runtime internals.
 
 Provider conformance is exercised with:
 

@@ -6,9 +6,10 @@ This successor slice is owned entirely by ROLE05 (`environment/**`, `data/**`, `
 
 ## Algorithm changes
 
-- `SQLiteTelemetryReader.summarize` keeps one read snapshot and one percentile window query. The fixed p50/p95/p99 position set is expanded directly rather than sorted or produced by a nested comprehension, so v5 analysis reports `O(N)` with no Algorithm finding.
+- `SQLiteTelemetryReader.summarize` keeps one read snapshot and uses one fixed six-column percentile window projection; the Python path is now `O(1)` with respect to result cardinality while preserving exact interpolation.
+- `DatasetIdentity.__post_init__` is `O(1)` and carries no variable-cardinality rationale; the required `O(N)` parent/tag/metadata rationale is attached to `DatasetVersion.__post_init__`, which owns those fields.
 - `ArtifactRecord`, `DatasetVersion`, `DurableFact`, and `TelemetryReadSession.query` explicitly document their unavoidable `O(N)` correctness/output lower bounds. Tail-element negative tests prove construction/query paths cannot skip the final variable-cardinality element.
-- Minecraft dropped-item capture is decomposed into analyzer-visible top-level responsibilities for protocol projection, spawn/drop/collection evidence, listener lifecycle, and pickup selection. `captureItemDropNear` returns to the historical `risk_score=2`, while nearest pickup selection is `O(N)`.
+- Minecraft dropped-item capture keeps the full Mineflayer 4.37.1 association semantics from the quality union. Nearest pickup selection remains correctness-preserving `O(N)`; fixed-capacity candidate truncation is not used to game static complexity.
 - Expected drop identities are stored as a `Set`, so per-entity name checks are constant-time instead of `O(N*M)` array membership.
 
 ## Semantic preservation

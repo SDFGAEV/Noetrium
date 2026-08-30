@@ -11,11 +11,6 @@ class DatasetIdentity:
     version: str
 
     def __post_init__(self) -> None:
-        """Validate every parent/tag/metadata entry before accepting dataset authority.
-
-        Algorithm-Complexity: O(N)
-        Algorithm-Rationale: N is parent, tag, and metadata cardinality; fail-closed uniqueness and non-empty validation requires complete traversal.
-        """
         if not self.dataset_id.strip() or not self.version.strip():
             raise ValueError("dataset identity/version must be non-empty")
 
@@ -36,6 +31,11 @@ class DatasetVersion:
     metadata: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
+        """Validate complete variable-cardinality dataset authority before acceptance.
+
+        Algorithm-Complexity: O(N)
+        Algorithm-Rationale: N is parent, tag, and metadata cardinality; tail corruption and duplicate authority must fail closed, which requires complete traversal.
+        """
         if len(self.digest) != 64 or any(char not in "0123456789abcdef" for char in self.digest):
             raise ValueError("dataset digest must be lowercase SHA-256")
         if not self.location.strip():
