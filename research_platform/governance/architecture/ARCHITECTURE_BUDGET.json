@@ -60,11 +60,11 @@
       "delta": {
         "top_level_systems": 0,
         "subsystems": 1,
-        "contract_declarations": 12,
+        "contract_declarations": 13,
         "authorities": 1,
         "import_edges": 54
       },
-      "justification": "Exact ROLE01 public governance baseline seam removes two sibling-concrete runtime dependencies from the prior provenance cut while preserving NPE topology and typed governance authority, yielding a measured total import-edge delta of fifty-four.",
+      "justification": "Exact ROLE01 public governance baseline seam removes two sibling-concrete runtime dependencies from the prior provenance cut, preserves NPE topology and typed governance authority, and declares Operator→Portfolio for the canonical ProjectManifest consumer; measured delta is one subsystem, thirteen contract declarations, one authority and fifty-four import edges.",
       "applicability": {
         "module_prefixes": [
           "research_platform.platform",
