@@ -540,12 +540,15 @@ def test_run_control_standard_shape_is_registered(tmp_path: Path) -> None:
 def test_role01_historical_and_current_architecture_allowances_are_preserved() -> None:
     rows={row.migration_id:row for row in load_architecture_complexity_budget(Path(__file__).resolve().parents[1]).migrations}
     historical=rows["role01-shared-source-index-v1"]
-    current=rows["role01-governance-provenance-9ba9f6e"]
+    provenance=rows["role01-governance-provenance-9ba9f6e"]
+    current=rows["role01-governance-public-seam-b96087e"]
     assert (historical.delta.subsystems,historical.delta.contract_declarations,historical.delta.authorities,historical.delta.import_edges)==(1,12,1,31)
     assert historical.import_projection_sha256=="f1f77c3e85117adc449c56dd807bdd46b3f3d1b4412f677bcb40b8b2548f0699"
-    assert (current.delta.subsystems,current.delta.contract_declarations,current.delta.authorities,current.delta.import_edges)==(1,12,1,56)
+    assert (provenance.delta.subsystems,provenance.delta.contract_declarations,provenance.delta.authorities,provenance.delta.import_edges)==(1,12,1,56)
+    assert provenance.import_projection_sha256=="49e0ee63db04e96e738645ce5f00ff514bb9172c40e2d6e8f9d5312f0c52917e"
+    assert (current.delta.subsystems,current.delta.contract_declarations,current.delta.authorities,current.delta.import_edges)==(1,12,1,54)
     assert current.module_prefixes==("research_platform.platform","research_platform.governance","research_platform.scope","research_platform.portfolio")
-    assert current.import_projection_sha256=="49e0ee63db04e96e738645ce5f00ff514bb9172c40e2d6e8f9d5312f0c52917e"
+    assert current.import_projection_sha256=="1e0c06fd1777a81e2c573891c1c39f62627c37ca138e2683d0566889dc64f714"
 
 def test_role03_historical_and_npe_architecture_allowances_are_preserved() -> None:
     rows={row.migration_id:row for row in load_architecture_complexity_budget(Path(__file__).resolve().parents[1]).migrations}

@@ -76,6 +76,11 @@ delta, and the current immutable cut matches the approved owner-scoped source by
 and import projection. Missing dimensions, stale source identities, copied approvals,
 scope mismatches, or partial approvals contribute zero headroom.
 
+When a later exact owner cut reduces or otherwise changes a migration projection, add
+a new applicability row and retain the older row as history. A newer, smaller measured
+delta does not rewrite the evidence for an earlier cut, and external approval must be
+rebound to the new exact source identity before it grants any headroom.
+
 The Git provider consumes raw object-database bytes with `ls-tree`/`cat-file`, not
 `git archive`, because archive output can be affected by host EOL/export settings.
 Synthetic filesystem tests must inject their source index explicitly; production
