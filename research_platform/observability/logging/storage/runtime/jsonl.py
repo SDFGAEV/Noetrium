@@ -12,7 +12,7 @@ import heapq
 import json
 import os
 from pathlib import Path
-from typing import ClassVar
+from typing import BinaryIO, ClassVar
 from uuid import uuid4
 
 from research_platform.observability.logging.record.api import LogLevel, LogRecord
@@ -164,44 +164,133 @@ class JsonlLogStore:
         if not existed:
             fsync_directory(self.path.parent)
 
-    def _freeze_query_snapshot(self) -> tuple[tuple[Path, int, int, int], ...]:
-        """Freeze path identities/boundaries on the writer actor, then scan lock-free."""
+    @staticmethod
+    def _open_snapshot_handle(path: Path) -> BinaryIO:
+        """Open a generation-pinning reader handle without blocking rename/prune."""
 
-        def freeze_owned() -> tuple[tuple[Path, int, int, int], ...]:
+        if os.name != "nt":
+            return path.open("rb")
+
+        import ctypes
+        import msvcrt
+        from ctypes import wintypes
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        create_file = kernel32.CreateFileW
+        create_file.argtypes = (
+            wintypes.LPCWSTR,
+            wintypes.DWORD,
+            wintypes.DWORD,
+            wintypes.LPVOID,
+            wintypes.DWORD,
+            wintypes.DWORD,
+            wintypes.HANDLE,
+        )
+        create_file.restype = wintypes.HANDLE
+        close_handle = kernel32.CloseHandle
+        close_handle.argtypes = (wintypes.HANDLE,)
+        close_handle.restype = wintypes.BOOL
+
+        generic_read = 0x80000000
+        share_read = 0x00000001
+        share_write = 0x00000002
+        share_delete = 0x00000004
+        open_existing = 3
+        file_attribute_normal = 0x00000080
+        file_flag_sequential_scan = 0x08000000
+        handle = create_file(
+            str(path),
+            generic_read,
+            share_read | share_write | share_delete,
+            None,
+            open_existing,
+            file_attribute_normal | file_flag_sequential_scan,
+            None,
+        )
+        if handle == ctypes.c_void_p(-1).value:
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:
+            fd = msvcrt.open_osfhandle(
+                int(handle),
+                os.O_RDONLY | os.O_BINARY,
+            )
+        except BaseException:
+            close_handle(handle)
+            raise
+        return os.fdopen(fd, "rb", closefd=True)
+
+    def _freeze_query_snapshot(
+        self,
+    ) -> tuple[tuple[Path, BinaryIO, int, int, int], ...]:
+        """Pin opened segment objects and exact byte boundaries under writer guard."""
+
+        def freeze_owned() -> tuple[tuple[Path, BinaryIO, int, int, int], ...]:
             with InterprocessFileLock(self._guard_path):
-                frozen: list[tuple[Path, int, int, int]] = []
-                for path in self._segments():
-                    if not path.is_file():
-                        continue
-                    stat = path.stat()
-                    frozen.append((path, int(stat.st_dev), int(stat.st_ino), int(stat.st_size)))
-                return tuple(frozen)
+                frozen: list[tuple[Path, BinaryIO, int, int, int]] = []
+                try:
+                    for path in self._segments():
+                        if not path.is_file():
+                            continue
+                        handle = self._open_snapshot_handle(path)
+                        try:
+                            stat = os.fstat(handle.fileno())
+                        except BaseException:
+                            handle.close()
+                            raise
+                        frozen.append(
+                            (
+                                path,
+                                handle,
+                                int(stat.st_dev),
+                                int(stat.st_ino),
+                                int(stat.st_size),
+                            )
+                        )
+                    return tuple(frozen)
+                except BaseException:
+                    for _path, handle, _dev, _ino, _size in frozen:
+                        handle.close()
+                    raise
 
         return self._writer_actor.call("freeze-query-snapshot", freeze_owned)
 
     @staticmethod
     def _iter_frozen_lines(
-        snapshot: tuple[tuple[Path, int, int, int], ...],
+        snapshot: tuple[tuple[Path, BinaryIO, int, int, int], ...],
     ):
-        """Read only bytes covered by a frozen snapshot, with no writer lock held."""
+        """Read only each already-open frozen object prefix with no writer lock held."""
 
-        for segment, expected_dev, expected_ino, limit_bytes in snapshot:
+        for segment, handle, expected_dev, expected_ino, limit_bytes in snapshot:
+            opened = os.fstat(handle.fileno())
+            if int(opened.st_dev) != expected_dev or int(opened.st_ino) != expected_ino:
+                raise JsonlLogCorruptionError(
+                    f"pinned JSONL segment identity changed unexpectedly: {segment}"
+                )
+            handle.seek(0)
+            consumed = 0
+            line_number = 0
+            while consumed < limit_bytes:
+                raw = handle.readline(limit_bytes - consumed)
+                if not raw:
+                    break
+                consumed += len(raw)
+                line_number += 1
+                yield segment, line_number, raw
+
+    @staticmethod
+    def _close_query_snapshot(
+        snapshot: tuple[tuple[Path, BinaryIO, int, int, int], ...],
+    ) -> None:
+        errors: list[BaseException] = []
+        for _path, handle, _dev, _ino, _size in snapshot:
             try:
-                with segment.open("rb") as handle:
-                    opened = os.fstat(handle.fileno())
-                    if int(opened.st_dev) != expected_dev or int(opened.st_ino) != expected_ino:
-                        raise FileNotFoundError(f"log segment identity changed: {segment}")
-                    consumed = 0
-                    line_number = 0
-                    while consumed < limit_bytes:
-                        raw = handle.readline(limit_bytes - consumed)
-                        if not raw:
-                            break
-                        consumed += len(raw)
-                        line_number += 1
-                        yield segment, line_number, raw
-            except FileNotFoundError:
-                raise
+                handle.close()
+            except BaseException as exc:
+                errors.append(exc)
+        if errors:
+            raise RuntimeError(
+                f"failed to close {len(errors)} pinned JSONL query handle(s)"
+            ) from errors[0]
 
     def query(
         self,
@@ -214,81 +303,75 @@ class JsonlLogStore:
         event: str | None = None,
         limit: int = 1000,
     ) -> tuple[LogRecord, ...]:
-        """Query a bounded immutable byte snapshot without holding writer locks during I/O.
-
-        The guard freezes segment identities and byte boundaries only.  Parsing and
-        filtering occur lock-free.  If rotation wins between freeze and open, the
-        query retries from a new snapshot instead of mixing generations.
-        """
+        """Query a bounded object-pinned byte snapshot without holding writer locks."""
         if limit <= 0:
             return ()
         rank = {level: index for index, level in enumerate(LogLevel)}
-        last_identity_error: OSError | None = None
-        for _attempt in range(4):
-            snapshot = self._freeze_query_snapshot()
-            if not snapshot:
-                return ()
-            selected: list[tuple[tuple[float, str, int], LogRecord]] = []
-            corrupt_complete_lines = 0
-            partial_tail_ignored = False
-            scanned_lines = 0
+        snapshot = self._freeze_query_snapshot()
+        if not snapshot:
+            return ()
+        selected: list[tuple[tuple[float, str, int], LogRecord]] = []
+        corrupt_complete_lines = 0
+        partial_tail_ignored = False
+        scanned_lines = 0
+        primary_error: BaseException | None = None
+        try:
+            for segment, line_number, raw in self._iter_frozen_lines(snapshot):
+                scanned_lines += 1
+                if not raw.strip():
+                    continue
+                complete = raw.endswith(b"\n")
+                try:
+                    line = raw.decode("utf-8")
+                    row = decode_log_line(line)
+                except (UnicodeDecodeError, TypeError, ValueError, KeyError, json.JSONDecodeError):
+                    if not complete:
+                        partial_tail_ignored = True
+                        continue
+                    corrupt_complete_lines += 1
+                    raise JsonlLogCorruptionError(
+                        f"corrupt complete JSONL record at line {line_number}: {segment}"
+                    )
+                address = row.address
+                if scope is not None and scope not in address.scope_path:
+                    continue
+                if system is not None and system not in address.system_path:
+                    continue
+                if component_id is not None and address.component_id != component_id:
+                    continue
+                if trace_id is not None and address.trace_id != trace_id:
+                    continue
+                if level_at_least is not None and rank[row.level] < rank[level_at_least]:
+                    continue
+                if event is not None and row.event != event:
+                    continue
+                key = (row.created_at, row.log_id, scanned_lines)
+                item = (key, row)
+                if len(selected) < limit:
+                    heapq.heappush(selected, item)
+                elif key > selected[0][0]:
+                    heapq.heapreplace(selected, item)
+        except BaseException as exc:
+            primary_error = exc
+            raise
+        finally:
             try:
-                for segment, line_number, raw in self._iter_frozen_lines(snapshot):
-                    scanned_lines += 1
-                    if not raw.strip():
-                        continue
-                    complete = raw.endswith(b"\n")
-                    try:
-                        line = raw.decode("utf-8")
-                        row = decode_log_line(line)
-                    except (UnicodeDecodeError, TypeError, ValueError, KeyError, json.JSONDecodeError):
-                        if not complete:
-                            partial_tail_ignored = True
-                            continue
-                        corrupt_complete_lines += 1
-                        raise JsonlLogCorruptionError(
-                            f"corrupt complete JSONL record at line {line_number}: {segment}"
-                        )
-                    address = row.address
-                    if scope is not None and scope not in address.scope_path:
-                        continue
-                    if system is not None and system not in address.system_path:
-                        continue
-                    if component_id is not None and address.component_id != component_id:
-                        continue
-                    if trace_id is not None and address.trace_id != trace_id:
-                        continue
-                    if level_at_least is not None and rank[row.level] < rank[level_at_least]:
-                        continue
-                    if event is not None and row.event != event:
-                        continue
-                    key = (row.created_at, row.log_id, scanned_lines)
-                    item = (key, row)
-                    if len(selected) < limit:
-                        heapq.heappush(selected, item)
-                    elif key > selected[0][0]:
-                        heapq.heapreplace(selected, item)
-            except FileNotFoundError as exc:
-                last_identity_error = exc
-                continue
-            except PermissionError as exc:
-                if os.name != "nt":
+                self._close_query_snapshot(snapshot)
+            except BaseException:
+                if primary_error is None:
                     raise
-                last_identity_error = exc
-                continue
 
-            self._last_query_diagnostics = {
-                "corrupt_complete_lines": corrupt_complete_lines,
-                "partial_tail_ignored": partial_tail_ignored,
-                "scanned_lines": scanned_lines,
-                "rotated_segments": sum(
-                    1 for segment, *_ in snapshot if segment != self.path
-                ),
-            }
-            rows = [item[1] for item in selected]
-            rows.sort(key=lambda row: (row.created_at, row.log_id), reverse=True)
-            return tuple(rows)
-        raise RuntimeError("log query could not freeze a stable segment generation") from last_identity_error
+        self._last_query_diagnostics = {
+            "corrupt_complete_lines": corrupt_complete_lines,
+            "partial_tail_ignored": partial_tail_ignored,
+            "scanned_lines": scanned_lines,
+            "rotated_segments": sum(
+                1 for segment, *_ in snapshot if segment != self.path
+            ),
+        }
+        rows = [item[1] for item in selected]
+        rows.sort(key=lambda row: (row.created_at, row.log_id), reverse=True)
+        return tuple(rows)
 
 
 __all__ = ["JsonlLogCorruptionError", "JsonlLogStore"]

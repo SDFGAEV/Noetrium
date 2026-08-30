@@ -47,24 +47,27 @@ error semantics.
 
 ## Query snapshot semantics
 
-Queries freeze segment device/inode/size boundaries while holding the same writer guard,
-then release the guard before scanning bytes. If rotation wins after the snapshot and a
-segment identity no longer matches, the query retries from a fresh snapshot rather than
-mixing generations. Observation therefore remains downstream of storage authority and
-does not block writers for the duration of JSON decoding/filtering.
+Queries freeze **opened segment objects** plus exact byte boundaries while holding the
+same writer guard, then release the guard before scanning bytes. They never release the
+guard and later reopen a pathname to recover the supposedly frozen generation. POSIX
+uses the already-open file descriptor; rename or unlink does not invalidate that object.
 
-On Windows, a rename can transiently surface as `PermissionError` between the frozen
-metadata snapshot and the subsequent file open. That error is treated exactly like a
-stale generation: the query refreezes and retries. The retry is bounded; persistent
-permission failure therefore fails closed instead of returning partial evidence. Linux
-`PermissionError` remains a hard failure and is never reclassified as a rotation race.
+Windows opens each frozen object with `FILE_SHARE_READ | FILE_SHARE_WRITE |
+FILE_SHARE_DELETE` before the guard is released. Rotation/prune may therefore rename or
+unlink the pathname while the reader retains access to the already-open generation. The
+reader consumes only the frozen byte prefix and closes every pinned handle afterward.
+A genuine pinned-handle I/O failure fails closed; correctness no longer depends on a
+bounded pathname-refreeze retry race.
+
+Parsing and filtering remain outside the writer guard, so large queries neither hold the
+cross-process mutation lock nor copy unbounded history while that lock is held.
 
 ## Regression requirements
 
 Windows and Linux qualification must cover all of the following:
 
 - multiple spawned writers appending and rotating the same log;
-- concurrent readers querying while those writers rotate;
+- concurrent readers querying while those writers rotate **and prune** retained generations;
 - exact preservation of all committed record identities;
 - no duplicate records from mixed segment generations;
 - stable logical path identity even when a live-leaf `resolve()` would report a renamed
@@ -75,4 +78,5 @@ Windows and Linux qualification must cover all of the following:
 - malformed immutable generation names failing closed.
 
 A retry-only change is not sufficient evidence for correctness. A qualifying fix must
-show that the lock/actor identity itself cannot drift with a rotating file object.
+show that the lock/actor identity cannot drift and that every query owns a stable opened
+generation object until its frozen prefix has been consumed.

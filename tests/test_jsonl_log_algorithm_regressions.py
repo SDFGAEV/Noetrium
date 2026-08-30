@@ -40,32 +40,40 @@ def test_jsonl_store_uses_structural_logging_ports_without_nominal_bases() -> No
     assert callable(RuntimeJsonlLogStore.query)
 
 
-def test_query_retries_windows_snapshot_permission_race(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import os
+def test_query_reads_pinned_snapshot_when_rotation_wins_after_freeze(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "events.jsonl"
+    runtime = build_concurrency_runtime()
+    group = runtime.open_task_group("jsonl-pinned-snapshot-rotation")
+    try:
+        store = build_jsonl_log_store(path, task_group=group, max_bytes=1, max_segments=2)
+        store.append(_record(1))
+        original = RuntimeJsonlLogStore._iter_frozen_lines
+        rotated = {"done": False}
 
-    if os.name != "nt":
-        pytest.skip("Windows transient permission race")
-    store = JsonlLogStore(tmp_path / "events.jsonl")
-    store.append(_record(1))
-    original = RuntimeJsonlLogStore._iter_frozen_lines
-    attempts = {"count": 0}
+        def rotate_after_freeze(snapshot):
+            if not rotated["done"]:
+                rotated["done"] = True
+                store.append(_record(2))
+            yield from original(snapshot)
 
-    def flaky(snapshot):
-        attempts["count"] += 1
-        if attempts["count"] == 1:
-            raise PermissionError(13, "simulated rotation permission race")
-        yield from original(snapshot)
+        monkeypatch.setattr(
+            RuntimeJsonlLogStore,
+            "_iter_frozen_lines",
+            staticmethod(rotate_after_freeze),
+        )
+        assert [row.log_id for row in store.query(limit=10)] == ["log-1"]
+        assert rotated["done"] is True
+        assert path.is_file()
+        assert len(tuple(tmp_path.glob("events.jsonl.segment.*"))) == 1
+    finally:
+        runtime.close()
 
-    monkeypatch.setattr(RuntimeJsonlLogStore, "_iter_frozen_lines", staticmethod(flaky))
-    assert [row.log_id for row in store.query(limit=10)] == ["log-1"]
-    assert attempts["count"] == 2
 
-
-def test_query_persistent_windows_permission_failure_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import os
-
-    if os.name != "nt":
-        pytest.skip("Windows transient permission race")
+def test_query_pinned_handle_read_failure_fails_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     store = JsonlLogStore(tmp_path / "events.jsonl")
     store.append(_record(1))
     attempts = {"count": 0}
@@ -73,15 +81,13 @@ def test_query_persistent_windows_permission_failure_fails_closed(tmp_path: Path
     def denied(snapshot):
         del snapshot
         attempts["count"] += 1
-        raise PermissionError(13, "persistent permission failure")
+        raise PermissionError(13, "persistent pinned-handle read failure")
         yield
 
     monkeypatch.setattr(RuntimeJsonlLogStore, "_iter_frozen_lines", staticmethod(denied))
-    with pytest.raises(RuntimeError, match="stable segment generation") as exc_info:
+    with pytest.raises(PermissionError, match="pinned-handle"):
         store.query(limit=10)
-    assert isinstance(exc_info.value.__cause__, PermissionError)
-    assert attempts["count"] == 4
-
+    assert attempts["count"] == 1
 
 def test_store_keeps_logical_path_identity_if_live_leaf_resolution_drifts(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -406,3 +412,50 @@ def test_multiple_processes_rotate_while_concurrent_readers_query(tmp_path: Path
     rows = JsonlLogStore(path, max_bytes=700, max_segments=64).query(limit=1000)
     assert len(rows) == 48
     assert len({row.log_id for row in rows}) == 48
+
+
+def _query_pruning_worker(path: str, stop) -> None:
+    runtime = build_concurrency_runtime()
+    group = runtime.open_task_group("multiprocess-log-pruning-reader")
+    store = build_jsonl_log_store(path, task_group=group, max_bytes=700, max_segments=4)
+    try:
+        while not stop.wait(0.001):
+            rows = store.query(limit=1000)
+            ids = [row.log_id for row in rows]
+            if len(ids) != len(set(ids)):
+                raise AssertionError("pruning JSONL query returned duplicate log identities")
+            ordering = [(row.created_at, row.log_id) for row in rows]
+            if ordering != sorted(ordering, reverse=True):
+                raise AssertionError("pruning JSONL query returned non-deterministic order")
+    finally:
+        runtime.close()
+
+
+def test_multiple_processes_rotate_prune_while_concurrent_readers_query(tmp_path: Path) -> None:
+    import multiprocessing
+
+    path = tmp_path / "events.jsonl"
+    context = multiprocessing.get_context("spawn")
+    stop = context.Event()
+    readers = [
+        context.Process(target=_query_pruning_worker, args=(str(path), stop))
+        for _ in range(2)
+    ]
+    writers = [
+        context.Process(target=_append_pruning_worker, args=(str(path), worker, 24))
+        for worker in range(4)
+    ]
+    for process in readers + writers:
+        process.start()
+    for process in writers:
+        process.join(45)
+        assert process.exitcode == 0
+    stop.set()
+    for process in readers:
+        process.join(45)
+        assert process.exitcode == 0
+    rows = JsonlLogStore(path, max_bytes=700, max_segments=4).query(limit=1000)
+    ids = [row.log_id for row in rows]
+    assert len(ids) == len(set(ids))
+    ordering = [(row.created_at, row.log_id) for row in rows]
+    assert ordering == sorted(ordering, reverse=True)
