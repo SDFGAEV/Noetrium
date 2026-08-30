@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from tests_support import FakeParticipantResolver, frozen_binding
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import NoneType
+from typing import get_args, get_origin, get_type_hints
 
 from research_platform.participant.agent.api import AgentIdentity, AgentTurnRequest, AgentTurnResult
+from research_platform.participant.agent.api.cognition_ports import AgentDiagnosticsPort
+from research_platform.participant.method.api import MethodSession
 from research_platform.participant.capability.api import (
     CapabilityDescriptor,
     CapabilityProviderIdentity,
@@ -35,6 +40,15 @@ class EchoProvider:
 class GenericAgent:
     identity = AgentIdentity("generic", "1", "1", "1", "cfg")
     def open_session(self, *, session_id: str, services: object): return object()
+
+
+def test_participant_diagnostic_ports_expose_mapping_json_contracts():
+    event_attributes = get_type_hints(AgentDiagnosticsPort.event)["attributes"]
+    non_none = next(item for item in get_args(event_attributes) if item is not NoneType)
+    method_diagnostics = get_type_hints(MethodSession.diagnostics)["return"]
+
+    assert get_origin(non_none) is Mapping
+    assert get_origin(method_diagnostics) is Mapping
 
 
 def test_agent_and_capability_registries_are_independent():

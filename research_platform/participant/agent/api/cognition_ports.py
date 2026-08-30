@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Protocol
 
-from research_platform.platform.kernel import ExecutionContext
+from research_platform.platform.kernel import ExecutionContext, JsonScalar
 
 from .cognition import (
     AgentActionSequence,
@@ -123,7 +124,10 @@ class AgentProgressPort(Protocol):
 
 
 class AgentDiagnosticsPort(Protocol):
-    def event(self, event: str, *, level: str = "DEBUG", attributes: dict[str, str | int | float | bool | None] | None = None) -> None: ...
+    def event(
+        self, event: str, *, level: str = "DEBUG",
+        attributes: Mapping[str, JsonScalar] | None = None,
+    ) -> None: ...
 
     def failure(self, code: str, message: str, *, phase: str) -> None: ...
 

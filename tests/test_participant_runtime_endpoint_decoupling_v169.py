@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from research_platform.platform.composition.experiment_runtime import build_experiment_runtime
 from dataclasses import dataclass
+from typing import get_type_hints
 
 import pytest
 
@@ -10,7 +11,9 @@ from research_platform.participant.core.api.contracts import (
     ParticipantImplementationIdentity,
     ParticipantRuntimeBinding,
     )
-from research_platform.participant.core.api.runtime import ParticipantRuntimeHandle
+from research_platform.participant.binding.api.contracts import ParticipantBindingResolverPort
+from research_platform.participant.core.api.bound import BoundParticipant
+from research_platform.participant.core.api.runtime import ParticipantRuntimeEndpoint, ParticipantRuntimeHandle
 from research_platform.experimentation.experiment.runtime import ExperimentRuntime
 from research_platform.execution.workflow.api import ScientificCycleExecution
 from research_platform.experimentation.experiment.api import ExperimentParticipantSpec, ExperimentSpec
@@ -64,6 +67,16 @@ class NoOpWorkflow:
     def run(self, operations, context, *, task, input_kind, input_payload):
         del operations, input_kind
         return ScientificCycleExecution(str(task), input_payload, context, ())
+
+
+def test_runtime_resolver_and_bound_endpoint_use_typed_runtime_contracts():
+    handle_hints = get_type_hints(ParticipantRuntimeHandle)
+    resolver_hints = get_type_hints(ParticipantBindingResolverPort.resolve)
+    endpoint_hints = get_type_hints(BoundParticipant.endpoint.fget)
+
+    assert handle_hints["endpoint"] is ParticipantRuntimeEndpoint
+    assert resolver_hints["return"] is ParticipantRuntimeHandle
+    assert endpoint_hints["return"] is ParticipantRuntimeEndpoint
 
 
 def test_study_can_run_remote_endpoint_without_local_implementation_catalog():
