@@ -83,3 +83,9 @@ release-quality never silently falls back from Git authority to a mutable checko
 `ArchitectureReportGate` is a fail-closed adapter, not an exception suppressor or a fallback source authority. If immutable source acquisition, provenance verification, or architecture report construction fails, evaluation returns a non-passing `governance.architecture` child report containing exactly the ERROR finding `ARCHITECTURE_SOURCE_UNAVAILABLE`. The finding exposes only the exception type; exception messages, secrets, paths, and tracebacks are not projected into gate evidence.
 
 `CompositeGate` therefore retains the architecture child in provenance even when report construction cannot complete. This behavior must never be replaced by a mutable-filesystem retry, an omitted child, or a false-green empty report. Synthetic non-Git callers that need architecture analysis must inject an explicit source index at the architecture composition boundary rather than relying on production fallback.
+
+### Canonical generic run-control registration
+
+`experimentation/run/control` is a canonical ROLE03-owned standard subsystem whose topology declaration is governed by ROLE01. Its authority is `run_control`; it owns durable generic run lifecycle control and fenced control generations, and must not own operator product intent, server-supervision internals, or duplicate run manifest/checkpoint truth. The descriptor requires the exact platform/execution/checkpoint/run identity-lifecycle-manifest authorities it consumes and uniquely provides `run.control`.
+
+Catalog topology growth is accounted separately from producer import growth: ROLE01 carries the registry node/contract/authority complexity delta, while ROLE03 `693c481...` carries only its exact `+38` import-edge migration. Both remain subject to independent external ROLE00 migration approval; neither catalog presence nor a proposal grants headroom by itself.

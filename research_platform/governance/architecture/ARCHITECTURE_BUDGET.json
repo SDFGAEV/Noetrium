@@ -17,12 +17,12 @@
       "owner_role": "ROLE01",
       "delta": {
         "top_level_systems": 0,
-        "subsystems": 0,
-        "contract_declarations": 0,
-        "authorities": 0,
+        "subsystems": 1,
+        "contract_declarations": 9,
+        "authorities": 1,
         "import_edges": 27
       },
-      "justification": "Canonical source completeness and shared SourceIndex authority add explicit governance composition edges while removing independent mutable-filesystem scan authority.",
+      "justification": "Canonical source completeness, immutable SourceIndex authority and canonical run-control catalog registration add explicit governance topology/contracts while preserving one source authority.",
       "applicability": {
         "module_prefixes": [
           "research_platform.platform",
@@ -54,23 +54,23 @@
       }
     },
     {
-      "migration_id": "role03-import-edges-c42ba99b4847",
+      "migration_id": "role03-run-control-693c4814d590",
       "owner_role": "ROLE03",
       "delta": {
         "top_level_systems": 0,
         "subsystems": 0,
         "contract_declarations": 0,
         "authorities": 0,
-        "import_edges": 6
+        "import_edges": 38
       },
-      "justification": "Execution and Experimentation proposal adds six typed effect, artifact-finalization, recovery and scientific-evidence dependencies on the exact reviewed ROLE03 family.",
+      "justification": "Current Execution and Experimentation proposal adds thirty-eight typed run-control, effect-reconciliation, artifact, checkpoint and scientific-evidence dependencies on exact ROLE03 693c481.",
       "applicability": {
         "module_prefixes": [
           "research_platform.execution",
           "research_platform.experimentation",
           "research_platform.scientific"
         ],
-        "import_projection_sha256": "2effad70cefbc59e02ece5288e93a9324c8f6a916e1109e31e792ace41e54d8e"
+        "import_projection_sha256": "aec91782b6e3cac009ea998614aa86594ed0fb2cfc917c8c49f7b81dedad8aa3"
       }
     },
     {

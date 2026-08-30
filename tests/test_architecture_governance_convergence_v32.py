@@ -25,6 +25,7 @@ from research_platform.governance.architecture.catalog_contract_invariants impor
     audit_catalog_contract_consistency,
 )
 from research_platform.governance.system_registry.api import system_catalog
+from research_platform.governance.architecture.system_topology_invariants import audit_system_topology_completeness
 
 
 def _leaf_source(descriptor, *, owns: str | None = None) -> str:
@@ -67,9 +68,9 @@ def test_catalog_contract_projection_fails_closed_on_drift(tmp_path: Path) -> No
 def _baseline_complexity(import_edges: int = 4749) -> dict[str, int]:
     return {
         "top_level_systems": 17,
-        "subsystems": 173,
-        "contract_declarations": 129,
-        "authorities": 190,
+        "subsystems": 174,
+        "contract_declarations": 138,
+        "authorities": 191,
         "import_edges": import_edges,
     }
 
@@ -371,3 +372,29 @@ def test_current_downstream_proposals_have_exact_applicability_without_self_appr
         assert migration.delta.import_edges == delta
         assert migration.module_prefixes == prefixes
         assert migration.import_projection_sha256 == projection
+
+
+def test_run_control_catalog_registration_matches_exact_role03_boundary() -> None:
+    descriptor=next(row for row in system_catalog() if row.identity.key=="experimentation/run/control")
+    assert descriptor.authority_id=="run_control"
+    assert descriptor.owns=="durable generic run lifecycle control authority and fenced control generations"
+    assert descriptor.must_not_own=="operator product intents, server supervision internals or duplicate run manifest/checkpoint truth"
+    assert descriptor.requires==("execution","execution/operation","experimentation/checkpoint","experimentation/run","experimentation/run/identity","experimentation/run/lifecycle","experimentation/run/manifest","platform")
+    assert descriptor.provides==("run.control",)
+
+def test_run_control_standard_shape_is_registered(tmp_path: Path) -> None:
+    leaf=tmp_path/'research_platform/experimentation/run/control'
+    for plane in ("api","runtime","providers","composition"):
+        p=leaf/plane; p.mkdir(parents=True); (p/'__init__.py').write_text('',encoding='utf-8')
+    (leaf/'__init__.py').write_text('',encoding='utf-8')
+    assert audit_system_topology_completeness(tmp_path)==[]
+
+def test_role01_run_control_catalog_growth_is_budgeted() -> None:
+    migration=next(row for row in load_architecture_complexity_budget(Path(__file__).resolve().parents[1]).migrations if row.owner_role=="ROLE01")
+    assert (migration.delta.subsystems,migration.delta.contract_declarations,migration.delta.authorities,migration.delta.import_edges)==(1,9,1,27)
+
+def test_role03_proposal_tracks_exact_693c481_run_control_delta() -> None:
+    migration=next(row for row in load_architecture_complexity_budget(Path(__file__).resolve().parents[1]).migrations if row.owner_role=="ROLE03")
+    assert migration.migration_id=="role03-run-control-693c4814d590"
+    assert migration.delta.import_edges==38
+    assert migration.import_projection_sha256=="aec91782b6e3cac009ea998614aa86594ed0fb2cfc917c8c49f7b81dedad8aa3"
