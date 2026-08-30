@@ -3,6 +3,7 @@
 This directory documents reusable platform infrastructure. Each subtree owns a bounded capability and exposes public contracts that downstream applications may compose without making a concrete application part of the platform.
 
 - [`ai/`](ai/README.md) — model identity, assets, serving, prompts, qualification, and runtime asset management.
+- [`environment/`](environment/README.md) ? downstream environment provider/session contract, conformance, reference provider, and project-facing evidence surfaces.
 - [`minecraft/`](minecraft/README.md) — bundled reusable Minecraft environment provider, server/world runtime, action ABI, and qualification.
 - [`runtime/`](runtime/README.md) — lifecycle, operator, service, release, endpoint, and execution control.
 - [`server/`](server/README.md) — generic remote-host identity, connection, capacity, repository transport, and persistent-session control.

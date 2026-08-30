@@ -1,5 +1,13 @@
 from .contracts import SystemIdentity, SystemSpec
 from .ports import SystemPort
+from .provider import (
+    EnvironmentCapability,
+    EnvironmentDiagnosticsPort,
+    EnvironmentProviderCapabilities,
+    EnvironmentProviderPort,
+    EnvironmentSessionDiagnostics,
+    EnvironmentSessionServices,
+)
 from research_platform.environment.runtime.api import (
     ActionIdentityViolation,
     ActionNotApplied,
@@ -10,6 +18,7 @@ from research_platform.environment.runtime.api import (
     ActionResult,
     ActionSafetyCapabilityMissing,
     ActionScientificCommitContradiction,
+    EnvironmentCapabilityUnsupported,
     ActionSemanticIdentity,
     DurablePreparedActionSession,
     EnvironmentIdentity,
@@ -41,6 +50,10 @@ __all__=[
     "ActionReconciliationDisposition", "ActionReconciliationResult",
     "ActionRequest", "ActionResult", "ActionSafetyCapabilityMissing",
     "ActionScientificCommitContradiction", "ActionSemanticIdentity",
+    "EnvironmentCapabilityUnsupported", "EnvironmentCapability",
+    "EnvironmentDiagnosticsPort", "EnvironmentProviderCapabilities",
+    "EnvironmentProviderPort", "EnvironmentSessionDiagnostics",
+    "EnvironmentSessionServices",
     "DurablePreparedActionSession", "EnvironmentIdentity",
     "EnvironmentImplementation", "EnvironmentSession", "Observation",
     "action_request_digest", "require_action_recovery_handle_identity",
