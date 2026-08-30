@@ -1799,6 +1799,8 @@
     ],
     "requires": [
       "environment",
+      "execution",
+      "experimentation",
       "governance",
       "model",
       "observability",
