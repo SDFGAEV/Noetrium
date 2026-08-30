@@ -15,7 +15,6 @@
     {
       "migration_id": "role01-shared-source-index-v1",
       "owner_role": "ROLE01",
-      "source_git_sha": "3615f67427ffbcdfdd5e6e75cc94d33271954094",
       "delta": {
         "top_level_systems": 0,
         "subsystems": 0,
@@ -23,12 +22,7 @@
         "authorities": 0,
         "import_edges": 27
       },
-      "justification": "Canonical source completeness and shared SourceIndex authority add explicit governance composition edges while removing independent filesystem scan authority.",
-      "approval": {
-        "status": "approved",
-        "authority": "ROLE00",
-        "evidence_ref": "SUPERVISOR_REVIEW_GATES.md#architecture-budget-marginal-delta-recount"
-      },
+      "justification": "Canonical source completeness and shared SourceIndex authority add explicit governance composition edges while removing independent mutable-filesystem scan authority.",
       "applicability": {
         "module_prefixes": [
           "research_platform.platform",
@@ -42,26 +36,6 @@
     {
       "migration_id": "role02-runtime-reliability-v1",
       "owner_role": "ROLE02",
-      "source_git_sha": "9e31c2b64e46b1071cfbf2a31612be47107061a2",
-      "delta": {
-        "top_level_systems": 0,
-        "subsystems": 0,
-        "contract_declarations": 0,
-        "authorities": 0,
-        "import_edges": 2
-      },
-      "justification": "Proposed runtime and reliability migration adds two typed producer-consumer edges for resource lifecycle and reconciliation authority without topology growth.",
-      "approval": {
-        "status": "proposed",
-        "authority": "ROLE00",
-        "evidence_ref": "SUPERVISOR_ARCHITECTURE_MIGRATION_LEDGER_PROPOSAL.json"
-      },
-      "applicability": null
-    },
-    {
-      "migration_id": "role03-effect-reconciliation-v1",
-      "owner_role": "ROLE03",
-      "source_git_sha": "c42ba99b4847319f506d48ccca71df2888e71c75",
       "delta": {
         "top_level_systems": 0,
         "subsystems": 0,
@@ -69,69 +43,66 @@
         "authorities": 0,
         "import_edges": 6
       },
-      "justification": "Proposed Execution migration adds six typed effect, artifact-finalization and recovery dependencies while preserving all frozen topology dimensions.",
-      "approval": {
-        "status": "proposed",
-        "authority": "ROLE00",
-        "evidence_ref": "SUPERVISOR_REVIEW_GATES.md#ROLE03-exact-review-c42ba99"
-      },
+      "justification": "Current Runtime and Reliability proposal adds six explicit typed resource, readiness, reconciliation and durable-operation authority dependencies.",
       "applicability": null
     },
     {
-      "migration_id": "role04-participant-model-v1",
-      "owner_role": "ROLE04",
-      "source_git_sha": "0e09d059eb5fce8341ada76bbd1e9930006c4a0c",
+      "migration_id": "role03-import-edges-c42ba99b4847",
+      "owner_role": "ROLE03",
       "delta": {
         "top_level_systems": 0,
         "subsystems": 0,
         "contract_declarations": 0,
         "authorities": 0,
-        "import_edges": 22
+        "import_edges": 6
       },
-      "justification": "Proposed participant and model migration adds typed request, qualification and binding dependencies while preserving the frozen system and authority counts.",
-      "approval": {
-        "status": "proposed",
-        "authority": "ROLE00",
-        "evidence_ref": "SUPERVISOR_ARCHITECTURE_MIGRATION_LEDGER_PROPOSAL.json"
+      "justification": "Execution and Experimentation proposal adds six typed effect, artifact-finalization, recovery and scientific-evidence dependencies on the exact reviewed ROLE03 family.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.execution",
+          "research_platform.experimentation",
+          "research_platform.scientific"
+        ],
+        "import_projection_sha256": "2effad70cefbc59e02ece5288e93a9324c8f6a916e1109e31e792ace41e54d8e"
+      }
+    },
+    {
+      "migration_id": "role04-participant-model-v1",
+      "owner_role": "ROLE04",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 38
       },
+      "justification": "Current Agent and Model proposal adds thirty-eight typed request, participant, qualification, prompt and immutable-value authority dependencies.",
       "applicability": null
     },
     {
       "migration_id": "role05-environment-evidence-v1",
       "owner_role": "ROLE05",
-      "source_git_sha": "f06b4c96978ad0cf0292217927740b748daca5bc",
       "delta": {
         "top_level_systems": 0,
         "subsystems": 0,
         "contract_declarations": 0,
         "authorities": 0,
-        "import_edges": 3
+        "import_edges": 2
       },
-      "justification": "Proposed environment and evidence migration adds three typed lifecycle and artifact authority dependencies while preserving all declared topology dimensions.",
-      "approval": {
-        "status": "proposed",
-        "authority": "ROLE00",
-        "evidence_ref": "SUPERVISOR_ARCHITECTURE_MIGRATION_LEDGER_PROPOSAL.json"
-      },
+      "justification": "Current Environment and Evidence proposal adds two typed environment, evidence and durable-observation authority dependencies without topology growth.",
       "applicability": null
     },
     {
       "migration_id": "role06-product-assurance-v1",
       "owner_role": "ROLE06",
-      "source_git_sha": "678403e9dd45427490b9542925e14c881d4f0a00",
       "delta": {
         "top_level_systems": 0,
         "subsystems": 0,
         "contract_declarations": 0,
         "authorities": 0,
-        "import_edges": 14
+        "import_edges": 15
       },
-      "justification": "Proposed product and assurance migration adds fourteen explicit verification, release and operator dependencies without changing canonical topology authority.",
-      "approval": {
-        "status": "proposed",
-        "authority": "ROLE00",
-        "evidence_ref": "SUPERVISOR_ARCHITECTURE_MIGRATION_LEDGER_PROPOSAL.json"
-      },
+      "justification": "Current Product and Assurance proposal adds fifteen explicit operator, release, distribution and verification authority dependencies without topology growth.",
       "applicability": null
     }
   ]

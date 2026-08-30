@@ -56,18 +56,22 @@ verifies declarations that exist and guards the canonical registry.
 ## Architecture complexity budget
 
 `research_platform/governance/architecture/ARCHITECTURE_BUDGET.json` is a v3
-migration authority, not an editable global ceiling. The immutable baseline binds
-an exact Git SHA, canonical source digest and recomputable complexity projection.
-Each migration additionally carries a ROLE00 approval state and evidence reference.
-`proposed` migrations contribute zero allowance.
+migration proposal ledger, not an approval authority or editable global ceiling.
+The immutable baseline binds an exact Git SHA, canonical source digest and
+recomputable complexity projection. Proposal rows may describe expected growth,
+but they contribute zero headroom by themselves.
 
-An approved migration contributes growth only when its owner-scoped import
-projection matches the current exact source cut. This prevents a ROLE01-only cut
-from pre-spending ROLE02–06 headroom: current ROLE01 remains limited to 4776 even
-if later proposed migrations exist in the ledger. Formal audit also requires Git
-source authority and independently resolves the baseline plus every approved
-migration from exact Git objects before applying any allowance. Missing, stale or
-mismatched provenance fails closed.
+Migration approval is supplied independently by the Supervisor/Integrator. Formal
+audit accepts a typed external approval set only when its file SHA-256 is supplied
+through trusted composition, then verifies each approval-record SHA-256 and exact
+`migration_id + source SHA + source digest + dimension + delta` binding. A worker
+proposal cannot authorize itself by writing `ROLE00` strings into repository data.
+
+An externally approved migration contributes growth only when the current immutable
+Git cut matches the approved owner-scoped source bytes and import projection. This
+prevents cross-Role allowance borrowing and prevents an approval for an ancestor
+source from being replayed after the owner changes that scope. Missing, stale,
+copied or mismatched approvals contribute zero headroom.
 
 The Git provider consumes raw object-database bytes with `ls-tree`/`cat-file`, not
 `git archive`, because archive output can be affected by host EOL/export settings.

@@ -5,7 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
-from typing import Callable, Iterable, Mapping
+from typing import Callable, Iterable
 
 from research_platform.governance.api import RepositorySourceIndexPort
 from research_platform.governance.system_registry.api import system_catalog
@@ -20,11 +20,18 @@ _BUDGET_FIELDS = (
 )
 _BUDGET_PATH = Path("research_platform/governance/architecture/ARCHITECTURE_BUDGET.json")
 _SCHEMA_VERSION = "architecture-complexity-budget.v3"
+_APPROVAL_SET_SCHEMA = "supervisor.architecture-migration-approval-set.v1"
+_APPROVAL_SCHEMA = "supervisor.architecture-migration-approval.v1"
 _GIT_SHA_RE = re.compile(r"[0-9a-f]{40}")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 _ROLE_RE = re.compile(r"ROLE[0-9]{2}")
 _MIGRATION_ID_RE = re.compile(r"[a-z0-9][a-z0-9._-]{2,127}")
 _MODULE_PREFIX_RE = re.compile(r"research_platform(?:\.[a-z_][a-z0-9_]*)+")
+_SOURCE_SUFFIXES = frozenset({
+    ".py", ".js", ".mjs", ".cjs", ".sh", ".bash",
+    ".json", ".yaml", ".yml", ".toml",
+})
+
 
 @dataclass(frozen=True, slots=True)
 class ArchitectureComplexity:
@@ -46,25 +53,47 @@ class ArchitectureBaselineAuthority:
 class ArchitectureMigrationAllowance:
     migration_id: str
     owner_role: str
-    source_git_sha: str
     delta: ArchitectureComplexity
     justification: str
-    approval_status: str
-    approval_authority: str
-    approval_evidence_ref: str
     module_prefixes: tuple[str, ...]
     import_projection_sha256: str | None
 
+@dataclass(frozen=True, slots=True)
+class ArchitectureMigrationApproval:
+    migration_id: str
+    dimension: str
+    source_git_sha: str
+    source_digest: str
+    delta: int
+    decision: str
+    authority: str
+    scope: str
+    review_state: str
+    review_evidence_refs: tuple[str, ...]
+    issued_at: str
+    note: str
+    approval_record_sha256: str
+
     @property
     def approved(self) -> bool:
-        return self.approval_status == "approved"
+        return self.decision == "approved"
+
+
+@dataclass(frozen=True, slots=True)
+class ArchitectureMigrationApprovalSet:
+    schema_version: str
+    authority: str
+    baseline_git_sha: str
+    approvals: tuple[ArchitectureMigrationApproval, ...]
+    default_decision: str
+    rule: str
 
 
 @dataclass(frozen=True, slots=True)
 class ArchitectureMigrationObservation:
     complexity: ArchitectureComplexity
     import_projection_sha256: str | None
-
+    owner_source_sha256: str | None
 
 @dataclass(frozen=True, slots=True)
 class ArchitectureComplexityBudget:
@@ -90,39 +119,26 @@ class ArchitectureBudgetViolation:
 class ArchitectureBudgetProvenanceError(RuntimeError):
     pass
 
-def architecture_budget_authority_digest(document: Mapping[str, object]) -> str:
+
+def _canonical_json_sha256(value: object) -> str:
     payload = json.dumps(
-        document,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False,
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
 
 
-def import_projection_digest(
-    import_edge_pairs: Iterable[tuple[str, str]],
-    module_prefixes: Iterable[str],
-) -> str:
-    prefixes = tuple(module_prefixes)
-    pairs = sorted(
-        (str(source), str(target))
-        for source, target in import_edge_pairs
-        if any(source == prefix or source.startswith(prefix + ".") for prefix in prefixes)
-    )
-    raw = json.dumps(pairs, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
+def _canonical_git_sha(value: object, *, field: str) -> str:
+    text = str(value)
+    if _GIT_SHA_RE.fullmatch(text) is None:
+        raise ValueError(f"{field} must be an exact lowercase 40-character Git SHA")
+    return text
 
+def _canonical_sha256(value: object, *, field: str) -> str:
+    text = str(value)
+    if _SHA256_RE.fullmatch(text) is None:
+        raise ValueError(f"{field} must be an exact lowercase SHA-256 digest")
+    return text
 
-def current_architecture_complexity(*, import_edges: int) -> ArchitectureComplexity:
-    descriptors = system_catalog()
-    return ArchitectureComplexity(
-        top_level_systems=sum(row.identity.is_system for row in descriptors),
-        subsystems=sum(not row.identity.is_system for row in descriptors),
-        contract_declarations=sum(len(row.requires) + len(row.provides) for row in descriptors),
-        authorities=sum(len(row.authorities) for row in descriptors),
-        import_edges=int(import_edges),
-    )
 
 def _decode_complexity(value: object, *, field: str) -> ArchitectureComplexity:
     if not isinstance(value, dict) or set(value) != set(_BUDGET_FIELDS):
@@ -136,23 +152,8 @@ def _decode_complexity(value: object, *, field: str) -> ArchitectureComplexity:
     return ArchitectureComplexity(**decoded)
 
 
-def _canonical_git_sha(value: object, *, field: str) -> str:
-    text = str(value)
-    if _GIT_SHA_RE.fullmatch(text) is None:
-        raise ValueError(f"{field} must be an exact lowercase 40-character Git SHA")
-    return text
-
-
-def _canonical_sha256(value: object, *, field: str) -> str:
-    text = str(value)
-    if _SHA256_RE.fullmatch(text) is None:
-        raise ValueError(f"{field} must be an exact lowercase SHA-256 digest")
-    return text
-
-
 def _decode_baseline(value: object) -> ArchitectureBaselineAuthority:
-    expected = {"git_sha", "source_digest", "complexity"}
-    if not isinstance(value, dict) or set(value) != expected:
+    if not isinstance(value, dict) or set(value) != {"git_sha", "source_digest", "complexity"}:
         raise ValueError("baseline must define exactly git_sha, source_digest and complexity")
     return ArchitectureBaselineAuthority(
         git_sha=_canonical_git_sha(value["git_sha"], field="baseline.git_sha"),
@@ -160,31 +161,9 @@ def _decode_baseline(value: object) -> ArchitectureBaselineAuthority:
         complexity=_decode_complexity(value["complexity"], field="baseline.complexity"),
     )
 
-def _decode_approval(value: object, *, index: int) -> tuple[str, str, str]:
-    expected = {"status", "authority", "evidence_ref"}
-    if not isinstance(value, dict) or set(value) != expected:
-        raise ValueError(f"migrations[{index}].approval has unexpected fields")
-    status = str(value["status"])
-    if status not in {"approved", "proposed"}:
-        raise ValueError(f"migrations[{index}].approval.status must be approved or proposed")
-    authority = str(value["authority"])
-    if authority != "ROLE00":
-        raise ValueError(f"migrations[{index}].approval.authority must be ROLE00")
-    evidence_ref = str(value["evidence_ref"]).strip()
-    if len(evidence_ref) < 16:
-        raise ValueError(f"migrations[{index}].approval.evidence_ref is too weak")
-    return status, authority, evidence_ref
 
-
-def _decode_applicability(
-    value: object,
-    *,
-    index: int,
-    approved: bool,
-) -> tuple[tuple[str, ...], str | None]:
+def _decode_applicability(value: object, *, index: int) -> tuple[tuple[str, ...], str | None]:
     if value is None:
-        if approved:
-            raise ValueError(f"migrations[{index}] approved allowance requires applicability binding")
         return (), None
     expected = {"module_prefixes", "import_projection_sha256"}
     if not isinstance(value, dict) or set(value) != expected:
@@ -206,8 +185,7 @@ def _decode_applicability(
 
 def _decode_migration(value: object, *, index: int) -> ArchitectureMigrationAllowance:
     expected = {
-        "migration_id", "owner_role", "source_git_sha", "delta", "justification",
-        "approval", "applicability",
+        "migration_id", "owner_role", "delta", "justification", "applicability",
     }
     if not isinstance(value, dict) or set(value) != expected:
         raise ValueError(f"migrations[{index}] has unexpected fields")
@@ -222,59 +200,33 @@ def _decode_migration(value: object, *, index: int) -> ArchitectureMigrationAllo
         raise ValueError(f"migrations[{index}].justification must be substantive")
     delta = _decode_complexity(value["delta"], field=f"migrations[{index}].delta")
     if all(getattr(delta, field) == 0 for field in _BUDGET_FIELDS):
-        raise ValueError(f"migrations[{index}].delta must contain reviewed growth")
-    approval_status, approval_authority, approval_evidence_ref = _decode_approval(
-        value["approval"], index=index
-    )
-    module_prefixes, projection = _decode_applicability(
-        value["applicability"], index=index, approved=approval_status == "approved"
-    )
+        raise ValueError(f"migrations[{index}].delta must contain architecture growth")
+    module_prefixes, projection = _decode_applicability(value["applicability"], index=index)
     return ArchitectureMigrationAllowance(
         migration_id=migration_id,
         owner_role=owner_role,
-        source_git_sha=_canonical_git_sha(
-            value["source_git_sha"], field=f"migrations[{index}].source_git_sha"
-        ),
         delta=delta,
         justification=justification,
-        approval_status=approval_status,
-        approval_authority=approval_authority,
-        approval_evidence_ref=approval_evidence_ref,
         module_prefixes=module_prefixes,
         import_projection_sha256=projection,
     )
-
-
-def _read_budget_document(
-    root: Path,
-    *,
-    source_index: RepositorySourceIndexPort | None,
-) -> tuple[Path, dict[str, object]]:
-    path = Path(root).resolve() / _BUDGET_PATH
-    try:
-        raw = source_index.text(_BUDGET_PATH.as_posix()) if source_index is not None else path.read_text(encoding="utf-8")
-        document = json.loads(raw)
-    except (OSError, KeyError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise RuntimeError(f"architecture complexity budget unavailable: {path}") from exc
-    if not isinstance(document, dict):
-        raise ValueError("architecture complexity budget must be a JSON object")
-    return path, document
 
 def load_architecture_complexity_budget(
     root: Path,
     *,
     source_index: RepositorySourceIndexPort | None = None,
-    expected_authority_sha256: str | None = None,
 ) -> ArchitectureComplexityBudget:
-    _path, document = _read_budget_document(root, source_index=source_index)
-    if expected_authority_sha256 is not None:
-        expected = _canonical_sha256(expected_authority_sha256, field="review authority")
-        observed = architecture_budget_authority_digest(document)
-        if observed != expected:
-            raise ArchitectureBudgetProvenanceError(
-                f"architecture budget document digest mismatch: observed={observed} expected={expected}"
-            )
-    if set(document) != {"schema_version", "baseline", "migrations"}:
+    path = Path(root).resolve() / _BUDGET_PATH
+    try:
+        raw = (
+            source_index.text(_BUDGET_PATH.as_posix())
+            if source_index is not None
+            else path.read_text(encoding="utf-8")
+        )
+        document = json.loads(raw)
+    except (OSError, KeyError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"architecture complexity budget unavailable: {path}") from exc
+    if not isinstance(document, dict) or set(document) != {"schema_version", "baseline", "migrations"}:
         raise ValueError("architecture complexity budget has unexpected fields")
     if document["schema_version"] != _SCHEMA_VERSION:
         raise ValueError("unsupported architecture complexity budget schema")
@@ -282,12 +234,9 @@ def load_architecture_complexity_budget(
     raw_migrations = document["migrations"]
     if not isinstance(raw_migrations, list):
         raise ValueError("migrations must be a JSON array")
-    migrations = tuple(
-        _decode_migration(value, index=index)
-        for index, value in enumerate(raw_migrations)
-    )
-    migration_ids = tuple(item.migration_id for item in migrations)
-    if len(migration_ids) != len(set(migration_ids)):
+    migrations = tuple(_decode_migration(item, index=i) for i, item in enumerate(raw_migrations))
+    ids = tuple(item.migration_id for item in migrations)
+    if len(ids) != len(set(ids)):
         raise ValueError("migration_id values must be unique")
     return ArchitectureComplexityBudget(
         schema_version=_SCHEMA_VERSION,
@@ -297,66 +246,152 @@ def load_architecture_complexity_budget(
         applicable_migration_ids=(),
     )
 
-def verify_architecture_baseline_authority(
-    budget: ArchitectureComplexityBudget,
-    *,
-    git_sha: str,
-    source_digest: str,
-    complexity: ArchitectureComplexity,
-) -> None:
-    canonical_git_sha = _canonical_git_sha(git_sha, field="observed baseline git_sha")
-    canonical_source_digest = _canonical_sha256(
-        source_digest, field="observed baseline source_digest"
+
+def _decode_approval(value: object, *, index: int) -> ArchitectureMigrationApproval:
+    expected = {
+        "schema", "migration_id", "dimension", "source_sha", "source_digest",
+        "delta", "decision", "authority", "scope", "review_state",
+        "review_evidence_refs", "issued_at", "note", "approval_record_sha256",
+    }
+    if not isinstance(value, dict) or set(value) != expected:
+        raise ValueError(f"approvals[{index}] has unexpected fields")
+    if value["schema"] != _APPROVAL_SCHEMA:
+        raise ValueError(f"approvals[{index}] has unsupported schema")
+    migration_id = str(value["migration_id"])
+    if _MIGRATION_ID_RE.fullmatch(migration_id) is None:
+        raise ValueError(f"approvals[{index}].migration_id is not canonical")
+    dimension = str(value["dimension"])
+    if dimension != "import_edges":
+        raise ValueError(f"approvals[{index}].dimension must be import_edges")
+    delta = value["delta"]
+    if isinstance(delta, bool) or not isinstance(delta, int) or delta <= 0:
+        raise ValueError(f"approvals[{index}].delta must be a positive integer")
+    decision = str(value["decision"])
+    if decision not in {"approved", "not_approved"}:
+        raise ValueError(f"approvals[{index}].decision is invalid")
+    authority = str(value["authority"])
+    if authority != "ROLE00":
+        raise ValueError(f"approvals[{index}].authority must be ROLE00")
+    refs = value["review_evidence_refs"]
+    if not isinstance(refs, list) or not refs or any(not isinstance(ref, str) or not ref.strip() for ref in refs):
+        raise ValueError(f"approvals[{index}].review_evidence_refs must be non-empty strings")
+    expected_digest = _canonical_sha256(
+        value["approval_record_sha256"], field=f"approvals[{index}].approval_record_sha256"
     )
-    mismatches: list[str] = []
-    if canonical_git_sha != budget.baseline.git_sha:
-        mismatches.append(f"git_sha observed={canonical_git_sha} expected={budget.baseline.git_sha}")
-    if canonical_source_digest != budget.baseline.source_digest:
-        mismatches.append(
-            f"source_digest observed={canonical_source_digest} expected={budget.baseline.source_digest}"
-        )
-    if complexity != budget.baseline.complexity:
-        mismatches.append(f"complexity observed={complexity!r} expected={budget.baseline.complexity!r}")
-    if mismatches:
+    digest_payload = {key: item for key, item in value.items() if key != "approval_record_sha256"}
+    if _canonical_json_sha256(digest_payload) != expected_digest:
         raise ArchitectureBudgetProvenanceError(
-            "architecture baseline authority mismatch: " + "; ".join(mismatches)
+            f"approval record digest mismatch: {migration_id}"
         )
-
-
-def verify_architecture_migration_sources(
-    budget: ArchitectureComplexityBudget,
-    observed_by_git_sha: Mapping[str, ArchitectureMigrationObservation],
-) -> None:
-    for migration in budget.migrations:
-        if not migration.approved:
-            continue
-        observed = observed_by_git_sha.get(migration.source_git_sha)
-        if observed is None:
-            raise ArchitectureBudgetProvenanceError(
-                f"approved migration source unavailable: {migration.migration_id} {migration.source_git_sha}"
-            )
-        expected_values = {
-            field: getattr(budget.baseline.complexity, field) + getattr(migration.delta, field)
-            for field in _BUDGET_FIELDS
-        }
-        expected = ArchitectureComplexity(**expected_values)
-        if observed.complexity != expected:
-            raise ArchitectureBudgetProvenanceError(
-                f"migration source delta mismatch: {migration.migration_id} "
-                f"observed={observed.complexity!r} expected={expected!r}"
-            )
-        if observed.import_projection_sha256 != migration.import_projection_sha256:
-            raise ArchitectureBudgetProvenanceError(
-                f"migration import projection mismatch: {migration.migration_id} "
-                f"observed={observed.import_projection_sha256} "
-                f"expected={migration.import_projection_sha256}"
-            )
-
-
-def source_catalog_complexity(source_index: RepositorySourceIndexPort, *, import_edges: int) -> ArchitectureComplexity:
-    document = json.loads(
-        source_index.text("research_platform/governance/system_registry/catalog.json")
+    return ArchitectureMigrationApproval(
+        migration_id=migration_id,
+        dimension=dimension,
+        source_git_sha=_canonical_git_sha(value["source_sha"], field=f"approvals[{index}].source_sha"),
+        source_digest=_canonical_sha256(value["source_digest"], field=f"approvals[{index}].source_digest"),
+        delta=delta,
+        decision=decision,
+        authority=authority,
+        scope=str(value["scope"]),
+        review_state=str(value["review_state"]),
+        review_evidence_refs=tuple(str(ref) for ref in refs),
+        issued_at=str(value["issued_at"]),
+        note=str(value["note"]),
+        approval_record_sha256=expected_digest,
     )
+
+def load_architecture_migration_approval_set(
+    path: Path,
+    *,
+    expected_sha256: str,
+) -> ArchitectureMigrationApprovalSet:
+    source = Path(path).resolve()
+    try:
+        raw = source.read_bytes()
+    except OSError as exc:
+        raise ArchitectureBudgetProvenanceError(
+            f"architecture migration approval set unavailable: {source}"
+        ) from exc
+    expected = _canonical_sha256(expected_sha256, field="approval set SHA-256")
+    observed = hashlib.sha256(raw).hexdigest()
+    if observed != expected:
+        raise ArchitectureBudgetProvenanceError(
+            f"approval set digest mismatch: observed={observed} expected={expected}"
+        )
+    try:
+        document = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ArchitectureBudgetProvenanceError("approval set is not canonical UTF-8 JSON") from exc
+    expected_fields = {
+        "schema", "authority", "baseline_sha", "approvals", "default_decision", "rule",
+    }
+    if not isinstance(document, dict) or set(document) != expected_fields:
+        raise ValueError("architecture migration approval set has unexpected fields")
+    if document["schema"] != _APPROVAL_SET_SCHEMA or document["authority"] != "ROLE00":
+        raise ValueError("unsupported architecture migration approval authority")
+    if document["default_decision"] != "not_approved":
+        raise ValueError("approval set default_decision must be not_approved")
+    raw_approvals = document["approvals"]
+    if not isinstance(raw_approvals, list):
+        raise ValueError("approval set approvals must be an array")
+    approvals = tuple(_decode_approval(item, index=i) for i, item in enumerate(raw_approvals))
+    ids = tuple(item.migration_id for item in approvals)
+    if len(ids) != len(set(ids)):
+        raise ValueError("approval set migration_id values must be unique")
+    return ArchitectureMigrationApprovalSet(
+        schema_version=_APPROVAL_SET_SCHEMA,
+        authority="ROLE00",
+        baseline_git_sha=_canonical_git_sha(document["baseline_sha"], field="approval set baseline_sha"),
+        approvals=approvals,
+        default_decision="not_approved",
+        rule=str(document["rule"]),
+    )
+
+def import_projection_digest(
+    import_edge_pairs: Iterable[tuple[str, str]],
+    module_prefixes: Iterable[str],
+) -> str:
+    prefixes = tuple(module_prefixes)
+    pairs = sorted(
+        (str(source), str(target))
+        for source, target in import_edge_pairs
+        if any(source == prefix or source.startswith(prefix + ".") for prefix in prefixes)
+    )
+    return _canonical_json_sha256(pairs)
+
+
+def source_scope_digest(
+    source_index: RepositorySourceIndexPort,
+    module_prefixes: Iterable[str],
+) -> str:
+    bases = tuple(prefix.replace(".", "/") for prefix in module_prefixes)
+    rows = sorted(
+        (blob.relative_path, blob.sha256)
+        for blob in source_index.documents(suffixes=_SOURCE_SUFFIXES)
+        if any(
+            blob.relative_path == base + ".py" or blob.relative_path.startswith(base + "/")
+            for base in bases
+        )
+    )
+    return _canonical_json_sha256(rows)
+
+
+def current_architecture_complexity(*, import_edges: int) -> ArchitectureComplexity:
+    descriptors = system_catalog()
+    return ArchitectureComplexity(
+        top_level_systems=sum(row.identity.is_system for row in descriptors),
+        subsystems=sum(not row.identity.is_system for row in descriptors),
+        contract_declarations=sum(len(row.requires) + len(row.provides) for row in descriptors),
+        authorities=sum(len(row.authorities) for row in descriptors),
+        import_edges=int(import_edges),
+    )
+
+
+def source_catalog_complexity(
+    source_index: RepositorySourceIndexPort,
+    *,
+    import_edges: int,
+) -> ArchitectureComplexity:
+    document = json.loads(source_index.text("research_platform/governance/system_registry/catalog.json"))
     if not isinstance(document, dict):
         raise ArchitectureBudgetProvenanceError("historical system catalog is not an object")
     rows = tuple(document.values())
@@ -373,18 +408,56 @@ def source_catalog_complexity(source_index: RepositorySourceIndexPort, *, import
     )
 
 
-def _verify_budget_provenance(
+def verify_architecture_baseline_authority(
     budget: ArchitectureComplexityBudget,
     *,
-    historical_observation_resolver: Callable[[str, tuple[str, ...]], tuple[str, ArchitectureMigrationObservation]] | None,
+    git_sha: str,
+    source_digest: str,
+    complexity: ArchitectureComplexity,
 ) -> None:
+    mismatches: list[str] = []
+    canonical_git_sha = _canonical_git_sha(git_sha, field="observed baseline git_sha")
+    canonical_source_digest = _canonical_sha256(source_digest, field="observed baseline source_digest")
+    if canonical_git_sha != budget.baseline.git_sha:
+        mismatches.append(f"git_sha observed={canonical_git_sha} expected={budget.baseline.git_sha}")
+    if canonical_source_digest != budget.baseline.source_digest:
+        mismatches.append(
+            f"source_digest observed={canonical_source_digest} expected={budget.baseline.source_digest}"
+        )
+    if complexity != budget.baseline.complexity:
+        mismatches.append(f"complexity observed={complexity!r} expected={budget.baseline.complexity!r}")
+    if mismatches:
+        raise ArchitectureBudgetProvenanceError(
+            "architecture baseline authority mismatch: " + "; ".join(mismatches)
+        )
+
+
+_HistoricalObservationResolver = Callable[
+    [str, tuple[str, ...]],
+    tuple[str, ArchitectureMigrationObservation],
+]
+
+
+def _expected_migration_complexity(
+    baseline: ArchitectureComplexity,
+    delta: ArchitectureComplexity,
+) -> ArchitectureComplexity:
+    return ArchitectureComplexity(**{
+        field: getattr(baseline, field) + getattr(delta, field)
+        for field in _BUDGET_FIELDS
+    })
+
+def _validated_approval_observations(
+    budget: ArchitectureComplexityBudget,
+    approval_set: ArchitectureMigrationApprovalSet | None,
+    historical_observation_resolver: _HistoricalObservationResolver | None,
+) -> dict[str, ArchitectureMigrationObservation]:
     if historical_observation_resolver is None:
         raise ArchitectureBudgetProvenanceError(
-            "formal architecture budget verification requires immutable historical observations"
+            "formal architecture budget verification requires historical Git observations"
         )
     baseline_digest, baseline_observation = historical_observation_resolver(
-        budget.baseline.git_sha,
-        (),
+        budget.baseline.git_sha, ()
     )
     verify_architecture_baseline_authority(
         budget,
@@ -392,34 +465,57 @@ def _verify_budget_provenance(
         source_digest=baseline_digest,
         complexity=baseline_observation.complexity,
     )
-    observations: dict[str, ArchitectureMigrationObservation] = {}
-    for migration in budget.migrations:
-        if not migration.approved:
-            continue
-        _digest, observation = historical_observation_resolver(
-            migration.source_git_sha,
-            migration.module_prefixes,
+    if approval_set is None:
+        return {}
+    if approval_set.baseline_git_sha != budget.baseline.git_sha:
+        raise ArchitectureBudgetProvenanceError(
+            "external approval set baseline does not match architecture budget baseline"
         )
-        observations[migration.source_git_sha] = observation
-    verify_architecture_migration_sources(budget, observations)
+    migrations = {item.migration_id: item for item in budget.migrations}
+    validated: dict[str, ArchitectureMigrationObservation] = {}
+    for approval in approval_set.approvals:
+        if not approval.approved:
+            continue
+        migration = migrations.get(approval.migration_id)
+        if migration is None or not migration.module_prefixes or migration.import_projection_sha256 is None:
+            continue
+        if approval.dimension != "import_edges" or approval.delta != migration.delta.import_edges:
+            continue
+        observed_digest, observation = historical_observation_resolver(
+            approval.source_git_sha, migration.module_prefixes
+        )
+        if observed_digest != approval.source_digest:
+            continue
+        if observation.complexity != _expected_migration_complexity(
+            budget.baseline.complexity, migration.delta
+        ):
+            continue
+        if observation.import_projection_sha256 != migration.import_projection_sha256:
+            continue
+        if observation.owner_source_sha256 is None:
+            continue
+        validated[migration.migration_id] = observation
+    return validated
 
 def _effective_budget(
     budget: ArchitectureComplexityBudget,
     *,
     import_edge_pairs: Iterable[tuple[str, str]],
+    source_index: RepositorySourceIndexPort | None,
+    approved_observations: dict[str, ArchitectureMigrationObservation],
 ) -> ArchitectureComplexityBudget:
     pairs = tuple(import_edge_pairs)
     values = {field: getattr(budget.baseline.complexity, field) for field in _BUDGET_FIELDS}
     applicable: list[str] = []
     for migration in budget.migrations:
-        if not migration.approved:
+        approved = approved_observations.get(migration.migration_id)
+        if approved is None or source_index is None:
             continue
         if not migration.module_prefixes or migration.import_projection_sha256 is None:
-            raise ArchitectureBudgetProvenanceError(
-                f"approved migration has no applicability binding: {migration.migration_id}"
-            )
-        observed_projection = import_projection_digest(pairs, migration.module_prefixes)
-        if observed_projection != migration.import_projection_sha256:
+            continue
+        if import_projection_digest(pairs, migration.module_prefixes) != migration.import_projection_sha256:
+            continue
+        if source_scope_digest(source_index, migration.module_prefixes) != approved.owner_source_sha256:
             continue
         applicable.append(migration.migration_id)
         for field in _BUDGET_FIELDS:
@@ -437,9 +533,9 @@ def audit_architecture_complexity_budget(
     import_edges: int,
     import_edge_pairs: Iterable[tuple[str, str]] = (),
     source_index: RepositorySourceIndexPort | None = None,
-    historical_observation_resolver: Callable[[str, tuple[str, ...]], tuple[str, ArchitectureMigrationObservation]] | None = None,
+    approval_set: ArchitectureMigrationApprovalSet | None = None,
+    historical_observation_resolver: _HistoricalObservationResolver | None = None,
     verify_provenance: bool | None = None,
-    expected_authority_sha256: str | None = None,
 ) -> tuple[
     ArchitectureComplexity,
     ArchitectureComplexityBudget | None,
@@ -447,34 +543,34 @@ def audit_architecture_complexity_budget(
 ]:
     current = current_architecture_complexity(import_edges=import_edges)
     if source_index is not None:
-        architecture_marker = "research_platform/governance/architecture/report.py"
-        if not any(
-            blob.relative_path == architecture_marker
-            for blob in source_index.documents(suffixes={".py"})
-        ):
+        marker = "research_platform/governance/architecture/report.py"
+        if not any(blob.relative_path == marker for blob in source_index.documents(suffixes={".py"})):
             return current, None, ()
-    budget = load_architecture_complexity_budget(
-        root,
-        source_index=source_index,
-        expected_authority_sha256=expected_authority_sha256,
-    )
+    budget = load_architecture_complexity_budget(root, source_index=source_index)
     formal = (
         source_index is not None and source_index.source_authority == "git"
         if verify_provenance is None
         else bool(verify_provenance)
     )
+    approved: dict[str, ArchitectureMigrationObservation] = {}
     if formal:
         if source_index is None or source_index.source_authority != "git":
             raise ArchitectureBudgetProvenanceError(
                 "formal architecture budget verification requires Git source authority"
             )
-        _verify_budget_provenance(budget, historical_observation_resolver=historical_observation_resolver)
-    evaluated = _effective_budget(budget, import_edge_pairs=import_edge_pairs)
-    limits = evaluated.limits
+        approved = _validated_approval_observations(
+            budget, approval_set, historical_observation_resolver
+        )
+    evaluated = _effective_budget(
+        budget,
+        import_edge_pairs=import_edge_pairs,
+        source_index=source_index,
+        approved_observations=approved,
+    )
     violations: list[ArchitectureBudgetViolation] = []
     for field in _BUDGET_FIELDS:
         observed = getattr(current, field)
-        limit = getattr(limits, field)
+        limit = getattr(evaluated.limits, field)
         if observed > limit:
             violations.append(ArchitectureBudgetViolation(
                 dimension=field,
@@ -484,6 +580,7 @@ def audit_architecture_complexity_budget(
             ))
     return current, evaluated, tuple(violations)
 
+
 __all__ = [
     "ArchitectureBaselineAuthority",
     "ArchitectureBudgetProvenanceError",
@@ -491,14 +588,15 @@ __all__ = [
     "ArchitectureComplexity",
     "ArchitectureComplexityBudget",
     "ArchitectureMigrationAllowance",
+    "ArchitectureMigrationApproval",
+    "ArchitectureMigrationApprovalSet",
     "ArchitectureMigrationObservation",
-    "architecture_budget_authority_digest",
     "audit_architecture_complexity_budget",
     "current_architecture_complexity",
     "import_projection_digest",
     "load_architecture_complexity_budget",
-    "import_projection_digest",
+    "load_architecture_migration_approval_set",
     "source_catalog_complexity",
+    "source_scope_digest",
     "verify_architecture_baseline_authority",
-    "verify_architecture_migration_sources",
 ]

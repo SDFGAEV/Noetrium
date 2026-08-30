@@ -12,10 +12,13 @@ from .budget import (
     ArchitectureBudgetViolation,
     ArchitectureComplexity,
     ArchitectureComplexityBudget,
+    ArchitectureMigrationApprovalSet,
     ArchitectureMigrationObservation,
     audit_architecture_complexity_budget,
     import_projection_digest,
+    load_architecture_migration_approval_set,
     source_catalog_complexity,
+    source_scope_digest,
 )
 from .hotspots import ModuleHotspot
 from .import_graph import (
@@ -127,6 +130,7 @@ def build_architecture_report(
     hotspot_limit: int = 20,
     source_index: RepositorySourceIndexPort | None = None,
     historical_source_index_factory: Callable[[str], RepositorySourceIndexPort] | None = None,
+    migration_approval_set: ArchitectureMigrationApprovalSet | None = None,
 ) -> ArchitectureReport:
     root = Path(root).resolve()
     if source_index is None:
@@ -190,6 +194,10 @@ def build_architecture_report(
                     historical_index, import_edges=len(historical_profile.import_edges)
                 ),
                 import_projection_sha256=projection,
+                owner_source_sha256=(
+                    source_scope_digest(historical_index, module_prefixes)
+                    if module_prefixes else None
+                ),
             )
 
     architecture_complexity, architecture_complexity_budget, architecture_budget_violations = (
@@ -200,6 +208,7 @@ def build_architecture_report(
                 (edge.source_module, edge.target_module) for edge in edges
             ),
             source_index=source_index,
+            approval_set=migration_approval_set,
             historical_observation_resolver=historical_observation_resolver,
         )
     )

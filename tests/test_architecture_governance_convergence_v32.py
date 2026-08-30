@@ -12,11 +12,14 @@ import pytest
 from research_platform.governance.architecture.budget import (
     ArchitectureBudgetProvenanceError,
     ArchitectureComplexity,
-    architecture_budget_authority_digest,
+    ArchitectureMigrationApproval,
+    ArchitectureMigrationApprovalSet,
+    ArchitectureMigrationObservation,
     audit_architecture_complexity_budget,
+    import_projection_digest,
     load_architecture_complexity_budget,
-    verify_architecture_baseline_authority,
-    verify_architecture_migration_sources,
+    load_architecture_migration_approval_set,
+    source_scope_digest,
 )
 from research_platform.governance.architecture.catalog_contract_invariants import (
     audit_catalog_contract_consistency,
@@ -71,168 +74,164 @@ def _baseline_complexity(import_edges: int = 4749) -> dict[str, int]:
     }
 
 
-def _budget_document(
-    *,
-    baseline_git_sha: str = "1" * 40,
-    approval_status: str = "approved",
-    projection: str = "a" * 64,
-) -> dict[str, object]:
-    applicability = (
-        {"module_prefixes": ["research_platform.governance"], "import_projection_sha256": projection}
-        if approval_status == "approved" else None
-    )
+def _budget_document(*, projection: str | None = None) -> dict[str, object]:
     return {
         "schema_version": "architecture-complexity-budget.v3",
         "baseline": {
-            "git_sha": baseline_git_sha,
+            "git_sha": "1" * 40,
             "source_digest": "2" * 64,
             "complexity": _baseline_complexity(),
         },
         "migrations": [{
             "migration_id": "test-reviewed-migration",
             "owner_role": "ROLE01",
-            "source_git_sha": "3" * 40,
-            "delta": {**_baseline_complexity(0), "top_level_systems": 0, "subsystems": 0,
-                      "contract_declarations": 0, "authorities": 0, "import_edges": 1},
-            "justification": "Reviewed test migration adds one explicit typed architecture dependency edge.",
-            "approval": {
-                "status": approval_status,
-                "authority": "ROLE00",
-                "evidence_ref": "SUPERVISOR_REVIEW_GATES.md#test-reviewed-migration",
+            "delta": {"top_level_systems":0,"subsystems":0,"contract_declarations":0,"authorities":0,"import_edges":1},
+            "justification": "Test proposal adds one explicit typed architecture dependency for external approval validation.",
+            "applicability": None if projection is None else {
+                "module_prefixes": ["research_platform.governance"],
+                "import_projection_sha256": projection,
             },
-            "applicability": applicability,
         }],
     }
 
 
-def _write_budget(root: Path, document: dict[str, object]) -> str:
-    path = root / "research_platform" / "governance" / "architecture" / "ARCHITECTURE_BUDGET.json"
+def _write_budget(root: Path, document: dict[str, object]) -> None:
+    path = root / "research_platform/governance/architecture/ARCHITECTURE_BUDGET.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(document), encoding="utf-8")
-    return architecture_budget_authority_digest(document)
+
+
+def _approval_record(*, source_digest: str = "b" * 64, delta: int = 1) -> dict[str, object]:
+    import hashlib
+    record: dict[str, object] = {
+        "schema": "supervisor.architecture-migration-approval.v1",
+        "migration_id": "test-reviewed-migration",
+        "dimension": "import_edges",
+        "source_sha": "3" * 40,
+        "source_digest": source_digest,
+        "delta": delta,
+        "decision": "approved",
+        "authority": "ROLE00",
+        "scope": "architecture-import-edge-migration-only",
+        "review_state": "READY_FOR_REVIEW",
+        "review_evidence_refs": ["state/SUPERVISOR_REVIEW_GATES.md#test"],
+        "issued_at": "2026-08-30T10:34:00+08:00",
+        "note": "Synthetic external approval used only to verify the typed independent approval trust boundary.",
+    }
+    payload=json.dumps(record,sort_keys=True,separators=(",", ":"),ensure_ascii=False).encode()
+    record["approval_record_sha256"]=hashlib.sha256(payload).hexdigest()
+    return record
+
+
+def _typed_approval_set(*, source_digest: str = "b" * 64, delta: int = 1) -> ArchitectureMigrationApprovalSet:
+    row=_approval_record(source_digest=source_digest, delta=delta)
+    approval=ArchitectureMigrationApproval(
+        migration_id=str(row["migration_id"]), dimension="import_edges",
+        source_git_sha=str(row["source_sha"]), source_digest=str(row["source_digest"]),
+        delta=int(row["delta"]), decision="approved", authority="ROLE00",
+        scope=str(row["scope"]), review_state=str(row["review_state"]),
+        review_evidence_refs=tuple(row["review_evidence_refs"]), issued_at=str(row["issued_at"]),
+        note=str(row["note"]), approval_record_sha256=str(row["approval_record_sha256"]),
+    )
+    return ArchitectureMigrationApprovalSet(
+        schema_version="supervisor.architecture-migration-approval-set.v1",
+        authority="ROLE00", baseline_git_sha="1"*40, approvals=(approval,),
+        default_decision="not_approved", rule="test external approval rule",
+    )
+
+
+def _synthetic_git_index(root: Path):
+    from research_platform.governance.providers import RepositorySourceIndex, RepositorySourceTree
+    marker=root/"research_platform/governance/architecture/report.py"
+    marker.parent.mkdir(parents=True, exist_ok=True); marker.write_text("VALUE=1\n",encoding="utf-8")
+    owner=root/"research_platform/governance/x.py"; owner.write_text("VALUE=1\n",encoding="utf-8")
+    fs=RepositorySourceTree(root).snapshot()
+    return RepositorySourceIndex(fs, source_authority="git", source_revision="4"*40)
 
 
 def test_architecture_budget_rejects_nonhex_baseline_git_sha(tmp_path: Path) -> None:
-    authority = _write_budget(tmp_path, _budget_document(baseline_git_sha="z" * 40))
+    doc=_budget_document(); doc["baseline"]["git_sha"]="z"*40; _write_budget(tmp_path,doc)
     with pytest.raises(ValueError, match="lowercase 40-character Git SHA"):
-        load_architecture_complexity_budget(tmp_path, expected_authority_sha256=authority)
+        load_architecture_complexity_budget(tmp_path)
 
 
-def test_architecture_budget_rejects_uppercase_baseline_git_sha(tmp_path: Path) -> None:
-    authority = _write_budget(tmp_path, _budget_document(baseline_git_sha="A" * 40))
-    with pytest.raises(ValueError, match="lowercase 40-character Git SHA"):
-        load_architecture_complexity_budget(tmp_path, expected_authority_sha256=authority)
+def test_worker_budget_cannot_self_assert_role00_approval(tmp_path: Path) -> None:
+    doc=_budget_document(); doc["migrations"][0]["approval"]={"status":"approved","authority":"ROLE00","evidence_ref":"fake"}
+    _write_budget(tmp_path,doc)
+    with pytest.raises(ValueError, match="unexpected fields"):
+        load_architecture_complexity_budget(tmp_path)
 
 
-def test_architecture_budget_document_digest_detects_isolated_tamper(tmp_path: Path) -> None:
-    document = _budget_document()
-    reviewed_digest = architecture_budget_authority_digest(document)
-    document["baseline"]["complexity"]["import_edges"] = 1
-    _write_budget(tmp_path, document)
-    with pytest.raises(ArchitectureBudgetProvenanceError, match="document digest mismatch"):
-        load_architecture_complexity_budget(tmp_path, expected_authority_sha256=reviewed_digest)
+def test_external_approval_set_requires_exact_file_digest(tmp_path: Path) -> None:
+    import hashlib
+    doc={"schema":"supervisor.architecture-migration-approval-set.v1","authority":"ROLE00","baseline_sha":"1"*40,
+         "approvals":[_approval_record()],"default_decision":"not_approved","rule":"exact typed external approval only"}
+    path=tmp_path/"approvals.json"; raw=(json.dumps(doc,indent=2)+"\n").encode(); path.write_bytes(raw)
+    with pytest.raises(ArchitectureBudgetProvenanceError, match="approval set digest mismatch"):
+        load_architecture_migration_approval_set(path, expected_sha256="0"*64)
+    loaded=load_architecture_migration_approval_set(path, expected_sha256=hashlib.sha256(raw).hexdigest())
+    assert loaded.authority == "ROLE00" and loaded.approvals[0].approved
 
 
-def test_proposed_migration_never_raises_effective_limit(tmp_path: Path) -> None:
-    _write_budget(tmp_path, _budget_document(approval_status="proposed"))
-    _current, budget, violations = audit_architecture_complexity_budget(
-        tmp_path, import_edges=4750, import_edge_pairs=(), verify_provenance=False
-    )
-    assert budget is not None
-    assert budget.limits.import_edges == 4749
-    assert budget.applicable_migration_ids == ()
-    assert [(row.observed, row.limit) for row in violations] == [(4750, 4749)]
+def test_external_approval_record_digest_is_verified(tmp_path: Path) -> None:
+    import hashlib
+    row=_approval_record(); row["delta"]=99
+    doc={"schema":"supervisor.architecture-migration-approval-set.v1","authority":"ROLE00","baseline_sha":"1"*40,
+         "approvals":[row],"default_decision":"not_approved","rule":"exact typed external approval only"}
+    path=tmp_path/"approvals.json"; raw=json.dumps(doc).encode(); path.write_bytes(raw)
+    with pytest.raises(ArchitectureBudgetProvenanceError, match="approval record digest mismatch"):
+        load_architecture_migration_approval_set(path, expected_sha256=hashlib.sha256(raw).hexdigest())
 
 
-def test_approved_migration_requires_exact_projection_match(tmp_path: Path) -> None:
-    from research_platform.governance.architecture.budget import import_projection_digest
-
-    pairs = (("research_platform.governance.a", "research_platform.platform.b"),)
-    projection = import_projection_digest(pairs, ("research_platform.governance",))
-    _write_budget(tmp_path, _budget_document(projection=projection))
-    _current, budget, violations = audit_architecture_complexity_budget(
-        tmp_path, import_edges=4750, import_edge_pairs=pairs, verify_provenance=False
-    )
-    assert budget is not None
-    assert budget.limits.import_edges == 4750
-    assert budget.applicable_migration_ids == ("test-reviewed-migration",)
-    assert violations == ()
-    _current, budget, violations = audit_architecture_complexity_budget(
-        tmp_path,
-        import_edges=4750,
-        import_edge_pairs=(("research_platform.scope.x", "research_platform.platform.y"),),
-        verify_provenance=False,
-    )
-    assert budget is not None
-    assert budget.limits.import_edges == 4749
-    assert [(row.observed, row.limit) for row in violations] == [(4750, 4749)]
-
-
-def test_formal_budget_audit_invokes_baseline_and_approved_source_verifier(tmp_path: Path) -> None:
-    from research_platform.governance.architecture.budget import (
-        ArchitectureMigrationObservation,
-        import_projection_digest,
-    )
-    from research_platform.governance.providers import RepositorySourceIndex, RepositorySourceTree
-
-    pairs = (("research_platform.governance.a", "research_platform.platform.b"),)
-    projection = import_projection_digest(pairs, ("research_platform.governance",))
-    document = _budget_document(projection=projection)
-    _write_budget(tmp_path, document)
-    marker = tmp_path / "research_platform" / "governance" / "architecture" / "report.py"
-    marker.write_text("VALUE = 1\n", encoding="utf-8")
-    catalog = tmp_path / "research_platform" / "governance" / "system_registry" / "catalog.json"
-    catalog.parent.mkdir(parents=True, exist_ok=True)
-    catalog.write_text("{}", encoding="utf-8")
-    snapshot = RepositorySourceTree(tmp_path).snapshot()
-    index = RepositorySourceIndex(snapshot, source_authority="git", source_revision="4" * 40)
-    calls: list[tuple[str, tuple[str, ...]]] = []
-
-    def resolve(sha: str, prefixes: tuple[str, ...]):
-        calls.append((sha, prefixes))
-        if sha == "1" * 40:
-            return "2" * 64, ArchitectureMigrationObservation(
-                complexity=ArchitectureComplexity(**_baseline_complexity()),
-                import_projection_sha256=None,
-            )
-        return "5" * 64, ArchitectureMigrationObservation(
-            complexity=ArchitectureComplexity(**_baseline_complexity(4750)),
-            import_projection_sha256=projection,
+def test_external_approval_applies_only_to_exact_owner_source_scope(tmp_path: Path) -> None:
+    pairs=(("research_platform.governance.a","research_platform.platform.b"),)
+    projection=import_projection_digest(pairs,("research_platform.governance",))
+    _write_budget(tmp_path,_budget_document(projection=projection))
+    index=_synthetic_git_index(tmp_path)
+    owner_digest=source_scope_digest(index,("research_platform.governance",))
+    calls=[]
+    def resolve(sha: str, prefixes: tuple[str,...]):
+        calls.append((sha,prefixes))
+        if sha == "1"*40:
+            return "2"*64, ArchitectureMigrationObservation(ArchitectureComplexity(**_baseline_complexity()),None,None)
+        return "b"*64, ArchitectureMigrationObservation(
+            ArchitectureComplexity(**_baseline_complexity(4750)), projection, owner_digest
         )
-
-    _current, budget, violations = audit_architecture_complexity_budget(
-        tmp_path,
-        import_edges=4750,
-        import_edge_pairs=pairs,
-        source_index=index,
-        verify_provenance=True,
-        historical_observation_resolver=resolve,
-    )
-    assert violations == ()
-    assert budget is not None and budget.limits.import_edges == 4750
-    assert calls == [("1" * 40, ()), ("3" * 40, ("research_platform.governance",))]
+    _current,budget,violations=audit_architecture_complexity_budget(
+        tmp_path,import_edges=4750,import_edge_pairs=pairs,source_index=index,
+        approval_set=_typed_approval_set(),historical_observation_resolver=resolve,verify_provenance=True)
+    assert violations == () and budget is not None and budget.limits.import_edges == 4750
+    assert budget.applicable_migration_ids == ("test-reviewed-migration",)
+    assert calls == [("1"*40,()),("3"*40,("research_platform.governance",))]
 
 
-def test_current_role01_budget_cannot_borrow_other_role_allowances() -> None:
+def test_mismatched_external_source_digest_contributes_zero_headroom(tmp_path: Path) -> None:
+    pairs=(("research_platform.governance.a","research_platform.platform.b"),)
+    projection=import_projection_digest(pairs,("research_platform.governance",))
+    _write_budget(tmp_path,_budget_document(projection=projection)); index=_synthetic_git_index(tmp_path)
+    owner_digest=source_scope_digest(index,("research_platform.governance",))
+    def resolve(sha: str, prefixes: tuple[str,...]):
+        if sha == "1"*40:
+            return "2"*64, ArchitectureMigrationObservation(ArchitectureComplexity(**_baseline_complexity()),None,None)
+        return "b"*64, ArchitectureMigrationObservation(ArchitectureComplexity(**_baseline_complexity(4750)),projection,owner_digest)
+    _current,budget,violations=audit_architecture_complexity_budget(
+        tmp_path,import_edges=4750,import_edge_pairs=pairs,source_index=index,
+        approval_set=_typed_approval_set(source_digest="c"*64),historical_observation_resolver=resolve,verify_provenance=True)
+    assert budget is not None and budget.limits.import_edges == 4749
+    assert [(v.observed,v.limit) for v in violations] == [(4750,4749)]
+
+
+def test_current_role01_has_no_self_granted_headroom() -> None:
     from research_platform.governance.architecture.source_profile import scan_architecture_source_profile
     from research_platform.governance.providers import RepositorySourceTree
-
-    root = Path(__file__).resolve().parents[1]
-    index = RepositorySourceTree(root).index()
-    profile = scan_architecture_source_profile(root, source_index=index)
-    pairs = tuple((edge.source_module, edge.target_module) for edge in profile.import_edges)
-    for observed in (4777, 4800, 4821):
-        _current, budget, violations = audit_architecture_complexity_budget(
-            root,
-            import_edges=observed,
-            import_edge_pairs=pairs,
-            source_index=index,
-            verify_provenance=False,
-        )
-        assert budget is not None
-        assert budget.limits.import_edges == 4776
-        assert budget.applicable_migration_ids == ("role01-shared-source-index-v1",)
-        assert [(row.observed, row.limit) for row in violations] == [(observed, 4776)]
+    root=Path(__file__).resolve().parents[1]; index=RepositorySourceTree(root).index()
+    profile=scan_architecture_source_profile(root,source_index=index)
+    pairs=tuple((e.source_module,e.target_module) for e in profile.import_edges)
+    _current,budget,violations=audit_architecture_complexity_budget(
+        root,import_edges=len(profile.import_edges),import_edge_pairs=pairs,source_index=index,verify_provenance=False)
+    assert budget is not None and budget.limits.import_edges == 4749
+    assert budget.applicable_migration_ids == ()
+    assert any(v.dimension == "import_edges" and v.limit == 4749 for v in violations)
 
 
 def _test_git_executable() -> str:

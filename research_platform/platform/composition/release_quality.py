@@ -178,32 +178,35 @@ def build_release_quality_evidence(
         resolved_group = owned_runtime.open_task_group("release-quality")
 
     try:
-        lane_specs = (
-            ("architecture", _architecture_lane),
-            ("quality-guards", _quality_guard_lane),
-            ("algorithm", _algorithm_lane),
-            ("concurrency", _concurrency_lane),
-            ("performance", _performance_lane),
+        architecture_task = resolved_group.submit(
+            ExecutionSpec(task_id="release-quality-architecture", lane_kind=ExecutionLaneKind.CPU),
+            _architecture_lane, str(root), source_index,
+            str(git_executable) if git_executable is not None else None,
+            deadline=Deadline.after(180.0),
         )
-        tasks = {}
-        for name, fn in lane_specs:
-            args = (str(root), source_index)
-            if name == "architecture":
-                args = (
-                    str(root),
-                    source_index,
-                    str(git_executable) if git_executable is not None else None,
-                )
-            tasks[name] = resolved_group.submit(
-                ExecutionSpec(
-                    task_id=f"release-quality-{name}",
-                    lane_kind=ExecutionLaneKind.CPU,
-                ),
-                fn,
-                *args,
-                deadline=Deadline.after(180.0),
-            )
-        results = {name: task.result(timeout=180.0) for name, task in tasks.items()}
+        quality_task = resolved_group.submit(
+            ExecutionSpec(task_id="release-quality-quality-guards", lane_kind=ExecutionLaneKind.CPU),
+            _quality_guard_lane, str(root), source_index, deadline=Deadline.after(180.0),
+        )
+        algorithm_task = resolved_group.submit(
+            ExecutionSpec(task_id="release-quality-algorithm", lane_kind=ExecutionLaneKind.CPU),
+            _algorithm_lane, str(root), source_index, deadline=Deadline.after(180.0),
+        )
+        concurrency_task = resolved_group.submit(
+            ExecutionSpec(task_id="release-quality-concurrency", lane_kind=ExecutionLaneKind.CPU),
+            _concurrency_lane, str(root), source_index, deadline=Deadline.after(180.0),
+        )
+        performance_task = resolved_group.submit(
+            ExecutionSpec(task_id="release-quality-performance", lane_kind=ExecutionLaneKind.CPU),
+            _performance_lane, str(root), source_index, deadline=Deadline.after(180.0),
+        )
+        results = {
+            "architecture": architecture_task.result(timeout=180.0),
+            "quality-guards": quality_task.result(timeout=180.0),
+            "algorithm": algorithm_task.result(timeout=180.0),
+            "concurrency": concurrency_task.result(timeout=180.0),
+            "performance": performance_task.result(timeout=180.0),
+        }
         architecture = results["architecture"]
         no_degradation, silent = results["quality-guards"]
         algorithm = results["algorithm"]
