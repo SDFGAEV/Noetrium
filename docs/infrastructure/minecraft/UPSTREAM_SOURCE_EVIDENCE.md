@@ -12,7 +12,7 @@ This evidence is the source lock for Minecraft provider changes. The cached arch
 
 ## Upstream semantics used by the provider
 
-The locked Mineflayer API exposes separate entity lifecycle events including `entitySpawn`, `itemDrop`, and `playerCollect(collector, collected)`. The provider uses these signals only as observations for drop association and collection; a transport/event occurrence by itself is not durable external-effect certainty.
+The locked Mineflayer API exposes separate entity lifecycle events including `entitySpawn`, `itemDrop`, and `playerCollect(collector, collected)`. The official API also defines `bot.nearestEntity(predicate)` as nearest matching-entity selection. The provider uses these semantics only as observations/selection meaning: it does not hide an unbounded global entity scan behind that helper. Drop association remains action-local and bounded; a transport/event occurrence by itself is not durable external-effect certainty.
 
 The locked connection lifecycle forwards client error/end state to bot lifecycle events. Upstream promise/timeout helpers are process-local and do not provide crash-durable intent, exactly-once execution, or action reconciliation. Agent Research Platform therefore owns the durable action-recovery journal and must preserve `UNKNOWN` when durable external-effect evidence is absent or corrupt.
 
@@ -23,6 +23,6 @@ The local provider intentionally adds stronger semantics than upstream:
 - action request and provider identity binding;
 - crash-durable action recovery and four-way reconciliation;
 - environment/effect receipts that retain confirmed/possible/rejected/unknown certainty;
-- drop association that keeps Mineflayer event semantics but chooses the nearest eligible entity in one linear scan rather than sorting all candidates.
+- drop association that keeps Mineflayer event semantics while bounding one block action to sixteen fallback candidates; nearest-by-current-bot-distance selection is exact within that fixed set, and correlation overflow fails closed instead of scanning unbounded world state.
 
 Any future Mineflayer version change must repeat the exact-version source audit before changing lifecycle, entity, pathfinding, inventory, combat, or recovery behavior.

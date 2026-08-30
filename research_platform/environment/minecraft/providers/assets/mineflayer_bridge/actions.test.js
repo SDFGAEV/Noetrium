@@ -228,6 +228,24 @@ test('drop targeting preserves nearest-bot selection across multiple candidates'
   watcher.cancel()
 })
 
+test('drop targeting fails closed when one block correlation exceeds bounded capacity', () => {
+  const bot = fakeBot([])
+  runtime.bindBot(bot)
+  const block = new Vec3(3, 64, 0)
+  const watcher = runtime.captureItemDropNear(block, 'oak_log', 8)
+  for (let id = 100; id < 117; id += 1) {
+    const drop = {
+      id, name: 'item', position: new Vec3(3, 64, 0), isValid: true,
+      getDroppedItem: () => ({ name: 'oak_log' })
+    }
+    bot.entities[id] = drop
+    bot.emit('entitySpawn', drop)
+  }
+
+  assert.equal(watcher.hasCandidateOverflow(), true)
+  assert.equal(watcher.pickupTarget(), null)
+  watcher.cancel()
+})
 test('itemDrop capture binds the actual drop emitted for the dug block', async () => {
   const bot = fakeBot([])
   runtime.bindBot(bot)

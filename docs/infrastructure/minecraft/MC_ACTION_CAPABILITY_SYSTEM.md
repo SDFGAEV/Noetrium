@@ -100,10 +100,18 @@ builtin inheritance.
 
 ## Hot-path selection
 
-Drop association and nearby dropped-item selection scan candidates once and retain the
-nearest eligible entity. They deliberately do not sort the full candidate set: target
-selection is `O(N)` while preserving the same nearest-by-bot-distance semantics and stable
-first-candidate tie behavior.
+A single dug-block drop capture maintains at most sixteen correlated fallback entities in
+fixed slots. Spawn/drop/collect/gone events update those slots in constant time.
+`pickupTarget()` checks only that fixed bounded set, preserving exact nearest-by-current-bot
+distance semantics with `O(1)` worst-case work. If more than sixteen distinct entities are
+correlated to one block action, the watcher records overflow and the fallback returns no
+target rather than scanning unbounded world state or selecting from an incomplete set. The
+normal matched `itemDrop` evidence path is unaffected.
+
+The bound is a defensive action-local resource limit, not a claim that Mineflayer's global
+entity set is constant-size. Mineflayer's documented `bot.nearestEntity(predicate)` also
+selects the nearest matching entity, but this provider does not hide an unbounded scan behind
+that API to satisfy complexity governance.
 
 ## Verification
 

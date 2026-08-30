@@ -28,3 +28,12 @@ Raw scientific observations are canonical-JSON validated before a persistence ac
 segment writer is created. Invalid payloads such as NaN/Inf therefore fail before any
 segment file or writer-lock side effect exists. Durable append, fsync, idempotency, and
 sequence ownership begin only after this storage-neutral preflight succeeds.
+
+## Summary query complexity
+
+`SQLiteTelemetryReader.summarize()` performs corruption validation and aggregate lookup in a
+single read transaction. P50/P95/P99 require exactly six bounded order-statistic positions.
+Those six positions are projected by one SQLite window/conditional-aggregation query returning
+one fixed-width row; Python performs no input-sized percentile loop or result comprehension.
+This keeps provider-side control complexity `O(1)` and one percentile database roundtrip while
+preserving linear interpolation semantics and the covering value index.
