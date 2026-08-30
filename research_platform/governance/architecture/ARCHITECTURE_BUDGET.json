@@ -18,11 +18,11 @@
       "delta": {
         "top_level_systems": 0,
         "subsystems": 1,
-        "contract_declarations": 9,
+        "contract_declarations": 11,
         "authorities": 1,
         "import_edges": 27
       },
-      "justification": "Canonical source completeness, immutable SourceIndex authority and canonical run-control catalog registration add explicit governance topology/contracts while preserving one source authority.",
+      "justification": "Canonical source completeness, immutable SourceIndex authority, canonical run-control catalog registration, and operator run-control dependency declarations add explicit governance topology/contracts while preserving one source authority.",
       "applicability": {
         "module_prefixes": [
           "research_platform.platform",
@@ -121,15 +121,15 @@
         "subsystems": 0,
         "contract_declarations": 0,
         "authorities": 0,
-        "import_edges": 15
+        "import_edges": 20
       },
-      "justification": "Current Product and Assurance proposal adds fifteen explicit operator, release, distribution and verification authority dependencies without topology growth.",
+      "justification": "Current Product and Assurance proposal adds twenty explicit operator, release, distribution, verification and run-control adapter dependencies without topology growth.",
       "applicability": {
         "module_prefixes": [
           "research_platform.operator",
           "research_platform.api"
         ],
-        "import_projection_sha256": "e45b24a8e4676d756ad2cf3f956b7f2a2f8c3bfd6ea574bbd1c62ada7c1ec79b"
+        "import_projection_sha256": "9810e526f81fdc118f966628b6eec243219304799060fe4b4c1ec72b7843bfa2"
       }
     }
   ]

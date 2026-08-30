@@ -69,7 +69,7 @@ def _baseline_complexity(import_edges: int = 4749) -> dict[str, int]:
     return {
         "top_level_systems": 17,
         "subsystems": 174,
-        "contract_declarations": 138,
+        "contract_declarations": 140,
         "authorities": 191,
         "import_edges": import_edges,
     }
@@ -260,7 +260,7 @@ def _multidim_budget_document(projection: str) -> dict[str, object]:
         "schema_version": "architecture-complexity-budget.v3",
         "baseline": {
             "git_sha": "1" * 40, "source_digest": "2" * 64,
-            "complexity": {"top_level_systems":17,"subsystems":173,"contract_declarations":137,"authorities":190,"import_edges":4749},
+            "complexity": {"top_level_systems":17,"subsystems":173,"contract_declarations":139,"authorities":190,"import_edges":4749},
         },
         "migrations": [{
             "migration_id": "test-reviewed-migration", "owner_role": "ROLE01",
@@ -276,8 +276,8 @@ def _multidim_budget_document(projection: str) -> dict[str, object]:
 def _multidim_resolver(projection: str, owner_digest: str):
     def resolve(sha: str, prefixes: tuple[str, ...]):
         if sha == "1" * 40:
-            return "2" * 64, ArchitectureMigrationObservation(ArchitectureComplexity(17,173,137,190,4749),None,None)
-        return "b" * 64, ArchitectureMigrationObservation(ArchitectureComplexity(17,174,138,191,4750),projection,owner_digest)
+            return "2" * 64, ArchitectureMigrationObservation(ArchitectureComplexity(17,173,139,190,4749),None,None)
+        return "b" * 64, ArchitectureMigrationObservation(ArchitectureComplexity(17,174,140,191,4750),projection,owner_digest)
     return resolve
 
 def test_v2_approval_file_decodes_complete_complexity_delta(tmp_path: Path) -> None:
@@ -326,7 +326,7 @@ def test_v2_full_complexity_approval_authorizes_exact_multidimensional_migration
         verify_provenance=True)
     assert violations == () and budget is not None
     assert budget.applicable_migration_ids == ("test-reviewed-migration",)
-    assert budget.limits == ArchitectureComplexity(17,174,138,191,4750)
+    assert budget.limits == ArchitectureComplexity(17,174,140,191,4750)
 
 def test_v2_mismatched_complexity_delta_contributes_zero_headroom(tmp_path: Path) -> None:
     pairs=(("research_platform.governance.a","research_platform.platform.b"),)
@@ -492,13 +492,29 @@ def test_current_downstream_proposals_have_exact_applicability_without_self_appr
     expected = {
         "ROLE02": (8, ("research_platform.runtime", "research_platform.resource", "research_platform.reliability"), "e48da451b73527f4e5283fdbf3424c171e9c15d8f48eeaa47b6ec5dbf886e5c8"),
         "ROLE05": (2, ("research_platform.environment", "research_platform.data", "research_platform.artifact", "research_platform.observability"), "6f9fdf4f5d64703e1be10d2707b49109e365bb7343cd5118a05e73a6e3a5e62b"),
-        "ROLE06": (15, ("research_platform.operator", "research_platform.api"), "e45b24a8e4676d756ad2cf3f956b7f2a2f8c3bfd6ea574bbd1c62ada7c1ec79b"),
+        "ROLE06": (20, ("research_platform.operator", "research_platform.api"), "9810e526f81fdc118f966628b6eec243219304799060fe4b4c1ec72b7843bfa2"),
     }
     for role, (delta, prefixes, projection) in expected.items():
         migration = next(row for row in budget.migrations if row.owner_role == role)
         assert migration.delta.import_edges == delta
         assert migration.module_prefixes == prefixes
         assert migration.import_projection_sha256 == projection
+
+
+def test_operator_catalog_declares_run_control_dependencies() -> None:
+    descriptor = next(row for row in system_catalog() if row.identity.key == "operator")
+    assert descriptor.requires == (
+        "environment",
+        "execution",
+        "experimentation",
+        "governance",
+        "model",
+        "observability",
+        "platform",
+        "reliability",
+        "resource",
+        "scope",
+    )
 
 
 def test_run_control_catalog_registration_matches_exact_role03_boundary() -> None:
@@ -518,7 +534,7 @@ def test_run_control_standard_shape_is_registered(tmp_path: Path) -> None:
 
 def test_role01_run_control_catalog_growth_is_budgeted() -> None:
     migration=next(row for row in load_architecture_complexity_budget(Path(__file__).resolve().parents[1]).migrations if row.owner_role=="ROLE01")
-    assert (migration.delta.subsystems,migration.delta.contract_declarations,migration.delta.authorities,migration.delta.import_edges)==(1,9,1,27)
+    assert (migration.delta.subsystems,migration.delta.contract_declarations,migration.delta.authorities,migration.delta.import_edges)==(1,11,1,27)
 
 def test_role03_proposal_tracks_exact_693c481_run_control_delta() -> None:
     migration=next(row for row in load_architecture_complexity_budget(Path(__file__).resolve().parents[1]).migrations if row.owner_role=="ROLE03")
