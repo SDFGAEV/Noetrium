@@ -147,7 +147,7 @@ root = Path(sys.argv[1])
 )
 PY
 for action in run inspect stop resume reconcile evidence; do
-  research --application research_platform.operator.reference:build_reference_application \\
+  research --application research_platform.operator.reference:build_reference_application \
     --application-config "$work/reference.json" "$action" container-reference > "$work/$action.json"
 done
 python - "$work" <<'PY'

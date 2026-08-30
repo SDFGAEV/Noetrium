@@ -72,6 +72,7 @@ def test_container_definition_uses_only_prebuilt_distribution_wheel():
     assert container._WHEEL_LABEL in dockerfile
     assert container._DISTRIBUTION_LABEL in dockerfile
     assert "sha256sum -c -" in dockerfile
+    assert 'mkdir -p "$(dirname "$PLATFORM_EMBEDDED_WHEEL")"' in dockerfile
     assert "USER platform" in dockerfile
 
 
@@ -85,6 +86,10 @@ def test_container_smoke_verifies_wheel_record_and_effective_identity():
     assert "os.getegid()" in script
     assert "installed RECORD digest mismatch" in script
     assert script.index("installed RECORD digest mismatch") < script.index("research --help")
+    continuation = [line for line in script.splitlines() if "build_reference_application" in line]
+    assert len(continuation) == 1
+    assert continuation[0].endswith("\\")
+    assert not continuation[0].endswith("\\\\")
     for action in container._ACTIONS:
         assert action in script
 

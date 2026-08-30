@@ -24,6 +24,7 @@ RUN wheel="$(find /tmp/wheelhouse -maxdepth 1 -type f -name '*.whl' -print)" \
     && test "$(find /tmp/wheelhouse -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 1 \
     && printf '%s  %s\n' "$PLATFORM_WHEEL_SHA256" "$wheel" | sha256sum -c - \
     && python -m pip install --no-deps "$wheel" \
+    && mkdir -p "$(dirname "$PLATFORM_EMBEDDED_WHEEL")" \
     && cp "$wheel" "$PLATFORM_EMBEDDED_WHEEL" \
     && rm -rf /tmp/wheelhouse \
     && chmod 0444 "$PLATFORM_EMBEDDED_WHEEL" \
