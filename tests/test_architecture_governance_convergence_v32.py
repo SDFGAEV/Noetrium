@@ -127,10 +127,11 @@ def _approval_record(*, source_digest: str = "b" * 64, delta: int = 1) -> dict[s
 def _typed_approval_set(*, source_digest: str = "b" * 64, delta: int = 1) -> ArchitectureMigrationApprovalSet:
     row=_approval_record(source_digest=source_digest, delta=delta)
     approval=ArchitectureMigrationApproval(
-        migration_id=str(row["migration_id"]), dimension="import_edges",
+        schema_version=str(row["schema"]), migration_id=str(row["migration_id"]),
         source_git_sha=str(row["source_sha"]), source_digest=str(row["source_digest"]),
-        delta=int(row["delta"]), decision="approved", authority="ROLE00",
-        scope=str(row["scope"]), review_state=str(row["review_state"]),
+        complexity_delta=ArchitectureComplexity(0, 0, 0, 0, int(row["delta"])),
+        decision="approved", authority="ROLE00", scope=str(row["scope"]),
+        review_state=str(row["review_state"]),
         review_evidence_refs=tuple(row["review_evidence_refs"]), issued_at=str(row["issued_at"]),
         note=str(row["note"]), approval_record_sha256=str(row["approval_record_sha256"]),
     )
@@ -140,6 +141,38 @@ def _typed_approval_set(*, source_digest: str = "b" * 64, delta: int = 1) -> Arc
         default_decision="not_approved", rule="test external approval rule",
     )
 
+
+def _typed_v2_approval_set(delta: ArchitectureComplexity) -> ArchitectureMigrationApprovalSet:
+    import hashlib
+    record = {
+        "schema": "supervisor.architecture-migration-approval.v2",
+        "migration_id": "test-reviewed-migration",
+        "complexity_delta": {field: getattr(delta, field) for field in (
+            "top_level_systems", "subsystems", "contract_declarations", "authorities", "import_edges"
+        )},
+        "source_sha": "3" * 40, "source_digest": "b" * 64,
+        "decision": "approved", "authority": "ROLE00",
+        "scope": "architecture-complexity-migration-only",
+        "review_state": "READY_FOR_REVIEW",
+        "review_evidence_refs": ["state/SUPERVISOR_REVIEW_GATES.md#test-v2"],
+        "issued_at": "2026-08-30T16:08:00+08:00",
+        "note": "Synthetic full-complexity approval for multidimensional migration tests.",
+    }
+    payload=json.dumps(record,sort_keys=True,separators=(",", ":"),ensure_ascii=False).encode()
+    record["approval_record_sha256"]=hashlib.sha256(payload).hexdigest()
+    approval=ArchitectureMigrationApproval(
+        schema_version=str(record["schema"]), migration_id=str(record["migration_id"]),
+        source_git_sha=str(record["source_sha"]), source_digest=str(record["source_digest"]),
+        complexity_delta=delta, decision="approved", authority="ROLE00",
+        scope=str(record["scope"]), review_state=str(record["review_state"]),
+        review_evidence_refs=tuple(record["review_evidence_refs"]), issued_at=str(record["issued_at"]),
+        note=str(record["note"]), approval_record_sha256=str(record["approval_record_sha256"]),
+    )
+    return ArchitectureMigrationApprovalSet(
+        schema_version="supervisor.architecture-migration-approval-set.v1", authority="ROLE00",
+        baseline_git_sha="1"*40, approvals=(approval,), default_decision="not_approved",
+        rule="test full-complexity external approval rule",
+    )
 
 def _synthetic_git_index(root: Path):
     from research_platform.governance.providers import RepositorySourceIndex, RepositorySourceTree
@@ -221,6 +254,100 @@ def test_mismatched_external_source_digest_contributes_zero_headroom(tmp_path: P
     assert budget is not None and budget.limits.import_edges == 4749
     assert [(v.observed,v.limit) for v in violations] == [(4750,4749)]
 
+
+def _multidim_budget_document(projection: str) -> dict[str, object]:
+    return {
+        "schema_version": "architecture-complexity-budget.v3",
+        "baseline": {
+            "git_sha": "1" * 40, "source_digest": "2" * 64,
+            "complexity": {"top_level_systems":17,"subsystems":173,"contract_declarations":137,"authorities":190,"import_edges":4749},
+        },
+        "migrations": [{
+            "migration_id": "test-reviewed-migration", "owner_role": "ROLE01",
+            "delta": {"top_level_systems":0,"subsystems":1,"contract_declarations":1,"authorities":1,"import_edges":1},
+            "justification": "Synthetic multidimensional migration proves complete external complexity authority binding.",
+            "applicability": {
+                "module_prefixes": ["research_platform.governance"],
+                "import_projection_sha256": projection,
+            },
+        }],
+    }
+
+def _multidim_resolver(projection: str, owner_digest: str):
+    def resolve(sha: str, prefixes: tuple[str, ...]):
+        if sha == "1" * 40:
+            return "2" * 64, ArchitectureMigrationObservation(ArchitectureComplexity(17,173,137,190,4749),None,None)
+        return "b" * 64, ArchitectureMigrationObservation(ArchitectureComplexity(17,174,138,191,4750),projection,owner_digest)
+    return resolve
+
+def test_v2_approval_file_decodes_complete_complexity_delta(tmp_path: Path) -> None:
+    import hashlib
+    delta={"top_level_systems":0,"subsystems":1,"contract_declarations":1,"authorities":1,"import_edges":1}
+    row={
+        "schema":"supervisor.architecture-migration-approval.v2",
+        "migration_id":"test-reviewed-migration", "complexity_delta":delta,
+        "source_sha":"3"*40, "source_digest":"b"*64, "decision":"approved",
+        "authority":"ROLE00", "scope":"architecture-complexity-migration-only",
+        "review_state":"READY_FOR_REVIEW",
+        "review_evidence_refs":["state/SUPERVISOR_REVIEW_GATES.md#test-v2-file"],
+        "issued_at":"2026-08-30T16:08:00+08:00",
+        "note":"Synthetic file-backed multidimensional approval decode test.",
+    }
+    payload=json.dumps(row,sort_keys=True,separators=(",", ":"),ensure_ascii=False).encode()
+    row["approval_record_sha256"]=hashlib.sha256(payload).hexdigest()
+    doc={"schema":"supervisor.architecture-migration-approval-set.v1","authority":"ROLE00",
+         "baseline_sha":"1"*40,"approvals":[row],"default_decision":"not_approved",
+         "rule":"full complexity records must bind every non-zero dimension"}
+    raw=(json.dumps(doc,indent=2)+"\n").encode(); path=tmp_path/"approvals-v2.json"; path.write_bytes(raw)
+    loaded=load_architecture_migration_approval_set(path,expected_sha256=hashlib.sha256(raw).hexdigest())
+    assert loaded.approvals[0].complexity_delta == ArchitectureComplexity(0,1,1,1,1)
+
+def test_v1_import_approval_cannot_authorize_multidimensional_migration(tmp_path: Path) -> None:
+    pairs=(("research_platform.governance.a","research_platform.platform.b"),)
+    projection=import_projection_digest(pairs,("research_platform.governance",))
+    _write_budget(tmp_path,_multidim_budget_document(projection)); index=_synthetic_git_index(tmp_path)
+    owner=source_scope_digest(index,("research_platform.governance",))
+    _current,budget,violations=audit_architecture_complexity_budget(
+        tmp_path,import_edges=4750,import_edge_pairs=pairs,source_index=index,
+        approval_set=_typed_approval_set(),historical_observation_resolver=_multidim_resolver(projection,owner),
+        verify_provenance=True)
+    assert budget is not None and budget.applicable_migration_ids == ()
+    assert {v.dimension for v in violations} == {"subsystems","contract_declarations","authorities","import_edges"}
+
+def test_v2_full_complexity_approval_authorizes_exact_multidimensional_migration(tmp_path: Path) -> None:
+    pairs=(("research_platform.governance.a","research_platform.platform.b"),)
+    projection=import_projection_digest(pairs,("research_platform.governance",))
+    _write_budget(tmp_path,_multidim_budget_document(projection)); index=_synthetic_git_index(tmp_path)
+    owner=source_scope_digest(index,("research_platform.governance",))
+    delta=ArchitectureComplexity(0,1,1,1,1)
+    _current,budget,violations=audit_architecture_complexity_budget(
+        tmp_path,import_edges=4750,import_edge_pairs=pairs,source_index=index,
+        approval_set=_typed_v2_approval_set(delta),historical_observation_resolver=_multidim_resolver(projection,owner),
+        verify_provenance=True)
+    assert violations == () and budget is not None
+    assert budget.applicable_migration_ids == ("test-reviewed-migration",)
+    assert budget.limits == ArchitectureComplexity(17,174,138,191,4750)
+
+def test_v2_mismatched_complexity_delta_contributes_zero_headroom(tmp_path: Path) -> None:
+    pairs=(("research_platform.governance.a","research_platform.platform.b"),)
+    projection=import_projection_digest(pairs,("research_platform.governance",))
+    _write_budget(tmp_path,_multidim_budget_document(projection)); index=_synthetic_git_index(tmp_path)
+    owner=source_scope_digest(index,("research_platform.governance",))
+    wrong=ArchitectureComplexity(0,1,1,0,1)
+    _current,budget,violations=audit_architecture_complexity_budget(
+        tmp_path,import_edges=4750,import_edge_pairs=pairs,source_index=index,
+        approval_set=_typed_v2_approval_set(wrong),historical_observation_resolver=_multidim_resolver(projection,owner),
+        verify_provenance=True)
+    assert budget is not None and budget.applicable_migration_ids == ()
+    assert {v.dimension for v in violations} == {"subsystems","contract_declarations","authorities","import_edges"}
+
+def test_v2_approval_record_requires_whole_migration_scope(tmp_path: Path) -> None:
+    import hashlib
+    delta=ArchitectureComplexity(0,1,1,1,1)
+    approval_set=_typed_v2_approval_set(delta)
+    approval=approval_set.approvals[0]
+    assert approval.scope == "architecture-complexity-migration-only"
+    assert approval.complexity_delta == delta
 
 def test_current_role01_has_no_self_granted_headroom() -> None:
     from research_platform.governance.architecture.source_profile import scan_architecture_source_profile

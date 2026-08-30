@@ -21,7 +21,10 @@ _BUDGET_FIELDS = (
 _BUDGET_PATH = Path("research_platform/governance/architecture/ARCHITECTURE_BUDGET.json")
 _SCHEMA_VERSION = "architecture-complexity-budget.v3"
 _APPROVAL_SET_SCHEMA = "supervisor.architecture-migration-approval-set.v1"
-_APPROVAL_SCHEMA = "supervisor.architecture-migration-approval.v1"
+_APPROVAL_SCHEMA_V1 = "supervisor.architecture-migration-approval.v1"
+_APPROVAL_SCHEMA_V2 = "supervisor.architecture-migration-approval.v2"
+_IMPORT_ONLY_APPROVAL_SCOPE = "architecture-import-edge-migration-only"
+_COMPLEXITY_APPROVAL_SCOPE = "architecture-complexity-migration-only"
 _GIT_SHA_RE = re.compile(r"[0-9a-f]{40}")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 _ROLE_RE = re.compile(r"ROLE[0-9]{2}")
@@ -60,11 +63,11 @@ class ArchitectureMigrationAllowance:
 
 @dataclass(frozen=True, slots=True)
 class ArchitectureMigrationApproval:
+    schema_version: str
     migration_id: str
-    dimension: str
     source_git_sha: str
     source_digest: str
-    delta: int
+    complexity_delta: ArchitectureComplexity
     decision: str
     authority: str
     scope: str
@@ -248,32 +251,56 @@ def load_architecture_complexity_budget(
 
 
 def _decode_approval(value: object, *, index: int) -> ArchitectureMigrationApproval:
-    expected = {
-        "schema", "migration_id", "dimension", "source_sha", "source_digest",
-        "delta", "decision", "authority", "scope", "review_state",
-        "review_evidence_refs", "issued_at", "note", "approval_record_sha256",
+    if not isinstance(value, dict):
+        raise ValueError(f"approvals[{index}] must be an object")
+    schema = str(value.get("schema", ""))
+    common = {
+        "schema", "migration_id", "source_sha", "source_digest", "decision",
+        "authority", "scope", "review_state", "review_evidence_refs", "issued_at",
+        "note", "approval_record_sha256",
     }
-    if not isinstance(value, dict) or set(value) != expected:
-        raise ValueError(f"approvals[{index}] has unexpected fields")
-    if value["schema"] != _APPROVAL_SCHEMA:
+    if schema == _APPROVAL_SCHEMA_V1:
+        expected = common | {"dimension", "delta"}
+    elif schema == _APPROVAL_SCHEMA_V2:
+        expected = common | {"complexity_delta"}
+    else:
         raise ValueError(f"approvals[{index}] has unsupported schema")
+    if set(value) != expected:
+        raise ValueError(f"approvals[{index}] has unexpected fields")
     migration_id = str(value["migration_id"])
     if _MIGRATION_ID_RE.fullmatch(migration_id) is None:
         raise ValueError(f"approvals[{index}].migration_id is not canonical")
-    dimension = str(value["dimension"])
-    if dimension != "import_edges":
-        raise ValueError(f"approvals[{index}].dimension must be import_edges")
-    delta = value["delta"]
-    if isinstance(delta, bool) or not isinstance(delta, int) or delta <= 0:
-        raise ValueError(f"approvals[{index}].delta must be a positive integer")
+    if schema == _APPROVAL_SCHEMA_V1:
+        dimension = str(value["dimension"])
+        if dimension != "import_edges":
+            raise ValueError(f"approvals[{index}].dimension must be import_edges")
+        raw_delta = value["delta"]
+        if isinstance(raw_delta, bool) or not isinstance(raw_delta, int) or raw_delta <= 0:
+            raise ValueError(f"approvals[{index}].delta must be a positive integer")
+        complexity_delta = ArchitectureComplexity(0, 0, 0, 0, raw_delta)
+    else:
+        complexity_delta = _decode_complexity(
+            value["complexity_delta"], field=f"approvals[{index}].complexity_delta"
+        )
+        if not any(getattr(complexity_delta, field) for field in _BUDGET_FIELDS):
+            raise ValueError(f"approvals[{index}].complexity_delta must be non-zero")
     decision = str(value["decision"])
     if decision not in {"approved", "not_approved"}:
         raise ValueError(f"approvals[{index}].decision is invalid")
     authority = str(value["authority"])
     if authority != "ROLE00":
         raise ValueError(f"approvals[{index}].authority must be ROLE00")
+    scope = str(value["scope"])
+    expected_scope = (
+        _IMPORT_ONLY_APPROVAL_SCOPE if schema == _APPROVAL_SCHEMA_V1
+        else _COMPLEXITY_APPROVAL_SCOPE
+    )
+    if scope != expected_scope:
+        raise ValueError(f"approvals[{index}].scope must be {expected_scope}")
     refs = value["review_evidence_refs"]
-    if not isinstance(refs, list) or not refs or any(not isinstance(ref, str) or not ref.strip() for ref in refs):
+    if not isinstance(refs, list) or not refs or any(
+        not isinstance(ref, str) or not ref.strip() for ref in refs
+    ):
         raise ValueError(f"approvals[{index}].review_evidence_refs must be non-empty strings")
     expected_digest = _canonical_sha256(
         value["approval_record_sha256"], field=f"approvals[{index}].approval_record_sha256"
@@ -284,14 +311,14 @@ def _decode_approval(value: object, *, index: int) -> ArchitectureMigrationAppro
             f"approval record digest mismatch: {migration_id}"
         )
     return ArchitectureMigrationApproval(
+        schema_version=schema,
         migration_id=migration_id,
-        dimension=dimension,
         source_git_sha=_canonical_git_sha(value["source_sha"], field=f"approvals[{index}].source_sha"),
         source_digest=_canonical_sha256(value["source_digest"], field=f"approvals[{index}].source_digest"),
-        delta=delta,
+        complexity_delta=complexity_delta,
         decision=decision,
         authority=authority,
-        scope=str(value["scope"]),
+        scope=scope,
         review_state=str(value["review_state"]),
         review_evidence_refs=tuple(str(ref) for ref in refs),
         issued_at=str(value["issued_at"]),
@@ -479,7 +506,12 @@ def _validated_approval_observations(
         migration = migrations.get(approval.migration_id)
         if migration is None or not migration.module_prefixes or migration.import_projection_sha256 is None:
             continue
-        if approval.dimension != "import_edges" or approval.delta != migration.delta.import_edges:
+        if approval.complexity_delta != migration.delta:
+            continue
+        if approval.schema_version == _APPROVAL_SCHEMA_V1 and any(
+            getattr(migration.delta, field) != 0
+            for field in _BUDGET_FIELDS if field != "import_edges"
+        ):
             continue
         observed_digest, observation = historical_observation_resolver(
             approval.source_git_sha, migration.module_prefixes

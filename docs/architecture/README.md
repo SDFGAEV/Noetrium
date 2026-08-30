@@ -63,15 +63,18 @@ but they contribute zero headroom by themselves.
 
 Migration approval is supplied independently by the Supervisor/Integrator. Formal
 audit accepts a typed external approval set only when its file SHA-256 is supplied
-through trusted composition, then verifies each approval-record SHA-256 and exact
-`migration_id + source SHA + source digest + dimension + delta` binding. A worker
-proposal cannot authorize itself by writing `ROLE00` strings into repository data.
+through trusted composition, then verifies every approval-record SHA-256 and exact
+source identity. Version-1 approval records authorize only pure `import_edges`
+migrations under `architecture-import-edge-migration-only`; they contribute zero
+headroom if any other complexity dimension is non-zero. Version-2 records bind the
+complete five-dimensional `ArchitectureComplexity` delta and require scope
+`architecture-complexity-migration-only`. A worker proposal cannot authorize itself.
 
-An externally approved migration contributes growth only when the current immutable
-Git cut matches the approved owner-scoped source bytes and import projection. This
-prevents cross-Role allowance borrowing and prevents an approval for an ancestor
-source from being replayed after the owner changes that scope. Missing, stale,
-copied or mismatched approvals contribute zero headroom.
+An externally approved migration contributes growth only when the approved complete
+delta matches the proposal, the historical Git cut independently reconstructs that
+delta, and the current immutable cut matches the approved owner-scoped source bytes
+and import projection. Missing dimensions, stale source identities, copied approvals,
+scope mismatches, or partial approvals contribute zero headroom.
 
 The Git provider consumes raw object-database bytes with `ls-tree`/`cat-file`, not
 `git archive`, because archive output can be affected by host EOL/export settings.
