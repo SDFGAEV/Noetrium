@@ -82,9 +82,10 @@ delta does not rewrite the evidence for an earlier cut, and external approval mu
 rebound to the new exact source identity before it grants any headroom.
 
 The same rule applies when a pushed downstream owner successor grows after an earlier
-reviewed cut: for example, ROLE04 `248d67c...` keeps the historical `+41` Agent/Model
-proposal and adds an exact `+60` successor proposal with its own owner import projection.
-Neither row grants authority without an exact external ROLE00 approval for that source.
+reviewed cut: ROLE04 `248d67c...` keeps historical `+41` and adds exact `+60`; ROLE05
+`2e204645...` likewise keeps historical `+2` and adds exact `+19`. Each successor has
+its own owner import projection, and no proposal grants authority without an exact external
+ROLE00 approval for that source.
 
 The Git provider consumes raw object-database bytes with `ls-tree`/`cat-file`, not
 `git archive`, because archive output can be affected by host EOL/export settings.

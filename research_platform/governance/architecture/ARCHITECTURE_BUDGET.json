@@ -195,6 +195,27 @@
       }
     },
     {
+      "migration_id": "role05-final-quality-environment-evidence-2e20464",
+      "owner_role": "ROLE05",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 19
+      },
+      "justification": "Exact clean/pushed ROLE05 final-quality successor adds nineteen Environment/Data/Artifact/Observability owner-scoped import edges versus the frozen baseline; historical +2 evidence is retained and this proposal grants zero headroom without independent ROLE00 approval.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.environment",
+          "research_platform.data",
+          "research_platform.artifact",
+          "research_platform.observability"
+        ],
+        "import_projection_sha256": "cee2b53c07b2465a13fc40599e27dd22fa950989fa55eb0fccad98881904d7c2"
+      }
+    },
+    {
       "migration_id": "role06-product-assurance-v1",
       "owner_role": "ROLE06",
       "delta": {

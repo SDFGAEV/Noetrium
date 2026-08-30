@@ -489,12 +489,25 @@ def test_role04_historical_and_npe_architecture_allowances_are_preserved() -> No
     assert current.module_prefixes == ("research_platform.participant", "research_platform.model")
     assert current.import_projection_sha256 == "258324fc514e5aa069f069d5d9282f0433c35a20bbbdd3da8782530cef40b643"
 
+def test_role05_historical_and_final_quality_architecture_allowances_are_preserved() -> None:
+    root = Path(__file__).resolve().parents[1]
+    rows = {row.migration_id: row for row in load_architecture_complexity_budget(root).migrations}
+    historical = rows["role05-environment-evidence-v1"]
+    current = rows["role05-final-quality-environment-evidence-2e20464"]
+    prefixes = ("research_platform.environment", "research_platform.data", "research_platform.artifact", "research_platform.observability")
+    assert historical.delta.import_edges == 2
+    assert historical.module_prefixes == prefixes
+    assert historical.import_projection_sha256 == "6f9fdf4f5d64703e1be10d2707b49109e365bb7343cd5118a05e73a6e3a5e62b"
+    assert current.delta.import_edges == 19
+    assert current.module_prefixes == prefixes
+    assert current.import_projection_sha256 == "cee2b53c07b2465a13fc40599e27dd22fa950989fa55eb0fccad98881904d7c2"
+
+
 def test_current_downstream_proposals_have_exact_applicability_without_self_approval() -> None:
     root = Path(__file__).resolve().parents[1]
     budget = load_architecture_complexity_budget(root)
     expected = {
         "ROLE02": (8, ("research_platform.runtime", "research_platform.resource", "research_platform.reliability"), "e48da451b73527f4e5283fdbf3424c171e9c15d8f48eeaa47b6ec5dbf886e5c8"),
-        "ROLE05": (2, ("research_platform.environment", "research_platform.data", "research_platform.artifact", "research_platform.observability"), "6f9fdf4f5d64703e1be10d2707b49109e365bb7343cd5118a05e73a6e3a5e62b"),
         "ROLE06": (20, ("research_platform.operator", "research_platform.api"), "9810e526f81fdc118f966628b6eec243219304799060fe4b4c1ec72b7843bfa2"),
     }
     for role, (delta, prefixes, projection) in expected.items():
