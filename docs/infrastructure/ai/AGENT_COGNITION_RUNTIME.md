@@ -34,6 +34,6 @@ The cognition checkpoint is versioned and binds session identity, goal digest, c
 The phase split is semantic rather than cosmetic: recovery and tests can exercise each boundary independently while the top-level loop remains a small orchestration state machine.
 ## Agent turn JSON boundary
 
-`AgentTurnRequest` and `AgentTurnResult` are immutable participant/execution boundary values, not frozen wrappers around mutable JSON. Task, input, output, and diagnostics are recursively copied and frozen at construction. Request-side lists retain list-compatible JSON behavior, while result-side arrays canonicalize to tuples to match the platform `JsonValue` contract.
+`AgentTurnRequest` and `AgentTurnResult` are immutable participant/execution boundary values, not wrappers around mutable JSON. Task, input, output, and diagnostics are recursively copied into structural `Mapping`/tuple values at construction. All arrays canonicalize to tuples to match the platform `JsonValue` contract, eliminating both ordinary mutation and `dict.__setitem__` / `list.append` base-class bypasses.
 
 Caller-owned dictionaries or lists may therefore be mutated after construction without changing an already-issued turn request or result. Direct or nested mutation through the boundary value is rejected. Non-finite numbers, unsupported JSON values, invalid mutable artifact collections, and blank artifact identities fail closed before a turn value can cross the boundary.

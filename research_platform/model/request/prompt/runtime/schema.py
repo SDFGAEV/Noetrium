@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
-import json
 
 from research_platform.model.request._immutable_json import FrozenJsonObject, freeze_json_object
+from research_platform.platform.kernel import canonical_bytes
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,7 +17,7 @@ class OutputSchemaSpec:
         object.__setattr__(self, "schema", freeze_json_object(self.schema, field="output schema"))
 
     def digest(self) -> str:
-        raw=json.dumps({"schema_id":self.schema_id,"version":self.version,"schema":self.schema},sort_keys=True,ensure_ascii=False,separators=(",",":")).encode()
+        raw=canonical_bytes({"schema_id":self.schema_id,"version":self.version,"schema":self.schema})
         return hashlib.sha256(raw).hexdigest()
 
 

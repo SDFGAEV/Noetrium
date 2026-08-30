@@ -143,7 +143,7 @@ def test_goal_and_observation_detach_from_caller_owned_json() -> None:
     assert observation.state["inventory"][0]["item"] == "oak"
     assert observation.evidence_payload["proof"][0]["ok"] is True
 
-    with pytest.raises(TypeError):
+    with pytest.raises((TypeError, AttributeError)):
         goal.context["route"].append({"x": 3})
     with pytest.raises(TypeError):
         observation.state["inventory"][0]["item"] = "tampered"

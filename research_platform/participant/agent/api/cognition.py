@@ -2,22 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Mapping, TypeAlias
+from typing import Mapping
 
-from research_platform.platform.kernel import ExecutionContext, canonical_digest
+from research_platform.platform.kernel import ExecutionContext, JsonObject, JsonValue, canonical_digest
 from research_platform.participant._immutable_json import freeze_json_input_object
-
-
-JsonValue: TypeAlias = (
-    str
-    | int
-    | float
-    | bool
-    | None
-    | list["JsonValue"]
-    | dict[str, "JsonValue"]
-)
-JsonObject: TypeAlias = dict[str, JsonValue]
 
 
 class AgentLoopTerminationReason(StrEnum):

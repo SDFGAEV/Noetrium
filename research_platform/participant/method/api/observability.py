@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 import hashlib
-import json
 from threading import RLock
 from typing import Mapping, Protocol, runtime_checkable
 
-from research_platform.platform.kernel import ExecutionContext, JsonValue
+from research_platform.platform.kernel import ExecutionContext, JsonValue, canonical_bytes
 from research_platform.participant._immutable_json import freeze_json_value_object
 
 
@@ -20,9 +19,7 @@ def _method_observation_id(
         "kind": kind,
         "payload": dict(payload),
     }
-    raw = json.dumps(
-        document, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
-    ).encode()
+    raw = canonical_bytes(document)
     return f"methodobs_{hashlib.sha256(raw).hexdigest()[:24]}"
 
 

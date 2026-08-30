@@ -33,7 +33,7 @@ from research_platform.platform.concurrency.api import (
     TaskFailureScope,
     TaskGroupPort,
 )
-from research_platform.platform.kernel import canonical_digest
+from research_platform.platform.kernel import canonical_bytes, canonical_digest
 
 
 def _error_detail(body: object) -> str:
@@ -241,9 +241,12 @@ class OpenAICompatibleModelEndpoint(ModelEndpointPort):
             if timeout_s <= 0:
                 context.checkpoint()
                 raise TimeoutError("model endpoint deadline expired before transport")
+            materialized_body = json.loads(canonical_bytes(request.body))
+            if not isinstance(materialized_body, dict):
+                raise ModelEndpointError("model endpoint request body materialization drift")
             response = await self.transport.post_json(
                 self.route.completion_url,
-                dict(request.body),
+                materialized_body,
                 timeout_s=timeout_s,
             )
             context.checkpoint()
@@ -294,7 +297,7 @@ class OpenAICompatibleModelEndpoint(ModelEndpointPort):
         if not isinstance(response.body, Mapping):
             raise ModelEndpointError("model endpoint response body must be an object")
         choices = response.body.get("choices")
-        if not isinstance(choices, list) or len(choices) != 1 or not isinstance(choices[0], Mapping):
+        if not isinstance(choices, tuple) or len(choices) != 1 or not isinstance(choices[0], Mapping):
             raise ModelEndpointError("model endpoint response must contain exactly one choice")
         choice = choices[0]
         message = choice.get("message")

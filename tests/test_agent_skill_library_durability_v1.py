@@ -34,7 +34,7 @@ def test_skill_checkpoint_round_trip_preserves_recipe_and_counters() -> None:
     assert target.snapshot() == source.snapshot()
     restored_record = target.snapshot()[0]
     assert restored_record.success_count == 3
-    assert restored_record.recipe[0][1]["path"] == [1, 2, 3]
+    assert restored_record.recipe[0][1]["path"] == (1, 2, 3)
 
 
 def test_skill_checkpoint_decode_rejects_coercion_and_unknown_fields() -> None:

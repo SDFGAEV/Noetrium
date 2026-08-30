@@ -24,7 +24,7 @@ from research_platform.data.fact.api import DurableFact, FactCriticality, Unknow
 from research_platform.observability.api import EventEnvelope
 from research_platform.data.record.api import ExecutionRecordPlane
 from research_platform.data.fact.runtime import FactDecoderRegistry
-from research_platform.platform.kernel import EffectClass, ExecutionContext, ImmutableModelIdentity, canonical_digest
+from research_platform.platform.kernel import canonical_bytes, EffectClass, ExecutionContext, ImmutableModelIdentity, canonical_digest
 from research_platform.model.request.runtime import (
     DirectoryContentAddressedStore,
     DirectoryModelRequestLedger,
@@ -84,7 +84,7 @@ class HarnessPatternsV190Tests(unittest.TestCase):
             self.assertEqual(env.model.engine,"engine")
             reconstructed_full=recorder.reconstruct(env)
             reconstructed=reconstructed_full.request_body
-            self.assertEqual(reconstructed,body)
+            self.assertEqual(canonical_bytes(reconstructed),canonical_bytes(body))
             with self.assertRaises(TypeError): reconstructed_full.tool_schema_bundle[0]["name"]="tampered"
             with self.assertRaises(TypeError): reconstructed["messages"]=[]
             with self.assertRaises(TypeError): reconstructed["messages"][0]["content"]="tampered"

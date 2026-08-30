@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
-import json
+from collections.abc import Mapping
 
+from research_platform.platform.kernel import JsonInput, canonical_bytes
 from research_platform.platform.kernel.identity import ImmutableModelIdentity
 from .runtime_contracts import PromptResolution
 
@@ -27,15 +28,10 @@ def build_prompt_request_contract(
     request_id: str,
     resolution: PromptResolution,
     model: ImmutableModelIdentity,
-    request_body: dict[str, object],
+    request_body: Mapping[str, JsonInput],
 ) -> PromptRequestContract:
     bundle = resolution.bundle
-    encoded = json.dumps(
-        request_body,
-        sort_keys=True,
-        ensure_ascii=False,
-        separators=(",", ":"),
-    ).encode("utf-8")
+    encoded = canonical_bytes(request_body)
     return PromptRequestContract(
         request_id=request_id,
         generation_id=resolution.generation_id,
@@ -55,7 +51,7 @@ def verify_prompt_request_contract(
     *,
     resolution: PromptResolution,
     model: ImmutableModelIdentity,
-    request_body: dict[str, object],
+    request_body: Mapping[str, JsonInput],
 ) -> None:
     actual = build_prompt_request_contract(
         request_id=contract.request_id,

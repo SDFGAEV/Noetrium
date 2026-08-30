@@ -76,18 +76,20 @@ def test_agent_turn_json_boundary_is_deeply_immutable():
     output["plan"][0]["action"] = "caller-mutated"
     diagnostics["trace"]["verified"] = False
     assert request.task["steps"][0]["name"] == "inspect"
-    assert request.input_payload["items"] == ["a"]
+    assert request.input_payload["items"] == ("a",)
     assert result.output["plan"][0]["action"] == "move"
     assert result.diagnostics["trace"]["verified"] is True
 
     import pytest
     with pytest.raises(TypeError): request.task["steps"][0]["name"] = "tampered"
-    with pytest.raises(TypeError): request.input_payload["items"].append("tampered")
+    with pytest.raises((TypeError, AttributeError)): request.input_payload["items"].append("tampered")
     assert result.output["plan"] == ({"action": "move"},)
     assert isinstance(result.output["plan"], tuple)
     with pytest.raises(TypeError):
         result.output["plan"][0]["action"] = "tampered"
     with pytest.raises(TypeError): result.diagnostics["trace"]["verified"] = False
+    with pytest.raises(TypeError): dict.__setitem__(result.output, "bypass", True)
+    with pytest.raises(TypeError): list.append(result.output["plan"], {"action": "bypass"})
 
 
 def test_agent_turn_json_boundary_rejects_non_json_authority_values():
@@ -97,6 +99,10 @@ def test_agent_turn_json_boundary_rejects_non_json_authority_values():
         AgentTurnRequest({"score": float("nan")}, ctx)
     with pytest.raises(ValueError, match="non-finite"):
         AgentTurnResult({"score": float("inf")})
+    recursive = {}
+    recursive["self"] = recursive
+    with pytest.raises(ValueError, match="recursive"):
+        AgentTurnRequest(recursive, ctx)
     with pytest.raises(TypeError, match="tuple of non-empty strings"):
         AgentTurnResult({"ok": True}, artifacts=["artifact:1"])
 

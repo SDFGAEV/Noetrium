@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import json
 
-from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity
+from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity, canonical_bytes
 from research_platform.model.request._immutable_json import FrozenJsonObject, freeze_json_object, freeze_json_value
 from research_platform.model.request.api import (
     ContentAddressedStorePort,
@@ -13,7 +12,7 @@ from research_platform.model.request.api import (
 
 
 def _canonical_json(value: object) -> bytes:
-    return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    return canonical_bytes(value)
 
 
 class ReconstructableModelRequestRecorder:

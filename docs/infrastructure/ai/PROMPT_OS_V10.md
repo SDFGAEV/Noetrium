@@ -26,7 +26,7 @@ Stable Role Spec
 
 Output schemas are centrally registered and content-digested. Request evidence binds both schema ID and schema digest so an edited schema cannot masquerade as the same prompt generation.
 
-Schema JSON is deep-frozen at `OutputSchemaSpec` construction. Prompt-generation payloads and reconstructed/model-visible request bodies use JSON-serializable frozen mappings/arrays: callers retain normal JSON equality/serialization semantics, but neither top-level nor nested values can be mutated after the digest-bound cut is formed. The request-build transaction freezes the body immediately after the body builder returns and the model-request recorder repeats the freeze at its durable authority boundary, so contracts, content-addressed bytes and transport-visible bodies derive from one immutable JSON cut.
+Schema JSON is structurally frozen at `OutputSchemaSpec` construction. Prompt-generation payloads and reconstructed/model-visible request bodies use non-bypassable `Mapping`/tuple values rather than subclasses of mutable `dict`/`list`; even base-class mutators cannot alter a digest-bound cut. Canonical bytes are produced through the platform canonical encoder, and a mutable dict/list is materialized only at the final HTTP transport boundary. The request-build transaction freezes immediately after the body builder returns and the model-request recorder repeats the freeze at its durable authority boundary, so contracts, content-addressed bytes and transport-visible content derive from one immutable JSON cut.
 
 ### Durable publication
 
