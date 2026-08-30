@@ -372,6 +372,18 @@ class DataArtifactDurabilityV207Tests(unittest.TestCase):
             with self.assertRaises(DatasetRegistryCorruptionError):
                 store.get(record.identity)
 
+    def test_durable_fact_validates_tail_artifact_and_state_references(self):
+        with self.assertRaisesRegex(ValueError, "artifact_refs"):
+            DurableFact(
+                "fact", "project.fact", "v1", FactCriticality.REQUIRED, {},
+                artifact_refs=("artifact:one", "artifact:two", ""),
+            )
+        with self.assertRaisesRegex(ValueError, "state_refs"):
+            DurableFact(
+                "fact", "project.fact", "v1", FactCriticality.REQUIRED, {},
+                state_refs=("state:one", "state:two", ""),
+            )
+
     @staticmethod
     def _fact(*, status: str = "ok") -> DurableFact:
         return DurableFact(

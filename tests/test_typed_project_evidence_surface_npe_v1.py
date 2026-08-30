@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from research_platform.artifact.catalog.api import (
     ArtifactKind,
     ArtifactRecord,
@@ -83,3 +85,35 @@ def test_project_status_is_read_only_projection_with_evidence_refs() -> None:
     assert snapshot.state is HealthState.READY
     assert snapshot.evidence == ("artifact:evidence/result.json",)
     assert snapshot.reason_codes == ("environment.ready",)
+
+def test_public_artifact_record_rejects_tail_lineage_and_metadata_corruption() -> None:
+    with pytest.raises(ValueError, match="lineage references"):
+        ArtifactRecord(
+            artifact_id="evidence/result.json", kind=ArtifactKind.SCIENTIFIC, scope=_run_scope(),
+            digest="a" * 64, location="artifact://run-npe/evidence/result.json",
+            producer_component_id="project.method", lineage=("artifact:one", "artifact:two", ""),
+        )
+    with pytest.raises(ValueError, match="metadata keys"):
+        ArtifactRecord(
+            artifact_id="evidence/result.json", kind=ArtifactKind.SCIENTIFIC, scope=_run_scope(),
+            digest="a" * 64, location="artifact://run-npe/evidence/result.json",
+            producer_component_id="project.method", metadata=(("one", "1"), ("two", "2"), ("", "3")),
+        )
+
+
+def test_public_dataset_version_rejects_tail_parent_tag_and_metadata_corruption() -> None:
+    with pytest.raises(ValueError, match="parent_versions"):
+        DatasetVersion(
+            DatasetIdentity("project-eval", "v1"), _run_scope(), "b" * 64,
+            "artifact://run-npe/datasets/project-eval.jsonl", parent_versions=("source@v1", "source@v2", ""),
+        )
+    with pytest.raises(ValueError, match="tags"):
+        DatasetVersion(
+            DatasetIdentity("project-eval", "v1"), _run_scope(), "b" * 64,
+            "artifact://run-npe/datasets/project-eval.jsonl", tags=("one", "two", ""),
+        )
+    with pytest.raises(ValueError, match="metadata keys"):
+        DatasetVersion(
+            DatasetIdentity("project-eval", "v1"), _run_scope(), "b" * 64,
+            "artifact://run-npe/datasets/project-eval.jsonl", metadata=(("one", "1"), ("two", "2"), ("", "3")),
+        )
