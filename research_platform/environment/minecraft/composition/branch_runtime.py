@@ -158,6 +158,11 @@ class _MinecraftEndpointBindingAuthority(MinecraftServerEndpointBindingPort):
         )
 
     def bind_ready(self, readiness: ServiceReadyObservation) -> None:
+        if not isinstance(readiness, ServiceReadyObservation):
+            raise MinecraftBranchRuntimeError(
+                "branch readiness did not return typed ServiceReadyObservation",
+                phase="bind",
+            )
         observed_at = self._ready_at(readiness)
         binder_identity_digest = canonical_digest(
             {

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import inspect
 
 import pytest
 
@@ -28,7 +29,11 @@ from research_platform.resource.allocation.api import (
 )
 from research_platform.resource.allocation.runtime import InMemoryEndpointAllocator
 from research_platform.resource.lease.runtime import InMemoryResourceLeaseRegistry
-from research_platform.runtime.service.api import ServiceProcessIdentity
+from research_platform.runtime.service.api import (
+    ServiceProcessIdentity,
+    ServiceReadyObservation,
+    ServiceStartOutcome,
+)
 from research_platform.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
 
 
@@ -68,19 +73,48 @@ class RecordingEnvironmentRuntime:
         return RecordingSession(self.events)
 
 
-class _ReadyObservation:
-    def __init__(
-        self,
-        contract_digest: str,
-        process: ServiceProcessIdentity,
-        ready_evidence_ref: str,
-        ready_at: float,
-    ) -> None:
-        self.contract_digest = contract_digest
-        self.process = process
-        self.ready_evidence_ref = ready_evidence_ref
-        self.ready_at = ready_at
-        self.evidence_refs = ("ready",)
+def _ready_observation(
+    *,
+    contract_digest: str,
+    process: ServiceProcessIdentity,
+    ready_evidence_ref: str,
+    ready_at: float,
+) -> ServiceReadyObservation:
+    parameters = inspect.signature(ServiceReadyObservation).parameters
+    if "ready_at" in parameters:
+        return ServiceReadyObservation(
+            contract_digest=contract_digest,
+            process=process,
+            ready_evidence_ref=ready_evidence_ref,
+            ready_at=ready_at,
+            evidence_refs=("ready",),
+        )
+
+    class _StandaloneReadyObservation(ServiceReadyObservation):
+        __slots__ = ("ready_at",)
+
+        def __init__(self) -> None:
+            super().__init__(
+                contract_digest=contract_digest,
+                process=process,
+                ready_evidence_ref=ready_evidence_ref,
+                evidence_refs=("ready",),
+            )
+            object.__setattr__(self, "ready_at", ready_at)
+
+    return _StandaloneReadyObservation()
+
+
+def _start_outcome(server: "RecordingServer") -> ServiceStartOutcome:
+    kwargs = {
+        "contract_digest": server.contract_digest,
+        "process": server.process,
+        "ready_evidence_ref": server.ready_evidence_ref,
+        "evidence_refs": ("start",),
+    }
+    if "ready_at" in inspect.signature(ServiceStartOutcome).parameters:
+        kwargs["ready_at"] = server.ready_at
+    return ServiceStartOutcome(**kwargs)
 
 
 class RecordingServer:
@@ -96,16 +130,17 @@ class RecordingServer:
         self.ready_at = ready_at
         self.ready_evidence_ref = f"minecraft-ready:verified:{pid}"
 
-    def start(self) -> None:
+    def start(self) -> ServiceStartOutcome:
         self.events.append("server.start")
+        return _start_outcome(self)
 
-    def verify_ready(self):
+    def verify_ready(self) -> ServiceReadyObservation:
         self.events.append("server.ready")
-        return _ReadyObservation(
-            self.contract_digest,
-            self.process,
-            self.ready_evidence_ref,
-            self.ready_at,
+        return _ready_observation(
+            contract_digest=self.contract_digest,
+            process=self.process,
+            ready_evidence_ref=self.ready_evidence_ref,
+            ready_at=self.ready_at,
         )
 
     def stop(self) -> None:
@@ -323,7 +358,7 @@ def test_branch_runtime_fails_closed_without_authoritative_ready_at() -> None:
     assert raised.value.phase == "start"
     assert raised.value.cause is not None
     assert raised.value.cause.phase == "bind"
-    assert "authoritative ready_at" in str(raised.value.cause)
+    assert "typed ServiceReadyObservation" in str(raised.value.cause)
     assert not allocations.active()
 
 

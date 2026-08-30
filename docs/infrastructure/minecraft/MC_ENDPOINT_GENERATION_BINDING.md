@@ -17,6 +17,8 @@ Game and RCON allocations are advanced from the same READY process evidence. If 
 
 `EndpointBindingProof.observed_at_epoch_s` is copied directly from `ServiceReadyObservation.ready_at`. Environment code must never substitute a local `time.time()` sample.
 
+The Environment boundary admits only an actual typed `ServiceReadyObservation`; a shape-compatible object carrying the same attributes is rejected before binding.
+
 The readiness timestamp is part of the proof digest. Consequently, repeated verification of the same process generation must reproduce the persisted producer timestamp; otherwise the proof would drift despite an unchanged binder identity.
 
 ROLE05 therefore fails closed when `ready_at` is missing, boolean, non-finite or non-positive. The required producer semantics are owned by runtime/reliability; ROLE05 only consumes the typed evidence.
