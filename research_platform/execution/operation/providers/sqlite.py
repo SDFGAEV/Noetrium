@@ -3,11 +3,8 @@ from __future__ import annotations
 from contextlib import closing
 import sqlite3
 from pathlib import Path
-from threading import Lock
-import time
 
-_INITIALIZE_LOCK = Lock()
-
+from research_platform.platform.kernel.retry import retry_until_deadline
 from research_platform.execution.command.api import CommandId
 from research_platform.execution.operation.api import (
     EffectId,
@@ -44,51 +41,51 @@ class SQLiteOperationStore:
         return db
 
     def _initialize(self) -> None:
-        deadline = time.monotonic() + 30.0
-        with _INITIALIZE_LOCK:
-            while True:
-                try:
-                    with closing(self._connect()) as db, db:
-                        if db.execute("PRAGMA journal_mode").fetchone()[0].lower() != "wal":
-                            db.execute("PRAGMA journal_mode=WAL").fetchone()
-                        db.execute(
-                            """CREATE TABLE IF NOT EXISTS operations (
-                            operation_id TEXT PRIMARY KEY,
-                            command_id TEXT NOT NULL,
-                            state TEXT NOT NULL,
-                            version INTEGER NOT NULL,
-                            created_at REAL NOT NULL,
-                            updated_at REAL NOT NULL,
-                            parent_operation_id TEXT,
-                            effect_id TEXT,
-                            effect_request_id TEXT,
-                            effect_request_digest TEXT,
-                            effect_profile TEXT NOT NULL,
-                            effect_certainty TEXT NOT NULL,
-                            result_digest TEXT,
-                            failure_kind TEXT,
-                            failure_code TEXT,
-                            failure_message TEXT,
-                            failure_retryable INTEGER,
-                            failure_reconciliation_required INTEGER,
-                            cancellation_requested INTEGER NOT NULL,
-                            cancellation_reason TEXT)"""
-                        )
-                        columns = tuple(row[1] for row in db.execute("PRAGMA table_info(operations)"))
-                        expected = (
-                            "operation_id", "command_id", "state", "version", "created_at", "updated_at",
-                            "parent_operation_id", "effect_id", "effect_request_id", "effect_request_digest",
-                            "effect_profile", "effect_certainty", "result_digest",
-                            "failure_kind", "failure_code", "failure_message", "failure_retryable",
-                            "failure_reconciliation_required", "cancellation_requested", "cancellation_reason",
-                        )
-                        if columns != expected:
-                            raise OperationCorruption("operation schema does not match current durable contract")
-                    return
-                except sqlite3.OperationalError as exc:
-                    if "locked" not in str(exc).lower() or time.monotonic() >= deadline:
-                        raise
-                    time.sleep(0.01)
+        retry_until_deadline(
+            self._initialize_once,
+            should_retry=lambda exc: isinstance(exc, sqlite3.OperationalError)
+            and "locked" in str(exc).lower(),
+            timeout_seconds=30.0,
+        )
+
+    def _initialize_once(self) -> None:
+        with closing(self._connect()) as db, db:
+            if db.execute("PRAGMA journal_mode").fetchone()[0].lower() != "wal":
+                db.execute("PRAGMA journal_mode=WAL").fetchone()
+            db.execute(
+                """CREATE TABLE IF NOT EXISTS operations (
+                operation_id TEXT PRIMARY KEY,
+                command_id TEXT NOT NULL,
+                state TEXT NOT NULL,
+                version INTEGER NOT NULL,
+                created_at REAL NOT NULL,
+                updated_at REAL NOT NULL,
+                parent_operation_id TEXT,
+                effect_id TEXT,
+                effect_request_id TEXT,
+                effect_request_digest TEXT,
+                effect_profile TEXT NOT NULL,
+                effect_certainty TEXT NOT NULL,
+                result_digest TEXT,
+                failure_kind TEXT,
+                failure_code TEXT,
+                failure_message TEXT,
+                failure_retryable INTEGER,
+                failure_reconciliation_required INTEGER,
+                cancellation_requested INTEGER NOT NULL,
+                cancellation_reason TEXT)"""
+            )
+            columns = tuple(row[1] for row in db.execute("PRAGMA table_info(operations)"))
+            expected = (
+                "operation_id", "command_id", "state", "version", "created_at", "updated_at",
+                "parent_operation_id", "effect_id", "effect_request_id", "effect_request_digest",
+                "effect_profile", "effect_certainty", "result_digest",
+                "failure_kind", "failure_code", "failure_message", "failure_retryable",
+                "failure_reconciliation_required", "cancellation_requested", "cancellation_reason",
+            )
+            if columns != expected:
+                raise OperationCorruption("operation schema does not match current durable contract")
+        return
 
     @staticmethod
     def _from_row(row: tuple[object, ...]) -> OperationSnapshot:

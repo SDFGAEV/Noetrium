@@ -1,5 +1,7 @@
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import sqlite3
+from threading import Barrier
 
 import pytest
 
@@ -112,3 +114,28 @@ def test_workflow_sqlite_connections_close_on_success_read_conflict_and_decode_f
     with pytest.raises(WorkflowProgressCorruption):
         store.load(progress.workflow_run_id)
     _assert_closed(tracker)
+
+
+@pytest.mark.parametrize(
+    ("store_type", "filename"),
+    (
+        (SQLiteCommandStore, "commands-first-open.sqlite3"),
+        (SQLiteOperationStore, "operations-first-open.sqlite3"),
+        (SQLiteWorkflowProgressStore, "workflow-first-open.sqlite3"),
+    ),
+)
+def test_sqlite_store_concurrent_first_open_is_race_safe(tmp_path: Path, store_type, filename: str):
+    path = tmp_path / filename
+    concurrency = 12
+    barrier = Barrier(concurrency)
+
+    def open_store(_index: int) -> str:
+        barrier.wait(timeout=5.0)
+        return store_type(path).durability
+
+    with ThreadPoolExecutor(max_workers=concurrency) as executor:
+        results = tuple(executor.map(open_store, range(concurrency)))
+
+    assert results == ("sqlite-wal",) * concurrency
+    with sqlite3.connect(path) as db:
+        assert db.execute("PRAGMA journal_mode").fetchone()[0].lower() == "wal"

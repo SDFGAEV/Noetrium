@@ -5,9 +5,8 @@ import json
 import sqlite3
 from dataclasses import replace
 from pathlib import Path
-from threading import Lock
-import time
 
+from research_platform.platform.kernel.retry import retry_until_deadline
 from research_platform.execution.operation.api import EffectId, OperationId
 from research_platform.execution.workflow.api.progress import (
     WorkflowOperationBinding,
@@ -17,7 +16,6 @@ from research_platform.execution.workflow.api.progress import (
     WorkflowRunId,
 )
 
-_INITIALIZE_LOCK = Lock()
 
 
 class SQLiteWorkflowProgressStore:
@@ -39,38 +37,38 @@ class SQLiteWorkflowProgressStore:
         return db
 
     def _initialize(self) -> None:
-        deadline = time.monotonic() + 30.0
-        with _INITIALIZE_LOCK:
-            while True:
-                try:
-                    with closing(self._connect()) as db, db:
-                        if db.execute("PRAGMA journal_mode").fetchone()[0].lower() != "wal":
-                            db.execute("PRAGMA journal_mode=WAL").fetchone()
-                        db.execute("""CREATE TABLE IF NOT EXISTS workflow_progress (
-                            workflow_run_id TEXT PRIMARY KEY,
-                            graph_digest TEXT NOT NULL,
-                            version INTEGER NOT NULL,
-                            completed_json TEXT NOT NULL,
-                            running_json TEXT NOT NULL,
-                            uncertain_json TEXT NOT NULL,
-                            failed_json TEXT,
-                            cancellation_requested INTEGER NOT NULL,
-                            cancellation_reason TEXT
-                        )""")
-                        columns = tuple(row[1] for row in db.execute("PRAGMA table_info(workflow_progress)"))
-                        expected = (
-                            "workflow_run_id", "graph_digest", "version", "completed_json", "running_json",
-                            "uncertain_json", "failed_json", "cancellation_requested", "cancellation_reason",
-                        )
-                        if columns != expected:
-                            raise WorkflowProgressCorruption(
-                                "workflow progress schema does not match current durable contract"
-                            )
-                    return
-                except sqlite3.OperationalError as exc:
-                    if "locked" not in str(exc).lower() or time.monotonic() >= deadline:
-                        raise
-                    time.sleep(0.01)
+        retry_until_deadline(
+            self._initialize_once,
+            should_retry=lambda exc: isinstance(exc, sqlite3.OperationalError)
+            and "locked" in str(exc).lower(),
+            timeout_seconds=30.0,
+        )
+
+    def _initialize_once(self) -> None:
+        with closing(self._connect()) as db, db:
+            if db.execute("PRAGMA journal_mode").fetchone()[0].lower() != "wal":
+                db.execute("PRAGMA journal_mode=WAL").fetchone()
+            db.execute("""CREATE TABLE IF NOT EXISTS workflow_progress (
+                workflow_run_id TEXT PRIMARY KEY,
+                graph_digest TEXT NOT NULL,
+                version INTEGER NOT NULL,
+                completed_json TEXT NOT NULL,
+                running_json TEXT NOT NULL,
+                uncertain_json TEXT NOT NULL,
+                failed_json TEXT,
+                cancellation_requested INTEGER NOT NULL,
+                cancellation_reason TEXT
+            )""")
+            columns = tuple(row[1] for row in db.execute("PRAGMA table_info(workflow_progress)"))
+            expected = (
+                "workflow_run_id", "graph_digest", "version", "completed_json", "running_json",
+                "uncertain_json", "failed_json", "cancellation_requested", "cancellation_reason",
+            )
+            if columns != expected:
+                raise WorkflowProgressCorruption(
+                    "workflow progress schema does not match current durable contract"
+                )
+        return
 
     @staticmethod
     def _json_list(value: object, *, field: str) -> list[object]:

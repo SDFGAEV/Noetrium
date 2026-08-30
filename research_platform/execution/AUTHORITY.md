@@ -37,7 +37,9 @@ A workflow step may enter `completed` only after its bound durable operation is 
 
 ## Persistence boundaries
 
-Operation and workflow stores use exact SQLite schemas and explicit short-lived connection closure. Persisted schema drift is corruption, not an implicit migration request.
+Command, operation, and workflow stores use exact SQLite schemas and explicit short-lived connection closure. Persisted schema drift is corruption, not an implicit migration request.
+
+SQLite first-open setup is race-safe and idempotent without a Python initialization mutex. WAL negotiation, DDL, and schema inspection run outside application authority locks; transient SQLite lock errors use the Platform bounded deadline-retry primitive. Concurrent constructors therefore contend only through SQLite's durable locking authority, and every constructor still revalidates the exact persisted schema.
 
 Workflow binding serialization is versioned by its exact typed shape. Legacy two-field bindings are rejected rather than silently losing effect ancestry.
 
