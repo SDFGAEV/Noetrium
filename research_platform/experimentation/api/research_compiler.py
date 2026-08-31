@@ -15,16 +15,16 @@ from research_platform.experimentation.identity import OptionalIdentityFacet, Ru
 from research_platform.platform.kernel import canonical_digest
 from research_platform.portfolio.api import ProjectManifest, ProjectRequirementCardinality
 
-from .binding import ResearchBindingContribution, ResearchRequirementResolution
-from .contracts import StudyAssignment, StudyProtocol, StudyVariantSpec, VariantKind
-from .design import (
+from .research_binding import ResearchBindingContribution, ResearchRequirementResolution
+from research_platform.experimentation.study.api.contracts import StudyAssignment, StudyProtocol, StudyVariantSpec, VariantKind
+from research_platform.experimentation.study.api.design import (
     FactorSelection,
     ParticipantSchedule,
     ResearchStudyDefinition,
     StudyIntervention,
 )
-from .measurement import MeasurementProtocol, MeasurementValueKind
-from .plan import ExperimentPlan, VariantBinding
+from research_platform.experimentation.study.api.measurement import MeasurementProtocol, MeasurementValueKind
+from research_platform.experimentation.study.api.plan import ExperimentPlan, VariantBinding
 
 
 def _unique_preserving_order(values):
