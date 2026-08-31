@@ -3,8 +3,6 @@ from __future__ import annotations
 import math
 import sqlite3
 
-from research_platform.platform.kernel.retry import retry_until_deadline
-from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
 from time import time
@@ -22,6 +20,7 @@ from research_platform.resource.lease.api import (
     ResourceOwnershipConflict,
     ResourceOwnershipPort,
 )
+from research_platform.resource.providers.sqlite_connection import durable_sqlite_connection
 from research_platform.resource.providers.sqlite_resource import (
     RESOURCE_SCHEMA_VERSION,
     ensure_resource_schema,
@@ -57,22 +56,8 @@ class SQLiteResourceLeaseRegistry(ResourceOwnershipPort, ResourceLeasePort):
                 conn.rollback()
                 raise
 
-    @contextmanager
     def _connection(self):
-        conn = sqlite3.connect(self.path, timeout=self.timeout_seconds, isolation_level=None)
-        try:
-            conn.execute(f"PRAGMA busy_timeout={max(1, int(self.timeout_seconds * 1000))}")
-            retry_until_deadline(
-                lambda: conn.execute("PRAGMA journal_mode=WAL"),
-                should_retry=lambda exc: isinstance(exc, sqlite3.OperationalError)
-                and "locked" in str(exc).lower(),
-                timeout_seconds=self.timeout_seconds,
-            )
-            conn.execute("PRAGMA synchronous=FULL")
-            conn.execute("PRAGMA foreign_keys=ON")
-            yield conn
-        finally:
-            conn.close()
+        return durable_sqlite_connection(self.path, timeout_seconds=self.timeout_seconds)
 
     @staticmethod
     def _resource_values(resource: ResourceIdentity) -> tuple[str, str, str]:
