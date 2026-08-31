@@ -175,3 +175,27 @@ def test_effect_transition_rejects_successor_request_digest_on_stale_intent() ->
             request_digest=successor.request_digest,
             effect=None,
         )
+
+
+def test_sqlite_effect_generation_fence_survives_restart() -> None:
+    with TemporaryDirectory() as directory:
+        path = Path(directory) / "effect.sqlite"
+        original = _intent(request_digest="a" * 64, source_generation="env-g1")
+        successor = _intent(request_digest="b" * 64, source_generation="env-g2")
+        assert original.intent_id == successor.intent_id
+
+        SQLiteEffectIntentJournal(path).prepare(original)
+        reopened = SQLiteEffectIntentJournal(path)
+        persisted = reopened.load(original.intent_id)
+        assert persisted is not None
+        assert persisted.intent.source_generation == "env-g1"
+        assert persisted.intent.request_digest == original.request_digest
+
+        with pytest.raises(EffectIntentConflict, match="identity conflict"):
+            reopened.prepare(successor)
+        with pytest.raises(EffectIntentConflict, match="request digest conflict"):
+            reopened.record_result(
+                original.intent_id,
+                request_digest=successor.request_digest,
+                effect=None,
+            )

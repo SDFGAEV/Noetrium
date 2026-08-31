@@ -11,3 +11,5 @@ The effect WAL is the authority for may-have-happened external mutations.
 - SQLite lock waits use a finite positive timeout.
 
 A caller must reconcile any unresolved intent in the same run/lifetime before another mutation can be considered safe. Missing or corrupt journal evidence fails closed.
+
+A process restart does not relax generation fencing. When an unresolved intent for source generation `N` is durably present, reopening the SQLite journal must preserve that exact request/source identity; generation `N+1` cannot replace the intent or publish a successor request digest into it. Reconciliation or another authoritative terminal transition must resolve the predecessor first.
