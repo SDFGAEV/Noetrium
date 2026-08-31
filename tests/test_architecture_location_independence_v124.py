@@ -3,6 +3,7 @@ import tempfile
 import unittest
 
 from research_platform.governance.architecture import build_architecture_report, build_optimization_report
+from research_platform.governance.providers import RepositorySourceTree
 
 
 class ArchitectureLocationIndependenceV124Tests(unittest.TestCase):
@@ -17,8 +18,8 @@ class ArchitectureLocationIndependenceV124Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as left, tempfile.TemporaryDirectory() as right:
             left_root, right_root = Path(left), Path(right)
             self._tree(left_root); self._tree(right_root)
-            left_report = build_architecture_report(left_root)
-            right_report = build_architecture_report(right_root)
+            left_report = build_architecture_report(left_root, source_index=RepositorySourceTree(left_root).index())
+            right_report = build_architecture_report(right_root, source_index=RepositorySourceTree(right_root).index())
             self.assertNotEqual(left_report.source_root, right_report.source_root)
             self.assertEqual(left_report.report_sha256, right_report.report_sha256)
 

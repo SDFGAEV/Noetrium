@@ -93,6 +93,16 @@ class _OwnedTaskHandle(Generic[T], TaskHandlePort[T]):
                 if remaining > 0.0:
                     try:
                         value = raw.result(timeout=remaining)
+                    except CancelledError as cancelled:
+                        self._group._sync_terminal_from_raw(self._record.task_id)
+                        failure = self._group._task_failure(self._record.task_id)
+                        if isinstance(failure, TaskDeadlineExceeded):
+                            raise failure from cancelled
+                        raise TaskCancelled(
+                            self._record.cancellation.reason
+                            or self._group.cancellation.reason
+                            or f"task cancelled: {self._record.task_id}"
+                        ) from cancelled
                     except TimeoutError:
                         pass
                     else:

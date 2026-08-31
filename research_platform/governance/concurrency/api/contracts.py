@@ -78,6 +78,9 @@ class ConcurrencySnapshot:
     hotspots: tuple[ConcurrencyHotspot, ...]
     coverage: tuple[ConcurrencyCoverage, ...]
     generated_unix_ns: int
+    source_authority: str = "filesystem"
+    source_revision: str | None = None
+    analyzer_implementation_digest: str = ""
 
     @property
     def finding_count(self) -> int:
@@ -122,8 +125,25 @@ class ConcurrencyFileAnalysis:
 @dataclass(frozen=True, slots=True)
 class ConcurrencyBaseline:
     schema_version: str
+    source_authority: str
+    source_revision: str | None
+    source_digest: str
     analyzer_revision: str
-    blocker_fingerprints: tuple[str, ...]
+    analyzer_implementation_digest: str
+    observed_blocker_fingerprints: tuple[str, ...]
+    accepted_blocker_fingerprints: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if not self.schema_version.endswith(".v2"):
+            return
+        observed = self.observed_blocker_fingerprints
+        accepted = self.accepted_blocker_fingerprints
+        if observed != tuple(sorted(set(observed))):
+            raise ValueError("observed blocker fingerprints must be sorted and unique")
+        if accepted != tuple(sorted(set(accepted))):
+            raise ValueError("accepted blocker fingerprints must be sorted and unique")
+        if not set(accepted).issubset(observed):
+            raise ValueError("accepted blocker fingerprints must be a subset of observed blocker fingerprints")
 
 
 @dataclass(frozen=True, slots=True)

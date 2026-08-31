@@ -12,6 +12,7 @@
       "composition"
     ],
     "requires": [
+      "platform",
       "scope"
     ],
     "provides": [],
@@ -128,6 +129,7 @@
       "composition"
     ],
     "requires": [
+      "platform",
       "scope"
     ],
     "provides": [],
@@ -724,6 +726,33 @@
     ],
     "components": []
   },
+  "experimentation/run/control": {
+    "authority": "run_control",
+    "must_not_own": "operator product intents, server supervision internals or duplicate run manifest/checkpoint truth",
+    "owns": "durable generic run lifecycle control authority and fenced control generations",
+    "package_prefix": "research_platform.experimentation.run.control",
+    "parent": "experimentation/run",
+    "shape": [
+      "api",
+      "runtime",
+      "providers",
+      "composition"
+    ],
+    "requires": [
+      "execution",
+      "execution/operation",
+      "experimentation/checkpoint",
+      "experimentation/run",
+      "experimentation/run/identity",
+      "experimentation/run/lifecycle",
+      "experimentation/run/manifest",
+      "platform"
+    ],
+    "provides": [
+      "run.control"
+    ],
+    "components": []
+  },
   "experimentation/run/identity": {
     "authority": "run_identity",
     "must_not_own": "live execution state",
@@ -784,7 +813,9 @@
       "providers",
       "composition"
     ],
-    "requires": [],
+    "requires": [
+      "artifact"
+    ],
     "provides": [
       "study.definition"
     ],
@@ -858,38 +889,6 @@
     "provides": [
       "architecture.audit"
     ],
-    "components": []
-  },
-  "governance/architecture/authority": {
-    "authority": "authority_policy",
-    "must_not_own": "authority mutation",
-    "owns": "authority uniqueness and boundary policy",
-    "package_prefix": "research_platform.governance.architecture.authority",
-    "parent": "governance.architecture",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "governance/architecture/dependency": {
-    "authority": "dependency_policy",
-    "must_not_own": "runtime behavior",
-    "owns": "allowed dependency graph and import ownership rules",
-    "package_prefix": "research_platform.governance.architecture.dependency",
-    "parent": "governance.architecture",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
     "components": []
   },
   "governance/concurrency": {
@@ -1772,10 +1771,13 @@
     ],
     "requires": [
       "environment",
+      "execution",
+      "experimentation",
       "governance",
       "model",
       "observability",
       "platform",
+      "portfolio",
       "reliability",
       "resource",
       "scope"
@@ -2113,6 +2115,7 @@
       "composition"
     ],
     "requires": [
+      "platform",
       "scope"
     ],
     "provides": [],
@@ -2222,38 +2225,6 @@
     ],
     "components": []
   },
-  "reliability/diagnostics/causal": {
-    "authority": "causal_diagnostics",
-    "must_not_own": "failure/effect mutation",
-    "owns": "causal graph assembly from authoritative references",
-    "package_prefix": "research_platform.reliability.diagnostics.causal",
-    "parent": "reliability.diagnostics",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "reliability/diagnostics/timeline": {
-    "authority": "diagnostic_timeline",
-    "must_not_own": "source event truth",
-    "owns": "cross-system chronological diagnostic timelines",
-    "package_prefix": "research_platform.reliability.diagnostics.timeline",
-    "parent": "reliability.diagnostics",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
   "reliability/effect": {
     "authority": "effect_authority",
     "must_not_own": "process/server ownership",
@@ -2291,102 +2262,6 @@
     ],
     "components": []
   },
-  "reliability/failure/catalog": {
-    "authority": "failure_catalog",
-    "must_not_own": "incident state",
-    "owns": "versioned failure catalog and semantic drift detection",
-    "package_prefix": "research_platform.reliability.failure.catalog",
-    "parent": "reliability.failure",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "reliability/failure/descriptor": {
-    "authority": "failure_descriptor",
-    "must_not_own": "durable failure lifecycle",
-    "owns": "safe exception and failure descriptors",
-    "package_prefix": "research_platform.reliability.failure.descriptor",
-    "parent": "reliability.failure",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "reliability/failure/envelope": {
-    "authority": "failure_envelope",
-    "must_not_own": "incident grouping",
-    "owns": "durable failure envelopes and lifecycle references",
-    "package_prefix": "research_platform.reliability.failure.envelope",
-    "parent": "reliability.failure",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "reliability/failure/fingerprint": {
-    "authority": "failure_fingerprint",
-    "must_not_own": "failure severity policy",
-    "owns": "exact and family failure fingerprints",
-    "package_prefix": "research_platform.reliability.failure.fingerprint",
-    "parent": "reliability.failure",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "reliability/failure/materialization": {
-    "authority": "failure_materialization",
-    "must_not_own": "exception capture itself",
-    "owns": "turn runtime exceptions into durable failure facts",
-    "package_prefix": "research_platform.reliability.failure.materialization",
-    "parent": "reliability.failure",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "reliability/failure/taxonomy": {
-    "authority": "failure_taxonomy",
-    "must_not_own": "runtime exception details",
-    "owns": "stable failure domains and codes",
-    "package_prefix": "research_platform.reliability.failure.taxonomy",
-    "parent": "reliability.failure",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
   "reliability/forensics": {
     "authority": "forensic_authority",
     "must_not_own": "business result semantics",
@@ -2403,86 +2278,6 @@
     "provides": [
       "forensics.ledger"
     ],
-    "components": []
-  },
-  "reliability/incident": {
-    "authority": "incident_authority",
-    "must_not_own": "raw failure taxonomy",
-    "owns": "incident grouping, lifecycle and incident identity",
-    "package_prefix": "research_platform.reliability.incident",
-    "parent": "reliability",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "reliability/policy": {
-    "authority": "reliability_policy",
-    "must_not_own": "runtime implementation",
-    "owns": "reliability invariants, no-fallback rules and escalation policies",
-    "package_prefix": "research_platform.reliability.policy",
-    "parent": "reliability",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "reliability/reconciliation": {
-    "authority": "reconciliation_authority",
-    "must_not_own": "new business state creation",
-    "owns": "uncertain effects, projection drift and state reconciliation",
-    "package_prefix": "research_platform.reliability.reconciliation",
-    "parent": "reliability",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "reliability/reconciliation/effect": {
-    "authority": "effect_reconciliation",
-    "must_not_own": "business state authority",
-    "owns": "reconcile uncertain external effects",
-    "package_prefix": "research_platform.reliability.reconciliation.effect",
-    "parent": "reliability.reconciliation",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "reliability/reconciliation/state": {
-    "authority": "state_reconciliation",
-    "must_not_own": "external effect certainty",
-    "owns": "reconcile uncertain durable state",
-    "package_prefix": "research_platform.reliability.reconciliation.state",
-    "parent": "reliability.reconciliation",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
     "components": []
   },
   "reliability/recovery": {
@@ -2503,59 +2298,11 @@
     ],
     "components": []
   },
-  "reliability/recovery/evidence": {
-    "authority": "recovery_evidence",
-    "must_not_own": "diagnostic projections",
-    "owns": "recovery evidence receipts and proof of reconciliation",
-    "package_prefix": "research_platform.reliability.recovery.evidence",
-    "parent": "reliability.recovery",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
   "reliability/recovery/execution": {
     "authority": "recovery_execution",
     "must_not_own": "failure taxonomy",
     "owns": "recovery execution lifecycle and effect handoff",
     "package_prefix": "research_platform.reliability.recovery.execution",
-    "parent": "reliability.recovery",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "reliability/recovery/plan": {
-    "authority": "recovery_plan",
-    "must_not_own": "execution of recovery effects",
-    "owns": "immutable recovery plans and exact recovery intents",
-    "package_prefix": "research_platform.reliability.recovery.plan",
-    "parent": "reliability.recovery",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "reliability/recovery/replay": {
-    "authority": "recovery_replay",
-    "must_not_own": "new identity selection",
-    "owns": "exact replay contracts against frozen identities",
-    "package_prefix": "research_platform.reliability.recovery.replay",
     "parent": "reliability.recovery",
     "shape": [
       "api",
@@ -2604,22 +2351,6 @@
     "provides": [
       "resource.endpoint-allocation"
     ],
-    "components": []
-  },
-  "resource/catalog": {
-    "authority": "resource_catalog",
-    "must_not_own": "live capacity",
-    "owns": "resource identities/types and catalog metadata",
-    "package_prefix": "research_platform.resource.catalog",
-    "parent": "resource",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
     "components": []
   },
   "resource/compute": {
@@ -2720,38 +2451,6 @@
     "provides": [],
     "components": []
   },
-  "runtime/control": {
-    "authority": "runtime_control",
-    "must_not_own": "failure taxonomy and recovery evidence",
-    "owns": "runtime control commands, transitions and recovery handoff",
-    "package_prefix": "research_platform.runtime.control",
-    "parent": "runtime",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "runtime/history": {
-    "authority": "runtime_history",
-    "must_not_own": "current live process truth",
-    "owns": "runtime state/history snapshots and integrity",
-    "package_prefix": "research_platform.runtime.history",
-    "parent": "runtime",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
   "runtime/host": {
     "authority": "host_runtime_state",
     "must_not_own": "resource catalog metadata",
@@ -2787,54 +2486,6 @@
       "process.execution",
       "process.capture"
     ],
-    "components": []
-  },
-  "runtime/process/identity": {
-    "authority": "process_identity",
-    "must_not_own": "live process status",
-    "owns": "stable process identity and launch contract identity",
-    "package_prefix": "research_platform.runtime.process.identity",
-    "parent": "runtime.process",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "runtime/process/launch": {
-    "authority": "process_launch",
-    "must_not_own": "process supervision",
-    "owns": "process launch specifications and provider handoff",
-    "package_prefix": "research_platform.runtime.process.launch",
-    "parent": "runtime.process",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "runtime/process/lifecycle": {
-    "authority": "process_lifecycle",
-    "must_not_own": "failure classification",
-    "owns": "process lifecycle and termination semantics",
-    "package_prefix": "research_platform.runtime.process.lifecycle",
-    "parent": "runtime.process",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
     "components": []
   },
   "runtime/process/supervision": {
@@ -2953,54 +2604,6 @@
     ],
     "components": []
   },
-  "runtime/session/binding": {
-    "authority": "runtime_binding",
-    "must_not_own": "provider process control",
-    "owns": "bind sessions to server/process/environment/model identities",
-    "package_prefix": "research_platform.runtime.session.binding",
-    "parent": "runtime.session",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "runtime/session/identity": {
-    "authority": "runtime_session_identity",
-    "must_not_own": "participant session semantics",
-    "owns": "runtime session identity and frozen bindings",
-    "package_prefix": "research_platform.runtime.session.identity",
-    "parent": "runtime.session",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "runtime/supervision": {
-    "authority": "supervision_state",
-    "must_not_own": "diagnostic storage and failure taxonomy",
-    "owns": "supervision loops, health checks and restart/reconcile orchestration",
-    "package_prefix": "research_platform.runtime.supervision",
-    "parent": "runtime",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
   "runtime/toolchain": {
     "authority": "runtime_toolchain",
     "must_not_own": "environment scenarios, experiment protocols, or project policy",
@@ -3019,107 +2622,6 @@
     "provides": [
       "runtime.toolchain"
     ],
-    "components": []
-  },
-  "scientific": {
-    "authority": "scientific_method",
-    "must_not_own": "process, server and deployment internals",
-    "owns": "scientific method identity, configurations, prompt policy and method implementations",
-    "package_prefix": "research_platform.scientific",
-    "parent": null,
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [
-      "data",
-      "experimentation",
-      "participant",
-      "platform"
-    ],
-    "provides": [],
-    "components": []
-  },
-  "scientific/implementation": {
-    "authority": "method_implementation_catalog",
-    "must_not_own": "method scientific truth",
-    "owns": "method implementation registry and provider contracts",
-    "package_prefix": "research_platform.scientific.implementation",
-    "parent": "scientific",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "scientific/measurement": {
-    "authority": "measurement_semantics",
-    "must_not_own": "telemetry infrastructure",
-    "owns": "measurement definitions and scientific result semantics",
-    "package_prefix": "research_platform.scientific.measurement",
-    "parent": "scientific",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "scientific/method": {
-    "authority": "method_identity",
-    "must_not_own": "runtime session internals",
-    "owns": "method identity, configuration and lifecycle",
-    "package_prefix": "research_platform.scientific.method",
-    "parent": "scientific",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "scientific/prompt": {
-    "authority": "prompt_authority",
-    "must_not_own": "model serving and process control",
-    "owns": "prompt identities, generation, promotion and policy",
-    "package_prefix": "research_platform.scientific.prompt",
-    "parent": "scientific",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "scientific/protocol": {
-    "authority": "scientific_protocol",
-    "must_not_own": "generic workflow scheduling",
-    "owns": "scientific protocol definitions and execution constraints",
-    "package_prefix": "research_platform.scientific.protocol",
-    "parent": "scientific",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
     "components": []
   },
   "scope": {

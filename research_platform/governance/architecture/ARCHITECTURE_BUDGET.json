@@ -1,0 +1,280 @@
+{
+  "schema_version": "architecture-complexity-budget.v3",
+  "baseline": {
+    "git_sha": "1615043e0d72075bf0d7352fff1e5f3387446b65",
+    "source_digest": "c4a8a2a99b384775feec41fb0fe7b4f185afae1ef07175f7e2077184c28c3f3d",
+    "complexity": {
+      "top_level_systems": 17,
+      "subsystems": 173,
+      "contract_declarations": 129,
+      "authorities": 190,
+      "import_edges": 4749
+    }
+  },
+  "migrations": [
+    {
+      "migration_id": "role01-shared-source-index-v1",
+      "owner_role": "ROLE01",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 1,
+        "contract_declarations": 12,
+        "authorities": 1,
+        "import_edges": 31
+      },
+      "justification": "Canonical source completeness, immutable SourceIndex authority, canonical run-control catalog/operator dependency declarations, and NPE project-manifest/import-policy/public-composition contracts add explicit governance topology/contracts while preserving one source authority.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.platform",
+          "research_platform.governance",
+          "research_platform.scope",
+          "research_platform.portfolio"
+        ],
+        "import_projection_sha256": "f1f77c3e85117adc449c56dd807bdd46b3f3d1b4412f677bcb40b8b2548f0699"
+      }
+    },
+    {
+      "migration_id": "role01-governance-provenance-9ba9f6e",
+      "owner_role": "ROLE01",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 1,
+        "contract_declarations": 12,
+        "authorities": 1,
+        "import_edges": 56
+      },
+      "justification": "Current ROLE01 Governance/NPE/provenance convergence preserves the prior topology growth while adding exact Git-bound Algorithm, Concurrency and Performance governance dependencies, for a measured total import-edge delta of fifty-six.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.platform",
+          "research_platform.governance",
+          "research_platform.scope",
+          "research_platform.portfolio"
+        ],
+        "import_projection_sha256": "49e0ee63db04e96e738645ce5f00ff514bb9172c40e2d6e8f9d5312f0c52917e"
+      }
+    },
+    {
+      "migration_id": "role01-governance-public-seam-b96087e",
+      "owner_role": "ROLE01",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 1,
+        "contract_declarations": 13,
+        "authorities": 1,
+        "import_edges": 54
+      },
+      "justification": "Exact ROLE01 public governance baseline seam removes two sibling-concrete runtime dependencies from the prior provenance cut, preserves NPE topology and typed governance authority, and declares Operator→Portfolio for the canonical ProjectManifest consumer; measured delta is one subsystem, thirteen contract declarations, one authority and fifty-four import edges.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.platform",
+          "research_platform.governance",
+          "research_platform.scope",
+          "research_platform.portfolio"
+        ],
+        "import_projection_sha256": "1e0c06fd1777a81e2c573891c1c39f62627c37ca138e2683d0566889dc64f714"
+      }
+    },
+    {
+      "migration_id": "role01-platform-semantic-convergence-v1",
+      "owner_role": "ROLE01",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 1,
+        "contract_declarations": 13,
+        "authorities": 1,
+        "import_edges": 59
+      },
+      "justification": "ROLE01 Platform Semantic Convergence adds machine-verifiable semantic-boundary evidence and consolidates canonical, strict, frozen JSON and SHA-256 primitives in Platform kernel while cutting Portfolio and generic leaf mechanics over to the shared authority; no new top-level system or domain durable authority is introduced.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.platform",
+          "research_platform.governance",
+          "research_platform.scope",
+          "research_platform.portfolio"
+        ],
+        "import_projection_sha256": "fd225e4d33b57a9f4b52495941b69d89f33cb333ddcc031ab87a983b8c1f6c98"
+      }
+    },
+    {
+      "migration_id": "role01-semantic-catalog-contraction-v1",
+      "owner_role": "ROLE01",
+      "delta": {
+        "top_level_systems": -1,
+        "subsystems": -31,
+        "contract_declarations": 12,
+        "authorities": -32,
+        "import_edges": 39
+      },
+      "justification": "ROLE01 semantic catalog contraction is full-baseline-relative: retire the Scientific top-level shell plus five Scientific child shells and twenty-five ROLE02-proven scaffold-only Runtime/Resource/Reliability nodes, while preserving truthful shared-kernel and Study-to-Artifact dependencies; no overlapping migration headroom is stacked.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.platform",
+          "research_platform.governance",
+          "research_platform.scope",
+          "research_platform.portfolio"
+        ],
+        "import_projection_sha256": "59de5bba61ab0b83d094b2aab97e952b79be8ece954e3fa1ef89a33267d64a48"
+      }
+    },
+    {
+      "migration_id": "role02-runtime-reliability-v1",
+      "owner_role": "ROLE02",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 8
+      },
+      "justification": "Current Runtime and Reliability proposal adds eight explicit typed resource, readiness, reconciliation and durable-operation authority dependencies on the exact reviewed ROLE02 family.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.runtime",
+          "research_platform.resource",
+          "research_platform.reliability"
+        ],
+        "import_projection_sha256": "e48da451b73527f4e5283fdbf3424c171e9c15d8f48eeaa47b6ec5dbf886e5c8"
+      }
+    },
+    {
+      "migration_id": "role03-run-control-693c4814d590",
+      "owner_role": "ROLE03",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 38
+      },
+      "justification": "Current Execution and Experimentation proposal adds thirty-eight typed run-control, effect-reconciliation, artifact, checkpoint and scientific-evidence dependencies on exact ROLE03 693c481.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.execution",
+          "research_platform.experimentation",
+          "research_platform.scientific"
+        ],
+        "import_projection_sha256": "aec91782b6e3cac009ea998614aa86594ed0fb2cfc917c8c49f7b81dedad8aa3"
+      }
+    },
+    {
+      "migration_id": "role03-npe-run-control-2722fe1",
+      "owner_role": "ROLE03",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 52
+      },
+      "justification": "Current ROLE03 NPE run-control proposal adds fifty-two measured typed execution, experimentation and scientific import edges on exact 2722fe1 while preserving the historical thirty-eight-edge migration record.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.execution",
+          "research_platform.experimentation",
+          "research_platform.scientific"
+        ],
+        "import_projection_sha256": "e69dbebfd7126e1c55c3c42c79073428f86ba547febc20630e0497a763aed87c"
+      }
+    },
+    {
+      "migration_id": "role04-participant-model-v1",
+      "owner_role": "ROLE04",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 41
+      },
+      "justification": "Current Agent and Model proposal adds forty-one typed request, participant, qualification, prompt and immutable-value authority dependencies on the exact reviewed ROLE04 source family.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.participant",
+          "research_platform.model"
+        ],
+        "import_projection_sha256": "dcd7c1e5a32e7a57e466c8f0a1a1b866bde249f7f6cc57d1af1362fff38ae25e"
+      }
+    },
+    {
+      "migration_id": "role04-npe-participant-model-248d67c",
+      "owner_role": "ROLE04",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 60
+      },
+      "justification": "Exact pushed NPE Agent/Model successor adds sixty owner-scoped import edges versus the frozen baseline; this proposal preserves the historical +41 cut and grants zero headroom without independent ROLE00 approval.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.participant",
+          "research_platform.model"
+        ],
+        "import_projection_sha256": "258324fc514e5aa069f069d5d9282f0433c35a20bbbdd3da8782530cef40b643"
+      }
+    },
+    {
+      "migration_id": "role05-environment-evidence-v1",
+      "owner_role": "ROLE05",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 2
+      },
+      "justification": "Current Environment and Evidence proposal adds two typed environment, evidence and durable-observation authority dependencies without topology growth.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.environment",
+          "research_platform.data",
+          "research_platform.artifact",
+          "research_platform.observability"
+        ],
+        "import_projection_sha256": "6f9fdf4f5d64703e1be10d2707b49109e365bb7343cd5118a05e73a6e3a5e62b"
+      }
+    },
+    {
+      "migration_id": "role05-final-quality-environment-evidence-2e20464",
+      "owner_role": "ROLE05",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 19
+      },
+      "justification": "Exact clean/pushed ROLE05 final-quality successor adds nineteen Environment/Data/Artifact/Observability owner-scoped import edges versus the frozen baseline; historical +2 evidence is retained and this proposal grants zero headroom without independent ROLE00 approval.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.environment",
+          "research_platform.data",
+          "research_platform.artifact",
+          "research_platform.observability"
+        ],
+        "import_projection_sha256": "cee2b53c07b2465a13fc40599e27dd22fa950989fa55eb0fccad98881904d7c2"
+      }
+    },
+    {
+      "migration_id": "role06-product-assurance-v1",
+      "owner_role": "ROLE06",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 55
+      },
+      "justification": "ROLE06 Product/Assurance exact successor at pushed source cd664e22c4c7a9864df9c78315ad26098c1677aa increases the frozen-baseline Operator/API scope from 107 to 162 import edges (+55) without other scoped complexity growth; this supersedes the stale +20 proposal and requires a new exact ROLE00 approval.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.operator",
+          "research_platform.api"
+        ],
+        "import_projection_sha256": "3f367d5717fd4fbca273b3fb4d13af5c54d262afeb2a1e663898338adc713e77"
+      }
+    }
+  ]
+}

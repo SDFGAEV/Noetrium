@@ -5,6 +5,7 @@ from pathlib import Path
 import hashlib
 import os
 
+from research_platform.governance.api import RepositorySourceIndexPort
 from research_platform.governance.release.api import ReleaseQualityEvidence
 from research_platform.platform.concurrency.api import ConcurrencyBudget, Deadline, ExecutionLaneKind, ExecutionSpec, TaskGroupPort
 from research_platform.platform.composition.concurrency import build_execution_concurrency_runtime
@@ -14,22 +15,18 @@ _PARALLEL_FILE_THRESHOLD = 256
 _MAX_QUALITY_WORKERS = 5
 
 
-def _source_file_count_at_least(root: Path, threshold: int) -> bool:
-    count = 0
-    for base in (root / "research_platform", root / "projects", root / "scripts"):
-        if not base.exists():
-            continue
-        for _path in base.rglob("*.py"):
-            count += 1
-            if count >= threshold:
-                return True
-    return False
+def _source_file_count_at_least(source_index: RepositorySourceIndexPort, threshold: int) -> bool:
+    return len(tuple(source_index.documents(suffixes={".py"}))) >= threshold
 
 
-def _architecture_lane(root_text: str) -> tuple[str, bool]:
+def _architecture_lane(
+    root_text: str, source_index: RepositorySourceIndexPort, git_executable: str | None = None
+) -> tuple[str, bool]:
     from research_platform.governance.architecture import build_architecture_report
 
-    architecture = build_architecture_report(Path(root_text))
+    architecture = build_architecture_report(
+        Path(root_text), source_index=source_index, git_executable=git_executable
+    )
     return architecture.report_sha256, architecture.clean
 
 
@@ -37,18 +34,19 @@ def _not_applicable_digest(system: str) -> str:
     return hashlib.sha256(f"{system}:not-applicable".encode("utf-8")).hexdigest()
 
 
-def _quality_guard_lane(root_text: str) -> tuple[int, int]:
+def _quality_guard_lane(root_text: str, source_index: RepositorySourceIndexPort) -> tuple[int, int]:
     from research_platform.governance.quality import scan_no_degradation, scan_silent_failures
 
     root = Path(root_text)
-    silent = len(scan_silent_failures(root / "research_platform"))
-    projects = root / "projects"
-    if projects.exists():
-        silent += len(scan_silent_failures(projects))
-    return len(scan_no_degradation(root)), silent
+    silent = len(scan_silent_failures(
+        root,
+        source_index=source_index,
+        path_prefixes=("research_platform", "projects"),
+    ))
+    return len(scan_no_degradation(root, source_index=source_index)), silent
 
 
-def _algorithm_lane(root_text: str) -> tuple[str, bool, int]:
+def _algorithm_lane(root_text: str, source_index: RepositorySourceIndexPort) -> tuple[str, bool, int]:
     from research_platform.governance.algorithm.composition import build_algorithm_governance
     from research_platform.governance.algorithm.runtime import AlgorithmBaselineMissing
 
@@ -56,13 +54,15 @@ def _algorithm_lane(root_text: str) -> tuple[str, bool, int]:
     if not (root / "research_platform" / "governance" / "algorithm").exists():
         return _not_applicable_digest("algorithm-governance"), True, 0
     try:
-        snapshot, report = build_algorithm_governance(root, exact=True).gate()
+        snapshot, report = build_algorithm_governance(
+            root, exact=True, source_inventory=source_index, source_index=source_index
+        ).gate()
         return snapshot.source_digest, report.passed, len(report.blockers)
     except AlgorithmBaselineMissing:
         return "", False, 1
 
 
-def _concurrency_lane(root_text: str) -> tuple[str, bool, int]:
+def _concurrency_lane(root_text: str, source_index: RepositorySourceIndexPort) -> tuple[str, bool, int]:
     from research_platform.governance.concurrency.composition import build_concurrency_governance
     from research_platform.governance.concurrency.runtime import ConcurrencyBaselineMissing
 
@@ -70,13 +70,15 @@ def _concurrency_lane(root_text: str) -> tuple[str, bool, int]:
     if not (root / "research_platform" / "governance" / "concurrency").exists():
         return _not_applicable_digest("concurrency-governance"), True, 0
     try:
-        snapshot, report = build_concurrency_governance(root).gate()
+        snapshot, report = build_concurrency_governance(
+            root, exact=True, source_inventory=source_index, source_index=source_index
+        ).gate()
         return snapshot.source_digest, report.passed, len(report.blockers)
     except ConcurrencyBaselineMissing:
         return "", False, 1
 
 
-def _performance_lane(root_text: str) -> tuple[str, bool, int]:
+def _performance_lane(root_text: str, source_index: RepositorySourceIndexPort) -> tuple[str, bool, int]:
     from research_platform.governance.performance.composition import build_performance_governance
     from research_platform.governance.performance.runtime import PerformanceBaselineMissing
 
@@ -84,17 +86,21 @@ def _performance_lane(root_text: str) -> tuple[str, bool, int]:
     if not (root / "research_platform" / "governance" / "performance").exists():
         return _not_applicable_digest("performance-governance"), True, 0
     try:
-        snapshot, report = build_performance_governance(root).gate()
+        snapshot, report = build_performance_governance(
+            root, exact=True, source_inventory=source_index, source_index=source_index
+        ).gate()
         return snapshot.source_digest, report.passed, len(report.blockers)
     except PerformanceBaselineMissing:
         return "", False, 1
 
 
-def _static_quality_lane(root_text: str) -> dict[str, object]:
-    no_degradation, silent = _quality_guard_lane(root_text)
-    algorithm = _algorithm_lane(root_text)
-    concurrency = _concurrency_lane(root_text)
-    performance = _performance_lane(root_text)
+def _static_quality_lane(
+    root_text: str, source_index: RepositorySourceIndexPort
+) -> dict[str, object]:
+    no_degradation, silent = _quality_guard_lane(root_text, source_index)
+    algorithm = _algorithm_lane(root_text, source_index)
+    concurrency = _concurrency_lane(root_text, source_index)
+    performance = _performance_lane(root_text, source_index)
     return {
         "no_degradation_findings": no_degradation,
         "silent_failure_findings": silent,
@@ -109,9 +115,13 @@ def _static_quality_lane(root_text: str) -> dict[str, object]:
         "performance_blockers": performance[2],
     }
 
-def _build_sequential(root: Path) -> ReleaseQualityEvidence:
-    architecture_sha, architecture_clean = _architecture_lane(str(root))
-    static = _static_quality_lane(str(root))
+def _build_sequential(
+    root: Path, source_index: RepositorySourceIndexPort, git_executable: str | None
+) -> ReleaseQualityEvidence:
+    architecture_sha, architecture_clean = _architecture_lane(
+        str(root), source_index, git_executable
+    )
+    static = _static_quality_lane(str(root), source_index)
     return ReleaseQualityEvidence(
         architecture_report_sha256=architecture_sha,
         architecture_clean=architecture_clean,
@@ -123,6 +133,8 @@ def build_release_quality_evidence(
     root: Path,
     *,
     task_group: TaskGroupPort | None = None,
+    source_index: RepositorySourceIndexPort | None = None,
+    git_executable: str | Path | None = None,
 ) -> ReleaseQualityEvidence:
     """Build all static governance evidence from one immutable source tree.
 
@@ -134,9 +146,18 @@ def build_release_quality_evidence(
     """
 
     root = Path(root).resolve()
+    if source_index is None:
+        from research_platform.governance.providers import GitRepositorySourceTree
+
+        source_index = GitRepositorySourceTree(
+            root,
+            git_executable=git_executable,
+        ).index()
     force_sequential = os.environ.get("RELEASE_QUALITY_SEQUENTIAL", "").strip().lower() in {"1", "true", "yes"}
-    if force_sequential or not _source_file_count_at_least(root, _PARALLEL_FILE_THRESHOLD):
-        return _build_sequential(root)
+    if force_sequential or not _source_file_count_at_least(source_index, _PARALLEL_FILE_THRESHOLD):
+        return _build_sequential(
+            root, source_index, str(git_executable) if git_executable is not None else None
+        )
 
     owned_runtime = None
     resolved_group = task_group
@@ -157,26 +178,35 @@ def build_release_quality_evidence(
         resolved_group = owned_runtime.open_task_group("release-quality")
 
     try:
-        lane_specs = (
-            ("architecture", _architecture_lane),
-            ("quality-guards", _quality_guard_lane),
-            ("algorithm", _algorithm_lane),
-            ("concurrency", _concurrency_lane),
-            ("performance", _performance_lane),
+        architecture_task = resolved_group.submit(
+            ExecutionSpec(task_id="release-quality-architecture", lane_kind=ExecutionLaneKind.CPU),
+            _architecture_lane, str(root), source_index,
+            str(git_executable) if git_executable is not None else None,
+            deadline=Deadline.after(180.0),
         )
-        tasks = {
-            name: resolved_group.submit(
-                ExecutionSpec(
-                    task_id=f"release-quality-{name}",
-                    lane_kind=ExecutionLaneKind.CPU,
-                ),
-                fn,
-                str(root),
-                deadline=Deadline.after(180.0),
-            )
-            for name, fn in lane_specs
+        quality_task = resolved_group.submit(
+            ExecutionSpec(task_id="release-quality-quality-guards", lane_kind=ExecutionLaneKind.CPU),
+            _quality_guard_lane, str(root), source_index, deadline=Deadline.after(180.0),
+        )
+        algorithm_task = resolved_group.submit(
+            ExecutionSpec(task_id="release-quality-algorithm", lane_kind=ExecutionLaneKind.CPU),
+            _algorithm_lane, str(root), source_index, deadline=Deadline.after(180.0),
+        )
+        concurrency_task = resolved_group.submit(
+            ExecutionSpec(task_id="release-quality-concurrency", lane_kind=ExecutionLaneKind.CPU),
+            _concurrency_lane, str(root), source_index, deadline=Deadline.after(180.0),
+        )
+        performance_task = resolved_group.submit(
+            ExecutionSpec(task_id="release-quality-performance", lane_kind=ExecutionLaneKind.CPU),
+            _performance_lane, str(root), source_index, deadline=Deadline.after(180.0),
+        )
+        results = {
+            "architecture": architecture_task.result(timeout=180.0),
+            "quality-guards": quality_task.result(timeout=180.0),
+            "algorithm": algorithm_task.result(timeout=180.0),
+            "concurrency": concurrency_task.result(timeout=180.0),
+            "performance": performance_task.result(timeout=180.0),
         }
-        results = {name: task.result(timeout=180.0) for name, task in tasks.items()}
         architecture = results["architecture"]
         no_degradation, silent = results["quality-guards"]
         algorithm = results["algorithm"]

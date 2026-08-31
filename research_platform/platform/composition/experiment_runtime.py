@@ -7,8 +7,8 @@ from research_platform.experimentation.experiment.runtime import (
     ExperimentComponentBinder,
     ExperimentRuntime,
     ExperimentRuntimeComponents,
-    ExperimentScientificCycleExecutor,
-    workflow_identity,
+    ExperimentTrialCycleExecutor,
+    trial_protocol_identity,
 )
 from research_platform.participant.session.runtime.checkpoint_runtime import ParticipantCheckpointRuntime
 from research_platform.execution.participants import (
@@ -24,7 +24,7 @@ from research_platform.experimentation.run.identity.providers import RandomRunId
 from research_platform.execution.decision.cycle_identity import DecisionCycleIdentityProvider, RandomDecisionCycleIdentityProvider
 from research_platform.experimentation.run.runtime.coordination import RunCoordinator
 from research_platform.experimentation.run.lifecycle.runtime import DefaultRunSessionFactory
-from research_platform.experimentation.experiment.api import ExperimentScientificWorkflow
+from research_platform.experimentation.experiment.api import ExperimentTrialProtocol
 from research_platform.execution.workflow.api import WorkflowSurfaceFactory
 from research_platform.execution.workflow.runtime import EffectIntentOperations, KernelOperationDispatcher, WORKFLOW_RUNTIME_IDENTITY
 
@@ -32,7 +32,7 @@ from research_platform.execution.workflow.runtime import EffectIntentOperations,
 def build_experiment_runtime_components(
     *,
     participant_adapters: tuple[ParticipantLifecycleAdapter, ...],
-    scientific_workflow: ExperimentScientificWorkflow,
+    trial_protocol: ExperimentTrialProtocol,
     workflow_surface_factories: tuple[WorkflowSurfaceFactory, ...],
     services: object = None,
     operation_executor: OperationExecutor | None = None,
@@ -46,9 +46,9 @@ def build_experiment_runtime_components(
     lifecycle = ParticipantSessionLifecycle(dispatcher, services)
     participant_checkpoints = ParticipantCheckpointOperations(dispatcher, ParticipantCheckpointRuntime())
     effect_intents = EffectIntentOperations(dispatcher, effect_journal) if effect_journal is not None else None
-    scientific = ExperimentScientificCycleExecutor(
+    trial_cycle = ExperimentTrialCycleExecutor(
         dispatcher,
-        scientific_workflow,
+        trial_protocol,
         effect_intents=effect_intents,
         workflow_surface_factories=workflow_surface_factories,
     )
@@ -58,16 +58,16 @@ def build_experiment_runtime_components(
         else None
     )
     return ExperimentRuntimeComponents(
-        workflow_identity(scientific_workflow),
-        DecisionCycleCoordinator(binder, lifecycle, scientific),
-        RunCoordinator(binder, lifecycle, scientific, checkpoint, DefaultRunSessionFactory()),
+        trial_protocol_identity(trial_protocol),
+        DecisionCycleCoordinator(binder, lifecycle, trial_cycle),
+        RunCoordinator(binder, lifecycle, trial_cycle, checkpoint, DefaultRunSessionFactory()),
     )
 
 
 def build_experiment_runtime(
     *,
     participant_adapters: tuple[ParticipantLifecycleAdapter, ...],
-    scientific_workflow: ExperimentScientificWorkflow,
+    trial_protocol: ExperimentTrialProtocol,
     workflow_surface_factories: tuple[WorkflowSurfaceFactory, ...],
     services: object = None,
     operation_executor: OperationExecutor | None = None,
@@ -78,7 +78,7 @@ def build_experiment_runtime(
 ) -> ExperimentRuntime:
     components = build_experiment_runtime_components(
         participant_adapters=participant_adapters,
-        scientific_workflow=scientific_workflow,
+        trial_protocol=trial_protocol,
         workflow_surface_factories=workflow_surface_factories,
         services=services,
         operation_executor=operation_executor,

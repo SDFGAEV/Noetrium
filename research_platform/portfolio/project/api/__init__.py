@@ -1,15 +1,4 @@
-"""Public contracts for repository/application projects."""
+"""Project leaf projection of the canonical Portfolio project API."""
 
-from .contracts import (
-    ProjectDefinition,
-    ProjectIdentity,
-    ProjectMethodRequirement,
-    SystemCapabilityRequirement,
-)
-
-__all__ = [
-    "ProjectDefinition",
-    "ProjectIdentity",
-    "ProjectMethodRequirement",
-    "SystemCapabilityRequirement",
-]
+from .contracts import *  # noqa: F403
+from .contracts import __all__

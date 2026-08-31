@@ -51,5 +51,9 @@ def violation(
     line: int,
     detail: str,
 ) -> SourceInvariantViolation:
-    relative = str(path.relative_to(root)) if isinstance(path, Path) and path.is_absolute() else str(path)
+    if isinstance(path, Path):
+        resolved = path.relative_to(root) if path.is_absolute() else path
+        relative = resolved.as_posix()
+    else:
+        relative = str(path).replace("\\", "/")
     return SourceInvariantViolation(invariant, relative, line, detail)

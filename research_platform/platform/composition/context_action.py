@@ -12,7 +12,7 @@ from research_platform.experimentation.checkpoint import RunCheckpointStore
 from research_platform.execution.decision.cycle_identity import DecisionCycleIdentityProvider
 from research_platform.participant.core.api.lifecycle import ParticipantLifecycleAdapter
 from research_platform.execution.workflow.api import WorkflowSurfaceFactory
-from research_platform.execution.workflow.implementations.context_action import ContextActionStudyWorkflow, ContextActionSurfaceFactory
+from research_platform.execution.workflow.implementations.context_action import ContextActionTrialProtocol, ContextActionSurfaceFactory
 from research_platform.execution.workflow.implementations.context_action.failure_classifier import ContextActionFailureClassifier
 
 
@@ -41,7 +41,7 @@ def compose_context_action_runtime(
 ) -> ExperimentRuntime:
     return build_experiment_runtime(
         participant_adapters=context_action_participant_adapters(resolver, extra=extra_participant_adapters),
-        scientific_workflow=ContextActionStudyWorkflow(),
+        trial_protocol=ContextActionTrialProtocol(),
         workflow_surface_factories=(ContextActionSurfaceFactory(), *extra_surface_factories),
         services=services,
         operation_executor=operation_executor,
