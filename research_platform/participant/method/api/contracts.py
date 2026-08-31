@@ -3,10 +3,10 @@ from __future__ import annotations
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 import math
-from typing import Protocol, runtime_checkable
+from typing import Protocol, TypeVar, runtime_checkable
 
 from research_platform.platform.kernel.context import ExecutionContext
-from research_platform.platform.kernel import JsonValue, require_sha256
+from research_platform.platform.kernel import JsonValue, canonical_digest, require_sha256
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,6 +22,38 @@ class MethodIdentity:
             raise ValueError("method identity fields must be non-empty text")
         if self.artifact_digest is not None:
             require_sha256(self.artifact_digest, "method artifact_digest")
+
+
+TaskT = TypeVar("TaskT", contravariant=True)
+InputT = TypeVar("InputT", contravariant=True)
+ResultT = TypeVar("ResultT", covariant=True)
+
+
+@dataclass(frozen=True, slots=True)
+class MethodProgramIdentity:
+    """Exact implementation/configuration identity for one downstream scientific program."""
+
+    implementation: MethodIdentity
+    configuration_digest: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.implementation, MethodIdentity):
+            raise TypeError("method program implementation must be a MethodIdentity")
+        if self.configuration_digest is not None:
+            require_sha256(self.configuration_digest, "method program configuration_digest")
+
+    def digest(self) -> str:
+        return canonical_digest({"implementation": self.implementation, "configuration_digest": self.configuration_digest})
+
+
+@runtime_checkable
+class ResearchMethodProgram(Protocol[TaskT, InputT, ResultT]):
+    """Downstream-owned whole-method control graph hosted inside a Trial boundary."""
+
+    @property
+    def program_identity(self) -> MethodProgramIdentity: ...
+
+    def run(self, *, task: TaskT, input_value: InputT, context: ExecutionContext) -> ResultT: ...
 
 
 @dataclass(frozen=True, slots=True)
