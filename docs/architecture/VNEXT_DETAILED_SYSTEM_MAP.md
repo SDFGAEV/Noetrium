@@ -209,13 +209,9 @@ The target architecture is intentionally fine-grained. A node exists only where 
   - **identity** — `runtime_session_identity` — owns: runtime session identity and frozen bindings; must not own: participant session semantics.
 - **toolchain** — `runtime_toolchain` — owns: verified host toolchain acquisition, materialization, identity and receipts; must not own: environment scenarios, experiment protocols, or project policy.
 
-## Scientific System
+## Scientific semantics convergence
 
-- **implementation** — `method_implementation_catalog` — owns: method implementation registry and provider contracts; must not own: method scientific truth.
-- **measurement** — `measurement_semantics` — owns: measurement definitions and scientific result semantics; must not own: telemetry infrastructure.
-- **method** — `method_identity` — owns: method identity, configuration and lifecycle; must not own: runtime session internals.
-- **prompt** — `prompt_authority` — owns: prompt identities, generation, promotion and policy; must not own: model serving and process control.
-- **protocol** — `scientific_protocol` — owns: scientific protocol definitions and execution constraints; must not own: generic workflow scheduling.
+`Scientific` is no longer an independent platform system. ROLE03 Trial/Study convergence folds reusable research-design, measurement, analysis and trial-protocol semantics into `experimentation/study`; concrete method/agent/provider behavior remains behind Participant and downstream project contracts. The historical `research_platform.scientific/**` shell is deleted rather than retained as a compatibility authority.
 
 ## Scope System
 

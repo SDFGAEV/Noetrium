@@ -4,7 +4,7 @@ from research_platform.governance.system_registry.runtime import InMemorySystemR
 
 TOP_LEVEL_SYSTEMS = {
     "platform", "scope", "portfolio", "experimentation", "execution", "participant",
-    "scientific", "resource", "environment", "model", "runtime", "data", "artifact",
+    "resource", "environment", "model", "runtime", "data", "artifact",
     "reliability", "observability", "governance", "operator",
 }
 

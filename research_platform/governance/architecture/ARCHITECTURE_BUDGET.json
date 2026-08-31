@@ -100,13 +100,13 @@
       "migration_id": "role01-semantic-catalog-contraction-v1",
       "owner_role": "ROLE01",
       "delta": {
-        "top_level_systems": 0,
-        "subsystems": -1,
-        "contract_declarations": 15,
-        "authorities": -1,
+        "top_level_systems": -1,
+        "subsystems": -6,
+        "contract_declarations": 12,
+        "authorities": -7,
         "import_edges": 39
       },
-      "justification": "ROLE01 Semantic IR catalog contraction folds empty architecture authority/dependency scaffold facets into the real parent governance authority and declares truthful parent-level Artifact/Data dependencies on shared Platform kernel primitives; measured owner-scope delta is one fewer subsystem and authority, fifteen explicit contracts, and thirty-nine import edges.",
+      "justification": "ROLE01 Trial/Study semantic convergence retires the redundant Scientific top-level authority and its five child authorities after exact ROLE03 producer 80eff508 deletes research_platform.scientific/**, preserves the prior architecture scaffold contraction, and declares truthful Artifact/Data Platform-kernel plus Experimentation Study->Artifact dependencies; measured owner-scope delta is one fewer top-level system, six fewer subsystems, twelve net explicit contracts, seven fewer authorities and thirty-nine import edges.",
       "applicability": {
         "module_prefixes": [
           "research_platform.platform",
@@ -267,7 +267,7 @@
         "authorities": 0,
         "import_edges": 55
       },
-      "justification": "ROLE06 Product/Assurance exact successor at pushed source 24201c987069ddf901f766c9d7db5b2f4552dc1c increases the frozen-baseline Operator/API scope from 107 to 162 import edges (+55) without other scoped complexity growth; this supersedes the stale +20 proposal and requires a new exact ROLE00 approval.",
+      "justification": "ROLE06 Product/Assurance exact successor at pushed source cd664e22c4c7a9864df9c78315ad26098c1677aa increases the frozen-baseline Operator/API scope from 107 to 162 import edges (+55) without other scoped complexity growth; this supersedes the stale +20 proposal and requires a new exact ROLE00 approval.",
       "applicability": {
         "module_prefixes": [
           "research_platform.operator",

@@ -68,7 +68,8 @@ def test_scope_portfolio_experiment_run_hierarchy_is_explicit():
         workload_digest="w",
         seed_digest="s",
         repetitions=1,
-        scientific_workflow_id="wf",
+        trial_protocol_id="trial",
+        trial_protocol_configuration_digest="a" * 64,
     )
     experiments.register_experiment(experiment)
     run = RunIdentity("run-1", "session-1", "trace-1")

@@ -24,7 +24,7 @@ This rule intentionally leaves low-risk generic leaf infrastructure reusable. It
 
 ## Current convergence consequence
 
-On the current ROLE01 cut, `scientific/implementation`, `scientific/measurement`, `scientific/method`, `scientific/prompt`, and `scientific/protocol` are generic-shell delete candidates. This is machine evidence supporting the ROLE03-owned ?41 scientific merge/delete analysis; ROLE01 does not delete those paths.
+ROLE03 exact producer `80eff508ec95c32b61c3d4345ab79f474a671157` deletes the redundant `research_platform.scientific/**` shell after folding reusable research semantics into Experimentation Study/Trial contracts. ROLE01 therefore removes the stale Scientific catalog authority and `SystemLayer` identity, while leaving the producer-side source deletion exclusively to ROLE03.
 
 By contrast, boundaries such as `execution/operation` contain direct typed API/provider implementation and classify as implemented even though a generic owner wrapper also exists. This prevents blanket deletion based on filenames or boilerplate counts.
 
@@ -91,7 +91,7 @@ Artifact and Data are producer-owned domain systems, but their surviving impleme
 
 ### Downstream architecture migration supersession
 
-An active migration proposal is unique per overlapping owner scope. When an exact downstream source supersedes an older proposal, ROLE01 replaces the active allowance instead of stacking deltas. For ROLE06 Product/Assurance, pushed source `24201c987069ddf901f766c9d7db5b2f4552dc1c` supersedes the stale `+20` proposal with the exact `+55` Operator/API proposal and projection `3f367d5717fd4fbca273b3fb4d13af5c54d262afeb2a1e663898338adc713e77`. The historical ROLE00 approval remains external evidence but contributes zero headroom until ROLE00 independently approves the successor facts.
+An active migration proposal is unique per overlapping owner scope. When an exact downstream source supersedes an older proposal, ROLE01 replaces the active allowance instead of stacking deltas. For ROLE06 Product/Assurance, current pushed source `cd664e22c4c7a9864df9c78315ad26098c1677aa` supersedes the stale `+20` proposal with the exact `+55` Operator/API proposal and projection `3f367d5717fd4fbca273b3fb4d13af5c54d262afeb2a1e663898338adc713e77`. The historical ROLE00 approval remains external evidence but contributes zero headroom until ROLE00 independently approves the successor facts.
 
 ### Platform Trial runtime consumer cutover
 

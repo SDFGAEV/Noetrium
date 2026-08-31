@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from importlib.resources import files
 
-from research_platform.governance.system_registry.api import system_catalog
+from research_platform.governance.system_registry.api import SystemLayer, system_catalog
 from research_platform.governance.architecture.system_topology_invariants import audit_system_topology_completeness
 
 def test_vnext_catalog_has_unique_keys_and_parent_first_order():
@@ -47,7 +47,7 @@ def test_catalog_covers_all_top_level_systems():
     tops={row.identity.system_id for row in system_catalog() if row.identity.is_system}
     assert tops == {
         'platform','scope','portfolio','experimentation','execution','participant',
-        'scientific','resource','environment','model','runtime','data','artifact',
+        'resource','environment','model','runtime','data','artifact',
         'reliability','observability','governance','operator'
     }
 
@@ -55,6 +55,14 @@ def test_shared_kernel_consumers_declare_platform_dependency_at_parent_system():
     by_key = {row.identity.key: row for row in system_catalog()}
     assert by_key["artifact"].requires == ("platform", "scope")
     assert by_key["data"].requires == ("platform", "scope")
+
+
+def test_trial_study_convergence_retires_scientific_system_authority():
+    by_key = {row.identity.key: row for row in system_catalog()}
+    assert "scientific" not in by_key
+    assert not any(key.startswith("scientific/") for key in by_key)
+    assert "scientific" not in {layer.value for layer in SystemLayer}
+    assert by_key["experimentation/study"].requires == ("artifact",)
 
 
 def test_logging_is_decomposed_into_independent_authorities():

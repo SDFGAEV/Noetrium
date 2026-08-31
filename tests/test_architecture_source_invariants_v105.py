@@ -79,11 +79,11 @@ class ArchitectureSourceInvariantsV105Tests(unittest.TestCase):
             violations=[x for x in rows if x.invariant=='model_os_inventory_authority']
             self.assertEqual(len(violations),2)
 
-    def test_fixed_participant_session_args_cannot_return_to_scientific_executor(self):
+    def test_fixed_participant_session_args_cannot_return_to_trial_executor(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td); study=root/'research_platform/experimentation/experiment/runtime'; study.mkdir(parents=True)
-            (study/'scientific_cycle.py').write_text(
-                "class ExperimentScientificCycleExecutor:\n"
+            (study/'trial_cycle.py').write_text(
+                "class ExperimentTrialCycleExecutor:\n"
                 "    def execute(self, participant_sessions, method_session=None):\n"
                 "        pass\n",
                 encoding='utf-8',

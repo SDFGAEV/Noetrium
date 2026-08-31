@@ -813,7 +813,9 @@
       "providers",
       "composition"
     ],
-    "requires": [],
+    "requires": [
+      "artifact"
+    ],
     "provides": [
       "study.definition"
     ],
@@ -3020,107 +3022,6 @@
     "provides": [
       "runtime.toolchain"
     ],
-    "components": []
-  },
-  "scientific": {
-    "authority": "scientific_method",
-    "must_not_own": "process, server and deployment internals",
-    "owns": "scientific method identity, configurations, prompt policy and method implementations",
-    "package_prefix": "research_platform.scientific",
-    "parent": null,
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [
-      "data",
-      "experimentation",
-      "participant",
-      "platform"
-    ],
-    "provides": [],
-    "components": []
-  },
-  "scientific/implementation": {
-    "authority": "method_implementation_catalog",
-    "must_not_own": "method scientific truth",
-    "owns": "method implementation registry and provider contracts",
-    "package_prefix": "research_platform.scientific.implementation",
-    "parent": "scientific",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "scientific/measurement": {
-    "authority": "measurement_semantics",
-    "must_not_own": "telemetry infrastructure",
-    "owns": "measurement definitions and scientific result semantics",
-    "package_prefix": "research_platform.scientific.measurement",
-    "parent": "scientific",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "scientific/method": {
-    "authority": "method_identity",
-    "must_not_own": "runtime session internals",
-    "owns": "method identity, configuration and lifecycle",
-    "package_prefix": "research_platform.scientific.method",
-    "parent": "scientific",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "scientific/prompt": {
-    "authority": "prompt_authority",
-    "must_not_own": "model serving and process control",
-    "owns": "prompt identities, generation, promotion and policy",
-    "package_prefix": "research_platform.scientific.prompt",
-    "parent": "scientific",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "scientific/protocol": {
-    "authority": "scientific_protocol",
-    "must_not_own": "generic workflow scheduling",
-    "owns": "scientific protocol definitions and execution constraints",
-    "package_prefix": "research_platform.scientific.protocol",
-    "parent": "scientific",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
     "components": []
   },
   "scope": {
