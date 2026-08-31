@@ -8,6 +8,13 @@ from .acquisition import (
     ArtifactAcquisitionRequest,
     ArtifactAcquisitionResult,
 )
+from .storage import (
+    ArtifactStorageBinding,
+    ArtifactStorageBindingConflict,
+    ArtifactStorageBindingCorruptionError,
+    ArtifactStorageBindingNotFound,
+    ArtifactStorageBindingPort,
+)
 from .materialization import (
     ArchiveMaterializationError,
     ArchiveMaterializationPort,
@@ -24,6 +31,11 @@ __all__ = [
     "ArtifactAcquisitionPort",
     "ArtifactAcquisitionRequest",
     "ArtifactAcquisitionResult",
+    "ArtifactStorageBinding",
+    "ArtifactStorageBindingConflict",
+    "ArtifactStorageBindingCorruptionError",
+    "ArtifactStorageBindingNotFound",
+    "ArtifactStorageBindingPort",
     "ArchiveMaterializationError",
     "ArchiveMaterializationPort",
     "ArchiveMaterializationRequest",

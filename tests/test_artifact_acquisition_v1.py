@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sqlite3
 from pathlib import Path
 from threading import Event, Thread
 from unittest import mock
@@ -10,9 +11,18 @@ import pytest
 
 from research_platform.artifact.catalog.api import ArtifactKind
 from research_platform.artifact.catalog.runtime import InMemoryArtifactRegistry
-from research_platform.artifact.content.api import ArtifactAcquisitionError, ArtifactAcquisitionRequest
+from research_platform.artifact.content.api import (
+    ArtifactAcquisitionError,
+    ArtifactAcquisitionRequest,
+    ArtifactAcquisitionResult,
+    ArtifactStorageBindingConflict,
+    ArtifactStorageBindingCorruptionError,
+)
 from research_platform.artifact.content.composition import compose_artifact_acquisition
-from research_platform.artifact.content.providers import download as download_provider
+from research_platform.artifact.content.providers import (
+    SQLiteArtifactStorageBindingStore,
+    download as download_provider,
+)
 from research_platform.scope.api import PLATFORM_SCOPE
 
 
@@ -314,3 +324,137 @@ def test_concurrent_artifact_publication_has_one_destination_owner(tmp_path) -> 
     assert len(first_results) == 1
     assert first_results[0].downloaded is True
     assert (tmp_path / "server.jar").read_bytes() == payload
+
+
+def test_artifact_storage_relocation_preserves_logical_identity_and_requires_cas(tmp_path) -> None:
+    payload = b"portable-artifact-content"
+    digest = hashlib.sha256(payload).hexdigest()
+    assembly = compose_artifact_acquisition(
+        opener=lambda request, timeout: _Response(payload)
+    )
+    common = dict(
+        artifact_id="scientific.portable.result",
+        source_url="https://artifacts.example.invalid/portable.bin",
+        scope=PLATFORM_SCOPE,
+        kind=ArtifactKind.SCIENTIFIC,
+        producer_component_id="test.portable",
+        expected_sha256=digest,
+    )
+    first = assembly.acquirer.acquire(
+        ArtifactAcquisitionRequest(destination=str(tmp_path / "root-a" / "result.bin"), **common)
+    )
+    second = assembly.acquirer.acquire(
+        ArtifactAcquisitionRequest(destination=str(tmp_path / "root-b" / "result.bin"), **common)
+    )
+
+    assert first.record == second.record
+    assert not hasattr(first.record, "location")
+    assert first.location != second.location
+    assert Path(first.location).read_bytes() == Path(second.location).read_bytes() == payload
+
+    store = SQLiteArtifactStorageBindingStore(tmp_path / "artifact-placement.sqlite3")
+    initial = store.bind(
+        artifact_id=first.record.artifact_id,
+        content_sha256=first.record.digest,
+        storage_provider_id=first.storage_provider_id,
+        location=first.location,
+    )
+    moved = store.relocate(
+        first.record.artifact_id,
+        expected_generation=initial.generation,
+        storage_provider_id=second.storage_provider_id,
+        location=second.location,
+    )
+    assert moved.generation == 2
+    assert moved.content_sha256 == first.record.digest
+    assert store.resolve(first.record.artifact_id) == moved
+
+    with pytest.raises(ArtifactStorageBindingConflict):
+        store.relocate(
+            first.record.artifact_id,
+            expected_generation=1,
+            storage_provider_id="artifact.filesystem",
+            location=str(tmp_path / "stale.bin"),
+        )
+    with pytest.raises(ArtifactStorageBindingConflict):
+        store.bind(
+            artifact_id=first.record.artifact_id,
+            content_sha256="0" * 64,
+            storage_provider_id="artifact.filesystem",
+            location=first.location,
+        )
+
+
+def test_artifact_storage_binding_detects_tamper_and_reader_is_read_only(tmp_path) -> None:
+    path = tmp_path / "artifact-placement.sqlite3"
+    store = SQLiteArtifactStorageBindingStore(path)
+    binding = store.bind(
+        artifact_id="artifact:tamper",
+        content_sha256="a" * 64,
+        storage_provider_id="artifact.filesystem",
+        location=str(tmp_path / "root-a" / "result.bin"),
+    )
+    with store._connect_reader() as db:
+        assert db.execute("PRAGMA query_only").fetchone()[0] == 1
+        with pytest.raises(sqlite3.OperationalError):
+            db.execute("DELETE FROM artifact_storage_bindings")
+    with sqlite3.connect(path) as db:
+        db.execute(
+            "UPDATE artifact_storage_bindings SET location=? WHERE artifact_id=?",
+            (str(tmp_path / "tampered.bin"), binding.artifact_id),
+        )
+        db.commit()
+    with pytest.raises(ArtifactStorageBindingCorruptionError):
+        store.resolve(binding.artifact_id)
+
+
+def test_artifact_storage_binding_rejects_unknown_schema_shape(tmp_path) -> None:
+    path = tmp_path / "legacy-placement.sqlite3"
+    with sqlite3.connect(path) as db:
+        db.execute(
+            "CREATE TABLE artifact_storage_bindings("
+            "artifact_id TEXT PRIMARY KEY,content_sha256 TEXT NOT NULL,"
+            "storage_provider_id TEXT NOT NULL,location TEXT NOT NULL,"
+            "generation INTEGER NOT NULL,record_sha256 TEXT NOT NULL,"
+            "legacy_path TEXT)"
+        )
+        db.commit()
+    with pytest.raises(ArtifactStorageBindingCorruptionError, match="unsupported artifact storage schema"):
+        SQLiteArtifactStorageBindingStore(path)
+
+
+def test_artifact_acquisition_result_rejects_incoherent_verified_receipt(tmp_path) -> None:
+    payload = b"verified-result-contract"
+    assembly = compose_artifact_acquisition(
+        opener=lambda request, timeout: _Response(payload)
+    )
+    result = assembly.acquirer.acquire(
+        ArtifactAcquisitionRequest(
+            artifact_id="artifact:result-contract",
+            source_url="https://artifacts.example.invalid/result.bin",
+            destination=str(tmp_path / "result.bin"),
+            scope=PLATFORM_SCOPE,
+            kind=ArtifactKind.RUNTIME,
+            producer_component_id="test.result-contract",
+            expected_sha256=hashlib.sha256(payload).hexdigest(),
+        )
+    )
+    values = dict(
+        record=result.record,
+        storage_provider_id=result.storage_provider_id,
+        location=result.location,
+        downloaded=result.downloaded,
+        sha256=result.sha256,
+        sha1=result.sha1,
+        size=result.size,
+    )
+    with pytest.raises(ValueError, match="record digest must match"):
+        ArtifactAcquisitionResult(**(values | {"sha256": "0" * 64}))
+    with pytest.raises(ValueError, match="provider/location"):
+        ArtifactAcquisitionResult(**(values | {"storage_provider_id": " "}))
+    with pytest.raises(ValueError, match="sha1 must be lowercase"):
+        ArtifactAcquisitionResult(**(values | {"sha1": result.sha1.upper()}))
+    with pytest.raises(TypeError, match="downloaded must be bool"):
+        ArtifactAcquisitionResult(**(values | {"downloaded": 1}))
+    with pytest.raises(ValueError, match="size must be a non-negative integer"):
+        ArtifactAcquisitionResult(**(values | {"size": True}))

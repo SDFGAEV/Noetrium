@@ -55,10 +55,25 @@ class ArtifactAcquisitionRequest:
 @dataclass(frozen=True, slots=True)
 class ArtifactAcquisitionResult:
     record: ArtifactRecord
+    storage_provider_id: str
+    location: str
     downloaded: bool
     sha256: str
     sha1: str
     size: int
+
+    def __post_init__(self) -> None:
+        if not self.storage_provider_id.strip() or not self.location.strip():
+            raise ValueError("artifact acquisition storage provider/location must be non-empty")
+        for name, value, length in (("sha256", self.sha256, 64), ("sha1", self.sha1, 40)):
+            if len(value) != length or any(char not in "0123456789abcdef" for char in value):
+                raise ValueError(f"artifact acquisition {name} must be lowercase hexadecimal")
+        if self.record.digest != self.sha256:
+            raise ValueError("artifact acquisition record digest must match verified SHA-256")
+        if not isinstance(self.downloaded, bool):
+            raise TypeError("artifact acquisition downloaded must be bool")
+        if isinstance(self.size, bool) or not isinstance(self.size, int) or self.size < 0:
+            raise ValueError("artifact acquisition size must be a non-negative integer")
 
 
 class ArtifactAcquisitionError(RuntimeError):

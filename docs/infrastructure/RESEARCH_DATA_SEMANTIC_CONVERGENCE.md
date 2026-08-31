@@ -24,4 +24,10 @@ Artifact/Data -> Platform Kernel canonical imports require an explicit governanc
 
 ## Storage relocation
 
-Current `ArtifactRecord.location` and `DatasetVersion.location` are legacy coupling points because they participate in durable record digests. They are scheduled for removal from logical authority after a shared neutral ContentIdentity primitive is available. Provider locator bindings will then be independently durable/rebuildable and relocation tests must preserve logical content/dataset/lineage identity.
+`ArtifactRecord` is now storage-independent: physical `location` is not part of the logical artifact contract, SQLite catalog schema, or record digest. Acquisition returns verified operational placement separately from the immutable logical record.
+
+`artifact/content` owns typed `ArtifactStorageBinding` state: artifact/content digest, storage provider, physical locator, and a positive generation. Initial binding is idempotent only for the same generation-1 value; relocation uses explicit expected-generation CAS, preserves the content digest, and increments generation. Unknown schema shapes and digest-tampered rows fail closed, while readers remain SQLite `query_only`.
+
+Relocation acceptance requires the same bytes acquired under storage root A and storage root B to produce equal logical `ArtifactRecord` values. Moving A -> B changes only the storage binding; stale-generation relocation and attempts to retarget the same artifact identity to a different content digest are rejected.
+
+`DatasetVersion.location` remains the second legacy coupling point. ROLE05 will remove it only against the shared neutral ContentIdentity primitive owned by ROLE01, rather than creating a temporary third content-reference authority.

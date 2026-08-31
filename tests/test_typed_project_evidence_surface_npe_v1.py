@@ -28,7 +28,6 @@ def test_public_artifact_record_carries_content_identity_and_run_lineage() -> No
         kind=ArtifactKind.SCIENTIFIC,
         scope=_run_scope(),
         digest=digest,
-        location="artifact://run-npe/evidence/result.json",
         producer_component_id="project.method",
         producer_operation_id="operation-finalize",
         lineage=("artifact:input",),
@@ -92,14 +91,12 @@ def test_public_artifact_record_rejects_tail_lineage_and_metadata_corruption() -
     with pytest.raises(ValueError, match="lineage references"):
         ArtifactRecord(
             artifact_id="evidence/result.json", kind=ArtifactKind.SCIENTIFIC, scope=_run_scope(),
-            digest="a" * 64, location="artifact://run-npe/evidence/result.json",
-            producer_component_id="project.method", lineage=("artifact:one", "artifact:two", ""),
+            digest="a" * 64, producer_component_id="project.method", lineage=("artifact:one", "artifact:two", ""),
         )
     with pytest.raises(ValueError, match="metadata keys"):
         ArtifactRecord(
             artifact_id="evidence/result.json", kind=ArtifactKind.SCIENTIFIC, scope=_run_scope(),
-            digest="a" * 64, location="artifact://run-npe/evidence/result.json",
-            producer_component_id="project.method", metadata=(("one", "1"), ("two", "2"), ("", "3")),
+            digest="a" * 64, producer_component_id="project.method", metadata=(("one", "1"), ("two", "2"), ("", "3")),
         )
 
 
