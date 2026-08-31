@@ -7,6 +7,7 @@ from typing import cast
 
 from research_platform.platform.kernel import (
     CanonicalDecodingError,
+    CanonicalDecodingFailureKind,
     CanonicalEncodingError,
     JsonDocument,
     JsonInput,
@@ -25,6 +26,15 @@ _VERSION = re.compile(r"[0-9A-Za-z][0-9A-Za-z._+-]*")
 
 class ProjectManifestDecodeError(ValueError):
     """A project manifest is malformed, non-canonical, or digest-inconsistent."""
+
+
+_PROJECT_JSON_DECODE_MESSAGES = {
+    CanonicalDecodingFailureKind.BOM: "project manifest JSON contains forbidden UTF-8 BOM",
+    CanonicalDecodingFailureKind.DUPLICATE_KEY: "project manifest JSON contains duplicate JSON key",
+    CanonicalDecodingFailureKind.NON_FINITE: "project manifest JSON contains forbidden non-finite value",
+    CanonicalDecodingFailureKind.SYNTAX: "project manifest JSON cannot be decoded",
+    CanonicalDecodingFailureKind.DOMAIN: "project manifest JSON violates strict finite JSON domain",
+}
 
 
 def _require_token(value: str, field: str) -> None:
@@ -474,7 +484,7 @@ def decode_project_manifest_bytes(raw: bytes) -> ProjectManifest:
     try:
         value = strict_json_loads(raw)
     except CanonicalDecodingError as exc:
-        raise ProjectManifestDecodeError(str(exc)) from exc
+        raise ProjectManifestDecodeError(_PROJECT_JSON_DECODE_MESSAGES[exc.kind]) from exc
     if not isinstance(value, dict):
         raise ProjectManifestDecodeError("project manifest root must be an object")
     document = cast(JsonDocument, value)

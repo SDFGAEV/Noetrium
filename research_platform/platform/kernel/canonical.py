@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, fields, is_dataclass
-from enum import Enum
+from enum import Enum, StrEnum
 import hashlib
 import json
 from pathlib import Path
@@ -16,8 +16,29 @@ class CanonicalEncodingError(TypeError):
     """Value cannot be represented by the platform canonical JSON contract."""
 
 
+class CanonicalDecodingFailureKind(StrEnum):
+    BOM = "bom"
+    DUPLICATE_KEY = "duplicate_key"
+    NON_FINITE = "non_finite"
+    SYNTAX = "syntax"
+    DOMAIN = "domain"
+
+
+_DECODING_MESSAGES = {
+    CanonicalDecodingFailureKind.BOM: "canonical JSON contains forbidden UTF-8 BOM",
+    CanonicalDecodingFailureKind.DUPLICATE_KEY: "canonical JSON contains duplicate object key",
+    CanonicalDecodingFailureKind.NON_FINITE: "canonical JSON contains forbidden non-finite value",
+    CanonicalDecodingFailureKind.SYNTAX: "canonical JSON cannot be decoded",
+    CanonicalDecodingFailureKind.DOMAIN: "canonical JSON violates strict finite JSON domain",
+}
+
+
 class CanonicalDecodingError(ValueError):
-    """Bytes/text violate the strict platform JSON decoding contract."""
+    """Stable typed projection of strict platform JSON decode failures."""
+
+    def __init__(self, kind: CanonicalDecodingFailureKind) -> None:
+        self.kind = kind
+        super().__init__(_DECODING_MESSAGES[kind])
 
 
 _DEFAULT_MAX_DEPTH = 128
@@ -103,22 +124,22 @@ def _normalize(value: object, *, active: set[int], depth: int, max_depth: int) -
 
 
 
-def _reject_constant(token: str) -> object:
-    raise CanonicalDecodingError(f"canonical JSON forbids non-finite constant: {token}")
+def _reject_constant(_token: str) -> object:
+    raise CanonicalDecodingError(CanonicalDecodingFailureKind.NON_FINITE)
 
 
 def _object_from_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
     result: dict[str, object] = {}
     for key, value in pairs:
         if key in result:
-            raise CanonicalDecodingError(f"canonical JSON contains duplicate JSON key: {key!r}")
+            raise CanonicalDecodingError(CanonicalDecodingFailureKind.DUPLICATE_KEY)
         result[key] = value
     return result
 
 
 def strict_json_loads(raw: str | bytes) -> JsonMutableValue:
     if isinstance(raw, bytes) and raw.startswith(b"\xef\xbb\xbf"):
-        raise CanonicalDecodingError("canonical JSON must not include a UTF-8 BOM")
+        raise CanonicalDecodingError(CanonicalDecodingFailureKind.BOM)
     try:
         value = cast(
             JsonMutableValue,
@@ -131,11 +152,11 @@ def strict_json_loads(raw: str | bytes) -> JsonMutableValue:
     except CanonicalDecodingError:
         raise
     except (json.JSONDecodeError, UnicodeDecodeError, RecursionError) as exc:
-        raise CanonicalDecodingError("canonical JSON cannot be decoded") from exc
+        raise CanonicalDecodingError(CanonicalDecodingFailureKind.SYNTAX) from exc
     try:
         strict_finite_json_bytes(value)
     except (CanonicalEncodingError, UnicodeEncodeError) as exc:
-        raise CanonicalDecodingError(str(exc)) from exc
+        raise CanonicalDecodingError(CanonicalDecodingFailureKind.DOMAIN) from exc
     return value
 
 def canonical_bytes(
@@ -260,7 +281,7 @@ def strict_finite_json_digest(value: object, *, max_depth: int = _DEFAULT_MAX_DE
 
 
 __all__ = [
-    "CanonicalDecodingError", "CanonicalEncodingError", "DigestValidationError",
+    "CanonicalDecodingError", "CanonicalDecodingFailureKind", "CanonicalEncodingError", "DigestValidationError",
     "Sha256Digest", "canonical_bytes", "canonical_digest", "canonical_text",
     "freeze_json", "require_sha256", "strict_finite_json_bytes",
     "strict_finite_json_digest", "strict_finite_json_text", "strict_json_loads", "thaw_json",

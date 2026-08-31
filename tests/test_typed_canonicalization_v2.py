@@ -66,16 +66,27 @@ def test_native_path_contract_is_not_claimed_portable() -> None:
     assert canonical_text(path) == canonical_text(str(path))
 
 def test_strict_json_decode_rejects_duplicates_nonfinite_and_bom() -> None:
-    from research_platform.platform.kernel import CanonicalDecodingError, strict_json_loads
+    from research_platform.platform.kernel import (
+        CanonicalDecodingError, CanonicalDecodingFailureKind, strict_json_loads,
+    )
 
     assert strict_json_loads('{"a":[1,true,null]}') == {"a": [1, True, None]}
-    with pytest.raises(CanonicalDecodingError, match="duplicate"):
-        strict_json_loads('{"a":1,"a":2}')
+    with pytest.raises(CanonicalDecodingError) as duplicate:
+        strict_json_loads('{"secret-key":1,"secret-key":2}')
+    assert duplicate.value.kind is CanonicalDecodingFailureKind.DUPLICATE_KEY
+    assert str(duplicate.value) == "canonical JSON contains duplicate object key"
+    assert "secret-key" not in str(duplicate.value)
     for token in ("NaN", "Infinity", "-Infinity"):
-        with pytest.raises(CanonicalDecodingError, match="non-finite"):
+        with pytest.raises(CanonicalDecodingError) as nonfinite:
             strict_json_loads('{"value":' + token + '}')
-    with pytest.raises(CanonicalDecodingError, match="BOM"):
+        assert nonfinite.value.kind is CanonicalDecodingFailureKind.NON_FINITE
+        assert token not in str(nonfinite.value)
+    with pytest.raises(CanonicalDecodingError) as bom:
         strict_json_loads(b"\xef\xbb\xbf{}")
+    assert bom.value.kind is CanonicalDecodingFailureKind.BOM
+    with pytest.raises(CanonicalDecodingError) as syntax:
+        strict_json_loads('{"broken":')
+    assert syntax.value.kind is CanonicalDecodingFailureKind.SYNTAX
 
 
 def test_frozen_json_is_deeply_immutable_and_alias_free() -> None:
@@ -190,15 +201,21 @@ def test_freeze_json_rejects_enum_subclasses_even_when_they_are_json_scalars() -
             freeze_json(value)  # type: ignore[arg-type]
 
 def test_strict_json_decode_rejects_values_outside_canonical_domain() -> None:
-    from research_platform.platform.kernel import CanonicalDecodingError, strict_json_loads
+    from research_platform.platform.kernel import (
+        CanonicalDecodingError, CanonicalDecodingFailureKind, strict_json_loads,
+    )
 
     deep = '"leaf"'
     for _ in range(140):
         deep = '[' + deep + ']'
-    with pytest.raises(CanonicalDecodingError, match="maximum depth"):
+    with pytest.raises(CanonicalDecodingError) as depth:
         strict_json_loads(deep)
-    with pytest.raises(CanonicalDecodingError):
+    assert depth.value.kind is CanonicalDecodingFailureKind.DOMAIN
+    assert str(depth.value) == "canonical JSON violates strict finite JSON domain"
+    with pytest.raises(CanonicalDecodingError) as unicode_error:
         strict_json_loads('"\\ud800"')
+    assert unicode_error.value.kind is CanonicalDecodingFailureKind.DOMAIN
+
 
 def test_role01_consumers_do_not_reimplement_kernel_json_or_sha_primitives() -> None:
     portfolio = Path(__file__).resolve().parents[1] / "research_platform/portfolio/api/contracts.py"
