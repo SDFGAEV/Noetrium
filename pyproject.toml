@@ -11,6 +11,8 @@ keywords = ["ai-agents", "agent-research", "research-infrastructure", "reproduci
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"]
 requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"]
 
 [project.urls]
 Homepage = "https://github.com/SDFGAEV/noetrium"
@@ -27,7 +29,7 @@ Issues = "https://github.com/SDFGAEV/noetrium/issues"
 test = ["pytest>=8,<10"]
 
 [project.scripts]
-evoctl-next = "research_platform.operator.composition.cli:main"
+research = "research_platform.operator.composition.research:main"
 research-platform-architecture-gate = "research_platform.governance.architecture.gate:main"
 research-platform-manage = "research_platform.operator.maintenance.runtime.management_cli:main"
 research-platform-algorithm = "research_platform.governance.algorithm.cli:main"

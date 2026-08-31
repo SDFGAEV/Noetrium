@@ -80,7 +80,7 @@ def participant(
     abi_version: str = "1",
     schema_version: str = "1",
     configuration_digest: str = "",
-    artifact_digest: str = "",
+    artifact_digest: str | None = "",
     runtime_id: str | None = None,
     depends_on_roles: tuple[str, ...] = (),
 ) -> ExperimentParticipantSpec:
@@ -111,7 +111,7 @@ def context_action_spec(
     method_abi_version: str = "",
     method_schema_version: str = "",
     method_configuration_digest: str = "",
-    method_artifact_digest: str = "",
+    method_artifact_digest: str | None = None,
     environment_implementation_version: str = "",
     environment_abi_version: str = "",
     environment_schema_version: str = "",
