@@ -317,18 +317,18 @@ def test_adapter_consumes_real_role03_run_control_contract_when_available():
         def execute(self, request):
             event = RunControlEventReceipt(
                 "run-1", 1, RunControlRecordKind.TERMINAL, 0,
-                RunControlAction.INSPECT, RunControlPhase.RUNNING,
+                RunControlAction.INSPECT, RunControlPhase.STOPPED,
                 "c" * 64, "d" * 64,
             )
             outcomes = RunOutcomeProjection(
-                RunExecutionOutcome.IN_PROGRESS,
+                RunExecutionOutcome.STOPPED,
                 RunTaskOutcome.NOT_EVALUATED,
                 RunEvidenceValidity.NOT_OBSERVED,
                 RunScientificValidity.NOT_EVALUATED,
             )
             return RunControlReceipt(
                 RunControlAction.INSPECT, "run-1", "b" * 64, "a" * 64,
-                RunControlPhase.RUNNING, 0, None, None, None, outcomes, event,
+                RunControlPhase.STOPPED, 0, None, None, None, outcomes, event,
             )
 
     application = bind_run_control_application(
@@ -337,9 +337,13 @@ def test_adapter_consumes_real_role03_run_control_contract_when_available():
         run_manifest_digest="a" * 64,
     )
     result = application.execute(ResearchRequest(ResearchAction.INSPECT, "run-1"))
-    assert result.state == "running"
+    assert result.state == "stopped"
     assert result.payload["run_identity_digest"] == "b" * 64
     assert result.payload["control_event"]["record_kind"] == "terminal"
+    assert result.payload["outcomes"]["execution"] == RunExecutionOutcome.STOPPED.value
+    assert result.payload["outcomes"]["task"] == RunTaskOutcome.NOT_EVALUATED.value
+    assert result.payload["outcomes"]["evidence"] == RunEvidenceValidity.NOT_OBSERVED.value
+    assert result.payload["outcomes"]["scientific"] == RunScientificValidity.NOT_EVALUATED.value
 
 def test_adapter_rejects_control_event_action_drift(monkeypatch):
     class _DriftControl:
