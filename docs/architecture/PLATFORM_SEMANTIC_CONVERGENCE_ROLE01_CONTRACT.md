@@ -88,3 +88,7 @@ ROLE01 convergence tests no longer import `research_platform.artifact._canonical
 ### Parent-level shared-kernel dependency declaration
 
 Artifact and Data are producer-owned domain systems, but their surviving implementations consume Platform kernel primitives. The canonical system catalog therefore declares `artifact -> platform` and `data -> platform` once at the truthful parent-system level; child subsystems inherit that dependency for source-invariant governance. This declaration does not move Artifact/Data domain authority into Platform and must not be replaced by duplicate private canonical helpers.
+
+### Downstream architecture migration supersession
+
+An active migration proposal is unique per overlapping owner scope. When an exact downstream source supersedes an older proposal, ROLE01 replaces the active allowance instead of stacking deltas. For ROLE06 Product/Assurance, pushed source `24201c987069ddf901f766c9d7db5b2f4552dc1c` supersedes the stale `+20` proposal with the exact `+55` Operator/API proposal and projection `3f367d5717fd4fbca273b3fb4d13af5c54d262afeb2a1e663898338adc713e77`. The historical ROLE00 approval remains external evidence but contributes zero headroom until ROLE00 independently approves the successor facts.

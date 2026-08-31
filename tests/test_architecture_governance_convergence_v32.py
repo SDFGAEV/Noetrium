@@ -635,10 +635,14 @@ def test_current_downstream_proposals_have_exact_applicability_without_self_appr
     budget = load_architecture_complexity_budget(root)
     expected = {
         "ROLE02": (8, ("research_platform.runtime", "research_platform.resource", "research_platform.reliability"), "e48da451b73527f4e5283fdbf3424c171e9c15d8f48eeaa47b6ec5dbf886e5c8"),
-        "ROLE06": (20, ("research_platform.operator", "research_platform.api"), "9810e526f81fdc118f966628b6eec243219304799060fe4b4c1ec72b7843bfa2"),
+        "ROLE06": (55, ("research_platform.operator", "research_platform.api"), "3f367d5717fd4fbca273b3fb4d13af5c54d262afeb2a1e663898338adc713e77"),
     }
     for role, (delta, prefixes, projection) in expected.items():
-        migration = next(row for row in budget.migrations if row.owner_role == role)
+        migrations = tuple(row for row in budget.migrations if row.owner_role == role)
+        if role == "ROLE06":
+            assert len(migrations) == 1
+            assert migrations[0].migration_id == "role06-product-assurance-v1"
+        migration = migrations[-1]
         assert migration.delta.import_edges == delta
         assert migration.module_prefixes == prefixes
         assert migration.import_projection_sha256 == projection

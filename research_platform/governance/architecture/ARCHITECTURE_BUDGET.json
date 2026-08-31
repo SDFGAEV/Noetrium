@@ -265,15 +265,15 @@
         "subsystems": 0,
         "contract_declarations": 0,
         "authorities": 0,
-        "import_edges": 20
+        "import_edges": 55
       },
-      "justification": "Current Product and Assurance proposal adds twenty explicit operator, release, distribution, verification and run-control adapter dependencies without topology growth.",
+      "justification": "ROLE06 Product/Assurance exact successor at pushed source 24201c987069ddf901f766c9d7db5b2f4552dc1c increases the frozen-baseline Operator/API scope from 107 to 162 import edges (+55) without other scoped complexity growth; this supersedes the stale +20 proposal and requires a new exact ROLE00 approval.",
       "applicability": {
         "module_prefixes": [
           "research_platform.operator",
           "research_platform.api"
         ],
-        "import_projection_sha256": "9810e526f81fdc118f966628b6eec243219304799060fe4b4c1ec72b7843bfa2"
+        "import_projection_sha256": "3f367d5717fd4fbca273b3fb4d13af5c54d262afeb2a1e663898338adc713e77"
       }
     }
   ]
