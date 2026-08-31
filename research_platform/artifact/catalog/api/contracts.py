@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
+from research_platform.artifact.api import ArtifactContentIdentity
 from research_platform.scope.api import ScopeIdentity
 
 
@@ -31,27 +32,38 @@ class ArtifactRecord:
     kind: ArtifactKind
     scope: ScopeIdentity
     digest: str
-    location: str
     producer_component_id: str
     producer_operation_id: str | None = None
     media_type: str = "application/octet-stream"
-    lineage: tuple[str, ...] = ()
+    lineage: tuple[ArtifactContentIdentity, ...] = ()
     # Immutable registration-time retention declaration. Mutable effective
     # retention/pinning belongs to artifact.retention, never back to this record.
     retention: ArtifactRetention = ArtifactRetention.PROJECT
     metadata: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
-        if not self.artifact_id.strip() or not self.location.strip():
-            raise ValueError("artifact identity and location must be non-empty")
+        """Validate every lineage and metadata entry before accepting artifact authority.
+
+        Algorithm-Complexity: O(N)
+        Algorithm-Rationale: N is lineage plus metadata cardinality; non-empty and uniqueness checks must inspect the complete caller-supplied authority.
+        """
+        if not self.artifact_id.strip():
+            raise ValueError("artifact identity must be non-empty")
         if len(self.digest) != 64 or any(char not in "0123456789abcdef" for char in self.digest):
             raise ValueError("artifact digest must be lowercase SHA-256")
         if not self.producer_component_id.strip() or not self.media_type.strip():
             raise ValueError("artifact producer_component_id and media_type must be non-empty")
         if self.producer_operation_id is not None and not self.producer_operation_id.strip():
             raise ValueError("artifact producer_operation_id must be non-empty when present")
-        if any(not ref.strip() for ref in self.lineage) or len(set(self.lineage)) != len(self.lineage):
-            raise ValueError("artifact lineage references must be non-empty and unique")
+        if any(type(ref) is not ArtifactContentIdentity for ref in self.lineage):
+            raise TypeError("artifact catalog lineage must contain ArtifactContentIdentity values")
+        if len(set(self.lineage)) != len(self.lineage):
+            raise ValueError("artifact catalog lineage references must be unique")
+        ordered = tuple(sorted(self.lineage, key=lambda ref: (ref.artifact_id, ref.content_sha256)))
+        if self.lineage != ordered:
+            raise ValueError("artifact catalog lineage must be canonically ordered")
+        if any(ref.artifact_id == self.artifact_id for ref in self.lineage):
+            raise ValueError("artifact catalog lineage cannot contain the artifact itself")
         keys = [key for key, _ in self.metadata]
         if any(not key.strip() for key in keys) or len(set(keys)) != len(keys):
             raise ValueError("artifact metadata keys must be non-empty and unique")

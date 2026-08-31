@@ -14,7 +14,12 @@ from research_platform.artifact.catalog.api import (
     ArtifactRegistryCorruptionError,
     ArtifactRetention,
 )
-from research_platform.artifact._canonical import canonical_digest
+from research_platform.platform.kernel import (
+    strict_finite_json_digest as canonical_digest,
+    strict_finite_json_text,
+    strict_json_loads,
+)
+from research_platform.artifact.api import ArtifactContentIdentity
 from research_platform.artifact._sqlite_connection import connect_artifact_reader, connect_artifact_writer, rollback_artifact_writer
 from research_platform.artifact._sqlite_types import require_optional_text, require_text
 from research_platform.scope.api import ScopeIdentity, ScopeKind
@@ -24,7 +29,7 @@ class SQLiteArtifactRegistry:
     """Immutable SQLite artifact catalog with record-integrity verification."""
 
     _COLUMNS = (
-        "artifact_id", "kind", "scope_kind", "scope_id", "digest", "location",
+        "artifact_id", "kind", "scope_kind", "scope_id", "digest",
         "producer_component_id", "producer_operation_id", "media_type", "lineage_json",
         "declared_retention", "metadata_json", "record_sha256",
     )
@@ -52,7 +57,6 @@ class SQLiteArtifactRegistry:
                 scope_kind TEXT NOT NULL,
                 scope_id TEXT NOT NULL,
                 digest TEXT NOT NULL,
-                location TEXT NOT NULL,
                 producer_component_id TEXT NOT NULL,
                 producer_operation_id TEXT,
                 media_type TEXT NOT NULL,
@@ -79,11 +83,13 @@ class SQLiteArtifactRegistry:
             "kind": record.kind.value,
             "scope": {"kind": record.scope.kind.value, "scope_id": record.scope.scope_id},
             "digest": record.digest,
-            "location": record.location,
             "producer_component_id": record.producer_component_id,
             "producer_operation_id": record.producer_operation_id,
             "media_type": record.media_type,
-            "lineage": record.lineage,
+            "lineage": tuple(
+                {"artifact_id": ref.artifact_id, "content_sha256": ref.content_sha256}
+                for ref in record.lineage
+            ),
             "retention": record.retention.value,
             "metadata": record.metadata,
         }
@@ -100,11 +106,13 @@ class SQLiteArtifactRegistry:
             record.scope.kind.value,
             record.scope.scope_id,
             record.digest,
-            record.location,
             record.producer_component_id,
             record.producer_operation_id,
             record.media_type,
-            json.dumps(record.lineage, ensure_ascii=False, separators=(",", ":")),
+            strict_finite_json_text(tuple(
+                {"artifact_id": ref.artifact_id, "content_sha256": ref.content_sha256}
+                for ref in record.lineage
+            )),
             record.retention.value,
             json.dumps(record.metadata, ensure_ascii=False, separators=(",", ":")),
             cls._record_digest(record),
@@ -113,12 +121,19 @@ class SQLiteArtifactRegistry:
     @classmethod
     def _decode(cls, row: tuple[object, ...]) -> ArtifactRecord:
         try:
-            lineage = json.loads(require_text(row[9], label="artifact lineage_json"))
-            metadata = json.loads(require_text(row[11], label="artifact metadata_json"))
+            lineage = strict_json_loads(require_text(row[8], label="artifact lineage_json"))
+            metadata = json.loads(require_text(row[10], label="artifact metadata_json"))
             if not isinstance(lineage, list) or not isinstance(metadata, list):
                 raise TypeError("artifact collection fields have invalid JSON shape")
-            if any(not isinstance(value, str) for value in lineage):
-                raise TypeError("artifact lineage JSON must contain only strings")
+            lineage_items: list[ArtifactContentIdentity] = []
+            for value in lineage:
+                if not isinstance(value, dict) or set(value) != {"artifact_id", "content_sha256"}:
+                    raise TypeError("artifact lineage JSON must contain exact content-identity objects")
+                artifact_id = value.get("artifact_id")
+                content_sha256 = value.get("content_sha256")
+                if not isinstance(artifact_id, str) or not isinstance(content_sha256, str):
+                    raise TypeError("artifact lineage content identity fields must be strings")
+                lineage_items.append(ArtifactContentIdentity(artifact_id, content_sha256))
             if any(
                 not isinstance(pair, list)
                 or len(pair) != 2
@@ -135,21 +150,20 @@ class SQLiteArtifactRegistry:
                     require_text(row[3], label="artifact scope_id"),
                 ),
                 digest=require_text(row[4], label="artifact digest"),
-                location=require_text(row[5], label="artifact location"),
                 producer_component_id=require_text(
-                    row[6], label="artifact producer_component_id"
+                    row[5], label="artifact producer_component_id"
                 ),
                 producer_operation_id=require_optional_text(
-                    row[7], label="artifact producer_operation_id"
+                    row[6], label="artifact producer_operation_id"
                 ),
-                media_type=require_text(row[8], label="artifact media_type"),
-                lineage=tuple(lineage),
+                media_type=require_text(row[7], label="artifact media_type"),
+                lineage=tuple(lineage_items),
                 retention=ArtifactRetention(
-                    require_text(row[10], label="artifact retention")
+                    require_text(row[9], label="artifact retention")
                 ),
                 metadata=tuple((pair[0], pair[1]) for pair in metadata),
             )
-            stored_digest = require_text(row[12], label="artifact record_sha256")
+            stored_digest = require_text(row[11], label="artifact record_sha256")
         except (IndexError, TypeError, ValueError, json.JSONDecodeError) as exc:
             raise ArtifactRegistryCorruptionError("artifact catalog record cannot be decoded") from exc
         if cls._record_digest(record) != stored_digest:
@@ -178,7 +192,7 @@ class SQLiteArtifactRegistry:
                     db.execute("COMMIT")
                     return current
                 db.execute(
-                    "INSERT INTO artifacts VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "INSERT INTO artifacts VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
                     encoded,
                 )
                 db.execute("COMMIT")

@@ -66,6 +66,7 @@ def test_transport_owns_jsonl_framing_and_stderr_capture() -> None:
     sent = json.loads(process.stdin.getvalue().strip())
     assert sent == {"cmd": "ping", "request_id": "req-1", "value": 1}
     assert transport.stderr_tail == ("provider-warning",)
+    assert transport.stderr_tail_text() == "provider-warning"
     assert transport.process_id is None
 
 

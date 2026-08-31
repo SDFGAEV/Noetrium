@@ -15,7 +15,7 @@ def build_jsonl_log_store(
     max_segments: int = 8,
     queue_capacity: int | None = None,
 ) -> JsonlLogStore:
-    resolved = Path(path).expanduser().resolve()
+    resolved = JsonlLogStore.logical_path(path)
     identity = hashlib.sha256(str(resolved).encode("utf-8")).hexdigest()[:16]
     actor = task_group.open_serial_actor(
         f"jsonl-log:{identity}",

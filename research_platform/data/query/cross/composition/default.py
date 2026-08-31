@@ -1,10 +1,15 @@
 from __future__ import annotations
 
-from research_platform.platform.kernel.leaf_contract import LeafHandler
-from research_platform.data.query.cross.providers.default import bind as bind_provider
+from research_platform.data.query.api import ResearchResultSourcePort
+from research_platform.data.query.cross.runtime import CrossAuthorityResearchResultQuery
 
-def compose(handler: LeafHandler, state_path=None):
-    """Compose one executable leaf runtime with explicit domain behavior."""
-    return bind_provider(handler, state_path)
+
+def compose(
+    sources: tuple[ResearchResultSourcePort, ...],
+) -> CrossAuthorityResearchResultQuery:
+    """Compose only read-side producer projections; no handler or mutable query state exists."""
+
+    return CrossAuthorityResearchResultQuery(sources)
+
 
 __all__ = ["compose"]

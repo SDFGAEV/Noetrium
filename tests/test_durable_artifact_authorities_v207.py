@@ -6,6 +6,7 @@ import sqlite3
 
 import pytest
 
+from research_platform.artifact.api import ArtifactContentIdentity
 from research_platform.artifact.catalog.api import ArtifactRetention
 from research_platform.artifact.lineage.relation.api import (
     ArtifactLineageCorruptionError,
@@ -26,26 +27,30 @@ from research_platform.artifact.retention.providers import SQLiteArtifactRetenti
 from research_platform.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
 
 
+def _content(artifact_id: str, char: str) -> ArtifactContentIdentity:
+    return ArtifactContentIdentity(artifact_id, char * 64)
+
+
 def test_lineage_is_append_only_restarts_and_rejects_cycles(tmp_path: Path) -> None:
     path = tmp_path / "lineage.sqlite3"
     first = SQLiteArtifactLineageStore(path)
-    ab = ArtifactLineageEdge("artifact:a", "artifact:b", "derived_from", ("evidence:ab",))
-    bc = ArtifactLineageEdge("artifact:b", "artifact:c", "derived_from", ("evidence:bc",))
+    ab = ArtifactLineageEdge(_content("artifact:a", "a"), _content("artifact:b", "b"), "derived_from", (_content("evidence:ab", "d"),))
+    bc = ArtifactLineageEdge(_content("artifact:b", "b"), _content("artifact:c", "c"), "derived_from", (_content("evidence:bc", "e"),))
     assert first.add(ab) == ab
     assert first.add(bc) == bc
 
     reopened = SQLiteArtifactLineageStore(path)
-    assert reopened.parents("artifact:b") == (ab,)
-    assert reopened.children("artifact:b") == (bc,)
+    assert reopened.parents(_content("artifact:b", "b")) == (ab,)
+    assert reopened.children(_content("artifact:b", "b")) == (bc,)
     assert reopened.add(ab) == ab
     with pytest.raises(ArtifactLineageCycle):
-        reopened.add(ArtifactLineageEdge("artifact:c", "artifact:a", "derived_from"))
+        reopened.add(ArtifactLineageEdge(_content("artifact:c", "c"), _content("artifact:a", "a"), "derived_from"))
 
 
 def test_lineage_reader_connection_is_sqlite_read_only(tmp_path: Path) -> None:
     path = tmp_path / "lineage.sqlite3"
     store = SQLiteArtifactLineageStore(path)
-    store.add(ArtifactLineageEdge("artifact:a", "artifact:b", "derived_from"))
+    store.add(ArtifactLineageEdge(_content("artifact:a", "a"), _content("artifact:b", "b"), "derived_from"))
     with closing(store._connect_reader()) as db:
         assert db.execute("PRAGMA query_only").fetchone()[0] == 1
         with pytest.raises(sqlite3.OperationalError):
@@ -54,7 +59,7 @@ def test_lineage_reader_connection_is_sqlite_read_only(tmp_path: Path) -> None:
 
 def test_lineage_detects_stored_edge_tamper(tmp_path: Path) -> None:
     path = tmp_path / "lineage.sqlite3"
-    edge = ArtifactLineageEdge("artifact:a", "artifact:b", "derived_from")
+    edge = ArtifactLineageEdge(_content("artifact:a", "a"), _content("artifact:b", "b"), "derived_from")
     SQLiteArtifactLineageStore(path).add(edge)
     with closing(sqlite3.connect(path)) as db:
         db.execute(
@@ -63,12 +68,12 @@ def test_lineage_detects_stored_edge_tamper(tmp_path: Path) -> None:
         )
         db.commit()
     with pytest.raises(ArtifactLineageCorruptionError):
-        SQLiteArtifactLineageStore(path).children("artifact:a")
+        SQLiteArtifactLineageStore(path).children(_content("artifact:a", "a"))
 
 
 def test_lineage_rejects_non_string_persisted_evidence_refs(tmp_path: Path) -> None:
     path = tmp_path / "lineage.sqlite3"
-    edge = ArtifactLineageEdge("artifact:a", "artifact:b", "derived_from", ("evidence:one",))
+    edge = ArtifactLineageEdge(_content("artifact:a", "a"), _content("artifact:b", "b"), "derived_from", (_content("evidence:one", "d"),))
     SQLiteArtifactLineageStore(path).add(edge)
     with closing(sqlite3.connect(path)) as db:
         db.execute(
@@ -77,17 +82,17 @@ def test_lineage_rejects_non_string_persisted_evidence_refs(tmp_path: Path) -> N
         )
         db.commit()
     with pytest.raises(ArtifactLineageCorruptionError):
-        SQLiteArtifactLineageStore(path).children("artifact:a")
+        SQLiteArtifactLineageStore(path).children(_content("artifact:a", "a"))
 
 
 def test_lineage_rejects_blob_relation_even_with_matching_edge_identity(tmp_path: Path) -> None:
     path = tmp_path / "lineage.sqlite3"
-    edge = ArtifactLineageEdge("artifact:a", "artifact:b", "derived_from")
+    edge = ArtifactLineageEdge(_content("artifact:a", "a"), _content("artifact:b", "b"), "derived_from")
     store = SQLiteArtifactLineageStore(path)
     store.add(edge)
     coerced = ArtifactLineageEdge(
-        edge.parent_artifact_id,
-        edge.child_artifact_id,
+        edge.parent,
+        edge.child,
         str(b"derived_from"),
         edge.evidence_refs,
     )
@@ -98,7 +103,7 @@ def test_lineage_rejects_blob_relation_even_with_matching_edge_identity(tmp_path
         )
         db.commit()
     with pytest.raises(ArtifactLineageCorruptionError):
-        store.children("artifact:a")
+        store.children(_content("artifact:a", "a"))
 
 
 def test_reference_cas_is_restart_safe_and_rejects_stale_generation(tmp_path: Path) -> None:
@@ -282,3 +287,51 @@ def test_retention_rejects_real_generation_instead_of_truncating(tmp_path: Path)
         db.commit()
     with pytest.raises(ArtifactRetentionCorruptionError):
         store.get("artifact:a")
+
+
+def test_lineage_queries_bind_full_content_identity_not_artifact_id_only(tmp_path: Path) -> None:
+    path = tmp_path / "lineage-content-identity.sqlite3"
+    store = SQLiteArtifactLineageStore(path)
+    parent_v1 = _content("artifact:parent", "a")
+    parent_v2 = _content("artifact:parent", "b")
+    child_v1 = _content("artifact:child-v1", "c")
+    child_v2 = _content("artifact:child-v2", "d")
+    edge_v1 = ArtifactLineageEdge(parent_v1, child_v1, "derived_from")
+    edge_v2 = ArtifactLineageEdge(parent_v2, child_v2, "derived_from")
+    store.add(edge_v1)
+    store.add(edge_v2)
+    assert store.children(parent_v1) == (edge_v1,)
+    assert store.children(parent_v2) == (edge_v2,)
+    assert store.parents(child_v1) == (edge_v1,)
+    assert store.parents(child_v2) == (edge_v2,)
+
+
+def test_lineage_contract_rejects_alias_strings_self_edges_and_unordered_evidence() -> None:
+    parent = _content("artifact:a", "a")
+    child = _content("artifact:b", "b")
+    with pytest.raises(TypeError, match="parent must be ArtifactContentIdentity"):
+        ArtifactLineageEdge("artifact:a", child, "derived_from")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="self-edge"):
+        ArtifactLineageEdge(parent, _content("artifact:a", "c"), "derived_from")
+    evidence_a = _content("evidence:a", "d")
+    evidence_b = _content("evidence:b", "e")
+    with pytest.raises(TypeError, match="evidence refs must be ArtifactContentIdentity"):
+        ArtifactLineageEdge(parent, child, "derived_from", ("evidence:a",))  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="unique"):
+        ArtifactLineageEdge(parent, child, "derived_from", (evidence_a, evidence_a))
+    with pytest.raises(ValueError, match="canonically ordered"):
+        ArtifactLineageEdge(parent, child, "derived_from", (evidence_b, evidence_a))
+
+
+def test_lineage_rejects_legacy_artifact_id_only_schema(tmp_path: Path) -> None:
+    path = tmp_path / "legacy-lineage.sqlite3"
+    with closing(sqlite3.connect(path)) as db:
+        db.execute(
+            "CREATE TABLE artifact_lineage_edges("
+            "edge_id TEXT PRIMARY KEY,parent_artifact_id TEXT NOT NULL,"
+            "child_artifact_id TEXT NOT NULL,relation_type TEXT NOT NULL,"
+            "evidence_refs_json TEXT NOT NULL)"
+        )
+        db.commit()
+    with pytest.raises(ArtifactLineageCorruptionError, match="unsupported artifact lineage schema"):
+        SQLiteArtifactLineageStore(path)

@@ -1,3 +1,3 @@
-from .owner import OWNER, owner, runtime
+from .federation import CrossAuthorityResearchResultQuery
 
-__all__ = ["OWNER", "owner", "runtime"]
+__all__ = ["CrossAuthorityResearchResultQuery"]

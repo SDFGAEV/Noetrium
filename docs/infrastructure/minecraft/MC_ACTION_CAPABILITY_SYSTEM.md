@@ -45,9 +45,38 @@ Internal observation queries carry no task action ID and are audit-only. They
 cannot overwrite `last_action_verified` or be treated by downstream memory as successful task
 experience.
 
+### Completion and reconciliation authority
+
+Planner intent is never completion authority. A `planner_finish` or
+`last_action_verified` goal can close only when the last action receipt is accepted, its
+authoritative effect certainty is `confirmed`, and an explicit verification value is not
+`False`. A Boolean `verified=True` cannot override `possible`, `unknown`, or `rejected`
+effect certainty; contradictory receipts therefore fail closed. Accepted-but-unconfirmed
+or explicitly unverified effects remain incomplete.
+
+Environment-to-agent receipts preserve the kernel effect certainty instead of inferring it
+from a Boolean verification field: confirmed effects map to `confirmed`, possible effects
+remain `possible`, rejected/no-effect outcomes map to `rejected`, and unresolved evidence
+remains `unknown`. The provider effect identity is copied from the authoritative
+`EffectReceipt`; it is not reconstructed from diagnostics.
+
+Prepared-action and generic reconciliation preserve the same four-way semantics:
+`APPLIED -> EFFECT_CONFIRMED`, `REJECTED -> EFFECT_REJECTED`,
+`NOT_APPLIED -> NO_EFFECT`, and `UNKNOWN` produces no terminal effect truth. A missing
+action-recovery record is therefore unknown, never retry-safe absence.
+
+### Frozen JSON-array consumer contract
+
+High-level `minecraft.build` block arrays and `minecraft.resource_plan` step arrays accept
+the Participant public frozen JSON-array representation (tuple-backed) as well as the
+legacy in-process list shape. Array elements remain Minecraft-validated mappings; strings,
+mappings used as arrays, and malformed element/payload shapes fail closed. Environment
+therefore consumes the typed immutable Participant boundary without reintroducing mutable
+builtin inheritance.
+
 ## Craft and resource invariants
 
-- Collection proves both broken blocks and a positive inventory delta.
+- Collection resolves canonical drop identities from the live block registry, verifies `canHarvest(heldItemType)` before destructive dig, and counts only expected-drop inventory/own-collection evidence. Source block identity and collected item identity are never assumed equal; unrelated positive inventory deltas do not advance `collected_count`.
 - Crafting resolves the canonical registry item, uses a nearby crafting table
   or places an available one, computes recipe output per execution and verifies
   the requested inventory increase.
@@ -61,15 +90,20 @@ experience.
 
 - Targets are resolved by exact entity ID, exact player username or bounded
   name query according to the action contract.
-- Melee equips the strongest available weapon, bounds pressure by `max_hits`
-  cycles and always stops the PvP plugin.
-- A target death or Mineflayer `entityHurt` event is required for confirmed
-  melee success. Swing attempts alone remain partial.
+- Melee equips the strongest available weapon, bounds pressure by actual melee `attackedTarget` events and always stops the PvP plugin.
+- `attackedTarget` proves only an attack was performed. Confirmed melee damage requires `entityHurt(target, source)` attributed to this bot; unattributed hurt or attack-only evidence remains partial.
 - Ranged attacks require weapon and ammunition, bound shot count/charge time,
   and use hurt/death signals for confirmation. Ammunition loss without a hit
   remains partial.
 - Self-defence considers an explicit bounded hostile registry, target count and
   radius.
+
+## Hot-path selection
+
+Drop association and nearby dropped-item selection scan candidates once and retain the
+nearest eligible entity. They deliberately do not sort the full candidate set: target
+selection is `O(N)` while preserving the same nearest-by-bot-distance semantics and stable
+first-candidate tie behavior.
 
 ## Verification
 
@@ -93,3 +127,14 @@ provide a pinned server JAR or explicitly request official Mojang acquisition;
 both routes preserve the exact content digest in the run identity. See
 `MC_RUNTIME_BOOTSTRAP_AND_SCENARIOS.md` for the source-world fixture and live
 smoke contract.
+
+
+## Live-provider P0 invariants
+
+- `collect_block` is non-destructive when the live block reports the held tool cannot harvest it; the grounded rejection code is `HARVEST_TOOL_REQUIRED`.
+- Expected drops come from the live block/registry `drops` contract. Source-block identity and collected-item identity remain distinct.
+- `goto_entity` delegates to the dynamic entity-follow primitive and verifies distance against the same live entity identity after navigation.
+- Melee evidence is tiered: attack performed, bot-attributed target hurt, and target defeated are distinct facts. A polling loop iteration is never a hit.
+- Read-only `observe_entities` may execute without mutating-action recovery identity; mutating/action-mode dispatch still traverses durable `ActionRecoveryJournal` admission.
+
+Locked upstream anchors for this contract are Mineflayer 4.37.1 / release commit `03eba44`, mineflayer-pathfinder `GoalFollow(entity, range)`, prismarine-block `Block.canHarvest()` / `Block.drops`, and mineflayer-pvp `attackedTarget`. Mineflayer's typed event ABI supplies `entityHurt(entity, source)`, allowing source attribution rather than inferring damage from attack attempts.

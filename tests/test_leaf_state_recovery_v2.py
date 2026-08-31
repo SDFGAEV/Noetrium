@@ -1,6 +1,6 @@
 from pathlib import Path
 import tempfile, unittest
-from research_platform.data.query.cross.composition import compose
+from research_platform.environment.specification.schema.composition import compose
 class LeafStateRecoveryTests(unittest.TestCase):
  def test_leaf_checkpoint_restore_is_atomic_and_generation_bound(self):
   with tempfile.TemporaryDirectory() as td:

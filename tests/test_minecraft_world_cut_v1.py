@@ -238,6 +238,19 @@ class _CheckpointContractDouble:
         return "a" * 64
 
 
+class _CheckpointReadyObservation:
+    def __init__(self, ready_at: float) -> None:
+        self.ready_at = ready_at
+
+
+class _CheckpointEndpointBindingDouble:
+    def __init__(self) -> None:
+        self.calls: list[_CheckpointReadyObservation] = []
+
+    def bind_ready(self, readiness) -> None:
+        self.calls.append(readiness)
+
+
 class _CheckpointServerDouble:
     def __init__(self, *, stop_error: BaseException | None = None) -> None:
         self.contract = _CheckpointContractDouble()
@@ -252,8 +265,9 @@ class _CheckpointServerDouble:
     def start(self) -> None:
         self.calls.append("start")
 
-    def verify_ready(self) -> None:
+    def verify_ready(self):
         self.calls.append("ready")
+        return _CheckpointReadyObservation(1000.0 + self.calls.count("start"))
 
 
 def _branch_checkpoint_fixture(tmp_path):
@@ -277,6 +291,7 @@ def _branch_checkpoint_fixture(tmp_path):
         server_spec=spec,
         world_cuts=world_cuts,
         environment_generation="c" * 64,
+        endpoint_binding=_CheckpointEndpointBindingDouble(),
     )
     payload = canonical_bytes(
         {
@@ -298,6 +313,8 @@ def test_branch_checkpoint_restore_publishes_commit_before_deleting_backup(tmp_p
 
     assert (workdir / "research-world" / "level.dat").read_bytes() == b"level-dat"
     assert server.calls == ["stop", "start", "ready"]
+    assert len(provider._endpoint_binding.calls) == 1
+    assert provider._endpoint_binding.calls[0].ready_at == 1001.0
     assert not provider._restore_journal_path.exists()
     assert not tuple(workdir.parent.glob(f".{workdir.name}.checkpoint-backup-*"))
 
@@ -319,6 +336,7 @@ def test_branch_checkpoint_reconstructs_precommit_crash_by_rolling_back_backup(t
         server_spec=spec,
         world_cuts=world_cuts,
         environment_generation="c" * 64,
+        endpoint_binding=_CheckpointEndpointBindingDouble(),
     )
 
     assert (workdir / "research-world" / "level.dat").read_bytes() == b"branch-current"
@@ -326,6 +344,8 @@ def test_branch_checkpoint_reconstructs_precommit_crash_by_rolling_back_backup(t
     assert not backup.exists()
     assert not recovered._restore_journal_path.exists()
     assert recovered_server.calls == ["stop", "start", "ready"]
+    assert len(recovered._endpoint_binding.calls) == 1
+    assert recovered._endpoint_binding.calls[0].ready_at == 1001.0
 
 
 def test_branch_checkpoint_reconstructs_postcommit_crash_without_rollback(tmp_path) -> None:
@@ -346,12 +366,14 @@ def test_branch_checkpoint_reconstructs_postcommit_crash_without_rollback(tmp_pa
         server_spec=spec,
         world_cuts=world_cuts,
         environment_generation="c" * 64,
+        endpoint_binding=_CheckpointEndpointBindingDouble(),
     )
 
     assert (workdir / "research-world" / "level.dat").read_bytes() == b"level-dat"
     assert not backup.exists()
     assert not recovered._restore_journal_path.exists()
     assert recovered_server.calls == []
+    assert recovered._endpoint_binding.calls == []
 
 
 def test_branch_checkpoint_rejects_restore_journal_identity_drift_before_mutation(tmp_path) -> None:
@@ -368,6 +390,7 @@ def test_branch_checkpoint_rejects_restore_journal_identity_drift_before_mutatio
             server_spec=spec,
             world_cuts=world_cuts,
             environment_generation="c" * 64,
+            endpoint_binding=_CheckpointEndpointBindingDouble(),
         )
 
     assert recovered_server.calls == []
@@ -387,6 +410,7 @@ def test_branch_checkpoint_recovers_crash_after_rename_before_phase_advance(tmp_
         server_spec=spec,
         world_cuts=world_cuts,
         environment_generation="c" * 64,
+        endpoint_binding=_CheckpointEndpointBindingDouble(),
     )
 
     assert (workdir / "research-world" / "level.dat").read_bytes() == b"branch-current"
@@ -410,6 +434,7 @@ def test_branch_checkpoint_recovery_stop_failure_never_mutates_filesystem(tmp_pa
             server_spec=spec,
             world_cuts=world_cuts,
             environment_generation="c" * 64,
+            endpoint_binding=_CheckpointEndpointBindingDouble(),
         )
 
     assert not workdir.exists()
@@ -435,6 +460,7 @@ def test_branch_checkpoint_rejects_restore_journal_phase_corruption(tmp_path) ->
             server_spec=spec,
             world_cuts=world_cuts,
             environment_generation="c" * 64,
+            endpoint_binding=_CheckpointEndpointBindingDouble(),
         )
 
     assert recovered_server.calls == []

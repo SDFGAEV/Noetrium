@@ -9,6 +9,7 @@ from ..api import (
     MinecraftCheckpointPort,
     MinecraftRconEndpoint,
     MinecraftServerLifecyclePort,
+    MinecraftServerEndpointBindingPort,
     MinecraftServerSpec,
 )
 from .branch_checkpoint import FilesystemMinecraftBranchCheckpointProvider
@@ -63,6 +64,7 @@ class FilesystemMinecraftBranchCheckpointFactory:
         server: MinecraftServerLifecyclePort,
         server_spec: MinecraftServerSpec,
         environment_generation: str,
+        endpoint_binding: MinecraftServerEndpointBindingPort,
     ) -> MinecraftCheckpointPort:
         rcon: MinecraftRconEndpoint | None = server_spec.rcon_endpoint
         if rcon is None:
@@ -94,6 +96,7 @@ class FilesystemMinecraftBranchCheckpointFactory:
             server_spec=server_spec,
             world_cuts=world_cuts,
             environment_generation=environment_generation,
+            endpoint_binding=endpoint_binding,
         )
 
 

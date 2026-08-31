@@ -5,6 +5,7 @@ import time
 from typing import Callable, Mapping
 
 from research_platform.environment.runtime.api import ActionRequest, EnvironmentSession, Observation
+from research_platform.platform.kernel import EffectCertainty
 from research_platform.participant.agent.api import (
     AgentActionExecutorPort,
     AgentActionSequence,
@@ -53,6 +54,25 @@ def _json_value(value: MinecraftJsonValue | tuple[MinecraftJsonValue, ...]) -> M
 
 def _json_mapping(value: Mapping[str, MinecraftJsonValue]) -> dict[str, JsonValue]:
     return {str(key): _json_value(item) for key, item in value.items()}
+
+
+def _agent_effect_certainty(certainty: EffectCertainty | None) -> str:
+    if certainty is EffectCertainty.EFFECT_CONFIRMED:
+        return "confirmed"
+    if certainty in {EffectCertainty.EFFECT_REJECTED, EffectCertainty.NO_EFFECT}:
+        return "rejected"
+    if certainty is EffectCertainty.EFFECT_POSSIBLE:
+        return "possible"
+    return "unknown"
+
+
+def _grounded_action_receipt(receipt: AgentStepReceipt | None) -> bool:
+    return bool(
+        receipt
+        and receipt.accepted
+        and receipt.effect_certainty == "confirmed"
+        and receipt.verified is not False
+    )
 
 
 def _agent_sequence(sequence: MinecraftPlannedSequence) -> AgentActionSequence:
@@ -144,7 +164,7 @@ class MinecraftAgentSkillCatalog(AgentSkillCatalogPort):
         if selection.skill_id == "minecraft.build":
             raw_blocks = selection.arguments.get("blocks", [])
             observed = selection.arguments.get("observed_blocks", {})
-            if not isinstance(raw_blocks, list) or not isinstance(observed, Mapping):
+            if not isinstance(raw_blocks, (list, tuple)) or not isinstance(observed, Mapping):
                 raise ValueError("minecraft.build requires blocks list and observed_blocks mapping")
             blocks = tuple(
                 MinecraftBlueprintBlock(dict(row["position"]), str(row["item"]), int(row.get("level", 0)))
@@ -159,7 +179,7 @@ class MinecraftAgentSkillCatalog(AgentSkillCatalogPort):
             ))
         if selection.skill_id == "minecraft.resource_plan":
             raw_steps = selection.arguments.get("steps", [])
-            if not isinstance(raw_steps, list):
+            if not isinstance(raw_steps, (list, tuple)):
                 raise ValueError("minecraft.resource_plan requires a steps list")
             steps: list[AgentActionStep] = []
             for index, row in enumerate(raw_steps):
@@ -212,11 +232,13 @@ class MinecraftAgentActionExecutor(AgentActionExecutorPort):
                 artifact_refs=result.observation.artifact_refs,
                 evidence_payload=_json_mapping(dict(result.observation.payload)),
             )
-        certainty = "confirmed" if verified is True else "rejected" if verified is False else "unknown"
-        effect_id = diagnostics.get("effect_id")
+        certainty = _agent_effect_certainty(
+            result.effect.certainty if result.effect is not None else None
+        )
+        effect_id = result.effect.effect_id if result.effect is not None else None
         return AgentStepReceipt(
             step.action_id, step.action_type, step.skill_id, step.sequence_id, bool(result.accepted), verified,
-            observation=observation, effect_id=str(effect_id) if isinstance(effect_id, str) else None,
+            observation=observation, effect_id=effect_id,
             effect_certainty=certainty, diagnostics=_json_mapping(diagnostics),
         )
 
@@ -232,14 +254,14 @@ class MinecraftAgentCompletion(AgentCompletionPort):
     def is_complete(self, goal: AgentGoal, observation: AgentObservation, *, planner_finished: bool, last_receipt: AgentStepReceipt | None) -> bool:
         success = goal.context.get("success")
         if not isinstance(success, Mapping):
-            return bool(observation.state.get("goal_complete", False)) or (planner_finished and bool(last_receipt and last_receipt.accepted))
+            return bool(observation.state.get("goal_complete", False)) or (planner_finished and _grounded_action_receipt(last_receipt))
         kind = str(success.get("kind", "planner_finish"))
         if kind == "always":
             return True
         if kind == "planner_finish":
-            return planner_finished and bool(last_receipt and last_receipt.accepted)
+            return planner_finished and _grounded_action_receipt(last_receipt)
         if kind == "last_action_verified":
-            return bool(last_receipt and last_receipt.verified is True)
+            return _grounded_action_receipt(last_receipt)
         if kind == "health_positive":
             return _number(observation.state.get("health"), 0) > 0
         if kind == "inventory_min":

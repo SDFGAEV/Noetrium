@@ -24,6 +24,7 @@ from .errors import (
     ActionRecoveryRequired,
     ActionSafetyCapabilityMissing,
     ActionScientificCommitContradiction,
+    EnvironmentCapabilityUnsupported,
 )
 from .state_machine import (
     JsonScalar,
@@ -49,6 +50,7 @@ __all__ = [
     "ActionResult",
     "ActionSafetyCapabilityMissing",
     "ActionScientificCommitContradiction",
+    "EnvironmentCapabilityUnsupported",
     "ActionSemanticIdentity",
     "DurablePreparedActionSession",
     "EnvironmentIdentity",

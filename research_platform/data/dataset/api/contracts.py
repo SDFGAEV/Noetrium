@@ -21,28 +21,47 @@ class DatasetIdentity:
 
 @dataclass(frozen=True, slots=True)
 class DatasetVersion:
+    """Portable scientific dataset identity; physical storage is deliberately external."""
+
     identity: DatasetIdentity
     scope: ScopeIdentity
-    digest: str
-    location: str
+    content_sha256: str
     schema_ref: str | None = None
-    parent_versions: tuple[str, ...] = ()
+    parent_versions: tuple[DatasetIdentity, ...] = ()
     tags: tuple[str, ...] = ()
     metadata: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
-        if len(self.digest) != 64 or any(char not in "0123456789abcdef" for char in self.digest):
-            raise ValueError("dataset digest must be lowercase SHA-256")
-        if not self.location.strip():
-            raise ValueError("dataset location must be non-empty")
+        """Validate complete variable-cardinality dataset authority before acceptance.
+
+        Algorithm-Complexity: O(N)
+        Algorithm-Rationale: N is parent, tag, and metadata cardinality; duplicate or malformed lineage must fail closed.
+        """
+        if not isinstance(self.content_sha256, str) or len(self.content_sha256) != 64 or any(
+            char not in "0123456789abcdef" for char in self.content_sha256
+        ):
+            raise ValueError("dataset content_sha256 must be lowercase SHA-256")
         if self.schema_ref is not None and not self.schema_ref.strip():
             raise ValueError("dataset schema_ref must be non-empty when present")
-        for name, values in (("parent_versions", self.parent_versions), ("tags", self.tags)):
-            if any(not value.strip() for value in values) or len(set(values)) != len(values):
-                raise ValueError(f"dataset {name} must be non-empty and unique")
+        if any(not isinstance(parent, DatasetIdentity) for parent in self.parent_versions):
+            raise ValueError("dataset parent_versions must contain DatasetIdentity values")
+        parent_keys = [parent.key for parent in self.parent_versions]
+        if len(set(parent_keys)) != len(parent_keys):
+            raise ValueError("dataset parent_versions must be unique")
+        if self.identity.key in parent_keys:
+            raise ValueError("dataset parent_versions cannot contain the dataset itself")
+        if any(not isinstance(value, str) or not value.strip() for value in self.tags):
+            raise ValueError("dataset tags must be non-empty strings")
+        if len(set(self.tags)) != len(self.tags):
+            raise ValueError("dataset tags must be unique")
+        if any(not isinstance(pair, tuple) or len(pair) != 2 for pair in self.metadata):
+            raise ValueError("dataset metadata must contain key/value pairs")
         keys = [key for key, _ in self.metadata]
-        if any(not key.strip() for key in keys) or len(set(keys)) != len(keys):
+        values = [value for _, value in self.metadata]
+        if any(not isinstance(key, str) or not key.strip() for key in keys) or len(set(keys)) != len(keys):
             raise ValueError("dataset metadata keys must be non-empty and unique")
+        if any(not isinstance(value, str) for value in values):
+            raise ValueError("dataset metadata values must be strings")
 
 
 @dataclass(frozen=True, slots=True)

@@ -1,5 +1,20 @@
 from .contracts import SystemIdentity, SystemSpec
+from research_platform.platform.kernel import ExecutionContext
+from research_platform.platform.kernel.operation import EffectClass, EffectCertainty, EffectReceipt
 from .ports import SystemPort
+from .conformance import (
+    EnvironmentConformanceProbe,
+    EnvironmentProviderConformanceReceipt,
+    verify_environment_provider_conformance,
+)
+from .provider import (
+    EnvironmentCapability,
+    EnvironmentDiagnosticsPort,
+    EnvironmentProviderCapabilities,
+    EnvironmentProviderPort,
+    EnvironmentSessionDiagnostics,
+    EnvironmentSessionServices,
+)
 from research_platform.environment.runtime.api import (
     ActionIdentityViolation,
     ActionNotApplied,
@@ -10,6 +25,7 @@ from research_platform.environment.runtime.api import (
     ActionResult,
     ActionSafetyCapabilityMissing,
     ActionScientificCommitContradiction,
+    EnvironmentCapabilityUnsupported,
     ActionSemanticIdentity,
     DurablePreparedActionSession,
     EnvironmentIdentity,
@@ -36,11 +52,18 @@ from research_platform.environment.runtime.api import (
 )
 
 __all__=[
-    "SystemIdentity","SystemSpec","SystemPort",
+    "SystemIdentity","SystemSpec","SystemPort", "ExecutionContext",
+    "EffectClass", "EffectCertainty", "EffectReceipt",
     "ActionIdentityViolation", "ActionNotApplied", "ActionRecoveryRequired",
     "ActionReconciliationDisposition", "ActionReconciliationResult",
     "ActionRequest", "ActionResult", "ActionSafetyCapabilityMissing",
     "ActionScientificCommitContradiction", "ActionSemanticIdentity",
+    "EnvironmentCapabilityUnsupported", "EnvironmentCapability",
+    "EnvironmentConformanceProbe", "EnvironmentProviderConformanceReceipt",
+    "verify_environment_provider_conformance",
+    "EnvironmentDiagnosticsPort", "EnvironmentProviderCapabilities",
+    "EnvironmentProviderPort", "EnvironmentSessionDiagnostics",
+    "EnvironmentSessionServices",
     "DurablePreparedActionSession", "EnvironmentIdentity",
     "EnvironmentImplementation", "EnvironmentSession", "Observation",
     "action_request_digest", "require_action_recovery_handle_identity",

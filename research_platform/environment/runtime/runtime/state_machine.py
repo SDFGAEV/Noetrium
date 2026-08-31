@@ -3,6 +3,11 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 
+from research_platform.environment.api.provider import (
+    EnvironmentProviderCapabilities,
+    EnvironmentSessionDiagnostics,
+)
+
 from research_platform.platform.kernel import (
     EffectCertainty,
     EffectClass,
@@ -227,13 +232,25 @@ class StateMachineEnvironmentSession(EnvironmentSession):
         self._observation_sequence = decoded.observation_sequence
         self._actions = dict(decoded.actions)
 
+    def diagnostics_snapshot(self) -> EnvironmentSessionDiagnostics:
+        return EnvironmentSessionDiagnostics(
+            session_id=self.session_id,
+            environment=self.identity,
+            generation=self.generation,
+            ready=not self._closed,
+            closed=self._closed,
+            capabilities=EnvironmentProviderCapabilities.fully_recoverable(),
+            state_digest=canonical_digest(self._state),
+        )
+
     def diagnostics(self) -> dict[str, object]:
+        snapshot = self.diagnostics_snapshot()
         return {
             "environment": "state_machine",
-            "session_id": self.session_id,
-            "generation": self.generation,
-            "closed": self._closed,
-            "state_digest": canonical_digest(self._state),
+            "session_id": snapshot.session_id,
+            "generation": snapshot.generation,
+            "closed": snapshot.closed,
+            "state_digest": snapshot.state_digest,
             "observation_sequence": self._observation_sequence,
             "known_action_ids": len(self._actions),
         }
