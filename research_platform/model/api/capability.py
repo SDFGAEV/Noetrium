@@ -8,7 +8,7 @@ from research_platform.model.api.project import (
     ModelCapabilityRequirement,
     ProjectModelBinding,
 )
-from research_platform.platform.kernel import canonical_digest
+from research_platform.platform.kernel import canonical_digest, require_sha256
 
 
 def _text(value: object, field_name: str) -> str:
@@ -16,12 +16,6 @@ def _text(value: object, field_name: str) -> str:
         raise ValueError(f"{field_name} must be non-empty text")
     return value
 
-
-def _sha256(value: object, field_name: str) -> str:
-    digest = _text(value, field_name)
-    if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
-        raise ValueError(f"{field_name} must be a lowercase SHA-256 digest")
-    return digest
 
 
 def _finite(value: object, field_name: str) -> float:
@@ -62,7 +56,7 @@ class ModelCapabilityInvocation(Generic[InputT]):
     request_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
-        _sha256(self.requirement_digest, "model capability invocation requirement_digest")
+        require_sha256(self.requirement_digest, "model capability invocation requirement_digest")
         _text(self.capability_id, "model capability invocation capability_id")
         _text(self.input_schema_id, "model capability invocation input_schema_id")
         _text(self.invocation_id, "model capability invocation invocation_id")
@@ -112,8 +106,8 @@ class ModelCapabilityResponse(Generic[OutputT]):
     output: OutputT
     response_digest: str = field(init=False)
     def __post_init__(self) -> None:
-        _sha256(self.request_digest, "model capability response request_digest")
-        _sha256(self.binding_digest, "model capability response binding_digest")
+        require_sha256(self.request_digest, "model capability response request_digest")
+        require_sha256(self.binding_digest, "model capability response binding_digest")
         _text(self.output_schema_id, "model capability response output_schema_id")
         if not isinstance(self.output, ModelCapabilityOutput):
             raise TypeError("model capability output must implement ModelCapabilityOutput")
@@ -314,6 +308,145 @@ class ValueInferenceOutput:
         return canonical_digest(self)
 
 
+@dataclass(frozen=True, slots=True)
+class RankingCandidate:
+    candidate_id: str
+    text: str
+
+    def __post_init__(self) -> None:
+        _text(self.candidate_id, "ranking candidate_id")
+        if not isinstance(self.text, str) or not self.text:
+            raise ValueError("ranking candidate text must be non-empty")
+
+
+@dataclass(frozen=True, slots=True)
+class RankingInput:
+    query: str
+    candidates: tuple[RankingCandidate, ...]
+    top_k: int | None = None
+    schema_id: str = field(init=False, default="model.ranking.input.v1")
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.query, str) or not self.query:
+            raise ValueError("ranking query must be non-empty")
+        if not isinstance(self.candidates, tuple) or not self.candidates:
+            raise TypeError("ranking candidates must be a non-empty tuple")
+        if any(not isinstance(candidate, RankingCandidate) for candidate in self.candidates):
+            raise TypeError("ranking candidates must be typed RankingCandidate values")
+        ids = tuple(candidate.candidate_id for candidate in self.candidates)
+        if len(ids) != len(set(ids)):
+            raise ValueError("ranking candidate ids must be unique")
+        if self.top_k is not None and (
+            type(self.top_k) is not int or self.top_k <= 0 or self.top_k > len(self.candidates)
+        ):
+            raise ValueError("ranking top_k must be a positive integer within candidate count")
+
+    def digest(self) -> str:
+        return canonical_digest(self)
+
+
+@dataclass(frozen=True, slots=True)
+class RankedCandidate:
+    candidate_id: str
+    rank: int
+    score: float | None = None
+
+    def __post_init__(self) -> None:
+        _text(self.candidate_id, "ranked candidate_id")
+        if type(self.rank) is not int or self.rank <= 0:
+            raise ValueError("ranked candidate rank must be a positive integer")
+        if self.score is not None:
+            object.__setattr__(self, "score", _finite(self.score, "ranked candidate score"))
+
+
+@dataclass(frozen=True, slots=True)
+class RankingOutput:
+    ranking: tuple[RankedCandidate, ...]
+    model_revision: str
+    schema_id: str = field(init=False, default="model.ranking.output.v1")
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.ranking, tuple) or not self.ranking:
+            raise TypeError("ranking output must be a non-empty tuple")
+        if any(not isinstance(item, RankedCandidate) for item in self.ranking):
+            raise TypeError("ranking output must contain typed RankedCandidate values")
+        ids = tuple(item.candidate_id for item in self.ranking)
+        ranks = tuple(item.rank for item in self.ranking)
+        if len(ids) != len(set(ids)):
+            raise ValueError("ranking output candidate ids must be unique")
+        if ranks != tuple(range(1, len(ranks) + 1)):
+            raise ValueError("ranking output ranks must be contiguous and ordered from one")
+        _text(self.model_revision, "ranking output model_revision")
+
+    def digest(self) -> str:
+        return canonical_digest(self)
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyInferenceInput:
+    state_features: tuple[NamedScalar, ...]
+    action_ids: tuple[str, ...]
+    schema_id: str = field(init=False, default="model.policy.input.v1")
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.state_features, tuple) or not self.state_features:
+            raise TypeError("policy state_features must be a non-empty tuple")
+        if any(not isinstance(feature, NamedScalar) for feature in self.state_features):
+            raise TypeError("policy state_features must be typed NamedScalar values")
+        feature_names = tuple(feature.name for feature in self.state_features)
+        if len(feature_names) != len(set(feature_names)):
+            raise ValueError("policy state feature names must be unique")
+        if not isinstance(self.action_ids, tuple) or not self.action_ids:
+            raise TypeError("policy action_ids must be a non-empty tuple")
+        normalized = tuple(_text(action_id, "policy action_id") for action_id in self.action_ids)
+        if len(normalized) != len(set(normalized)):
+            raise ValueError("policy action ids must be unique")
+        object.__setattr__(self, "action_ids", normalized)
+
+    def digest(self) -> str:
+        return canonical_digest(self)
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyActionProbability:
+    action_id: str
+    probability: float
+
+    def __post_init__(self) -> None:
+        _text(self.action_id, "policy probability action_id")
+        probability = _finite(self.probability, "policy action probability")
+        if not 0.0 <= probability <= 1.0:
+            raise ValueError("policy action probability must be within [0, 1]")
+        object.__setattr__(self, "probability", probability)
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyInferenceOutput:
+    probabilities: tuple[PolicyActionProbability, ...]
+    model_revision: str
+    selected_action_id: str | None = None
+    schema_id: str = field(init=False, default="model.policy.output.v1")
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.probabilities, tuple) or not self.probabilities:
+            raise TypeError("policy probabilities must be a non-empty tuple")
+        if any(not isinstance(item, PolicyActionProbability) for item in self.probabilities):
+            raise TypeError("policy probabilities must contain typed PolicyActionProbability values")
+        ids = tuple(item.action_id for item in self.probabilities)
+        if len(ids) != len(set(ids)):
+            raise ValueError("policy probability action ids must be unique")
+        if not math.isclose(sum(item.probability for item in self.probabilities), 1.0, rel_tol=1e-9, abs_tol=1e-9):
+            raise ValueError("policy probabilities must sum to one")
+        _text(self.model_revision, "policy output model_revision")
+        if self.selected_action_id is not None:
+            _text(self.selected_action_id, "policy selected_action_id")
+            if self.selected_action_id not in ids:
+                raise ValueError("policy selected action must appear in the probability distribution")
+
+    def digest(self) -> str:
+        return canonical_digest(self)
+
+
 __all__ = [
     "EmbeddingInput",
     "EmbeddingOutput",
@@ -323,6 +456,13 @@ __all__ = [
     "ModelCapabilityOutput",
     "ModelCapabilityResponse",
     "NamedScalar",
+    "PolicyActionProbability",
+    "PolicyInferenceInput",
+    "PolicyInferenceOutput",
+    "RankedCandidate",
+    "RankingCandidate",
+    "RankingInput",
+    "RankingOutput",
     "ProjectModelCapabilityClientPort",
     "ProjectModelCapabilityProviderPort",
     "ScoredCandidate",

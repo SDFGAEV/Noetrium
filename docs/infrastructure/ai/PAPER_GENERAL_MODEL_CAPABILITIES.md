@@ -9,16 +9,20 @@ The first concrete typed families are:
 
 - generation / structured generation through the existing small `ProjectModelClientPort.complete()` path;
 - embedding through `EmbeddingInput` and `EmbeddingOutput`;
-- scoring/ranking through `ScoringInput` and `ScoringOutput`;
+- scoring through `ScoringInput` and `ScoringOutput`;
+- ranking through `RankingInput` and `RankingOutput`, which preserves explicit ordered rank identity instead of treating ranking as an incidental sort of scores;
+- policy inference through `PolicyInferenceInput` and `PolicyInferenceOutput`, which carries a typed normalized action distribution and optional selected action;
 - value-style inference through `ValueInferenceInput` and `ValueInferenceOutput`.
 
-Embedding vectors, scores, values, and auxiliary scalars are finite numeric tuples/values. NaN and infinities fail closed.
+Embedding vectors, scores, ranking scores, policy probabilities, values, and auxiliary scalars are finite numeric tuples/values. NaN and infinities fail closed. Ranking order and policy normalization are semantic invariants rather than provider conventions.
 The typed capability path does not use `object`, `Any`, text fields, or a free-form plugin payload as scientific output authority.
 ## Binding and provider semantics
 
 `ProjectModelBinding` now binds capability and schema identity in addition to provider/model/deployment qualification provenance.
 Prompt identity is mandatory only for generation capabilities and forbidden for non-generation bindings.
 The existing `QualifiedModelProjectProvider` remains explicitly generation-only and returns a typed unsupported-protocol diagnostic for other capability families instead of routing them through `complete()`.
+
+Ranking and policy inference use the same `ModelCapabilityInvocation` / `ModelCapabilityResponse` provenance envelope as embedding, scoring, and value inference. They bind semantic schema ids directly and must not carry fabricated Prompt identity or be routed through the generation-only `complete()` client.
 
 `FunctionalModelCapabilityProvider` is a provider-author reference implementation, not a new qualification authority.
 It receives an exact `ProjectModelBinding` factory, validates requirement/binding/capability/schema identity, and executes a strongly typed handler.

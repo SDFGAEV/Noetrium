@@ -14,6 +14,13 @@ from research_platform.model.api import (
     NamedScalar,
     ProjectModelBinding,
     ProjectModelCapabilityClientPort,
+    PolicyActionProbability,
+    PolicyInferenceInput,
+    PolicyInferenceOutput,
+    RankedCandidate,
+    RankingCandidate,
+    RankingInput,
+    RankingOutput,
     ProjectModelCapabilityProviderPort,
     ScoredCandidate,
     ScoringCandidate,
@@ -263,3 +270,70 @@ def test_generation_provider_rejects_non_generation_before_binding_lookup() -> N
     diagnostics = provider.diagnose(requirement)
     assert len(diagnostics) == 1
     assert diagnostics[0].code is ModelBindingDiagnosticCode.CAPABILITY_PROTOCOL_UNSUPPORTED
+
+
+
+def test_ranking_capability_preserves_ordered_semantics_without_prompt_identity() -> None:
+    requirement = _requirement(
+        "ranking", "model.ranking.input.v1", "model.ranking.output.v1"
+    )
+    request = RankingInput(
+        "best candidate",
+        (
+            RankingCandidate("a", "candidate A"),
+            RankingCandidate("b", "candidate B"),
+            RankingCandidate("c", "candidate C"),
+        ),
+        top_k=2,
+    )
+    output = RankingOutput(
+        (RankedCandidate("b", 1, 0.9), RankedCandidate("a", 2, 0.7)),
+        model_revision="ranker-r1",
+    )
+    invocation = ModelCapabilityInvocation.from_requirement(requirement, "rank-1", request)
+    response = FunctionalModelCapabilityProvider(
+        "ranking", _binding, lambda payload: output
+    ).bind_capability(requirement).invoke(invocation)
+    assert response.output == output
+    assert tuple(item.candidate_id for item in response.output.ranking) == ("b", "a")
+    assert requirement.prompt_id is None
+    with pytest.raises(ValueError, match="contiguous"):
+        RankingOutput((RankedCandidate("a", 2),), model_revision="ranker-r1")
+    with pytest.raises(ValueError, match="top_k"):
+        RankingInput("q", (RankingCandidate("a", "A"),), top_k=2)
+
+
+def test_policy_inference_capability_returns_typed_normalized_action_distribution() -> None:
+    requirement = _requirement(
+        "policy-inference", "model.policy.input.v1", "model.policy.output.v1"
+    )
+    request = PolicyInferenceInput(
+        (NamedScalar("health", 0.8), NamedScalar("risk", 0.2)),
+        ("advance", "wait"),
+    )
+    output = PolicyInferenceOutput(
+        (
+            PolicyActionProbability("advance", 0.75),
+            PolicyActionProbability("wait", 0.25),
+        ),
+        model_revision="policy-r3",
+        selected_action_id="advance",
+    )
+    invocation = ModelCapabilityInvocation.from_requirement(requirement, "policy-1", request)
+    response = FunctionalModelCapabilityProvider(
+        "policy-inference", _binding, lambda payload: output
+    ).bind_capability(requirement).invoke(invocation)
+    assert response.output.selected_action_id == "advance"
+    assert response.output.probabilities[0].probability == 0.75
+    assert requirement.prompt_generation_id is None
+    with pytest.raises(ValueError, match="sum to one"):
+        PolicyInferenceOutput(
+            (PolicyActionProbability("advance", 0.7), PolicyActionProbability("wait", 0.2)),
+            model_revision="policy-r3",
+        )
+    with pytest.raises(ValueError, match="selected action"):
+        PolicyInferenceOutput(
+            (PolicyActionProbability("advance", 1.0),),
+            model_revision="policy-r3",
+            selected_action_id="wait",
+        )
