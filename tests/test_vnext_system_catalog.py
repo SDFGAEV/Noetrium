@@ -196,3 +196,12 @@ def test_catalog_runtime_metadata_is_closed_over_registered_nodes_and_capabiliti
                 key,
             )
             provided_by[capability] = key
+
+def test_architecture_policy_facets_are_folded_into_parent_authority():
+    root = Path(__file__).parents[1]
+    keys = {row.identity.key for row in system_catalog()}
+    assert "governance/architecture" in keys
+    assert "governance/architecture/authority" not in keys
+    assert "governance/architecture/dependency" not in keys
+    assert not any((root / "research_platform/governance/architecture/authority").rglob("*.py"))
+    assert not any((root / "research_platform/governance/architecture/dependency").rglob("*.py"))

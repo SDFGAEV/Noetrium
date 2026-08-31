@@ -155,6 +155,34 @@ def _decode_complexity(value: object, *, field: str) -> ArchitectureComplexity:
     return ArchitectureComplexity(**decoded)
 
 
+def _decode_delta(value: object, *, field: str) -> ArchitectureComplexity:
+    if not isinstance(value, dict) or set(value) != set(_BUDGET_FIELDS):
+        raise ValueError(f"{field} must define exactly {', '.join(_BUDGET_FIELDS)}")
+    decoded: dict[str, int] = {}
+    for key in _BUDGET_FIELDS:
+        raw = value[key]
+        if isinstance(raw, bool) or not isinstance(raw, int):
+            raise ValueError(f"{field}.{key} must be an integer")
+        decoded[key] = raw
+    return ArchitectureComplexity(**decoded)
+
+
+def _apply_complexity_delta(
+    base: ArchitectureComplexity,
+    delta: ArchitectureComplexity,
+    *,
+    field: str,
+) -> ArchitectureComplexity:
+    values = {
+        key: getattr(base, key) + getattr(delta, key)
+        for key in _BUDGET_FIELDS
+    }
+    negative = tuple(key for key, value in values.items() if value < 0)
+    if negative:
+        raise ValueError(f"{field} produces negative complexity: {', '.join(negative)}")
+    return ArchitectureComplexity(**values)
+
+
 def _decode_baseline(value: object) -> ArchitectureBaselineAuthority:
     if not isinstance(value, dict) or set(value) != {"git_sha", "source_digest", "complexity"}:
         raise ValueError("baseline must define exactly git_sha, source_digest and complexity")
@@ -201,9 +229,9 @@ def _decode_migration(value: object, *, index: int) -> ArchitectureMigrationAllo
     justification = str(value["justification"]).strip()
     if len(justification) < 48:
         raise ValueError(f"migrations[{index}].justification must be substantive")
-    delta = _decode_complexity(value["delta"], field=f"migrations[{index}].delta")
+    delta = _decode_delta(value["delta"], field=f"migrations[{index}].delta")
     if all(getattr(delta, field) == 0 for field in _BUDGET_FIELDS):
-        raise ValueError(f"migrations[{index}].delta must contain architecture growth")
+        raise ValueError(f"migrations[{index}].delta must contain architecture change")
     module_prefixes, projection = _decode_applicability(value["applicability"], index=index)
     return ArchitectureMigrationAllowance(
         migration_id=migration_id,
@@ -238,6 +266,12 @@ def load_architecture_complexity_budget(
     if not isinstance(raw_migrations, list):
         raise ValueError("migrations must be a JSON array")
     migrations = tuple(_decode_migration(item, index=i) for i, item in enumerate(raw_migrations))
+    for migration in migrations:
+        _apply_complexity_delta(
+            baseline.complexity,
+            migration.delta,
+            field=f"migration {migration.migration_id}",
+        )
     ids = tuple(item.migration_id for item in migrations)
     if len(ids) != len(set(ids)):
         raise ValueError("migration_id values must be unique")
@@ -279,7 +313,7 @@ def _decode_approval(value: object, *, index: int) -> ArchitectureMigrationAppro
             raise ValueError(f"approvals[{index}].delta must be a positive integer")
         complexity_delta = ArchitectureComplexity(0, 0, 0, 0, raw_delta)
     else:
-        complexity_delta = _decode_complexity(
+        complexity_delta = _decode_delta(
             value["complexity_delta"], field=f"approvals[{index}].complexity_delta"
         )
         if not any(getattr(complexity_delta, field) for field in _BUDGET_FIELDS):
@@ -469,10 +503,7 @@ def _expected_migration_complexity(
     baseline: ArchitectureComplexity,
     delta: ArchitectureComplexity,
 ) -> ArchitectureComplexity:
-    return ArchitectureComplexity(**{
-        field: getattr(baseline, field) + getattr(delta, field)
-        for field in _BUDGET_FIELDS
-    })
+    return _apply_complexity_delta(baseline, delta, field="architecture migration delta")
 
 def _validated_approval_observations(
     budget: ArchitectureComplexityBudget,
@@ -552,6 +583,11 @@ def _effective_budget(
         applicable.append(migration.migration_id)
         for field in _BUDGET_FIELDS:
             values[field] += getattr(migration.delta, field)
+    negative = tuple(field for field, value in values.items() if value < 0)
+    if negative:
+        raise ArchitectureBudgetProvenanceError(
+            "approved architecture migrations produce negative limits: " + ", ".join(negative)
+        )
     return replace(
         budget,
         effective_limits=ArchitectureComplexity(**values),

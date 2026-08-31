@@ -302,7 +302,18 @@ def test_v2_approval_file_decodes_complete_complexity_delta(tmp_path: Path) -> N
     loaded=load_architecture_migration_approval_set(path,expected_sha256=hashlib.sha256(raw).hexdigest())
     assert loaded.approvals[0].complexity_delta == ArchitectureComplexity(0,1,1,1,1)
 
-def test_v1_import_approval_cannot_authorize_multidimensional_migration(tmp_path: Path) -> None:
+def _patch_multidim_current(monkeypatch) -> None:
+    import research_platform.governance.architecture.budget as budget_module
+
+    monkeypatch.setattr(
+        budget_module,
+        "current_architecture_complexity",
+        lambda *, import_edges: ArchitectureComplexity(17, 174, 142, 191, import_edges),
+    )
+
+
+def test_v1_import_approval_cannot_authorize_multidimensional_migration(tmp_path: Path, monkeypatch) -> None:
+    _patch_multidim_current(monkeypatch)
     pairs=(("research_platform.governance.a","research_platform.platform.b"),)
     projection=import_projection_digest(pairs,("research_platform.governance",))
     _write_budget(tmp_path,_multidim_budget_document(projection)); index=_synthetic_git_index(tmp_path)
@@ -314,7 +325,8 @@ def test_v1_import_approval_cannot_authorize_multidimensional_migration(tmp_path
     assert budget is not None and budget.applicable_migration_ids == ()
     assert {v.dimension for v in violations} == {"subsystems","contract_declarations","authorities","import_edges"}
 
-def test_v2_full_complexity_approval_authorizes_exact_multidimensional_migration(tmp_path: Path) -> None:
+def test_v2_full_complexity_approval_authorizes_exact_multidimensional_migration(tmp_path: Path, monkeypatch) -> None:
+    _patch_multidim_current(monkeypatch)
     pairs=(("research_platform.governance.a","research_platform.platform.b"),)
     projection=import_projection_digest(pairs,("research_platform.governance",))
     _write_budget(tmp_path,_multidim_budget_document(projection)); index=_synthetic_git_index(tmp_path)
@@ -328,7 +340,8 @@ def test_v2_full_complexity_approval_authorizes_exact_multidimensional_migration
     assert budget.applicable_migration_ids == ("test-reviewed-migration",)
     assert budget.limits == ArchitectureComplexity(17,174,142,191,4750)
 
-def test_v2_mismatched_complexity_delta_contributes_zero_headroom(tmp_path: Path) -> None:
+def test_v2_mismatched_complexity_delta_contributes_zero_headroom(tmp_path: Path, monkeypatch) -> None:
+    _patch_multidim_current(monkeypatch)
     pairs=(("research_platform.governance.a","research_platform.platform.b"),)
     projection=import_projection_digest(pairs,("research_platform.governance",))
     _write_budget(tmp_path,_multidim_budget_document(projection)); index=_synthetic_git_index(tmp_path)
@@ -560,6 +573,7 @@ def test_role01_historical_and_current_architecture_allowances_are_preserved() -
     provenance=rows["role01-governance-provenance-9ba9f6e"]
     public_seam=rows["role01-governance-public-seam-b96087e"]
     current=rows["role01-platform-semantic-convergence-v1"]
+    contraction=rows["role01-semantic-catalog-contraction-v1"]
     assert (historical.delta.subsystems,historical.delta.contract_declarations,historical.delta.authorities,historical.delta.import_edges)==(1,12,1,31)
     assert historical.import_projection_sha256=="f1f77c3e85117adc449c56dd807bdd46b3f3d1b4412f677bcb40b8b2548f0699"
     assert (provenance.delta.subsystems,provenance.delta.contract_declarations,provenance.delta.authorities,provenance.delta.import_edges)==(1,12,1,56)
@@ -569,6 +583,9 @@ def test_role01_historical_and_current_architecture_allowances_are_preserved() -
     assert (current.delta.subsystems,current.delta.contract_declarations,current.delta.authorities,current.delta.import_edges)==(1,13,1,59)
     assert current.module_prefixes==("research_platform.platform","research_platform.governance","research_platform.scope","research_platform.portfolio")
     assert current.import_projection_sha256=="fd225e4d33b57a9f4b52495941b69d89f33cb333ddcc031ab87a983b8c1f6c98"
+    assert (contraction.delta.subsystems,contraction.delta.contract_declarations,contraction.delta.authorities,contraction.delta.import_edges)==(-1,13,-1,39)
+    assert contraction.module_prefixes==current.module_prefixes
+    assert contraction.import_projection_sha256=="59de5bba61ab0b83d094b2aab97e952b79be8ece954e3fa1ef89a33267d64a48"
 
 def test_role03_historical_and_npe_architecture_allowances_are_preserved() -> None:
     rows={row.migration_id:row for row in load_architecture_complexity_budget(Path(__file__).resolve().parents[1]).migrations}
@@ -689,3 +706,71 @@ def test_semantic_boundary_inventory_is_deterministic_and_digest_bound(tmp_path:
     second = classify_semantic_boundaries(root)
     assert tuple(row.node for row in first) == tuple(row.node for row in second)
     assert tuple(row.digest for row in first) == tuple(row.digest for row in second)
+
+def test_architecture_budget_allows_signed_contraction_delta(tmp_path: Path) -> None:
+    document=_multidim_budget_document("a"*64)
+    document["migrations"][0]["delta"]={"top_level_systems":0,"subsystems":-1,"contract_declarations":1,"authorities":-1,"import_edges":1}
+    _write_budget(tmp_path,document)
+    budget=load_architecture_complexity_budget(tmp_path)
+    assert budget.migrations[0].delta==ArchitectureComplexity(0,-1,1,-1,1)
+
+
+def test_architecture_budget_rejects_negative_absolute_baseline(tmp_path: Path) -> None:
+    document=_multidim_budget_document("a"*64)
+    document["baseline"]["complexity"]["subsystems"]=-1
+    _write_budget(tmp_path,document)
+    with pytest.raises(ValueError,match="baseline.complexity.subsystems must be a non-negative integer"):
+        load_architecture_complexity_budget(tmp_path)
+
+
+def test_architecture_budget_rejects_contraction_below_zero(tmp_path: Path) -> None:
+    document=_multidim_budget_document("a"*64)
+    document["migrations"][0]["delta"]={"top_level_systems":0,"subsystems":-174,"contract_declarations":0,"authorities":0,"import_edges":0}
+    _write_budget(tmp_path,document)
+    with pytest.raises(ValueError,match="produces negative complexity: subsystems"):
+        load_architecture_complexity_budget(tmp_path)
+
+
+def test_v2_approval_file_decodes_signed_complexity_delta(tmp_path: Path) -> None:
+    import hashlib
+    delta={"top_level_systems":0,"subsystems":-1,"contract_declarations":13,"authorities":-1,"import_edges":39}
+    row={
+        "schema":"supervisor.architecture-migration-approval.v2",
+        "migration_id":"test-reviewed-contraction", "complexity_delta":delta,
+        "source_sha":"3"*40, "source_digest":"b"*64, "decision":"approved",
+        "authority":"ROLE00", "scope":"architecture-complexity-migration-only",
+        "review_state":"READY_FOR_REVIEW",
+        "review_evidence_refs":["state/SUPERVISOR_REVIEW_GATES.md#test-signed-delta"],
+        "issued_at":"2026-08-31T03:30:00+08:00",
+        "note":"Synthetic signed contraction approval decode test.",
+    }
+    payload=json.dumps(row,sort_keys=True,separators=(",", ":"),ensure_ascii=False).encode()
+    row["approval_record_sha256"]=hashlib.sha256(payload).hexdigest()
+    doc={"schema":"supervisor.architecture-migration-approval-set.v1","authority":"ROLE00",
+         "baseline_sha":"1"*40,"approvals":[row],"default_decision":"not_approved",
+         "rule":"full complexity records bind signed architecture changes"}
+    raw=(json.dumps(doc,indent=2)+"\n").encode(); target=tmp_path/"approvals-signed.json"; target.write_bytes(raw)
+    loaded=load_architecture_migration_approval_set(target,expected_sha256=hashlib.sha256(raw).hexdigest())
+    assert loaded.approvals[0].complexity_delta==ArchitectureComplexity(0,-1,13,-1,39)
+
+def test_v2_signed_approval_authorizes_exact_contraction(tmp_path: Path, monkeypatch) -> None:
+    pairs=(("research_platform.governance.a","research_platform.platform.b"),)
+    projection=import_projection_digest(pairs,("research_platform.governance",))
+    document=_multidim_budget_document(projection)
+    signed=ArchitectureComplexity(0,-1,1,-1,1)
+    document["migrations"][0]["delta"]={"top_level_systems":0,"subsystems":-1,"contract_declarations":1,"authorities":-1,"import_edges":1}
+    _write_budget(tmp_path,document); index=_synthetic_git_index(tmp_path)
+    owner=source_scope_digest(index,("research_platform.governance",))
+    import research_platform.governance.architecture.budget as budget_module
+    monkeypatch.setattr(budget_module,"current_architecture_complexity",lambda *,import_edges: ArchitectureComplexity(17,172,142,189,import_edges))
+    def resolve(sha: str, prefixes: tuple[str,...]):
+        if sha=="1"*40:
+            return "2"*64,ArchitectureMigrationObservation(ArchitectureComplexity(17,173,141,190,4749),None,None)
+        return "b"*64,ArchitectureMigrationObservation(ArchitectureComplexity(17,172,142,189,4750),projection,owner)
+    current,budget,violations=audit_architecture_complexity_budget(
+        tmp_path,import_edges=4750,import_edge_pairs=pairs,source_index=index,
+        approval_set=_typed_v2_approval_set(signed),historical_observation_resolver=resolve,verify_provenance=True)
+    assert violations==() and budget is not None
+    assert current==ArchitectureComplexity(17,172,142,189,4750)
+    assert budget.applicable_migration_ids==("test-reviewed-migration",)
+    assert budget.limits==ArchitectureComplexity(17,172,142,189,4750)

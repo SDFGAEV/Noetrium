@@ -58,8 +58,9 @@ verifies declarations that exist and guards the canonical registry.
 `research_platform/governance/architecture/ARCHITECTURE_BUDGET.json` is a v3
 migration proposal ledger, not an approval authority or editable global ceiling.
 The immutable baseline binds an exact Git SHA, canonical source digest and
-recomputable complexity projection. Proposal rows may describe expected growth,
-but they contribute zero headroom by themselves.
+recomputable complexity projection. Proposal rows describe signed architectural
+change: positive dimensions record growth and negative dimensions record measured
+contraction. They contribute zero headroom by themselves.
 
 Migration approval is supplied independently by the Supervisor/Integrator. Formal
 audit accepts a typed external approval set only when its file SHA-256 is supplied
@@ -70,11 +71,15 @@ headroom if any other complexity dimension is non-zero. Version-2 records bind t
 complete five-dimensional `ArchitectureComplexity` delta and require scope
 `architecture-complexity-migration-only`. A worker proposal cannot authorize itself.
 
-An externally approved migration contributes growth only when the approved complete
-delta matches the proposal, the historical Git cut independently reconstructs that
-delta, and the current immutable cut matches the approved owner-scoped source bytes
+An externally approved migration contributes its signed delta only when the approved
+complete delta matches the proposal, the historical Git cut independently reconstructs
+that delta, and the current immutable cut matches the approved owner-scoped source bytes
 and import projection. Missing dimensions, stale source identities, copied approvals,
 scope mismatches, or partial approvals contribute zero headroom.
+
+Signed deltas never make absolute complexity negative: baseline complexity remains
+non-negative, and any migration or approved combination that would produce a negative
+dimension fails closed.
 
 When a later exact owner cut reduces or otherwise changes a migration projection, add
 a new applicability row and retain the older row as history. A newer, smaller measured
@@ -103,3 +108,12 @@ release-quality never silently falls back from Git authority to a mutable checko
 `experimentation/run/control` is a canonical ROLE03-owned standard subsystem whose topology declaration is governed by ROLE01. Its authority is `run_control`; it owns durable generic run lifecycle control and fenced control generations, and must not own operator product intent, server-supervision internals, or duplicate run manifest/checkpoint truth. The descriptor requires the exact platform/execution/checkpoint/run identity-lifecycle-manifest authorities it consumes and uniquely provides `run.control`.
 
 Catalog topology growth is accounted separately from producer import growth: ROLE01 carries the registry node/contract/authority complexity delta, while ROLE03 `693c481...` carries only its exact `+38` import-edge migration. Both remain subject to independent external ROLE00 migration approval; neither catalog presence nor a proposal grants headroom by itself.
+### Semantic catalog contraction
+
+`governance/architecture/authority` and `governance/architecture/dependency` were
+generic four-plane scaffold facets with no production consumers, independent state,
+capabilities, requirements, or components. Their real semantics already live in the
+parent `governance/architecture` source-authority, dependency-invariant, report, and
+budget implementations. They are therefore folded into the parent authority rather
+than retained as fake subsystems. The exact successor proposal records this as a
+signed contraction instead of discarding the reduction from architecture accounting.

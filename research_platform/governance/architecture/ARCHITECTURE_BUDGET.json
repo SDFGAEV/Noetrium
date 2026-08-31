@@ -97,6 +97,27 @@
       }
     },
     {
+      "migration_id": "role01-semantic-catalog-contraction-v1",
+      "owner_role": "ROLE01",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": -1,
+        "contract_declarations": 13,
+        "authorities": -1,
+        "import_edges": 39
+      },
+      "justification": "ROLE01 Semantic IR catalog contraction folds empty architecture authority/dependency scaffold facets into the real parent governance authority, reducing the frozen-baseline subsystem and authority counts by one while retaining thirteen explicit contracts and thirty-nine measured import edges.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.platform",
+          "research_platform.governance",
+          "research_platform.scope",
+          "research_platform.portfolio"
+        ],
+        "import_projection_sha256": "59de5bba61ab0b83d094b2aab97e952b79be8ece954e3fa1ef89a33267d64a48"
+      }
+    },
+    {
       "migration_id": "role02-runtime-reliability-v1",
       "owner_role": "ROLE02",
       "delta": {

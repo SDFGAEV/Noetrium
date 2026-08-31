@@ -887,38 +887,6 @@
     ],
     "components": []
   },
-  "governance/architecture/authority": {
-    "authority": "authority_policy",
-    "must_not_own": "authority mutation",
-    "owns": "authority uniqueness and boundary policy",
-    "package_prefix": "research_platform.governance.architecture.authority",
-    "parent": "governance.architecture",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "governance/architecture/dependency": {
-    "authority": "dependency_policy",
-    "must_not_own": "runtime behavior",
-    "owns": "allowed dependency graph and import ownership rules",
-    "package_prefix": "research_platform.governance.architecture.dependency",
-    "parent": "governance.architecture",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
   "governance/concurrency": {
     "authority": "concurrency_governance",
     "must_not_own": "runtime task scheduling or mutable execution state",
