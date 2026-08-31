@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import time
 from collections import Counter
+from dataclasses import replace
 
 from research_platform.governance.algorithm.api import AlgorithmSnapshot, LanguageCoverage
 from research_platform.governance.algorithm.api.ports import FileAnalysisCachePort, LanguageAnalyzerPort, SourceInventoryPort
@@ -16,11 +17,17 @@ class AlgorithmScanner:
         analyzers: tuple[LanguageAnalyzerPort, ...],
         cache: FileAnalysisCachePort | None = None,
         use_cache: bool = True,
+        source_authority: str = "filesystem",
+        source_revision: str | None = None,
+        analyzer_implementation_digest: str = "",
     ) -> None:
         self._inventory = inventory
         self._analyzers = {analyzer.language: analyzer for analyzer in analyzers}
         self._cache = cache
         self._use_cache = use_cache
+        self._source_authority = str(source_authority)
+        self._source_revision = source_revision
+        self._analyzer_implementation_digest = str(analyzer_implementation_digest)
 
     def scan(self) -> AlgorithmSnapshot:
         symbols = []
@@ -41,12 +48,16 @@ class AlgorithmScanner:
             source_digest.update(document.sha256.encode("ascii"))
             source_digest.update(b"\0")
             analysis = None
+            cache_identity = analyzer.revision
+            if self._analyzer_implementation_digest:
+                cache_identity = f"{analyzer.revision}@{self._analyzer_implementation_digest}"
             if self._cache is not None and self._use_cache:
-                analysis = self._cache.get(document.relative_path, document.sha256, analyzer.revision)
+                analysis = self._cache.get(document.relative_path, document.sha256, cache_identity)
             if analysis is None:
                 analysis = analyzer.analyze(document)
                 if self._cache is not None:
-                    self._cache.put(analysis)
+                    cached = replace(analysis, analyzer_revision=cache_identity)
+                    self._cache.put(cached)
             symbols.extend(analysis.symbols)
             symbol_counts[document.language] += len(analysis.symbols)
             error_counts[document.language] += analysis.parse_errors
@@ -55,12 +66,15 @@ class AlgorithmScanner:
             for language in sorted(file_counts, key=lambda item: item.value)
         )
         return AlgorithmSnapshot(
-            schema_version="algorithm-snapshot.v2",
+            schema_version="algorithm-snapshot.v3",
             analyzer_revision="|".join(revisions),
             source_digest=source_digest.hexdigest(),
             symbols=tuple(sorted(symbols, key=lambda row: row.symbol_id)),
             coverage=coverage,
             generated_unix_ns=time.time_ns(),
+            source_authority=self._source_authority,
+            source_revision=self._source_revision,
+            analyzer_implementation_digest=self._analyzer_implementation_digest,
         )
 
 

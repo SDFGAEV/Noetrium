@@ -4,6 +4,7 @@ import ast
 from pathlib import Path
 
 from .import_graph import scan_imports
+from .source_index import source_tree
 from .source_scan import SourceInvariantViolation, is_transient_source_path, violation
 
 
@@ -69,10 +70,7 @@ def _audit_legacy_execution_seams(root: Path) -> list[SourceInvariantViolation]:
             relative = path.relative_to(root).as_posix()
             if relative.startswith("research_platform/platform/concurrency/"):
                 continue
-            try:
-                tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-            except (OSError, UnicodeError, SyntaxError):
-                continue
+            tree = source_tree(path)
             for node in ast.walk(tree):
                 if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
                     continue
@@ -154,10 +152,7 @@ def _audit_concurrency_policy_ownership(root: Path) -> list[SourceInvariantViola
     for path in sorted(package.rglob("*.py")):
         if is_transient_source_path(path):
             continue
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        except (OSError, UnicodeError, SyntaxError):
-            continue
+        tree = source_tree(path)
         for node in ast.walk(tree):
             identifier: str | None = None
             if isinstance(node, ast.Name):

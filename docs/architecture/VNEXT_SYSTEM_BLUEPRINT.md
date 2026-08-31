@@ -30,10 +30,9 @@ Platform
 |---|---|---|
 | Scope | hierarchy, ownership path, scope identity | project metadata, experiment semantics, runtime state |
 | Portfolio | workspace/program/project metadata | study/run state, model state |
-| Experimentation | study/experiment/run/checkpoint semantics | server/process control |
+| Experimentation | study/trial/measurement/analysis/experiment/run/checkpoint semantics | server/process control and concrete participant/environment/model implementations |
 | Execution | workflow/operation/capability orchestration | provider storage, scientific semantics |
 | Participant | participant contracts/bindings/sessions | concrete server supervision, scientific state |
-| Scientific | method identity/configuration/scientific implementation | environment/process/model serving internals |
 | Resource | resources, leases, compute inventory, directories | environment semantics, model deployment |
 | Environment | environment specs/bindings/resolution/instances | project semantics, model selection |
 | Model | model assets/stacks/assignments/deployments/serving identity | process lifecycle implementation |
@@ -69,7 +68,7 @@ No API package owns workers, locks, persistence mutation, buffering, process con
 6. Migrate Runtime and Execution orchestration.
 7. Migrate Reliability and Observability implementations.
 8. Migrate Operator and Governance surfaces.
-9. Migrate participant and downstream scientific implementations.
+9. Migrate participant and downstream research implementations behind Experimentation-owned Study/Trial contracts.
 10. Delete obsolete historical boundaries instead of adapting them.
 
 ## Debug hierarchy

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+import research_platform.governance.gate.composition as gate_composition
 from research_platform.governance.gate.api import GateFinding, GateReport, GateRequest, GateSeverity
 from research_platform.governance.gate.composition import build_platform_gate
 from research_platform.governance.gate.runtime import CompositeGate
@@ -55,3 +56,24 @@ def test_platform_gate_is_explicitly_composable(tmp_path: Path) -> None:
         "governance.architecture",
         "custom.project",
     }
+
+def test_architecture_gate_source_failure_is_explicit_error_not_exception_or_false_green(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    secret = "token=must-not-escape-from-architecture-source-failure"
+
+    def fail_report(_root: Path):
+        raise RuntimeError(secret)
+
+    monkeypatch.setattr(gate_composition, "build_architecture_report", fail_report)
+    report = gate_composition.ArchitectureReportGate().evaluate(
+        GateRequest("repository", tmp_path)
+    )
+    assert not report.passed
+    assert report.gate_id == "governance.architecture"
+    assert len(report.findings) == 1
+    finding = report.findings[0]
+    assert finding.severity is GateSeverity.ERROR
+    assert finding.code == "ARCHITECTURE_SOURCE_UNAVAILABLE"
+    assert finding.detail == "error_type=RuntimeError"
+    assert secret not in finding.detail

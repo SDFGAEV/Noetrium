@@ -19,7 +19,7 @@ def gate_against_baseline(
             ),
             warnings=(),
         )
-    accepted = set(baseline.blocker_fingerprints)
+    accepted = set(baseline.accepted_blocker_fingerprints)
     observed = set(current.blocker_fingerprints)
     blockers = list(sorted(observed - accepted))
     parse_errors = sum(row.parse_errors for row in current.coverage)

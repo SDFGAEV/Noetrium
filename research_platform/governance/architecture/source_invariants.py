@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .catalog_contract_invariants import audit_catalog_contract_consistency
 from .composition_invariants import audit_composition_invariants
 from .concurrency_boundary_invariants import audit_concurrency_boundary_invariants
 from .diagnostics_invariants import audit_diagnostics_invariants
@@ -33,7 +34,8 @@ from .extensions import discover_architecture_extensions
 def audit_source_invariants(root: Path) -> tuple[SourceInvariantViolation, ...]:
     root = Path(root).resolve()
     core = (
-        audit_diagnostics_invariants(root)
+        audit_catalog_contract_consistency(root)
+        + audit_diagnostics_invariants(root)
         + audit_error_invariants(root)
         + audit_document_integrity_invariants(root)
         + audit_study_invariants(root)

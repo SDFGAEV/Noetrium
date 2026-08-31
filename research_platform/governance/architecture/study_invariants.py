@@ -3,7 +3,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from .source_index import source_tree
+from .source_index import source_text, source_tree
 
 from .source_scan import SourceInvariantViolation, imports, violation
 
@@ -99,7 +99,7 @@ def _audit_participant_operation_backbone(root: Path) -> list[SourceInvariantVio
     rows: list[SourceInvariantViolation] = []
     if not contract.exists() and not operations.exists():
         return rows
-    contract_text = contract.read_text(encoding="utf-8") if contract.exists() else ""
+    contract_text = source_text(contract) if contract.exists() else ""
     owners = {
         "resolve": operations / "resolution.py",
         "open_session": operations / "session_lifecycle.py",

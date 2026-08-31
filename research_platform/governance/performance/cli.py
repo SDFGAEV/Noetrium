@@ -6,7 +6,7 @@ from pathlib import Path
 from research_platform.platform.kernel.durability.durable_file import atomic_replace_bytes
 from research_platform.platform.kernel.project_root import discover_project_root
 from .composition import build_performance_governance
-from .runtime import PerformanceBaselineMissing, markdown_report
+from .runtime import PerformanceBaselineApprovalMissing, PerformanceBaselineMissing, markdown_report
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -14,11 +14,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("command", choices=("scan", "gate", "baseline"))
     parser.add_argument("--root", type=Path)
     parser.add_argument("--report", type=Path)
+    parser.add_argument("--git-executable", help="Git executable for immutable exact-source scans")
+    parser.add_argument("--source-revision", help="historical Git revision to replay for baseline acceptance")
     args = parser.parse_args(argv)
     root = (args.root or discover_project_root(__file__)).resolve()
-    service = build_performance_governance(root)
+    service = build_performance_governance(
+        root, exact=args.command in {"gate", "baseline"}, git_executable=args.git_executable
+    )
     if args.command == "baseline":
-        snapshot = service.accept_baseline()
+        try:
+            snapshot = service.accept_baseline(source_revision=args.source_revision)
+        except PerformanceBaselineApprovalMissing as exc:
+            print(f"PERFORMANCE_BASELINE_NOT_APPROVED {exc}")
+            return 2
         print(
             "PERFORMANCE_BASELINE_ACCEPTED "
             f"hotspots={len(snapshot.hotspots)} blockers={snapshot.blocker_count}"

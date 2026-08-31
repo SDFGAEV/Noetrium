@@ -4,7 +4,13 @@ import ast
 import json
 from pathlib import Path
 
-from ..api import RepositoryBoundaryReport, RepositoryBoundaryViolation
+from ..api import (
+    DownstreamImportKind,
+    DownstreamImportObservation,
+    DownstreamProjectImportReport,
+    RepositoryBoundaryReport,
+    RepositoryBoundaryViolation,
+)
 
 
 _SCHEMA = "platform-repository-boundary.v1"
@@ -126,4 +132,81 @@ def audit_repository_boundary(root: Path, *, include_release_manifest: bool = Tr
     return RepositoryBoundaryReport(_SCHEMA, ordered)
 
 
-__all__ = ["audit_repository_boundary"]
+_DOWNSTREAM_IMPORT_SCHEMA = "downstream-project-import-policy.v1"
+_DOWNSTREAM_SCAN_EXCLUDES = frozenset({
+    ".git", ".hg", ".mypy_cache", ".pytest_cache", ".ruff_cache", ".tox",
+    ".venv", "__pycache__", "build", "dist", "node_modules", "venv",
+})
+
+
+def _downstream_import_kind(module: str) -> DownstreamImportKind:
+    if module == "research_platform.api" or module.startswith("research_platform.api."):
+        return DownstreamImportKind.COMMON_PLATFORM_API
+    if not (module == "research_platform" or module.startswith("research_platform.")):
+        return DownstreamImportKind.EXTERNAL
+    parts = module.split(".")
+    if len(parts) >= 3 and parts[2] == "api":
+        return DownstreamImportKind.COMMON_PLATFORM_API
+    if len(parts) >= 4 and "api" in parts[3:]:
+        return DownstreamImportKind.PROVIDER_DEVELOPMENT_API
+    return DownstreamImportKind.FORBIDDEN_PRIVATE_IMPLEMENTATION
+
+
+def _source_import_modules(tree: ast.AST) -> tuple[tuple[int, str], ...]:
+    rows: list[tuple[int, str]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            rows.extend((getattr(node, "lineno", 0), alias.name) for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            rows.append((getattr(node, "lineno", 0), node.module))
+    return tuple(rows)
+
+
+def audit_downstream_project_imports(root: Path) -> DownstreamProjectImportReport:
+    """Classify downstream imports and reject Platform-private implementation use.
+
+    The downstream root is intentionally independent of the upstream repository.
+    A vendored ``research_platform`` package is itself a violation even when its
+    internal imports would otherwise parse.
+    """
+
+    resolved = Path(root).resolve()
+    observations: list[DownstreamImportObservation] = []
+    violations: list[RepositoryBoundaryViolation] = []
+    vendored = resolved / "research_platform"
+    if vendored.exists():
+        violations.append(_violation(
+            "DOWNSTREAM_VENDORS_PLATFORM",
+            "research_platform",
+            "downstream project must depend on the qualified Platform artifact instead of vendoring it",
+        ))
+    for path in sorted(resolved.rglob("*.py"), key=lambda row: row.as_posix()):
+        relative = path.relative_to(resolved)
+        if any(part in _DOWNSTREAM_SCAN_EXCLUDES for part in relative.parts):
+            continue
+        if relative.parts and relative.parts[0] == "research_platform":
+            continue
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        except (OSError, SyntaxError, UnicodeError) as exc:
+            violations.append(_violation("DOWNSTREAM_SOURCE_PARSE_FAILED", str(relative), str(exc)))
+            continue
+        for line, module in _source_import_modules(tree):
+            kind = _downstream_import_kind(module)
+            observations.append(DownstreamImportObservation(
+                str(relative).replace("\\", "/"), line, module, kind
+            ))
+            if kind is DownstreamImportKind.FORBIDDEN_PRIVATE_IMPLEMENTATION:
+                violations.append(_violation(
+                    "DOWNSTREAM_PRIVATE_PLATFORM_IMPORT",
+                    str(relative),
+                    f"line {line} imports private Platform implementation module {module}",
+                ))
+    return DownstreamProjectImportReport(
+        _DOWNSTREAM_IMPORT_SCHEMA,
+        tuple(sorted(observations)),
+        tuple(sorted(violations, key=lambda row: (row.code, row.path, row.detail))),
+    )
+
+
+__all__ = ["audit_downstream_project_imports", "audit_repository_boundary"]

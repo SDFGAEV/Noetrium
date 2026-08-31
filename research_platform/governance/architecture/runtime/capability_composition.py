@@ -6,10 +6,18 @@ Only composition roots import this implementation. Projects receive the
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from research_platform.governance.architecture.api.capability_composition import (
     AmbiguousCapabilityProvider,
+    BindingDiagnostic,
+    BindingDiagnosticCode,
+    BindingDiagnosticReference,
+    BindingDiagnosticReferenceKind,
+    BindingDiagnosticSeverity,
     BindingEdge,
     BindingPlan,
+    BindingRemediationCategory,
     CapabilityBindingError,
     CapabilityCompositionPlannerPort,
     CapabilityDependencyCycle,
@@ -27,9 +35,63 @@ from research_platform.governance.architecture.api.capability_composition import
     ProviderSelection,
     RequirementAddress,
 )
-from research_platform.governance.system_registry.api import SystemRegistryPort
-from research_platform.platform.kernel import canonical_digest
+from research_platform.governance.system_registry.api import SystemIdentity, SystemRegistryPort
+from research_platform.platform.kernel import Sha256Digest, canonical_digest
 from research_platform.scope.api import ScopeIdentity, ScopeRegistryPort
+
+
+_ARCHITECTURE_SUBJECT = CompositionSubject.system_subject(
+    SystemIdentity("governance", ("architecture",))
+)
+
+
+def _identity_refs(values: tuple[str, ...]) -> tuple[BindingDiagnosticReference, ...]:
+    return tuple(
+        BindingDiagnosticReference(BindingDiagnosticReferenceKind.IDENTITY, value)
+        for value in sorted(values)
+    )
+
+
+def _binding_diagnostic(
+    requirement: CapabilityRequirement,
+    *,
+    code: str,
+    summary: str,
+    remediation: BindingRemediationCategory,
+    remediation_action: str,
+    provider_identity: str | None = None,
+    related_identities: tuple[str, ...] = (),
+) -> BindingDiagnostic:
+    return BindingDiagnostic(
+        code=BindingDiagnosticCode(code),
+        severity=BindingDiagnosticSeverity.ERROR,
+        blocking=True,
+        owner=_ARCHITECTURE_SUBJECT,
+        subject=requirement.address.consumer,
+        requirement_digest=Sha256Digest(canonical_digest(requirement)),
+        summary=summary,
+        requirement=requirement.address,
+        provider_identity=provider_identity,
+        related_refs=_identity_refs(related_identities),
+        remediation=remediation,
+        remediation_action=remediation_action,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class _CapabilityOfferGroup:
+    by_interface: dict[str, tuple[CapabilityOffer, ...]]
+    offer_ids: tuple[str, ...]
+
+
+def _freeze_offer_group(
+    rows: dict[str, list[CapabilityOffer]],
+    offer_ids: list[str],
+) -> _CapabilityOfferGroup:
+    by_interface: dict[str, tuple[CapabilityOffer, ...]] = {}
+    for digest, offers in rows.items():
+        by_interface[digest] = tuple(offers)
+    return _CapabilityOfferGroup(by_interface, tuple(sorted(offer_ids)))
 
 
 class CapabilityCompositionPlanner(CapabilityCompositionPlannerPort):
@@ -224,33 +286,40 @@ class CapabilityCompositionPlanner(CapabilityCompositionPlannerPort):
     @staticmethod
     def _index_offers(
         offers: tuple[CapabilityOffer, ...],
-    ) -> dict[CapabilityKey, dict[str, tuple[CapabilityOffer, ...]]]:
+    ) -> dict[CapabilityKey, _CapabilityOfferGroup]:
         """Index providers once so requirement lookup avoids whole-plan rescans."""
         staged: dict[CapabilityKey, dict[str, list[CapabilityOffer]]] = {}
+        offer_ids: dict[CapabilityKey, list[str]] = {}
         for offer in offers:
             by_interface = staged.setdefault(offer.capability, {})
             by_interface.setdefault(offer.interface_digest, []).append(offer)
+            offer_ids.setdefault(offer.capability, []).append(offer.offer_id)
         return {
-            capability: {digest: tuple(rows) for digest, rows in by_interface.items()}
+            capability: _freeze_offer_group(by_interface, offer_ids[capability])
             for capability, by_interface in staged.items()
         }
 
     def _candidates(
         self,
         requirement: CapabilityRequirement,
-        offer_index: dict[CapabilityKey, dict[str, tuple[CapabilityOffer, ...]]],
+        offer_index: dict[CapabilityKey, _CapabilityOfferGroup],
     ) -> tuple[CapabilityOffer, ...]:
-        by_interface = offer_index.get(requirement.capability)
-        if not by_interface:
+        group = offer_index.get(requirement.capability)
+        if group is None:
             return ()
-        same_interface = by_interface.get(requirement.interface_digest)
+        same_interface = group.by_interface.get(requirement.interface_digest)
         if same_interface is None:
-            offered = ", ".join(
-                sorted(offer.offer_id for rows in by_interface.values() for offer in rows)
-            )
-            raise CapabilityInterfaceMismatch(
-                f"interface digest mismatch for {requirement.address.value}; offers={offered}"
-            )
+            raise CapabilityInterfaceMismatch(_binding_diagnostic(
+                requirement,
+                code="governance.binding.interface-mismatch",
+                summary=(
+                    f"interface digest mismatch for {requirement.address.value}; "
+                    f"offers={', '.join(group.offer_ids)}"
+                ),
+                remediation=BindingRemediationCategory.INTERFACE,
+                remediation_action="provider.interface.align",
+                related_identities=group.offer_ids,
+            ))
         return tuple(
             offer for offer in same_interface if self._visible_at_scope(offer, requirement.scope)
         )
@@ -272,33 +341,71 @@ class CapabilityCompositionPlanner(CapabilityCompositionPlannerPort):
         if selected_ids is not None:
             missing = tuple(offer_id for offer_id in selected_ids if offer_id not in candidates_by_id)
             if missing:
-                raise CapabilityBindingError(
-                    f"selection for {requirement.address.value} names ineligible offers: {', '.join(missing)}"
-                )
+                raise CapabilityBindingError(_binding_diagnostic(
+                    requirement,
+                    code="governance.binding.selection-ineligible",
+                    summary=(
+                        f"selection for {requirement.address.value} names ineligible offers: "
+                        f"{', '.join(missing)}"
+                    ),
+                    remediation=BindingRemediationCategory.PROVIDER_SELECTION,
+                    remediation_action="provider.selection.revise",
+                    related_identities=missing,
+                ))
             resolved = tuple(candidates_by_id[offer_id] for offer_id in selected_ids)
         elif len(candidates) == 1:
             resolved = candidates
         elif not candidates and requirement.optional:
             return ()
         elif not candidates:
-            raise MissingCapabilityProvider(
-                f"no provider for {requirement.address.value} ({requirement.capability.value})"
-            )
+            raise MissingCapabilityProvider(_binding_diagnostic(
+                requirement,
+                code="governance.binding.provider-missing",
+                summary=(
+                    f"no provider for {requirement.address.value} "
+                    f"({requirement.capability.value})"
+                ),
+                remediation=BindingRemediationCategory.CAPABILITY,
+                remediation_action="provider.capability.configure",
+            ))
         else:
             options = ", ".join(offer.offer_id for offer in candidates)
-            raise AmbiguousCapabilityProvider(
-                f"multiple providers for {requirement.address.value}: {options}; select explicitly"
-            )
+            raise AmbiguousCapabilityProvider(_binding_diagnostic(
+                requirement,
+                code="governance.binding.provider-ambiguous",
+                summary=(
+                    f"multiple providers for {requirement.address.value}: "
+                    f"{options}; select explicitly"
+                ),
+                remediation=BindingRemediationCategory.PROVIDER_SELECTION,
+                remediation_action="provider.selection.choose",
+                related_identities=tuple(offer.offer_id for offer in candidates),
+            ))
         if requirement.cardinality.value == "exactly_one" and len(resolved) != 1:
-            raise CapabilityBindingError(
-                f"{requirement.address.value} requires exactly one provider, got {len(resolved)}"
-            )
+            raise CapabilityBindingError(_binding_diagnostic(
+                requirement,
+                code="governance.binding.cardinality-mismatch",
+                summary=(
+                    f"{requirement.address.value} requires exactly one provider, "
+                    f"got {len(resolved)}"
+                ),
+                remediation=BindingRemediationCategory.PROVIDER_SELECTION,
+                remediation_action="provider.selection.revise",
+                related_identities=tuple(offer.offer_id for offer in resolved),
+            ))
         if requirement.cardinality.value == "one_or_more" and not resolved:
             if requirement.optional:
                 return ()
-            raise MissingCapabilityProvider(
-                f"no provider for {requirement.address.value} ({requirement.capability.value})"
-            )
+            raise MissingCapabilityProvider(_binding_diagnostic(
+                requirement,
+                code="governance.binding.provider-missing",
+                summary=(
+                    f"no provider for {requirement.address.value} "
+                    f"({requirement.capability.value})"
+                ),
+                remediation=BindingRemediationCategory.CAPABILITY,
+                remediation_action="provider.capability.configure",
+            ))
         return resolved
 
     @staticmethod
