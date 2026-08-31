@@ -31,6 +31,13 @@ from .project import (
     ProjectModelResponse,
 )
 
+from research_platform.model.catalog.revision.api import (
+    ModelPromotionDecision, ModelPromotionDisposition, ModelPromotionReceipt,
+    ModelRevisionAuthorityPort, ModelRevisionCommit, ModelRevisionIdentity,
+    ModelRollbackReceipt, ModelUpdateProducerPort, ModelUpdateProposal,
+    PreparedModelRevision,
+)
+
 __all__ = [
     "EmbeddingInput",
     "EmbeddingOutput",
@@ -48,6 +55,16 @@ __all__ = [
     "ScoringOutput",
     "ValueInferenceInput",
     "ValueInferenceOutput",
+    "ModelPromotionDecision",
+    "ModelPromotionDisposition",
+    "ModelPromotionReceipt",
+    "ModelRevisionAuthorityPort",
+    "ModelRevisionCommit",
+    "ModelRevisionIdentity",
+    "ModelRollbackReceipt",
+    "ModelUpdateProducerPort",
+    "ModelUpdateProposal",
+    "PreparedModelRevision",
     "ModelAuthorities",
     "ModelBindingDiagnostic",
     "ModelBindingDiagnosticCode",
