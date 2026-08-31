@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from research_platform.artifact.api import ArtifactContentIdentity
 from research_platform.artifact.catalog.api import (
     ArtifactKind,
     ArtifactRecord,
@@ -30,7 +31,7 @@ def test_public_artifact_record_carries_content_identity_and_run_lineage() -> No
         digest=digest,
         producer_component_id="project.method",
         producer_operation_id="operation-finalize",
-        lineage=("artifact:input",),
+        lineage=(ArtifactContentIdentity("artifact:input", "a" * 64),),
         retention=ArtifactRetention.RUN,
         media_type="application/json",
     )
@@ -39,7 +40,7 @@ def test_public_artifact_record_carries_content_identity_and_run_lineage() -> No
     assert record.scope.scope_id == "run-npe"
     assert record.digest == digest and len(record.digest) == 64
     assert record.producer_operation_id == "operation-finalize"
-    assert record.lineage == ("artifact:input",)
+    assert record.lineage == (ArtifactContentIdentity("artifact:input", "a" * 64),)
 
 
 def test_public_dataset_version_carries_portable_content_identity_and_scope() -> None:
@@ -89,12 +90,24 @@ def test_project_status_is_read_only_projection_with_evidence_refs() -> None:
     assert snapshot.reason_codes == ("environment.ready",)
 
 
-def test_public_artifact_record_rejects_tail_lineage_and_metadata_corruption() -> None:
-    with pytest.raises(ValueError, match="lineage references"):
-        ArtifactRecord(
-            artifact_id="evidence/result.json", kind=ArtifactKind.SCIENTIFIC, scope=_run_scope(),
-            digest="a" * 64, producer_component_id="project.method", lineage=("artifact:one", "artifact:two", ""),
-        )
+def test_public_artifact_record_rejects_untyped_duplicate_noncanonical_and_self_lineage() -> None:
+    base = dict(
+        artifact_id="evidence/result.json", kind=ArtifactKind.SCIENTIFIC, scope=_run_scope(),
+        digest="a" * 64, producer_component_id="project.method",
+    )
+    with pytest.raises(TypeError, match="ArtifactContentIdentity"):
+        ArtifactRecord(**base, lineage=("artifact:one",))  # type: ignore[arg-type]
+    one = ArtifactContentIdentity("artifact:one", "b" * 64)
+    two = ArtifactContentIdentity("artifact:two", "c" * 64)
+    with pytest.raises(ValueError, match="unique"):
+        ArtifactRecord(**base, lineage=(one, one))
+    with pytest.raises(ValueError, match="canonically ordered"):
+        ArtifactRecord(**base, lineage=(two, one))
+    with pytest.raises(ValueError, match="cannot contain the artifact itself"):
+        ArtifactRecord(**base, lineage=(ArtifactContentIdentity("evidence/result.json", "d" * 64),))
+
+
+def test_public_artifact_record_rejects_metadata_corruption() -> None:
     with pytest.raises(ValueError, match="metadata keys"):
         ArtifactRecord(
             artifact_id="evidence/result.json", kind=ArtifactKind.SCIENTIFIC, scope=_run_scope(),
