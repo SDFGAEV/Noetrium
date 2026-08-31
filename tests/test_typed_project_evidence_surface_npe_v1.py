@@ -42,20 +42,21 @@ def test_public_artifact_record_carries_content_identity_and_run_lineage() -> No
     assert record.lineage == ("artifact:input",)
 
 
-def test_public_dataset_version_carries_content_digest_and_scope() -> None:
+def test_public_dataset_version_carries_portable_content_identity_and_scope() -> None:
     digest = canonical_digest({"dataset": [1, 2, 3]})
     dataset = DatasetVersion(
         identity=DatasetIdentity("project-eval", "v1"),
         scope=_run_scope(),
-        digest=digest,
-        location="artifact://run-npe/datasets/project-eval.jsonl",
+        content_sha256=digest,
         schema_ref="schema:project-eval.v1",
-        parent_versions=("project-source@v1",),
+        parent_versions=(DatasetIdentity("project-source", "v1"),),
     )
 
     assert dataset.scope == _run_scope()
-    assert dataset.digest == digest
+    assert dataset.content_sha256 == digest
     assert dataset.identity.key == "project-eval@v1"
+    assert dataset.parent_versions == (DatasetIdentity("project-source", "v1"),)
+    assert not hasattr(dataset, "location")
 
 
 def test_observability_event_is_explicitly_side_plane_not_authority() -> None:
@@ -87,6 +88,7 @@ def test_project_status_is_read_only_projection_with_evidence_refs() -> None:
     assert snapshot.evidence == ("artifact:evidence/result.json",)
     assert snapshot.reason_codes == ("environment.ready",)
 
+
 def test_public_artifact_record_rejects_tail_lineage_and_metadata_corruption() -> None:
     with pytest.raises(ValueError, match="lineage references"):
         ArtifactRecord(
@@ -100,21 +102,27 @@ def test_public_artifact_record_rejects_tail_lineage_and_metadata_corruption() -
         )
 
 
-def test_public_dataset_version_rejects_tail_parent_tag_and_metadata_corruption() -> None:
+def test_public_dataset_version_rejects_duplicate_parent_tag_and_metadata_authority() -> None:
+    parent = DatasetIdentity("source", "v1")
     with pytest.raises(ValueError, match="parent_versions"):
         DatasetVersion(
             DatasetIdentity("project-eval", "v1"), _run_scope(), "b" * 64,
-            "artifact://run-npe/datasets/project-eval.jsonl", parent_versions=("source@v1", "source@v2", ""),
+            parent_versions=(parent, parent),
         )
     with pytest.raises(ValueError, match="tags"):
         DatasetVersion(
             DatasetIdentity("project-eval", "v1"), _run_scope(), "b" * 64,
-            "artifact://run-npe/datasets/project-eval.jsonl", tags=("one", "two", ""),
+            tags=("one", "two", ""),
         )
     with pytest.raises(ValueError, match="metadata keys"):
         DatasetVersion(
             DatasetIdentity("project-eval", "v1"), _run_scope(), "b" * 64,
-            "artifact://run-npe/datasets/project-eval.jsonl", metadata=(("one", "1"), ("two", "2"), ("", "3")),
+            metadata=(("one", "1"), ("two", "2"), ("", "3")),
+        )
+    with pytest.raises(ValueError, match="cannot contain the dataset itself"):
+        DatasetVersion(
+            DatasetIdentity("project-eval", "v1"), _run_scope(), "b" * 64,
+            parent_versions=(DatasetIdentity("project-eval", "v1"),),
         )
 
 
@@ -144,7 +152,7 @@ def test_fact_decoder_rejects_schema_mismatch_before_decode() -> None:
         schema = FactSchema[int]("project.score", "v1")
 
         def decode(self, fact: DurableFact) -> int:
-            raise AssertionError("mismatched fact must be rejected before decoder invocation")
+            raise RuntimeError("decoder must not be invoked for a mismatched schema")
 
     registry = FactDecoderRegistry((IntFactDecoder(),))
     fact = DurableFact(

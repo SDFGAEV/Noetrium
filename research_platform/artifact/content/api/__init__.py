@@ -14,6 +14,9 @@ from .storage import (
     ArtifactStorageBindingCorruptionError,
     ArtifactStorageBindingNotFound,
     ArtifactStorageBindingPort,
+    ArtifactStoragePlacementVerifierPort,
+    ArtifactStorageVerificationError,
+    VerifiedArtifactStoragePlacement,
 )
 from .materialization import (
     ArchiveMaterializationError,
@@ -36,6 +39,9 @@ __all__ = [
     "ArtifactStorageBindingCorruptionError",
     "ArtifactStorageBindingNotFound",
     "ArtifactStorageBindingPort",
+    "ArtifactStoragePlacementVerifierPort",
+    "ArtifactStorageVerificationError",
+    "VerifiedArtifactStoragePlacement",
     "ArchiveMaterializationError",
     "ArchiveMaterializationPort",
     "ArchiveMaterializationRequest",

@@ -1,33 +1,49 @@
 # Research Data Semantic Convergence
 
-Policy: Playbook §40–§41. Owner: ROLE05 Environment & Evidence.
+Policy: Playbook §40–§42. Owner: ROLE05 Environment & Evidence.
 
 ## Goal
 
-ROLE05 converges Artifact/Data/Evidence toward one storage-independent logical data path without merging their durable authorities. Physical paths, buckets, mounts and hosts are provider metadata; scientific identity is content/schema/lineage based.
+ROLE05 converges Artifact/Data/Evidence toward one storage-independent research-data path without merging durable authorities. Physical paths, buckets, mounts, and hosts are provider placement state; scientific identity is content/schema/lineage based.
 
-The target collaboration is:
+Target flow:
 
-`logical content identity -> Artifact/Data authority -> typed lineage/reference -> provider storage binding -> query/export projection`
+`producer authority -> portable typed identity -> verified storage binding -> read-only query federation -> export/projection`
 
-ROLE03 remains the owner of MeasurementDefinition/MeasurementRecord scientific semantics. ROLE05 owns durable backing, query/index/export, verified large-content references and lineage persistence.
+ROLE03 owns MeasurementDefinition/MeasurementRecord scientific semantics. ROLE05 owns durable Dataset/Artifact backing, verified placement, query/index/export mechanics, and lineage persistence. Query indexes never become Run, Measurement, or Evidence authority.
 
-## Primitive convergence
+## Portable Dataset authority
 
-Artifact/Data canonical encoding and digest use the public Platform Kernel canonical primitives when semantics match. ROLE05 does not maintain parallel canonical encoders merely to avoid a declared dependency. Data retains only strict duplicate-key/non-finite decoding behavior not yet owned by Kernel.
+`DatasetVersion` contains `DatasetIdentity`, scope, `content_sha256`, optional schema identity, typed parent `DatasetIdentity` lineage, tags, and metadata. It contains no physical `location`.
 
-Durable fact decoding is schema-bound: `FactSchema[T]` identifies one fact type/version and `FactDecoderPort[T]` returns a typed result. Internal heterogeneous registry convenience does not reintroduce `object` into the public decoder contract.
+SQLite Dataset authority persists the same portable contract. Legacy schemas containing `location`/`digest` fail closed rather than being silently interpreted. Parent lineage is encoded as exact `{dataset_id, version}` identities rather than `"id@version"` strings.
 
-## Dependency rule
+## Verified Artifact placement
 
-Artifact/Data -> Platform Kernel canonical imports require an explicit governance catalog dependency. This is tracked through a ROLE05->ROLE01 CSR; no private import exception or wrapper shim is acceptable.
+Logical `ArtifactRecord` remains storage-independent. `artifact/content` owns typed `ArtifactStorageBinding` placement state and positive CAS generation separately from catalog identity.
 
-## Storage relocation
+`VerifiedArtifactStoragePlacement` is a snapshot proof, not a claim that an externally mutable path stays valid forever. The filesystem verifier requires an absolute existing regular file, streams SHA-256 over the bytes, and rejects missing, unreadable, non-file, unsupported-provider, or digest-mismatched placements.
 
-`ArtifactRecord` is now storage-independent: physical `location` is not part of the logical artifact contract, SQLite catalog schema, or record digest. Acquisition returns verified operational placement separately from the immutable logical record.
+`bind` and `relocate` re-verify inside the SQLite CAS transaction, and every public `resolve()` re-hashes the current bytes before returning the binding. A verify-to-CAS content race fails closed without advancing authority.
 
-`artifact/content` owns typed `ArtifactStorageBinding` state: artifact/content digest, storage provider, physical locator, and a positive generation. Initial binding is idempotent only for the same generation-1 value; relocation uses explicit expected-generation CAS, preserves the content digest, and increments generation. Unknown schema shapes and digest-tampered rows fail closed, while readers remain SQLite `query_only`.
+Relocation verifies the destination and may recover from a corrupted old source because logical content identity remains durable. Successful relocation preserves content SHA-256 and increments generation; post-bind, reopen, and destination tamper are detected on authoritative resolve.
 
-Relocation acceptance requires the same bytes acquired under storage root A and storage root B to produce equal logical `ArtifactRecord` values. Moving A -> B changes only the storage binding; stale-generation relocation and attempts to retarget the same artifact identity to a different content digest are rejected.
+## Typed research-result query federation
 
-`DatasetVersion.location` remains the second legacy coupling point. ROLE05 will remove it only against the shared neutral ContentIdentity primitive owned by ROLE01, rather than creating a temporary third content-reference authority.
+`data/query/cross` is a real read-only semantic boundary rather than a generic operation/checkpoint leaf. Public execution is `ResearchResultQuery -> ResearchResultPage` through typed source/query ports.
+
+Queries use typed scientific dimensions and result kinds. Each producer adapter returns an exact `ResearchSourceCut`; callers may pin cuts for repeatable reads. Changed cuts are `STALE`, source failures are `UNAVAILABLE`/`INCOMPLETE`, and unsupported dimensions or result kinds produce typed gaps instead of a misleading complete empty result.
+
+`ResearchResultPage` exposes `matched_count` and `truncated`; any global `limit` truncation forces `complete=False`. Source disposition and diagnostics participate in the input-cut digest, so incomplete or stale reads cannot share the identity of a complete cut.
+
+Dataset and Artifact adapters project producer-owned identities; the federation owns no mutable research truth and exposes no generic `execute`, checkpoint, restore, or state API. Source hard limits are fail-closed as incomplete cuts rather than silent truncation.
+
+## Cross-role dependencies
+
+ROLE05 does not create private substitutes for missing Core/Governance contracts. Current CSRs are recorded outside the repository under `outputs/reports/role05/`:
+
+- `CSR-ROLE05-ROLE01-PSC02-STRICT-FINITE-JSON-CUTOVER-20260831`: consume one ROLE01 strict finite JSON encode/decode/digest authority instead of keeping broad scientific-boundary ambiguity.
+- `CSR-ROLE05-ROLE01-PSC05-DATA-ARTIFACT-CONTENT-REFERENCE-20260831`: define the legal typed Dataset -> Artifact immutable content-reference dependency without giving Data artifact identity authority.
+- `CSR-ROLE05-ROLE01-ROLE06-SEMANTIC-BOUNDARY-GATE-20260831`: replace the historical hard-coded 81 generic-leaf gate with canonical scaffold-vs-semantic-boundary classification.
+
+Until those producer/gate decisions are integrated, ROLE05 keeps its owned implementation narrow and does not weaken tests or restore duplicate generic authority.

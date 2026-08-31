@@ -36,12 +36,18 @@ def test_compute_scheduler_allocates_matching_gpu_without_embedding_host_policy_
     assert len(allocation.gpu_ids) == 1
 
 
-def test_dataset_versions_are_scoped_and_immutable_by_identity() -> None:
+def test_dataset_versions_are_scoped_portable_and_immutable_by_identity() -> None:
     meta = build_in_memory_platform_meta()
-    row = DatasetVersion(DatasetIdentity("benchmark", "v1"), PLATFORM_SCOPE, "d" * 64, "/data/benchmark-v1")
+    row = DatasetVersion(
+        DatasetIdentity("benchmark", "v1"),
+        PLATFORM_SCOPE,
+        "d" * 64,
+        parent_versions=(DatasetIdentity("benchmark-source", "v3"),),
+    )
     meta.datasets.register(row)
     assert meta.datasets.get(row.identity) == row
     assert meta.datasets.query(DatasetQuery(dataset_id="benchmark")) == (row,)
+    assert not hasattr(row, "location")
 
 
 def test_architecture_exposes_system_and_subsystem_graphs() -> None:

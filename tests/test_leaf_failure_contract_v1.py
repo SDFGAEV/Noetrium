@@ -1,6 +1,6 @@
 import tempfile, unittest
 from pathlib import Path
-from research_platform.data.query.cross.composition import compose
+from research_platform.environment.specification.schema.composition import compose
 from research_platform.platform.kernel.leaf_contract import LeafExecutionError, LeafFailureClass
 class LeafFailureContractTests(unittest.TestCase):
  def test_programming_failure_is_classified_and_fail_closed(self):

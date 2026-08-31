@@ -17,9 +17,11 @@ from research_platform.artifact.content.api import (
     ArtifactAcquisitionResult,
     ArtifactStorageBindingConflict,
     ArtifactStorageBindingCorruptionError,
+    ArtifactStorageVerificationError,
 )
 from research_platform.artifact.content.composition import compose_artifact_acquisition
 from research_platform.artifact.content.providers import (
+    FilesystemArtifactStoragePlacementVerifier,
     SQLiteArtifactStorageBindingStore,
     download as download_provider,
 )
@@ -352,7 +354,11 @@ def test_artifact_storage_relocation_preserves_logical_identity_and_requires_cas
     assert first.location != second.location
     assert Path(first.location).read_bytes() == Path(second.location).read_bytes() == payload
 
-    store = SQLiteArtifactStorageBindingStore(tmp_path / "artifact-placement.sqlite3")
+    verifier = FilesystemArtifactStoragePlacementVerifier()
+    placement_path = tmp_path / "artifact-placement.sqlite3"
+    store = SQLiteArtifactStorageBindingStore(
+        placement_path, placement_verifier=verifier
+    )
     initial = store.bind(
         artifact_id=first.record.artifact_id,
         content_sha256=first.record.digest,
@@ -368,6 +374,32 @@ def test_artifact_storage_relocation_preserves_logical_identity_and_requires_cas
     assert moved.generation == 2
     assert moved.content_sha256 == first.record.digest
     assert store.resolve(first.record.artifact_id) == moved
+    reopened = SQLiteArtifactStorageBindingStore(
+        placement_path, placement_verifier=verifier
+    )
+    assert reopened.resolve(first.record.artifact_id) == moved
+
+    with pytest.raises(ArtifactStorageVerificationError) as missing:
+        store.relocate(
+            first.record.artifact_id,
+            expected_generation=2,
+            storage_provider_id="artifact.filesystem",
+            location=str(tmp_path / "missing.bin"),
+        )
+    assert missing.value.code == "PLACEMENT_NOT_FOUND"
+    assert store.resolve(first.record.artifact_id) == moved
+
+    wrong = tmp_path / "wrong.bin"
+    wrong.write_bytes(b"wrong-content")
+    with pytest.raises(ArtifactStorageVerificationError) as mismatch:
+        store.relocate(
+            first.record.artifact_id,
+            expected_generation=2,
+            storage_provider_id="artifact.filesystem",
+            location=str(wrong),
+        )
+    assert mismatch.value.code == "CONTENT_SHA256_MISMATCH"
+    assert store.resolve(first.record.artifact_id) == moved
 
     with pytest.raises(ArtifactStorageBindingConflict):
         store.relocate(
@@ -376,7 +408,7 @@ def test_artifact_storage_relocation_preserves_logical_identity_and_requires_cas
             storage_provider_id="artifact.filesystem",
             location=str(tmp_path / "stale.bin"),
         )
-    with pytest.raises(ArtifactStorageBindingConflict):
+    with pytest.raises(ArtifactStorageVerificationError):
         store.bind(
             artifact_id=first.record.artifact_id,
             content_sha256="0" * 64,
@@ -385,14 +417,145 @@ def test_artifact_storage_relocation_preserves_logical_identity_and_requires_cas
         )
 
 
+
+class _ArmedFilesystemRaceVerifier:
+    def __init__(self) -> None:
+        self._delegate = FilesystemArtifactStoragePlacementVerifier()
+        self._armed = False
+
+    def arm(self) -> None:
+        self._armed = True
+
+    def verify(self, **kwargs):
+        result = self._delegate.verify(**kwargs)
+        if self._armed:
+            self._armed = False
+            Path(result.location).write_bytes(b"raced-after-verification")
+        return result
+
+
+def test_artifact_storage_resolve_reverifies_post_bind_and_reopen_bytes(tmp_path) -> None:
+    content = tmp_path / "managed.bin"
+    payload = b"verified-snapshot"
+    content.write_bytes(payload)
+    digest = hashlib.sha256(payload).hexdigest()
+    path = tmp_path / "bindings.sqlite3"
+    verifier = FilesystemArtifactStoragePlacementVerifier()
+    store = SQLiteArtifactStorageBindingStore(path, placement_verifier=verifier)
+    binding = store.bind(
+        artifact_id="artifact:snapshot",
+        content_sha256=digest,
+        storage_provider_id="artifact.filesystem",
+        location=str(content),
+    )
+    content.write_bytes(b"tampered-after-bind")
+    with pytest.raises(ArtifactStorageVerificationError) as tampered:
+        store.resolve(binding.artifact_id)
+    assert tampered.value.code == "CONTENT_SHA256_MISMATCH"
+    reopened = SQLiteArtifactStorageBindingStore(path, placement_verifier=verifier)
+    with pytest.raises(ArtifactStorageVerificationError):
+        reopened.resolve(binding.artifact_id)
+    content.write_bytes(payload)
+    assert reopened.resolve(binding.artifact_id) == binding
+
+
+
+def test_artifact_storage_bind_verify_to_cas_race_rolls_back(tmp_path) -> None:
+    payload = b"race-safe-content"
+    content = tmp_path / "race.bin"
+    content.write_bytes(payload)
+    digest = hashlib.sha256(payload).hexdigest()
+    path = tmp_path / "race-bindings.sqlite3"
+    verifier = _ArmedFilesystemRaceVerifier()
+    verifier.arm()
+    store = SQLiteArtifactStorageBindingStore(path, placement_verifier=verifier)
+    with pytest.raises(ArtifactStorageVerificationError) as raced:
+        store.bind(
+            artifact_id="artifact:race",
+            content_sha256=digest,
+            storage_provider_id="artifact.filesystem",
+            location=str(content),
+        )
+    assert raced.value.code == "CONTENT_SHA256_MISMATCH"
+    with sqlite3.connect(path) as db:
+        assert db.execute("SELECT COUNT(*) FROM artifact_storage_bindings").fetchone()[0] == 0
+
+
+def test_artifact_storage_relocation_recovers_from_bad_source_and_reverifies_destination(tmp_path) -> None:
+    payload = b"relocation-recovery"
+    digest = hashlib.sha256(payload).hexdigest()
+    source = tmp_path / "source.bin"
+    destination = tmp_path / "destination.bin"
+    source.write_bytes(payload)
+    destination.write_bytes(payload)
+    verifier = FilesystemArtifactStoragePlacementVerifier()
+    store = SQLiteArtifactStorageBindingStore(
+        tmp_path / "relocate.sqlite3", placement_verifier=verifier
+    )
+    initial = store.bind(
+        artifact_id="artifact:recover",
+        content_sha256=digest,
+        storage_provider_id="artifact.filesystem",
+        location=str(source),
+    )
+    source.write_bytes(b"broken-source")
+    with pytest.raises(ArtifactStorageVerificationError):
+        store.resolve(initial.artifact_id)
+    moved = store.relocate(
+        initial.artifact_id,
+        expected_generation=1,
+        storage_provider_id="artifact.filesystem",
+        location=str(destination),
+    )
+    assert moved.generation == 2
+    destination.write_bytes(b"broken-destination")
+    with pytest.raises(ArtifactStorageVerificationError):
+        store.resolve(initial.artifact_id)
+
+
+
+def test_artifact_storage_relocation_verify_to_cas_race_preserves_generation(tmp_path) -> None:
+    payload = b"relocation-race-safe"
+    digest = hashlib.sha256(payload).hexdigest()
+    source = tmp_path / "race-source.bin"
+    destination = tmp_path / "race-destination.bin"
+    source.write_bytes(payload)
+    destination.write_bytes(payload)
+    verifier = _ArmedFilesystemRaceVerifier()
+    store = SQLiteArtifactStorageBindingStore(
+        tmp_path / "race-relocate.sqlite3", placement_verifier=verifier
+    )
+    initial = store.bind(
+        artifact_id="artifact:relocate-race",
+        content_sha256=digest,
+        storage_provider_id="artifact.filesystem",
+        location=str(source),
+    )
+    verifier.arm()
+    with pytest.raises(ArtifactStorageVerificationError) as raced:
+        store.relocate(
+            initial.artifact_id,
+            expected_generation=1,
+            storage_provider_id="artifact.filesystem",
+            location=str(destination),
+        )
+    assert raced.value.code == "CONTENT_SHA256_MISMATCH"
+    assert store.resolve(initial.artifact_id) == initial
+
 def test_artifact_storage_binding_detects_tamper_and_reader_is_read_only(tmp_path) -> None:
     path = tmp_path / "artifact-placement.sqlite3"
-    store = SQLiteArtifactStorageBindingStore(path)
+    content = tmp_path / "root-a" / "result.bin"
+    content.parent.mkdir(parents=True)
+    content.write_bytes(b"tamper-test-content")
+    digest = hashlib.sha256(content.read_bytes()).hexdigest()
+    store = SQLiteArtifactStorageBindingStore(
+        path, placement_verifier=FilesystemArtifactStoragePlacementVerifier()
+    )
     binding = store.bind(
         artifact_id="artifact:tamper",
-        content_sha256="a" * 64,
+        content_sha256=digest,
         storage_provider_id="artifact.filesystem",
-        location=str(tmp_path / "root-a" / "result.bin"),
+        location=str(content),
     )
     with store._connect_reader() as db:
         assert db.execute("PRAGMA query_only").fetchone()[0] == 1
@@ -420,7 +583,10 @@ def test_artifact_storage_binding_rejects_unknown_schema_shape(tmp_path) -> None
         )
         db.commit()
     with pytest.raises(ArtifactStorageBindingCorruptionError, match="unsupported artifact storage schema"):
-        SQLiteArtifactStorageBindingStore(path)
+        SQLiteArtifactStorageBindingStore(
+            path,
+            placement_verifier=FilesystemArtifactStoragePlacementVerifier(),
+        )
 
 
 def test_artifact_acquisition_result_rejects_incoherent_verified_receipt(tmp_path) -> None:

@@ -1,3 +1,3 @@
-from .default import PROVIDER, bind, provider
+from .dataset import DatasetResearchResultSource
 
-__all__ = ["PROVIDER", "bind", "provider"]
+__all__ = ["DatasetResearchResultSource"]
