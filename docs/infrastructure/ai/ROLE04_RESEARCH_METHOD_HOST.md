@@ -27,3 +27,13 @@ Stateful method checkpoint/open/close/revision traits remain orthogonal. They mu
 `tests/test_typed_role04_research_method_host_v1.py` defines a project-only control graph with typed dataclass task/input/result values and an injected scoring port. It implements neither `recall()` nor `task_completed()` and still satisfies `ResearchMethodProgram` structurally.
 
 The same suite rejects non-canonical configuration/runtime artifact digests and proves configuration identity changes the bound program digest without changing the implementation identity.
+
+## Stateful method trait
+
+`StatefulResearchMethodProgram` is an optional orthogonal trait, not a larger base class. It exposes only project-owned scientific-state bytes through `checkpoint_state()` and `restore_state()`. The trait owns no Run, checkpoint-store, session, binding, checksum, or recovery authority.
+
+A host wraps those bytes in the canonical `ParticipantCheckpoint` envelope, which binds the frozen Participant runtime binding, component/session identity and payload checksum. Restore therefore remains fail-closed on incompatible Platform identity while the downstream paper retains ownership of its internal state schema/encoding.
+
+## Canonical Participant identity projection
+
+The host does not reconstruct method identity in Experimentation. ROLE04 projects both a `ParticipantRequirement` and a frozen `ParticipantRuntimeBinding` through `method_program_identity_for_requirement()` / `method_program_identity_for_runtime_binding()` into the same `MethodProgramIdentity`. `require_method_program_runtime_binding()` rejects implementation or configuration drift before the downstream control graph executes. Non-`method` Participant kinds cannot be coerced into this projection.

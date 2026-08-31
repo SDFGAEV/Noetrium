@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
 from research_platform.participant.agent.api import AgentIdentity
-from research_platform.participant.method.api import MethodIdentity
+from research_platform.participant.method.api import MethodIdentity, MethodProgramIdentity, MethodProgramIdentityMismatch
 from research_platform.participant.core.api.contracts import (
     ParticipantImplementationIdentity,
     ParticipantRuntimeBinding,
@@ -37,6 +37,24 @@ def _tokens(values: object, field_name: str) -> tuple[str, ...]:
     return normalized
 
 
+def _method_program_identity(
+    implementation: ParticipantImplementationIdentity,
+    configuration_digest: str | None,
+) -> MethodProgramIdentity:
+    if implementation.kind != "method":
+        raise MethodProgramIdentityMismatch("participant implementation kind is not method")
+    return MethodProgramIdentity(
+        MethodIdentity(
+            implementation.participant_id,
+            implementation.implementation_version,
+            implementation.abi_version,
+            implementation.schema_version,
+            implementation.artifact_digest,
+        ),
+        configuration_digest,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class ParticipantRequirement:
     role: str
@@ -58,6 +76,31 @@ class ParticipantRequirement:
 
     def digest(self) -> str:
         return canonical_digest(self)
+
+
+def method_program_identity_for_requirement(requirement: ParticipantRequirement) -> MethodProgramIdentity:
+    if not isinstance(requirement, ParticipantRequirement):
+        raise TypeError("method program requirement must be ParticipantRequirement")
+    return _method_program_identity(requirement.implementation, requirement.configuration_digest)
+
+
+def method_program_identity_for_runtime_binding(binding: ParticipantRuntimeBinding) -> MethodProgramIdentity:
+    if not isinstance(binding, ParticipantRuntimeBinding):
+        raise TypeError("method program runtime binding must be ParticipantRuntimeBinding")
+    return _method_program_identity(binding.implementation, binding.configuration_digest)
+
+
+def require_method_program_runtime_binding(
+    program_identity: MethodProgramIdentity,
+    binding: ParticipantRuntimeBinding,
+) -> None:
+    if not isinstance(program_identity, MethodProgramIdentity):
+        raise TypeError("method program identity must be MethodProgramIdentity")
+    frozen = method_program_identity_for_runtime_binding(binding)
+    if program_identity != frozen:
+        raise MethodProgramIdentityMismatch(
+            f"method program identity does not match frozen Participant binding: expected={frozen!r} actual={program_identity!r}"
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -278,6 +321,9 @@ class ProjectParticipantProviderPort(Protocol):
 __all__ = [
     "AgentProjectDefinition",
     "MethodProjectDefinition",
+    "method_program_identity_for_requirement",
+    "method_program_identity_for_runtime_binding",
+    "require_method_program_runtime_binding",
     "ParticipantBindingDiagnostic",
     "ParticipantBindingDiagnosticCode",
     "ParticipantBindingDiagnosticSeverity",

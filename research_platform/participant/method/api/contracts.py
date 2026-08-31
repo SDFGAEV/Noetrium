@@ -46,6 +46,10 @@ class MethodProgramIdentity:
         return canonical_digest({"implementation": self.implementation, "configuration_digest": self.configuration_digest})
 
 
+class MethodProgramIdentityMismatch(RuntimeError):
+    """A hosted method program does not match the frozen Participant identity."""
+
+
 @runtime_checkable
 class ResearchMethodProgram(Protocol[TaskT, InputT, ResultT]):
     """Downstream-owned whole-method control graph hosted inside a Trial boundary."""
@@ -54,6 +58,18 @@ class ResearchMethodProgram(Protocol[TaskT, InputT, ResultT]):
     def program_identity(self) -> MethodProgramIdentity: ...
 
     def run(self, *, task: TaskT, input_value: InputT, context: ExecutionContext) -> ResultT: ...
+
+
+@runtime_checkable
+class StatefulResearchMethodProgram(Protocol):
+    """Optional project-owned scientific-state trait for a whole-method program.
+
+    The payload is method-owned. Platform binding/session/checksum identity remains
+    outside this trait in the canonical ParticipantCheckpoint envelope.
+    """
+
+    def checkpoint_state(self) -> bytes: ...
+    def restore_state(self, payload: bytes) -> None: ...
 
 
 @dataclass(frozen=True, slots=True)
