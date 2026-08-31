@@ -422,17 +422,13 @@ class SQLiteModelRevisionAuthority:
 
     @staticmethod
     def _create_schema(connection: sqlite3.Connection) -> None:
-        statements = (
-            "CREATE TABLE authority_meta (singleton INTEGER PRIMARY KEY CHECK(singleton=1), schema_version TEXT NOT NULL, generation INTEGER, active_digest TEXT, initial_digest TEXT)",
-            "CREATE TABLE revisions (digest TEXT PRIMARY KEY, parent_digest TEXT, payload BLOB NOT NULL, committed INTEGER NOT NULL CHECK(committed IN (0,1)))",
-            "CREATE TABLE proposals (digest TEXT PRIMARY KEY, payload BLOB NOT NULL)",
-            "CREATE TABLE prepared (proposal_digest TEXT PRIMARY KEY, prepared_digest TEXT NOT NULL UNIQUE, predecessor_digest TEXT NOT NULL, candidate_digest TEXT NOT NULL UNIQUE, generation INTEGER NOT NULL, recovery_anchor_digest TEXT NOT NULL, validation_plan_digest TEXT NOT NULL, build_receipt BLOB NOT NULL, status TEXT NOT NULL CHECK(status IN ('prepared','committed')), FOREIGN KEY(proposal_digest) REFERENCES proposals(digest), FOREIGN KEY(predecessor_digest) REFERENCES revisions(digest), FOREIGN KEY(candidate_digest) REFERENCES revisions(digest))",
-            "CREATE TABLE commits (candidate_digest TEXT PRIMARY KEY, prepared_digest TEXT NOT NULL UNIQUE, evidence BLOB NOT NULL, generation INTEGER NOT NULL, commit_digest TEXT NOT NULL UNIQUE, FOREIGN KEY(candidate_digest) REFERENCES revisions(digest))",
-            "CREATE TABLE promotions (decision_digest TEXT PRIMARY KEY, candidate_digest TEXT NOT NULL, predecessor_digest TEXT NOT NULL, generation INTEGER NOT NULL, receipt_digest TEXT NOT NULL UNIQUE)",
-            "CREATE TABLE rollbacks (operation_digest TEXT PRIMARY KEY, failed_digest TEXT NOT NULL, target_digest TEXT NOT NULL, evidence BLOB NOT NULL, recovery_anchor_digest TEXT NOT NULL, generation INTEGER NOT NULL, receipt_digest TEXT NOT NULL UNIQUE)",
-        )
-        for statement in statements:
-            connection.execute(statement)
+        connection.execute("CREATE TABLE authority_meta (singleton INTEGER PRIMARY KEY CHECK(singleton=1), schema_version TEXT NOT NULL, generation INTEGER, active_digest TEXT, initial_digest TEXT)")
+        connection.execute("CREATE TABLE revisions (digest TEXT PRIMARY KEY, parent_digest TEXT, payload BLOB NOT NULL, committed INTEGER NOT NULL CHECK(committed IN (0,1)))")
+        connection.execute("CREATE TABLE proposals (digest TEXT PRIMARY KEY, payload BLOB NOT NULL)")
+        connection.execute("CREATE TABLE prepared (proposal_digest TEXT PRIMARY KEY, prepared_digest TEXT NOT NULL UNIQUE, predecessor_digest TEXT NOT NULL, candidate_digest TEXT NOT NULL UNIQUE, generation INTEGER NOT NULL, recovery_anchor_digest TEXT NOT NULL, validation_plan_digest TEXT NOT NULL, build_receipt BLOB NOT NULL, status TEXT NOT NULL CHECK(status IN ('prepared','committed')), FOREIGN KEY(proposal_digest) REFERENCES proposals(digest), FOREIGN KEY(predecessor_digest) REFERENCES revisions(digest), FOREIGN KEY(candidate_digest) REFERENCES revisions(digest))")
+        connection.execute("CREATE TABLE commits (candidate_digest TEXT PRIMARY KEY, prepared_digest TEXT NOT NULL UNIQUE, evidence BLOB NOT NULL, generation INTEGER NOT NULL, commit_digest TEXT NOT NULL UNIQUE, FOREIGN KEY(candidate_digest) REFERENCES revisions(digest))")
+        connection.execute("CREATE TABLE promotions (decision_digest TEXT PRIMARY KEY, candidate_digest TEXT NOT NULL, predecessor_digest TEXT NOT NULL, generation INTEGER NOT NULL, receipt_digest TEXT NOT NULL UNIQUE)")
+        connection.execute("CREATE TABLE rollbacks (operation_digest TEXT PRIMARY KEY, failed_digest TEXT NOT NULL, target_digest TEXT NOT NULL, evidence BLOB NOT NULL, recovery_anchor_digest TEXT NOT NULL, generation INTEGER NOT NULL, receipt_digest TEXT NOT NULL UNIQUE)")
         connection.execute(
             "INSERT INTO authority_meta(singleton,schema_version) VALUES(1,?)",
             (_SCHEMA_VERSION,),
@@ -771,30 +767,39 @@ class SQLiteModelRevisionAuthority:
     def _is_committed_ancestor(
         connection: sqlite3.Connection, *, descendant: str, ancestor: str
     ) -> bool:
-        current = descendant
-        visited: set[str] = set()
-        while True:
-            if current in visited:
-                raise ModelRevisionIntegrityError("model revision lineage contains a cycle")
-            visited.add(current)
-            row = connection.execute(
-                "SELECT parent_digest,committed FROM revisions WHERE digest=?", (current,)
-            ).fetchone()
-            if row is None or row["committed"] != 1:
-                raise ModelRevisionIntegrityError("model revision lineage references an uncommitted revision")
+        """Resolve strict committed ancestry with one recursive database query.
+
+        Algorithm-Complexity: O(D)
+        Algorithm-Rationale: D is lineage depth; one recursive CTE loads the lineage once, then validation walks the returned rows without database I/O inside the loop.
+        """
+        rows = connection.execute(
+            "WITH RECURSIVE lineage(digest,parent_digest,committed,path,cycle) AS ("
+            " SELECT digest,parent_digest,committed,',' || digest || ',',0"
+            " FROM revisions WHERE digest=?"
+            " UNION ALL"
+            " SELECT r.digest,r.parent_digest,r.committed,lineage.path || r.digest || ',',"
+            " instr(lineage.path, ',' || r.digest || ',') > 0"
+            " FROM lineage JOIN revisions r ON r.digest=lineage.parent_digest"
+            " WHERE lineage.parent_digest IS NOT NULL AND lineage.cycle=0"
+            ") SELECT digest,parent_digest,committed,cycle FROM lineage",
+            (descendant,),
+        ).fetchall()
+        if not rows:
+            raise ModelRevisionIntegrityError("model revision lineage references a missing revision")
+        digests: list[str] = []
+        for row in rows:
+            digest = row["digest"]
             parent = row["parent_digest"]
-            if parent is None:
-                return False
-            if parent == ancestor:
-                target = connection.execute(
-                    "SELECT committed FROM revisions WHERE digest=?", (ancestor,)
-                ).fetchone()
-                if target is None or target["committed"] != 1:
-                    raise ModelRevisionIntegrityError("rollback ancestor is not committed")
-                return True
-            if not isinstance(parent, str):
-                raise ModelRevisionIntegrityError("model revision parent digest is invalid")
-            current = parent
+            if not isinstance(digest, str) or (parent is not None and not isinstance(parent, str)):
+                raise ModelRevisionIntegrityError("model revision lineage contains an invalid digest")
+            if row["committed"] != 1:
+                raise ModelRevisionIntegrityError("model revision lineage references an uncommitted revision")
+            if row["cycle"]:
+                raise ModelRevisionIntegrityError("model revision lineage contains a cycle")
+            digests.append(digest)
+        if rows[-1]["parent_digest"] is not None:
+            raise ModelRevisionIntegrityError("model revision lineage references a missing parent")
+        return ancestor in digests[1:]
 
     def rollback(
         self,

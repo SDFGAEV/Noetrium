@@ -539,16 +539,12 @@ class SQLiteParticipantRevisionAuthority:
 
     @staticmethod
     def _create_schema(connection: sqlite3.Connection) -> None:
-        statements = (
-            "CREATE TABLE authority_meta (singleton INTEGER PRIMARY KEY CHECK(singleton=1), schema_version TEXT NOT NULL, generation INTEGER, current_digest TEXT, initial_digest TEXT, revision_kind TEXT)",
-            "CREATE TABLE revisions (digest TEXT PRIMARY KEY, parent_digest TEXT, kind TEXT NOT NULL, payload BLOB NOT NULL, committed INTEGER NOT NULL CHECK(committed IN (0,1)))",
-            "CREATE TABLE proposals (digest TEXT PRIMARY KEY, payload BLOB NOT NULL)",
-            "CREATE TABLE transitions (digest TEXT PRIMARY KEY, payload BLOB NOT NULL)",
-            "CREATE TABLE prepared (proposal_digest TEXT PRIMARY KEY, prepared_digest TEXT NOT NULL UNIQUE, predecessor_digest TEXT NOT NULL, candidate_digest TEXT NOT NULL UNIQUE, transition_digest TEXT NOT NULL, generation INTEGER NOT NULL, recovery_anchor_digest TEXT NOT NULL, validation_plan_digest TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('prepared','committed')), FOREIGN KEY(proposal_digest) REFERENCES proposals(digest), FOREIGN KEY(predecessor_digest) REFERENCES revisions(digest), FOREIGN KEY(candidate_digest) REFERENCES revisions(digest), FOREIGN KEY(transition_digest) REFERENCES transitions(digest))",
-            "CREATE TABLE commits (candidate_digest TEXT PRIMARY KEY, prepared_digest TEXT NOT NULL UNIQUE, evidence BLOB NOT NULL, generation INTEGER NOT NULL, commit_digest TEXT NOT NULL UNIQUE, FOREIGN KEY(candidate_digest) REFERENCES revisions(digest))",
-        )
-        for statement in statements:
-            connection.execute(statement)
+        connection.execute("CREATE TABLE authority_meta (singleton INTEGER PRIMARY KEY CHECK(singleton=1), schema_version TEXT NOT NULL, generation INTEGER, current_digest TEXT, initial_digest TEXT, revision_kind TEXT)")
+        connection.execute("CREATE TABLE revisions (digest TEXT PRIMARY KEY, parent_digest TEXT, kind TEXT NOT NULL, payload BLOB NOT NULL, committed INTEGER NOT NULL CHECK(committed IN (0,1)))")
+        connection.execute("CREATE TABLE proposals (digest TEXT PRIMARY KEY, payload BLOB NOT NULL)")
+        connection.execute("CREATE TABLE transitions (digest TEXT PRIMARY KEY, payload BLOB NOT NULL)")
+        connection.execute("CREATE TABLE prepared (proposal_digest TEXT PRIMARY KEY, prepared_digest TEXT NOT NULL UNIQUE, predecessor_digest TEXT NOT NULL, candidate_digest TEXT NOT NULL UNIQUE, transition_digest TEXT NOT NULL, generation INTEGER NOT NULL, recovery_anchor_digest TEXT NOT NULL, validation_plan_digest TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('prepared','committed')), FOREIGN KEY(proposal_digest) REFERENCES proposals(digest), FOREIGN KEY(predecessor_digest) REFERENCES revisions(digest), FOREIGN KEY(candidate_digest) REFERENCES revisions(digest), FOREIGN KEY(transition_digest) REFERENCES transitions(digest))")
+        connection.execute("CREATE TABLE commits (candidate_digest TEXT PRIMARY KEY, prepared_digest TEXT NOT NULL UNIQUE, evidence BLOB NOT NULL, generation INTEGER NOT NULL, commit_digest TEXT NOT NULL UNIQUE, FOREIGN KEY(candidate_digest) REFERENCES revisions(digest))")
         connection.execute(
             "INSERT INTO authority_meta(singleton,schema_version) VALUES(1,?)",
             (_SCHEMA_VERSION,),

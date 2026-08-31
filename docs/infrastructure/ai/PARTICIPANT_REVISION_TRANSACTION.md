@@ -49,3 +49,11 @@ predecessor cannot validate the candidate. SQLite integrity errors, table/schema
 drift, missing referenced objects, digest drift, unsupported revision kinds and
 malformed transition payloads fail closed with `ParticipantRevisionIntegrityError`.
 No corrupt authority is silently recreated.
+
+## Algorithm-governance constraints
+
+Participant revision schema bootstrap executes its fixed DDL statements
+explicitly within the existing SQLite transaction rather than issuing database
+calls from a loop. The fixed statement count is authority-schema work, not an
+input-sized algorithm, and avoiding `executescript` preserves the surrounding
+crash-atomic transaction semantics.

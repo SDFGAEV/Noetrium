@@ -78,3 +78,16 @@ The generic JSON byte/decode mechanism in this provider is still scheduled for
 the separate ROLE01 strict-finite-JSON producer cutover. That convergence changes
 the shared serialization acceptance mechanism, not these Model-owned field-set,
 lineage, plan, build-receipt, CAS, promotion, or rollback semantics.
+
+## Algorithm-governance constraints
+
+Schema bootstrap executes the fixed v2 DDL statements explicitly inside the
+existing authority transaction. It does not loop over database calls and does
+not use `executescript`, whose implicit transaction behavior would weaken the
+crash-atomic bootstrap boundary.
+
+Rollback ancestry is resolved with one recursive SQLite CTE. Python performs a
+single linear validation pass over the returned lineage to reject cycles,
+missing parents, invalid digests, and uncommitted revisions. There is no
+database I/O inside that validation loop; lineage resolution is `O(D)` in
+revision depth and remains fail-closed under corrupted ancestry.

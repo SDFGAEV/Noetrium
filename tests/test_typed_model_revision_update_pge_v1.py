@@ -300,3 +300,47 @@ def test_corrupt_or_torn_revision_database_fails_closed(tmp_path: Path) -> None:
         connection.close()
     with pytest.raises(ModelRevisionIntegrityError, match="table set"):
         SQLiteModelRevisionAuthority(path)
+
+
+def test_rollback_lineage_cycle_fails_closed(tmp_path: Path) -> None:
+    _, authority, initial = _authority(tmp_path)
+    prepared, _ = _committed(authority, initial)
+    promoted = authority.promote(_decision(initial, prepared.candidate), expected_generation=3)
+    connection = authority._connect()  # adversarial corruption fixture
+    try:
+        connection.execute(
+            "UPDATE revisions SET parent_digest=? WHERE digest=?",
+            (promoted.active_revision_digest, promoted.active_revision_digest),
+        )
+    finally:
+        connection.close()
+    trigger = (_evidence(
+        ModelRevisionEvidenceKind.ROLLBACK_TRIGGER, promoted.active_revision_digest, "c"
+    ),)
+    with pytest.raises(ModelRevisionIntegrityError, match="cycle"):
+        authority.rollback(
+            promoted.active_revision_digest, initial.digest(), trigger,
+            recovery_anchor_digest="1" * 64, expected_generation=4,
+        )
+
+
+def test_rollback_missing_parent_fails_closed(tmp_path: Path) -> None:
+    _, authority, initial = _authority(tmp_path)
+    prepared, _ = _committed(authority, initial)
+    promoted = authority.promote(_decision(initial, prepared.candidate), expected_generation=3)
+    connection = authority._connect()  # adversarial corruption fixture
+    try:
+        connection.execute(
+            "UPDATE revisions SET parent_digest=? WHERE digest=?",
+            ("f" * 64, promoted.active_revision_digest),
+        )
+    finally:
+        connection.close()
+    trigger = (_evidence(
+        ModelRevisionEvidenceKind.ROLLBACK_TRIGGER, promoted.active_revision_digest, "d"
+    ),)
+    with pytest.raises(ModelRevisionIntegrityError, match="missing parent"):
+        authority.rollback(
+            promoted.active_revision_digest, initial.digest(), trigger,
+            recovery_anchor_digest="1" * 64, expected_generation=4,
+        )
