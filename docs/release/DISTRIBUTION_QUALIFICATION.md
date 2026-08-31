@@ -58,6 +58,8 @@ This emits one machine-readable receipt and exits nonzero on the first blocking 
 
 Provider conformance is declared in `tests/PROVIDER_CONFORMANCE.json`. The matrix must contain exactly the durable, environment, model, effect and checkpoint classes and points to first-party behavior/recovery tests that are themselves classified exactly once by `tests/TEST_SYSTEM.json`.
 
+Resource shared-carrier fencing tests are L5 `concurrency-capacity` evidence. New cross-role resource fencing tests must extend that existing taxonomy rule and remain classified exactly once rather than creating a parallel family.
+
 The GitHub workflow runs source-bound product assurance, wheel/sdist qualification, exact-SHA container build/verification, and uploads all receipts for the exact CI source revision.
 
 ## Licensing boundary

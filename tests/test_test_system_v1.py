@@ -56,3 +56,13 @@ class TestSystemV1Tests(unittest.TestCase):
             self.assertEqual(row.rule_id, "section42-scientific")
             self.assertEqual(row.family, "scientific-domain")
             self.assertEqual(row.level, "L6")
+
+    def test_resource_shared_carrier_fencing_is_l5_concurrency(self) -> None:
+        catalog = load_catalog(CATALOG_PATH)
+        row = classify(
+            ROOT / "tests" / "test_resource_shared_carrier_fencing_v1.py",
+            catalog,
+        )
+        self.assertEqual(row.rule_id, "concurrency")
+        self.assertEqual(row.family, "concurrency-capacity")
+        self.assertEqual(row.level, "L5")
