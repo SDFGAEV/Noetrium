@@ -156,33 +156,20 @@ The target architecture is intentionally fine-grained. A node exists only where 
 
 ## Reliability System
 
+Section 42 scaffold contraction treats causal/timeline diagnostics, failure catalog/descriptor/envelope/fingerprint/materialization/taxonomy, incident/policy, reconciliation facets, and recovery evidence/plan/replay as facets of retained Reliability authorities rather than independently registered systems.
+
 - **diagnostics** — `diagnostic_queries` — owns: read-side cross-system correlation and root-cause views; must not own: durable authority mutation.
 - **effect** — `effect_authority` — owns: external effect intent, outcome certainty and reconciliation state; must not own: process/server ownership.
 - **failure** — `failure_authority` — owns: failure taxonomy, envelopes, fingerprints and semantic versions; must not own: diagnostic UI and operator policy.
 - **forensics** — `forensic_authority` — owns: durable evidence bundles, causal evidence and forensic indexes; must not own: business result semantics.
-- **incident** — `incident_authority` — owns: incident grouping, lifecycle and incident identity; must not own: raw failure taxonomy.
-- **policy** — `reliability_policy` — owns: reliability invariants, no-fallback rules and escalation policies; must not own: runtime implementation.
-- **reconciliation** — `reconciliation_authority` — owns: uncertain effects, projection drift and state reconciliation; must not own: new business state creation.
 - **recovery** — `recovery_authority` — owns: recovery plans, exact replay/reconcile and recovery lifecycle; must not own: provider storage internals.
-  - **causal** — `causal_diagnostics` — owns: causal graph assembly from authoritative references; must not own: failure/effect mutation.
-  - **timeline** — `diagnostic_timeline` — owns: cross-system chronological diagnostic timelines; must not own: source event truth.
-  - **catalog** — `failure_catalog` — owns: versioned failure catalog and semantic drift detection; must not own: incident state.
-  - **descriptor** — `failure_descriptor` — owns: safe exception and failure descriptors; must not own: durable failure lifecycle.
-  - **envelope** — `failure_envelope` — owns: durable failure envelopes and lifecycle references; must not own: incident grouping.
-  - **fingerprint** — `failure_fingerprint` — owns: exact and family failure fingerprints; must not own: failure severity policy.
-  - **materialization** — `failure_materialization` — owns: turn runtime exceptions into durable failure facts; must not own: exception capture itself.
-  - **taxonomy** — `failure_taxonomy` — owns: stable failure domains and codes; must not own: runtime exception details.
-  - **effect** — `effect_reconciliation` — owns: reconcile uncertain external effects; must not own: business state authority.
-  - **state** — `state_reconciliation` — owns: reconcile uncertain durable state; must not own: external effect certainty.
-  - **evidence** — `recovery_evidence` — owns: recovery evidence receipts and proof of reconciliation; must not own: diagnostic projections.
   - **execution** — `recovery_execution` — owns: recovery execution lifecycle and effect handoff; must not own: failure taxonomy.
-  - **plan** — `recovery_plan` — owns: immutable recovery plans and exact recovery intents; must not own: execution of recovery effects.
-  - **replay** — `recovery_replay` — owns: exact replay contracts against frozen identities; must not own: new identity selection.
 
 ## Resource System
 
+Resource catalog identity remains a semantic facet of the retained Resource authority; the empty `resource/catalog` shell is not a separate registered system.
+
 - **allocation** — `resource_allocation` — owns: resource allocation intents and allocations; must not own: execution workflow semantics.
-- **catalog** — `resource_catalog` — owns: resource identities/types and catalog metadata; must not own: live capacity.
 - **compute** — `compute_inventory` — owns: compute resource identity, capacities and provider facts; must not own: environment packaging.
 - **directory** — `directory_inventory` — owns: managed filesystem/directory identity and lifecycle; must not own: artifact immutable content.
 - **lease** — `resource_lease` — owns: lease identity, acquisition, renewal and release; must not own: server lifecycle.
@@ -190,23 +177,17 @@ The target architecture is intentionally fine-grained. A node exists only where 
 
 ## Runtime System
 
-- **control** — `runtime_control` — owns: runtime control commands, transitions and recovery handoff; must not own: failure taxonomy and recovery evidence.
-- **history** — `runtime_history` — owns: runtime state/history snapshots and integrity; must not own: current live process truth.
+Runtime control/history, process identity/launch/lifecycle, session binding/identity, and supervision remain typed semantics of retained Runtime parent authorities; empty child shells are not separate catalog authorities.
+
 - **host** — `host_runtime_state` — owns: live host identity and runtime host attachment; must not own: resource catalog metadata.
 - **process** — `process_state` — owns: process identity, launch contract and lifecycle; must not own: experiment semantics.
 - **server** — `server_state` — owns: server identity, lifecycle and health contract; must not own: model serving truth.
 - **service** — `service_state` — owns: managed service identity, registration and lifecycle; must not own: scientific truth.
 - **session** — `runtime_session` — owns: runtime session identity and host/process bindings; must not own: participant scientific semantics.
-- **supervision** — `supervision_state` — owns: supervision loops, health checks and restart/reconcile orchestration; must not own: diagnostic storage and failure taxonomy.
-  - **identity** — `process_identity` — owns: stable process identity and launch contract identity; must not own: live process status.
-  - **launch** — `process_launch` — owns: process launch specifications and provider handoff; must not own: process supervision.
-  - **lifecycle** — `process_lifecycle` — owns: process lifecycle and termination semantics; must not own: failure classification.
   - **supervision** — `process_supervision` — owns: process health/reconcile loops; must not own: durable runtime history storage.
   - **health** — `server_health_contract` — owns: runtime server health contracts; must not own: observability health storage.
   - **identity** — `server_identity` — owns: stable server identity and deployment attachment; must not own: live health.
   - **lifecycle** — `server_lifecycle` — owns: server lifecycle state and transitions; must not own: process internals.
-  - **binding** — `runtime_binding` — owns: bind sessions to server/process/environment/model identities; must not own: provider process control.
-  - **identity** — `runtime_session_identity` — owns: runtime session identity and frozen bindings; must not own: participant session semantics.
 - **toolchain** — `runtime_toolchain` — owns: verified host toolchain acquisition, materialization, identity and receipts; must not own: environment scenarios, experiment protocols, or project policy.
 
 ## Scientific semantics convergence

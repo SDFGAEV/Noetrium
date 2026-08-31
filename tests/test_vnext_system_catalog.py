@@ -4,6 +4,7 @@ from importlib.resources import files
 
 from research_platform.governance.system_registry.api import SystemLayer, system_catalog
 from research_platform.governance.architecture.system_topology_invariants import audit_system_topology_completeness
+import research_platform.governance.architecture.system_topology_invariants as topology_invariants
 
 def test_vnext_catalog_has_unique_keys_and_parent_first_order():
     rows=system_catalog(); keys=[row.identity.key for row in rows]
@@ -74,9 +75,27 @@ def test_logging_is_decomposed_into_independent_authorities():
     }:
         assert key in keys
 
-def test_reliability_separates_failure_recovery_reconciliation_and_diagnostics():
+def test_section42_scaffold_contraction_keeps_parent_authorities_only():
     keys={row.identity.key for row in system_catalog()}
-    assert {'reliability/failure/envelope','reliability/recovery/plan','reliability/reconciliation/effect','reliability/diagnostics/causal'} <= keys
+    retired = {
+        "reliability/diagnostics/causal", "reliability/diagnostics/timeline",
+        "reliability/failure/catalog", "reliability/failure/descriptor",
+        "reliability/failure/envelope", "reliability/failure/fingerprint",
+        "reliability/failure/materialization", "reliability/failure/taxonomy",
+        "reliability/incident", "reliability/policy", "reliability/reconciliation",
+        "reliability/reconciliation/effect", "reliability/reconciliation/state",
+        "reliability/recovery/evidence", "reliability/recovery/plan",
+        "reliability/recovery/replay", "resource/catalog", "runtime/control",
+        "runtime/history", "runtime/process/identity", "runtime/process/launch",
+        "runtime/process/lifecycle", "runtime/session/binding",
+        "runtime/session/identity", "runtime/supervision",
+    }
+    assert keys.isdisjoint(retired)
+    assert {
+        "reliability", "reliability/diagnostics", "reliability/failure",
+        "reliability/recovery", "resource", "runtime", "runtime/process",
+        "runtime/session",
+    } <= keys
 
 
 def test_packaged_catalog_is_the_single_topology_declaration_authority():
@@ -104,6 +123,18 @@ def test_packaged_catalog_is_the_single_topology_declaration_authority():
 def test_standard_shaped_systems_cannot_bypass_catalog_authority():
     root = Path(__file__).parents[1]
     assert audit_system_topology_completeness(root) == []
+
+
+def test_registered_package_authority_cannot_point_to_missing_source(tmp_path, monkeypatch):
+    catalog = tmp_path / "research_platform" / "governance" / "system_registry" / "catalog.json"
+    catalog.parent.mkdir(parents=True)
+    catalog.write_text("{}\n", encoding="utf-8")
+    descriptor = next(row for row in system_catalog() if row.identity.key == "scope")
+    monkeypatch.setattr(topology_invariants, "system_catalog", lambda: (descriptor,))
+    rows = topology_invariants.audit_system_topology_completeness(tmp_path)
+    assert len(rows) == 1
+    assert rows[0].invariant == "stale_catalog_package"
+    assert "research_platform.scope" in rows[0].detail
 
 
 def test_new_standard_shaped_system_is_fail_closed_until_registered(tmp_path):

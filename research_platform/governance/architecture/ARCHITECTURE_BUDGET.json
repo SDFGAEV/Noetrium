@@ -101,12 +101,12 @@
       "owner_role": "ROLE01",
       "delta": {
         "top_level_systems": -1,
-        "subsystems": -6,
+        "subsystems": -31,
         "contract_declarations": 12,
-        "authorities": -7,
+        "authorities": -32,
         "import_edges": 39
       },
-      "justification": "ROLE01 Trial/Study semantic convergence retires the redundant Scientific top-level authority and its five child authorities after exact ROLE03 producer 80eff508 deletes research_platform.scientific/**, preserves the prior architecture scaffold contraction, and declares truthful Artifact/Data Platform-kernel plus Experimentation Study->Artifact dependencies; measured owner-scope delta is one fewer top-level system, six fewer subsystems, twelve net explicit contracts, seven fewer authorities and thirty-nine import edges.",
+      "justification": "ROLE01 semantic catalog contraction is full-baseline-relative: retire the Scientific top-level shell plus five Scientific child shells and twenty-five ROLE02-proven scaffold-only Runtime/Resource/Reliability nodes, while preserving truthful shared-kernel and Study-to-Artifact dependencies; no overlapping migration headroom is stacked.",
       "applicability": {
         "module_prefixes": [
           "research_platform.platform",

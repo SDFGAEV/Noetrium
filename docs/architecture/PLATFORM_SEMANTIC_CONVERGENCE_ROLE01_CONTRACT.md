@@ -96,3 +96,8 @@ An active migration proposal is unique per overlapping owner scope. When an exac
 ### Platform Trial runtime consumer cutover
 
 Platform composition consumes the Experimentation-owned neutral Trial contract, not legacy Scientific/Workflow aliases. The runtime builder accepts `ExperimentTrialProtocol`, executes it through `ExperimentTrialCycleExecutor`, and binds `trial_protocol_identity`; default AgentTurn and ContextAction compositions inject their TrialProtocol implementations explicitly. Governance signature auditing follows `runtime/trial_cycle.py` so removed Scientific-cycle files cannot remain an implicit authority.
+### Section 42 scaffold-only catalog contraction
+
+ROLE02 proved that twenty-five Runtime/Resource/Reliability catalog nodes are generated/declarative shells with no substantive Python implementation and no external Python consumers. ROLE01 therefore retires those descriptors rather than preserving empty authorities. Their semantics remain facets of retained parent Runtime, Resource, Failure, Diagnostics, Recovery, and Reliability authorities; ROLE02 owns the physical 222-file deletion and ROLE06 owns release-manifest regeneration.
+
+Catalog/source completeness is bidirectional for package authorities. A concrete standard-shaped package without a catalog owner is `unregistered_standard_system`; a catalog descriptor whose declared Python package is absent is `stale_catalog_package`. Non-package facets/projections must be represented explicitly outside this package-authority descriptor contract rather than by a descriptor pointing at missing source. This keeps scaffold deletion fail-closed without turning filesystem discovery into topology authority.
