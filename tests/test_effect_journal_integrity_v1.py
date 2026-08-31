@@ -25,10 +25,16 @@ from research_platform.reliability.effect.runtime import (
 )
 
 
-def _intent(*, run_id: str = "run-a", lifetime_id: str | None = "life") -> EffectIntent:
+def _intent(
+    *,
+    run_id: str = "run-a",
+    lifetime_id: str | None = "life",
+    request_digest: str = "a" * 64,
+    source_generation: str | None = None,
+) -> EffectIntent:
     return EffectIntent.build(
         request_id="request-a",
-        request_digest="a" * 64,
+        request_digest=request_digest,
         operation_id="operation-a",
         provider_component=ComponentIdentity("provider.test", "test", "1", "1", "cfg"),
         context=ExecutionContext(
@@ -38,6 +44,7 @@ def _intent(*, run_id: str = "run-a", lifetime_id: str | None = "life") -> Effec
             lifetime_id=lifetime_id,
             task_id="task-a",
         ),
+        source_generation=source_generation,
         intent_namespace="integrity-test",
     )
 
@@ -143,3 +150,28 @@ def test_sqlite_effect_journal_timeout_must_be_finite() -> None:
         for timeout in (float("nan"), float("inf"), 0.0, -1.0):
             with pytest.raises(ValueError, match="finite and positive"):
                 SQLiteEffectIntentJournal(path, timeout_seconds=timeout)
+
+
+def test_effect_intent_prepare_fences_source_generation_replacement() -> None:
+    original = _intent(request_digest="a" * 64, source_generation="env-g1")
+    successor = _intent(request_digest="b" * 64, source_generation="env-g2")
+    assert original.intent_id == successor.intent_id
+
+    for journal in (InMemoryEffectIntentJournal(),):
+        journal.prepare(original)
+        with pytest.raises(EffectIntentConflict, match="identity conflict"):
+            journal.prepare(successor)
+
+
+def test_effect_transition_rejects_successor_request_digest_on_stale_intent() -> None:
+    original = _intent(request_digest="a" * 64, source_generation="env-g1")
+    successor = _intent(request_digest="b" * 64, source_generation="env-g2")
+    journal = InMemoryEffectIntentJournal()
+    journal.prepare(original)
+
+    with pytest.raises(EffectIntentConflict, match="request digest conflict"):
+        journal.record_result(
+            original.intent_id,
+            request_digest=successor.request_digest,
+            effect=None,
+        )

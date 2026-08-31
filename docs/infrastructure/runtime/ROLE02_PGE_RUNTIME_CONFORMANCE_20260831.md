@@ -18,3 +18,23 @@ Existing adversarial coverage supplies the behavior behind that representation:
 - `test_service_quiescence_probe_v167.py`: exact quiescence before replacement/retirement.
 
 This is intentionally composition mechanics, not scientific identity. ROLE04 remains owner of capability/Participant/Model identity and ROLE03 remains owner of run/training/evaluation scientific execution identity.
+
+## Effect-generation fence clarification
+
+`EffectIntent.source_generation` and `EffectCompletionEvidence.consumer_generation`
+are intentionally different authorities. For context actions the former is the
+Environment generation; the latter can be the Method or Agent generation. They
+must not be compared for equality.
+
+The stale-source fence is instead exact request identity. The Environment action
+request digest includes `context.generation("environment")`. A successor source
+generation therefore produces a different request digest. The effect journal then
+fails closed in two independent places: preparing the same logical intent with the
+successor source generation conflicts with the already prepared intent identity,
+and every result/reconcile transition rejects a request digest different from the
+persisted intent digest. Endpoint/service replacement remains separately fenced by
+Resource binding CAS and Runtime service generation.
+
+`tests/test_effect_journal_integrity_v1.py` contains adversarial proofs for both
+failure modes. This preserves distinct Environment, Method/Agent, Resource and
+Runtime generations rather than inventing a universal generation counter.
