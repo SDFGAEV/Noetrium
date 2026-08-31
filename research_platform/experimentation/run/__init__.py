@@ -1,29 +1,8 @@
-from .identity.api import RunIdentity, RunIdentityProvider
-from .lifecycle.api import RunCleanupFailure, RunCleanupReport, RunClosed, RunRecoveryRequired
-from .api import (
-    RunArtifactFinalizationPort,
-    RunArtifactKind,
-    RunArtifactSnapshotReceipt,
-    RunArtifactSealedError,
-    RunArtifactStorePort,
-    RunArtifactVerificationPort,
-    RunDiagnosticsPort,
-)
-from .runtime import DirectoryRunArtifactStore
+"""Run namespace.
 
-__all__ = [
-    "RunCleanupFailure",
-    "RunCleanupReport",
-    "RunArtifactFinalizationPort",
-    "RunArtifactKind",
-    "RunArtifactSnapshotReceipt",
-    "RunArtifactSealedError",
-    "RunArtifactStorePort",
-    "RunArtifactVerificationPort",
-    "RunDiagnosticsPort",
-    "RunClosed",
-    "RunIdentity",
-    "RunIdentityProvider",
-    "RunRecoveryRequired",
-    "DirectoryRunArtifactStore",
-]
+Import contracts from explicit child APIs such as ``run.api``, ``run.identity.api``,
+``run.lifecycle.api``, and ``run.manifest.api``. Runtime/providers are never
+implicitly loaded by importing this package.
+"""
+
+__all__: list[str] = []

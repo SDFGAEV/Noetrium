@@ -95,7 +95,7 @@ class StudyVariantSpec:
 
 
 @dataclass(frozen=True, slots=True)
-class ScientificConcurrencyPolicy:
+class StudyConcurrencyPolicy:
     """Frozen execution-concurrency identity for a scientific study.
 
     Parallelism can change contention, timing and therefore observations.  It is
@@ -133,7 +133,7 @@ class ScientificConcurrencyPolicy:
             ("model_admission_policy", self.model_admission_policy),
             ("scheduler_policy", self.scheduler_policy),
         ):
-            _require_non_empty_string(value, f"scientific concurrency {name}")
+            _require_non_empty_string(value, f"study concurrency {name}")
 
 
 def _require_variants(value: object) -> tuple[StudyVariantSpec, ...]:
@@ -149,9 +149,9 @@ def _require_variants(value: object) -> tuple[StudyVariantSpec, ...]:
     return value
 
 
-def _require_concurrency_policy(value: object) -> ScientificConcurrencyPolicy:
-    if not isinstance(value, ScientificConcurrencyPolicy):
-        raise TypeError("study protocol concurrency_policy must be ScientificConcurrencyPolicy")
+def _require_concurrency_policy(value: object) -> StudyConcurrencyPolicy:
+    if not isinstance(value, StudyConcurrencyPolicy):
+        raise TypeError("study protocol concurrency_policy must be StudyConcurrencyPolicy")
     return value
 
 
@@ -165,7 +165,7 @@ def _require_variant_budget_tiers(
 
 @dataclass(frozen=True, slots=True)
 class StudyProtocol:
-    """Frozen scientific design consumed by every environment adapter."""
+    """Frozen research design consumed by every environment adapter."""
 
     study_id: str
     workload_id: str
@@ -175,7 +175,7 @@ class StudyProtocol:
     metric_names: tuple[str, ...]
     task_manifest_digest: str
     budget_tiers: tuple[str, ...] = ("standard",)
-    concurrency_policy: ScientificConcurrencyPolicy = field(default_factory=ScientificConcurrencyPolicy)
+    concurrency_policy: StudyConcurrencyPolicy = field(default_factory=StudyConcurrencyPolicy)
     protocol_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -187,7 +187,7 @@ class StudyProtocol:
             self.seed_schedule_digest, "study protocol seed_schedule_digest"
         )
         metric_names = _require_string_tuple(
-            self.metric_names, "study protocol metric_names", non_empty=True, unique=True
+            self.metric_names, "study protocol metric_names", non_empty=False, unique=True
         )
         del metric_names
         _require_non_empty_string(
@@ -217,6 +217,7 @@ class StudyAssignment:
     variant_id: str
     repetition: int
     seed: str
+    task_id: str | None = None
     assignment_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -224,11 +225,14 @@ class StudyAssignment:
         _require_non_empty_string(self.variant_id, "study assignment variant_id")
         _require_nonnegative_int(self.repetition, "study assignment repetition")
         _require_non_empty_string(self.seed, "study assignment seed")
+        if self.task_id is not None:
+            _require_non_empty_string(self.task_id, "study assignment task_id")
         object.__setattr__(self, "assignment_digest", canonical_digest({
             "study_id": self.study_id,
             "variant_id": self.variant_id,
             "repetition": self.repetition,
             "seed": self.seed,
+            "task_id": self.task_id,
         }))
 
 
@@ -370,7 +374,7 @@ class StudyMetricAggregate:
 
 
 __all__ = [
-    "ScientificConcurrencyPolicy",
+    "StudyConcurrencyPolicy",
     "StudyAssignment",
     "StudyExecutionUnit",
     "StudyMatrixExecutionReport",

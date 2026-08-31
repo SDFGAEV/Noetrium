@@ -42,6 +42,7 @@ class _CheckpointBinding:
     environment_generation = "env-1"
     method_generation = "method-1"
     task_manifest_digest = "tasks-1"
+    checkpoint_compatibility_digest = "a" * 64
 
     def __init__(self, component: _StateComponent) -> None:
         self.component = component

@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from research_platform.experimentation.study import (
-    BasicStudyMetricAggregator,
-    DeterministicStudyAssignment,
-    ScientificConcurrencyPolicy,
+from research_platform.experimentation.study.api import (
+    StudyConcurrencyPolicy,
     StudyAssignment,
     StudyMetricAggregate,
     StudyMetricObservation,
@@ -12,6 +10,7 @@ from research_platform.experimentation.study import (
     VariantExecutionReceipt,
     VariantKind,
 )
+from research_platform.experimentation.study.runtime import BasicStudyMetricAggregator, DeterministicStudyAssignment
 import pytest
 
 
@@ -38,7 +37,7 @@ def test_study_protocol_expands_full_variant_repetition_matrix_and_aggregates():
         StudyMetricObservation(assignment, (("success_rate", 1.0), ("utility", 2.0)))
         for assignment in assignments
     )
-    aggregates = BasicStudyMetricAggregator().aggregate(protocol, observations)
+    aggregates = BasicStudyMetricAggregator().aggregate(protocol, observations, assignments)
     assert {(item.variant_id, item.metric_name, item.count) for item in aggregates} == {
         ("control", "success_rate", 2),
         ("control", "utility", 2),
@@ -55,7 +54,7 @@ def test_study_aggregation_rejects_incomplete_matrix() -> None:
         for _ in (0,)
     )
     with pytest.raises(ValueError, match="matrix is incomplete"):
-        BasicStudyMetricAggregator().aggregate(protocol, observations)
+        BasicStudyMetricAggregator().aggregate(protocol, observations, assignments)
 
 
 def test_study_aggregation_rejects_incomplete_metric_schema() -> None:
@@ -66,7 +65,7 @@ def test_study_aggregation_rejects_incomplete_metric_schema() -> None:
         for assignment in assignments
     )
     with pytest.raises(ValueError, match="metric schema is incomplete"):
-        BasicStudyMetricAggregator().aggregate(protocol, observations)
+        BasicStudyMetricAggregator().aggregate(protocol, observations, assignments)
 
 
 def test_study_contracts_reject_bool_as_integer_identity() -> None:
@@ -79,7 +78,7 @@ def test_study_contracts_reject_bool_as_integer_identity() -> None:
     with pytest.raises(TypeError, match="repetition must be an integer"):
         StudyAssignment("study", "control", True, "seed")
     with pytest.raises(TypeError, match="max_parallel_repetitions must be an integer"):
-        ScientificConcurrencyPolicy(max_parallel_repetitions=True)
+        StudyConcurrencyPolicy(max_parallel_repetitions=True)
 
 
 def test_study_contracts_reject_implicit_scalar_coercion() -> None:

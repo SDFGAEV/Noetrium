@@ -1,9 +1,10 @@
 from .contracts import ExperimentParticipantSpec, ExperimentSpec
-from .ports import ExperimentComponentBindingPort, ExperimentScientificCycleExecutorPort
-from .workflow import (
-    ExperimentScientificWorkflow,
-    ExperimentWorkflowIdentity,
-    ExperimentWorkflowIdentityMismatch,
+from .ports import ExperimentComponentBindingPort, ExperimentTrialCycleExecutorPort
+from .topology import ExperimentParticipantTopology
+from .trial_protocol import (
+    ExperimentTrialProtocol,
+    ExperimentTrialProtocolIdentity,
+    ExperimentTrialProtocolIdentityMismatch,
 )
 from .failure import (
     ExperimentWorkloadFailure,
@@ -16,13 +17,14 @@ from .tasks import ExperimentTaskSpec, validate_task_graph
 __all__ = [
     "ExperimentComponentBindingPort",
     "ExperimentParticipantSpec",
-    "ExperimentScientificCycleExecutorPort",
-    "ExperimentScientificWorkflow",
+    "ExperimentParticipantTopology",
+    "ExperimentTrialCycleExecutorPort",
+    "ExperimentTrialProtocol",
     "ExperimentTaskSpec",
     "ExperimentWorkloadFailure",
     "ExperimentSpec",
-    "ExperimentWorkflowIdentity",
-    "ExperimentWorkflowIdentityMismatch",
+    "ExperimentTrialProtocolIdentity",
+    "ExperimentTrialProtocolIdentityMismatch",
     "FailureScope",
     "FailureScopeRank",
     "failure_scope_rank",

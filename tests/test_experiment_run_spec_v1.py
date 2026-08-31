@@ -7,7 +7,8 @@ from research_platform.experimentation.api import ProjectRunDefinition
 from research_platform.experimentation.experiment.api import ExperimentSpec
 from research_platform.experimentation.run.api import ExperimentRunSpec
 from research_platform.experimentation.run.identity.api import RunIdentity
-from research_platform.experimentation.run.manifest.api import CompositionPlanReference, RunLaunchManifest
+from research_platform.experimentation.identity import OptionalIdentityFacet, ReplayLevel
+from research_platform.experimentation.run.manifest.api import CompositionPlanReference, RunLaunchManifest, RunResearchSemanticsReference
 from research_platform.experimentation.study.api import StudyProtocol, StudyVariantSpec, VariantKind
 
 
@@ -49,7 +50,7 @@ class ExperimentRunSpecTests(unittest.TestCase):
         tasks = "f" * 64
         experiment = ExperimentSpec(
             "experiment-1", "study-1", "project-1", (), "model", "prompt",
-            "workload", seed, 2, "workflow.v1",
+            "workload", seed, 2, "workflow.v1", "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
         )
         study = StudyProtocol(
             "study-1", "workload-1",
@@ -66,6 +67,13 @@ class ExperimentRunSpecTests(unittest.TestCase):
             "release", "prompt-generation", "prompt-promotion", "models", (), "host",
             "participant-impl", "participant-runtime", "participant-bindings",
             project_manifest.semantic_digest, experiment.identity_digest(),
+            RunResearchSemanticsReference(
+                research_plan_digest="1" * 64, study_plan_digest="2" * 64,
+                measurement_protocol_digest="3" * 64, trial_protocol_digest="4" * 64,
+                intervention=OptionalIdentityFacet("5" * 64), topology=OptionalIdentityFacet(),
+                participant_schedule=OptionalIdentityFacet(), revision=OptionalIdentityFacet("6" * 64),
+                replay_level=ReplayLevel.EXACT,
+            ),
             ("python", "-m", "demo"), "a" * 64, "b" * 64,
             (("project", "config"),), "seed-0",
             (CompositionPlanReference("plan", "owner", "scope", "c" * 64),),

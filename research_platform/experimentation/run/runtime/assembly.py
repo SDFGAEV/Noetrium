@@ -6,7 +6,7 @@ from .cycle import RunCycleExecutor
 from ..identity.api import RunIdentity
 from .resources import OpenRunResources
 from .restore import RunInitialization
-from research_platform.experimentation.experiment.api import ExperimentScientificCycleExecutorPort
+from research_platform.experimentation.experiment.api import ExperimentTrialCycleExecutorPort
 from research_platform.participant.core.api.runtime_ports import ParticipantSessionLifecyclePort
 from research_platform.experimentation.experiment.api import ExperimentSpec
 
@@ -16,12 +16,12 @@ class RunAssembly:
 
     def __init__(
         self,
-        scientific: ExperimentScientificCycleExecutorPort,
+        trial: ExperimentTrialCycleExecutorPort,
         lifecycle: ParticipantSessionLifecyclePort,
         checkpoint: RunCheckpointCoordinatorPort | None,
         session_factory: RunSessionFactoryPort,
     ) -> None:
-        self._scientific = scientific
+        self._trial = trial
         self._lifecycle = lifecycle
         self._checkpoint = checkpoint
         self._session_factory = session_factory
@@ -38,7 +38,7 @@ class RunAssembly:
             spec=spec,
             run_identity=identity,
             bound=resources.bound,
-            scientific=self._scientific,
+            trial=self._trial,
             checkpoint=self._checkpoint,
             participant_sessions=resources.participant_sessions,
         )

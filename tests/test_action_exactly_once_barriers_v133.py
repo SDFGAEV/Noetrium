@@ -108,7 +108,7 @@ def _spec() -> ExperimentSpec:
     return context_action_spec(study_id="study", method_id="m", environment_id="e", model_stack_digest="model", prompt_generation="prompt", workload_digest="work", seed_digest="seed", repetitions=1)
 
 
-def test_crash_durable_action_refuses_non_idempotent_method_before_scientific_workflow_or_act():
+def test_crash_durable_action_refuses_non_idempotent_method_before_trial_protocol_or_act():
     with tempfile.TemporaryDirectory() as td:
         mr = FakeParticipantResolver(); mr.register("method", "m", NonIdempotentMethod)
         er = FakeParticipantResolver(); er.register("environment", "e", RecoverableEnvironment)

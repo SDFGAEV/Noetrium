@@ -1,6 +1,6 @@
 """Frozen experiment/run launch contracts."""
 
-from .contracts import CompositionPlanReference, RunLaunchManifest
+from .contracts import CompositionPlanReference, RunLaunchManifest, RunResearchSemanticsReference
 from .evidence import (
     DerivedEvidenceArtifact,
     EVIDENCE_BUNDLE_SCHEMA_VERSION,
@@ -21,4 +21,5 @@ __all__ = [
     "EvidenceBundleStatus",
     "EvidenceStreamDescriptor",
     "RunLaunchManifest",
+    "RunResearchSemanticsReference",
 ]

@@ -2,15 +2,16 @@ from unittest.mock import patch
 from threading import Lock
 import time
 
+import pytest
+
+from research_platform.experimentation.study.runtime import BasicStudyMetricAggregator, DeterministicStudyAssignment, StudyMatrixExecutor
+
 from research_platform.platform.concurrency.api import ConcurrencyBudget, TaskFailurePolicy
 from research_platform.platform.concurrency.composition import build_concurrency_runtime
-from research_platform.experimentation.study import (
-    BasicStudyMetricAggregator,
-    DeterministicStudyAssignment,
+from research_platform.experimentation.study.api import (
     ExperimentPlan,
-    ScientificConcurrencyPolicy,
+    StudyConcurrencyPolicy,
     StudyExecutionUnit,
-    StudyMatrixExecutor,
     StudyMetricObservation,
     StudyProtocol,
     StudyVariantSpec,
@@ -71,7 +72,7 @@ def test_parallel_repetition_policy_uses_structured_concurrency_and_deterministi
         "c" * 64,
         ("score",),
         "d" * 64,
-        concurrency_policy=ScientificConcurrencyPolicy(max_parallel_repetitions=2),
+        concurrency_policy=StudyConcurrencyPolicy(max_parallel_repetitions=2),
     )
     assignments = DeterministicStudyAssignment().assignments(protocol)
     runtime = build_concurrency_runtime(
@@ -128,7 +129,7 @@ def test_scientific_concurrency_policy_is_part_of_protocol_identity() -> None:
         serial.seed_schedule_digest,
         serial.metric_names,
         serial.task_manifest_digest,
-        concurrency_policy=ScientificConcurrencyPolicy(max_parallel_repetitions=2),
+        concurrency_policy=StudyConcurrencyPolicy(max_parallel_repetitions=2),
     )
     assert serial.protocol_digest != parallel.protocol_digest
 
@@ -136,11 +137,11 @@ def test_scientific_concurrency_policy_is_part_of_protocol_identity() -> None:
 def test_execute_plan_uses_binding_index_instead_of_repeated_linear_lookup():
     protocol = _protocol()
     bindings = tuple(
-        VariantBinding(v, "seed-v1", f"provider-{v.variant_id}", "none", v.kind.value)
+        VariantBinding(v, "e" * 64, f"provider-{v.variant_id}", "none", v.kind.value)
         for v in protocol.variants
     )
-    plan = ExperimentPlan.compile(protocol, bindings)
     assignments = DeterministicStudyAssignment().assignments(protocol)
+    plan = ExperimentPlan.compile(protocol, bindings, assignments)
 
     class BoundAdapter:
         def execute_bound(self, unit, unit_bindings, plan_digest):
@@ -157,3 +158,26 @@ def test_execute_plan_uses_binding_index_instead_of_repeated_linear_lookup():
             plan, assignments, BoundAdapter()
         )
     assert len(report.observations) == len(assignments)
+
+def test_plan_rejects_binding_order_that_diverges_from_protocol():
+    protocol = _protocol()
+    bindings = tuple(
+        VariantBinding(v, "e" * 64, f"provider-{v.variant_id}", "none", v.kind.value)
+        for v in protocol.variants
+    )
+    assignments = DeterministicStudyAssignment().assignments(protocol)
+    with pytest.raises(ValueError, match="variant order"):
+        ExperimentPlan.compile(protocol, tuple(reversed(bindings)), assignments)
+
+
+def test_assignment_order_is_frozen_plan_authority_not_implicitly_sorted():
+    protocol = _protocol()
+    bindings = tuple(
+        VariantBinding(v, "e" * 64, f"provider-{v.variant_id}", "none", v.kind.value)
+        for v in protocol.variants
+    )
+    assignments = DeterministicStudyAssignment().assignments(protocol)
+    forward = ExperimentPlan.compile(protocol, bindings, assignments)
+    reversed_plan = ExperimentPlan.compile(protocol, bindings, tuple(reversed(assignments)))
+    assert forward.assignment_digest != reversed_plan.assignment_digest
+    assert forward.plan_digest != reversed_plan.plan_digest

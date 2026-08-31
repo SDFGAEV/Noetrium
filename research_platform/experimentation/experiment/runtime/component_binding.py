@@ -5,7 +5,7 @@ from research_platform.participant.core.api import BoundParticipant, BoundPartic
 from research_platform.participant.core.api.runtime_ports import ParticipantResolutionPort
 from research_platform.experimentation.experiment.api import ExperimentSpec
 
-from .participant_topology import ExperimentParticipantTopology
+from research_platform.experimentation.experiment.api import ExperimentParticipantTopology
 
 
 class ExperimentComponentBinder:

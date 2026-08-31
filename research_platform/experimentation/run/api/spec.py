@@ -53,8 +53,29 @@ class ExperimentRunSpec:
         if self.prompt_generation is not None and not self.prompt_generation.strip():
             raise ValueError("experiment run prompt_generation cannot be empty")
 
+    def scientific_identity_digest(self) -> str:
+        return canonical_digest({
+            "run_id": self.run_id, "project_id": self.project_id,
+            "experiment_id": self.experiment_id, "study_id": self.study_id,
+            "task_manifest_digest": self.task_manifest_digest,
+            "seed_schedule_digest": self.seed_schedule_digest,
+            "repetitions": self.repetitions,
+            "model_binding_digest": self.model_binding_digest,
+            "prompt_generation": self.prompt_generation,
+        })
+
+    def execution_placement_digest(self) -> str:
+        return canonical_digest({
+            "execution_profile": self.execution_profile,
+            "artifact_root": self.artifact_root,
+            "environment_identity_digest": self.environment_identity_digest,
+        })
+
     def identity_digest(self) -> str:
-        return canonical_digest(self)
+        return canonical_digest({
+            "scientific_identity_digest": self.scientific_identity_digest(),
+            "execution_placement_digest": self.execution_placement_digest(),
+        })
 
 
 __all__ = ["ExperimentRunSpec"]

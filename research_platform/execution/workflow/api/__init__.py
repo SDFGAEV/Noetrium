@@ -1,4 +1,4 @@
-from .cycle import ScientificCycleExecution
+from .trial import TrialCycleExecution
 from .errors import WorkflowParticipantRequirementError
 from .surfaces import WorkflowSurfaceBindingContext, WorkflowSurfaceFactory, workflow_surface_id
 from .effect_intents import EffectIntentOperationPort
@@ -10,7 +10,7 @@ from .progress import (
 )
 
 __all__ = [
-    "EffectIntentOperationPort", "OperationDispatchPort", "OperationExecutionPort", "ScientificCycleExecution", "WorkflowGraph",
+    "EffectIntentOperationPort", "OperationDispatchPort", "OperationExecutionPort", "TrialCycleExecution", "WorkflowGraph",
     "WorkflowGraphError", "WorkflowOperationBinding", "WorkflowParticipantRequirementError", "WorkflowProgress",
     "WorkflowProgressConflict", "WorkflowProgressCorruption", "WorkflowProgressStorePort", "WorkflowRunId",
     "WorkflowStep", "WorkflowSurfaceBindingContext", "WorkflowSurfaceFactory", "workflow_surface_id",

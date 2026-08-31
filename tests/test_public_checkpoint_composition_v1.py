@@ -35,9 +35,15 @@ else:
 def _run(script: Path, mode: str, root: Path) -> subprocess.CompletedProcess[str]:
     env = dict(os.environ)
     repo = str(Path(__file__).resolve().parents[1])
-    env["PYTHONPATH"] = repo + os.pathsep + env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = repo
+    bootstrap = (
+        "import runpy,sys; "
+        "sys.path.insert(0,sys.argv[1]); "
+        "script=sys.argv[2]; sys.argv=[script,*sys.argv[3:]]; "
+        "runpy.run_path(script,run_name='__main__')"
+    )
     return subprocess.run(
-        [sys.executable, str(script), mode, str(root)],
+        [sys.executable, "-S", "-c", bootstrap, repo, str(script), mode, str(root)],
         check=False,
         capture_output=True,
         text=True,

@@ -8,7 +8,7 @@ from ..identity.api import RunIdentity
 from .resources import RunResourceAcquirer
 from .restore import RunRestoreInitializer
 from ..lifecycle.api import RunSessionFactoryPort, RunSessionPort
-from research_platform.experimentation.experiment.api import ExperimentScientificCycleExecutorPort
+from research_platform.experimentation.experiment.api import ExperimentTrialCycleExecutorPort
 from research_platform.participant.core.api.runtime_ports import ParticipantSessionLifecyclePort
 from research_platform.experimentation.experiment.api import ExperimentSpec
 
@@ -20,13 +20,13 @@ class RunCoordinator:
         self,
         binder: ExperimentComponentBindingPort,
         lifecycle: ParticipantSessionLifecyclePort,
-        scientific: ExperimentScientificCycleExecutorPort,
+        trial: ExperimentTrialCycleExecutorPort,
         checkpoint: RunCheckpointCoordinatorPort | None,
         session_factory: RunSessionFactoryPort,
     ) -> None:
         self._resources = RunResourceAcquirer(binder, lifecycle)
         self._restore = RunRestoreInitializer(checkpoint)
-        self._assembly = RunAssembly(scientific, lifecycle, checkpoint, session_factory)
+        self._assembly = RunAssembly(trial, lifecycle, checkpoint, session_factory)
 
     def open(
         self,

@@ -8,12 +8,12 @@ The `RunLaunchManifest` is the launch identity for release, prompt/model deploym
 
 Its persisted wire format is an exact versioned envelope:
 
-- `schema_version = "2"`
+- `schema_version = "4"`
 - `manifest = { ... exact RunLaunchManifest fields ... }`
 
-Schema v2 adds the required canonical `project_manifest_digest` to frozen launch identity. Schema v1 is intentionally rejected rather than upgraded implicitly.
+Schema v4 keeps the required canonical `project_manifest_digest` and binds a required typed `RunResearchSemanticsReference` from `experimentation.identity`. That reference freezes the compiled research-plan, Study/ExperimentPlan, Measurement Protocol, Trial Protocol, intervention, participant topology/schedule, revision, and replay identities with explicit applicable/absent facets. Older schemas are intentionally rejected rather than upgraded implicitly.
 
-Unknown, missing, extra, or untyped envelope/manifest fields fail decoding. Unsupported schema versions and semantically equivalent noncanonical bytes fail closed. The encoded v2 bytes are therefore part of frozen launch authority; there is no implicit forward-compatibility path.
+Unknown, missing, extra, or untyped envelope/manifest fields fail decoding. Unsupported schema versions and semantically equivalent noncanonical bytes fail closed. The encoded v4 bytes are therefore part of frozen launch authority; there is no implicit forward-compatibility path.
 
 The canonical `RunLaunchManifest.digest()` is the stable launch/source identity consumed by evidence publication.
 
@@ -49,7 +49,7 @@ Before apply, every component preimage is captured. Restore then applies compone
 
 A successful rollback reports `ROLLED_BACK`; any rollback failure reports state certainty `UNKNOWN`. Partial mutation is never silently accepted as authoritative state.
 
-Checkpoint manifests bind run/study/workload/branch, source cut, environment generation, method generation, task manifest, execution cut, and component payload digests.
+Workload checkpoint manifest schema v3 binds run/study/workload/branch, source cut, environment generation, method generation, task manifest, the exact `checkpoint_compatibility_digest`, execution cut, and component payload digests. The compatibility digest contains only state/recovery-relevant research facets. Revision, topology, intervention, Trial Protocol, schedule, or replay drift fail before restore mutation; Measurement/Analysis-only changes do not invalidate a compatible checkpoint.
 
 `RunCheckpointManifestCodec` treats canonical JSON bytes as part of immutable checkpoint authority: a payload must decode to the exact typed manifest, match its digest, and byte-for-byte equal the canonical re-encoding. Semantic-equivalent pretty/reordered JSON is corruption rather than an alternate representation.
 
@@ -74,6 +74,23 @@ If terminal publication fails after an effect may have happened, the pending pre
 The same public package re-exports the producer-owned `RunControlPort` request/receipt contracts used by Operator and downstream projects. Projects therefore do not need to assemble checkpoint, workflow, or run-control stores in common-path code. Runtime composition injects one `RunControlPort`; the six application actions continue to execute against that sole ROLE 03 lifecycle authority.
 
 Every `RunControlReceipt` carries an explicit `RunOutcomeProjection`. Execution outcome is derived only from durable run-control phase, task outcome remains `NOT_EVALUATED` unless a task authority is added in a future version, evidence validity is `NOT_OBSERVED`, `NOT_FINALIZED`, or `FINALIZED_VALID` according to the evidence command/finalized receipt, and scientific validity remains `NOT_EVALUATED`. The receipt rejects contradictory or caller-forged cross-authority outcomes. Consequently execution success, task success, evidence validity, and scientific validity cannot collapse into one boolean or status string.
+
+## Author research compilation and neutral Trial lifecycle
+
+`research_platform.experimentation.api` exposes a side-effect-free author research boundary. Level-0 `ResearchStudyDefinition` records scientific design, Benchmark/TaskSet cut, factors, seeds/repetitions, Trial budget, Measurement Protocol, participant/method/capability requirements, and execution policy without choosing concrete providers. `resolve_research_requirements()` validates those requirement IDs against the ROLE01 ProjectManifest projection; a separate `ResearchBindingContribution` supplies exact participant/provider/model/prompt generations. `compile_research_plan()` joins those typed passes and freezes factor x seed x repetition x task assignments into `ExperimentPlan.plan_digest` without starting processes, opening sessions, writing checkpoints, or invoking RunControl.
+
+Identity is intentionally stratified. Scientific design, participant design, binding requirements, exact provider binding, execution policy, Benchmark cut, assignments, Measurement semantics, topology/schedule, revision, and replay each have named identities; the total research-plan digest is only a closure. `diff_research_plans()` reports facet-level changes and checkpoint compatibility rather than treating every edit as scientific or execution equivalence.
+
+`BenchmarkTaskSet` separates immutable task content and split membership from `TaskGraph` dependency/retry semantics and `TrialBudget`. `MeasurementProtocol` is the paper-general raw-output schema with scalar, boolean, categorical, structured, sequence, distribution, matrix, text-judgement, and typed content-reference values. `MeasurementRecord` binds the exact scientific Measurement contract plus project/study/run/assignment/producer/intervention/revision and typed Artifact lineage.
+
+
+`MeasurementCut` can pin raw Measurement records, portable ROLE05 `DatasetVersion.content_sha256` identities, and COMPLETE Evidence manifests without importing physical dataset location into scientific identity. `AnalysisDefinition` separately freezes projector/version/implementation/configuration/filter/grouping/comparison semantics over an immutable cut; `AnalysisResult` binds that definition and input cut to derived output content. Changing analysis or storage placement therefore does not imply a rerun of raw trials.
+
+`TrialMatrixExecutor` is the neutral runtime boundary. Agent/environment loops, offline scoring, and project-defined custom state machines implement the same open `ExperimentTrialProtocolIdentity`/`TrialProviderPort` contract and return typed Measurement records plus typed Artifact references. Planner/memory workload code remains an Agent archetype rather than generic Experimentation semantics. Built-in no-config Trial protocols use the canonical digest of `{}`, never an empty-string identity sentinel.
+
+Participant topology is a pure public Experimentation value object; Research Compiler is a pure Study API transformation; runtime executors require explicit runtime imports. Top-level `study` and `run` packages do not implicitly load concrete runtime/provider layers.
+
+The historical `research_platform.scientific` scaffold had no independent store, provider, lifecycle, schema, or external production consumer and is merge-deleted into Experimentation. Generic trial protocol types use `Trial` terminology and no compatibility aliases preserve the removed scientific-cycle API. Section 42 Artifact/Data references remain producer-owned: Experimentation consumes ROLE05 public identities/verifiers and requires the canonical `experimentation -> artifact` topology declaration from ROLE01 rather than duplicating Artifact authority.
 
 ## Validation rule
 

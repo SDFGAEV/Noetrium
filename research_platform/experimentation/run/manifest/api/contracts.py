@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-
+from research_platform.experimentation.identity import RunResearchSemanticsReference
 from research_platform.platform.kernel import canonical_digest
 
 
@@ -105,6 +105,7 @@ class RunLaunchManifest:
     participant_binding_manifest_digest: str
     project_manifest_digest: str
     experiment_spec_digest: str
+    research_semantics: RunResearchSemanticsReference
     command_argv: tuple[str, ...]
     launcher_binary_sha256: str
     command_environment_digest: str
@@ -128,6 +129,8 @@ class RunLaunchManifest:
         for field, value in required:
             _require_non_empty_string(value, f"run launch manifest {field}")
         _require_sha256(self.project_manifest_digest, "run launch manifest project_manifest_digest")
+        if type(self.research_semantics) is not RunResearchSemanticsReference:
+            raise TypeError("run launch manifest research_semantics must be RunResearchSemanticsReference")
         _validate_command_argv(self.command_argv)
         _require_sha256(self.launcher_binary_sha256, "run launch manifest launcher binary digest")
         _require_sha256(self.command_environment_digest, "run launch manifest command environment digest")
@@ -140,6 +143,10 @@ class RunLaunchManifest:
         _validate_composition_plans(self.composition_plans)
 
     @property
+    def research_semantics_digest(self) -> str:
+        return self.research_semantics.digest()
+
+    @property
     def composition_plan_digest(self) -> str:
         """Aggregate all frozen composition evidence into one run identity field."""
 
@@ -149,4 +156,4 @@ class RunLaunchManifest:
         return canonical_digest(self)
 
 
-__all__ = ["CompositionPlanReference", "RunLaunchManifest"]
+__all__ = ["CompositionPlanReference", "RunLaunchManifest", "RunResearchSemanticsReference"]

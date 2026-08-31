@@ -50,7 +50,7 @@ class CommittedCycleRecoveryCoordinator:
         )
         rows: list[OperationResult[JsonValue]] = [committed.operation]
         rows.extend(execution.operation_results)
-        consumed = self._safe_actions.confirm_scientific_commit(
+        consumed = self._safe_actions.confirm_trial_commit(
             final_context,
             committed.consumption,
         )
