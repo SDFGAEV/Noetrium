@@ -32,6 +32,16 @@ from .topology import (
     TopologyChangeKind,
 )
 
+from .revision import (
+    ParticipantRevisionCommit,
+    ParticipantRevisionProposal,
+    ParticipantRevisionValue,
+    ParticipantStateRevision,
+    ParticipantStateTransition,
+    ParticipantTransitionValue,
+    PreparedParticipantRevision,
+)
+
 __all__ = [
     "AgentIdentity",
     "AgentImplementation",
@@ -53,6 +63,13 @@ __all__ = [
     "ParticipantProjectBindingError",
     "ParticipantProviderProfile",
     "ParticipantRequirement",
+    "ParticipantRevisionCommit",
+    "ParticipantRevisionProposal",
+    "ParticipantRevisionValue",
+    "ParticipantStateRevision",
+    "ParticipantStateTransition",
+    "ParticipantTransitionValue",
+    "PreparedParticipantRevision",
     "ParticipantTopology",
     "ParticipantTopologyChange",
     "ParticipantTopologyMember",

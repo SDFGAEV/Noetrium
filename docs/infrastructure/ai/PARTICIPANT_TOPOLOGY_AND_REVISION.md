@@ -22,3 +22,23 @@ Checkpoint/resume helpers require exact topology and architecture revision diges
 These contracts intentionally do not define planner/team policy, routing strategy, scheduling algorithm, or runtime service placement.
 They are producer-owned scientific identity/provenance facts for ROLE03 replay, checkpoint and evidence binding.
 Downstream projects may define arbitrary collaboration and cognition modules while reusing these identities without adding a Platform registry entry.
+## Transactional revision preparation
+
+Dynamic revision now has a separate transaction layer instead of treating a
+transition declaration as proof of commit.
+
+`ParticipantRevisionProposal` binds the exact predecessor, open update-contract
+identity, reason, optional migration adapter, and evidence references.
+`PreparedParticipantRevision` carries the typed predecessor, typed candidate,
+and typed transition together with recovery anchor, validation plan, and
+preparation generation. Construction verifies all three digests agree.
+
+`ParticipantRevisionCommit` is a distinct receipt produced only after validation
+evidence is supplied. Its successor identity is the candidate carried by the
+prepared object; a caller cannot swap in another successor at commit time.
+
+`ParticipantStateRevision` and `ParticipantStateTransition` cover online policy,
+memory, learner-state, or other state-changing updates that do not require an
+architecture component replacement. Update-contract ids remain project-extensible.
+A crash after prepare therefore leaves explicit prepared state rather than an
+ambiguous live mutation.
