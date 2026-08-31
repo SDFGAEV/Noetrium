@@ -1,17 +1,17 @@
 from __future__ import annotations
 
 import argparse
-from collections.abc import Callable, Mapping, Sequence
-from dataclasses import fields, is_dataclass
-from enum import Enum
+from collections.abc import Callable
 import json
 from pathlib import Path
 import sys
 
 from research_platform.operator.api import (
-    ProjectCreateRequest, ResearchAction, ResearchFacade, ResearchOperationFailure,
+    ProjectCreateRequest, ProjectTemplateProfile, ResearchAction, ResearchFacade, ResearchOperationFailure,
 )
 from research_platform.platform.kernel.errors import describe_exception
+
+from research_platform.operator.api.json_rendering import render_json
 
 from .application_loader import ResearchApplicationFactorySpec, load_research_application
 from .project_application_loader import load_project_application
@@ -21,23 +21,10 @@ ResearchCliDelegate = Callable[[list[str] | None], int]
 _EXPECTED_ERRORS = (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError, TypeError, json.JSONDecodeError)
 
 
-def _plain(value):
-    if is_dataclass(value) and not isinstance(value, type):
-        return {field.name: _plain(getattr(value, field.name)) for field in fields(value)}
-    if isinstance(value, Enum):
-        return value.value
-    if isinstance(value, Path):
-        return str(value)
-    if isinstance(value, Mapping):
-        return {str(key): _plain(item) for key, item in value.items()}
-    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
-        return [_plain(item) for item in value]
-    return value
-
 
 def _emit(value, *, stream=None) -> None:
     print(
-        json.dumps(_plain(value), ensure_ascii=False, sort_keys=True, indent=2),
+        render_json(value),
         file=stream or sys.stdout,
     )
 
@@ -64,6 +51,7 @@ def _add_project_commands(subparsers) -> None:
     create.add_argument("destination", type=Path)
     create.add_argument("--version", required=True)
     create.add_argument("--program-id", default="standalone")
+    create.add_argument("--template", choices=tuple(row.value for row in ProjectTemplateProfile), default=ProjectTemplateProfile.AUTHOR.value)
 
     doctor = project_subparsers.add_parser("doctor", help="validate project/platform/provider readiness")
     doctor.add_argument("--project", dest="project_root", type=Path, default=Path("."))
@@ -135,7 +123,7 @@ def _run_application(args: argparse.Namespace) -> int:
 
 def _run_project(args: argparse.Namespace) -> int:
     if args.project_command == "create":
-        receipt = create_project(ProjectCreateRequest(args.project_id, args.version, args.destination, args.program_id))
+        receipt = create_project(ProjectCreateRequest(args.project_id, args.version, args.destination, args.program_id, ProjectTemplateProfile(args.template)))
         _emit({"ok": True, "command": "project create", "result": receipt})
         return 0
     if args.project_command == "doctor":

@@ -166,12 +166,12 @@
     },
     {
       "id": "contracts",
-      "pattern": "^test_(?:agent_(?:capability_abi|observation_evidence_payload)|checksummed_document_failure_codes|document_integrity|exact_|experiment_run_spec|failure_taxonomy_binding|leaf_failure_contract|prompt_contract|public_api_imports|qualification_evidence_codec|project_system|python_environment|run_(?:launch_manifest_authority|manifest_codec)|runtime_verification_ports|scientific_identity_freeze|segment_verifier|server_connection_environment|source_.*|system_leaf_contracts|typed_.*)",
+      "pattern": "^test_(?:agent_(?:capability_abi|observation_evidence_payload)|checksummed_document_failure_codes|document_integrity|exact_|experiment_run_spec|failure_taxonomy_binding|leaf_failure_contract|prompt_contract|public_api_imports|qualification_evidence_codec|project_system|python_environment|run_(?:launch_manifest_authority|manifest_codec)|runtime_verification_ports|(?:scientific|trial)_identity_freeze|trial_protocol_identity|segment_verifier|server_connection_environment|source_.*|system_leaf_contracts|typed_.*)",
       "family": "typed-contracts"
     },
     {
       "id": "durability",
-      "pattern": "^test_(?:action_checkpoint|action_intent_journal|agent_(?:cognition_recovery|cognition_state_checkpoint|coordination_durability|memory_durability|skill_library_durability)|crash_bundle|durable|effect_journal|forensic_index|heartbeat|jsonl_log_algorithm_regressions|leaf_state|method_observation_outbox|participant_checkpoint|raw_lake|recovery_(?!lease_|observer_)|run_artifact|runtime_history|runtime_state|segmented_logs|sem_durable|sqlite_atomic_state|state_|storage|torn_)",
+      "pattern": "^test_(?:action_checkpoint|action_intent_journal|agent_(?:cognition_recovery|cognition_state_checkpoint|coordination_durability|memory_durability|skill_library_durability)|crash_bundle|durable|effect_journal|forensic_index|heartbeat|jsonl_log_algorithm_regressions|leaf_state|method_observation_outbox|participant_checkpoint|public_checkpoint|research_checkpoint_participant|raw_lake|recovery_(?!lease_|observer_)|run_artifact|runtime_history|runtime_state|segmented_logs|sem_durable|sqlite_atomic_state|state_|storage|torn_)",
       "family": "durability-recovery"
     },
     {
@@ -193,6 +193,11 @@
       "id": "composition",
       "pattern": "^test_(?:agent_cognition_(?:action_phase|planning_phase)|controller|deployment_(?!qualification)|experiment_(?!run_spec)|generic_|host_|java_runtime|joined_runtime_status|local_service|management|model_|operator_(?!unclosed)|participant_(?!checkpoint_envelope)|platform_meta_systems|prepared_process|process_|qualification_(?:fact_probes|index_snapshot)|resource_resolution|runtime_(?!failure|history|observer|platform|recovery|service|state|small|verification)|server_(?!connection)|service_(?!crash_)|workload_)",
       "family": "composition-integration"
+    },
+    {
+      "id": "section42-scientific",
+      "pattern": "^test_(?:measurement_protocol_v1|research_compiler_v1|trial_matrix_executor_v1)\\.py$",
+      "family": "scientific-domain"
     },
     {
       "id": "domain",

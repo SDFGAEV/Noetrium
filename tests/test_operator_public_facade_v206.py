@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from enum import IntEnum, StrEnum
 import json
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -12,6 +15,7 @@ from research_platform.api import (
     ResearchRequest,
     ResearchResult,
 )
+from research_platform.operator.api.json_rendering import plain_json
 from research_platform.operator.runtime.research_cli import build_research_parser
 from research_platform.operator.composition.research import main
 
@@ -67,11 +71,11 @@ def test_research_parser_has_one_common_lifecycle_surface():
         assert args.route == "application"
 
 
-def test_lifecycle_cli_requires_explicit_application(capsys):
+def test_lifecycle_cli_requires_explicit_project_or_application_binding(capsys):
     assert main(["run", "run-1"]) == 2
     error = json.loads(capsys.readouterr().err)
     assert error["ok"] is False
-    assert "requires --application" in error["error"]
+    assert error["error"] == "research run requires --project PATH or --application MODULE:FACTORY"
 
 
 def test_lifecycle_cli_delegates_to_explicit_application(capsys):
@@ -146,9 +150,41 @@ def test_diagnose_route_preserves_foreign_cli_arguments_verbatim():
     downstream.assert_called_once_with(["status", "run-root"])
 
 
-@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
-def test_facade_rejects_non_finite_json_numbers(value):
-    with pytest.raises(ValueError, match="finite JSON"):
+class _IntCode(IntEnum):
+    VALUE = 1
+
+
+class _TextCode(StrEnum):
+    VALUE = "value"
+
+
+@dataclass(frozen=True)
+class _StructuredValue:
+    value: int
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        _IntCode.VALUE,
+        _TextCode.VALUE,
+        b"bytes",
+        Path("path"),
+        {"set-member"},
+        _StructuredValue(1),
+        {1: "non-string-key"},
+        float("nan"),
+        float("inf"),
+        float("-inf"),
+    ],
+)
+def test_facade_consumes_role01_strict_finite_json_contract(value):
+    with pytest.raises(TypeError):
         ResearchRequest(ResearchAction.RUN, "run-1", {"value": value})
-    with pytest.raises(ValueError, match="finite JSON"):
+    with pytest.raises(TypeError):
         ResearchResult(ResearchAction.RUN, "run-1", "accepted", {"value": value})
+
+
+def test_product_json_renderer_rejects_mapping_key_coercion():
+    with pytest.raises(TypeError, match="native string keys"):
+        plain_json({1: "must-not-be-stringified"})

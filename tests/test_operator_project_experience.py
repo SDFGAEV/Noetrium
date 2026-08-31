@@ -7,7 +7,9 @@ import subprocess
 import pytest
 
 from research_platform.governance.repository_boundary import audit_downstream_project_imports
-from research_platform.operator.api import ProjectCreateRequest, ProjectDoctorDisposition
+from research_platform.operator.api import (
+    ProjectCreateRequest, ProjectDoctorDisposition, ProjectTemplateProfile, ProjectTestStage,
+)
 from research_platform.operator.runtime import project_doctor, project_scaffold, project_testing
 from research_platform.operator.runtime.project_platform_identity import InstalledPlatformIdentity
 from research_platform.portfolio.api import (
@@ -72,6 +74,22 @@ def test_project_create_rejects_drift_without_rewriting(
     assert readme.read_text(encoding="utf-8") == "user change\n"
 
 
+def test_project_create_rejects_unexpected_files_without_rewriting(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _bind_fixed_platform(monkeypatch)
+    root = tmp_path / "demo-project"
+    request = ProjectCreateRequest("demo-project", "0.1.0", root)
+    project_scaffold.create_project(request)
+    unexpected = root / "extra.txt"
+    unexpected.write_text("not generated\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="unexpected=.*extra.txt"):
+        project_scaffold.create_project(request)
+
+    assert unexpected.read_text(encoding="utf-8") == "not generated\n"
+
+
 def test_project_create_cleans_partial_publication_on_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -120,13 +138,12 @@ def test_project_doctor_rejects_manifest_and_private_import_drift(
 
     initial = project_doctor.doctor_project(root)
     initial_checks = _checks(initial)
+    assert initial.template_profile is ProjectTemplateProfile.AUTHOR
     assert initial_checks["project_manifest"] is ProjectDoctorDisposition.PASS
     assert initial_checks["manifest_identity"] is ProjectDoctorDisposition.PASS
     assert initial_checks["public_import_boundary"] is ProjectDoctorDisposition.PASS
-    assert initial_checks["participant_provider_readiness"] is ProjectDoctorDisposition.BLOCKED
-    assert initial_checks["model_provider_readiness"] is ProjectDoctorDisposition.BLOCKED
-    assert initial_checks["environment_provider_readiness"] is ProjectDoctorDisposition.BLOCKED
-    assert initial_checks["application_binding"] is ProjectDoctorDisposition.BLOCKED
+    assert initial_checks["level0_standard_bindings"] is ProjectDoctorDisposition.BLOCKED
+    assert "participant_provider_readiness" not in initial_checks
 
     manifest_path = root / "project.manifest.json"
     manifest_path.write_bytes(manifest_path.read_bytes() + b"\n")
@@ -138,7 +155,6 @@ def test_project_doctor_rejects_manifest_and_private_import_drift(
     assert drifted_checks["project_manifest"] is ProjectDoctorDisposition.BLOCKED
     assert drifted_checks["manifest_identity"] is ProjectDoctorDisposition.BLOCKED
     assert drifted_checks["public_import_boundary"] is ProjectDoctorDisposition.BLOCKED
-
 
 def test_project_doctor_rejects_unknown_manifest_template(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -174,13 +190,25 @@ def test_project_doctor_projects_typed_provider_diagnostics(
 ) -> None:
     _bind_fixed_platform(monkeypatch)
     root = tmp_path / "demo-project"
-    project_scaffold.create_project(ProjectCreateRequest("demo-project", "0.1.0", root))
+    project_scaffold.create_project(ProjectCreateRequest(
+        "demo-project", "0.1.0", root,
+        template_profile=ProjectTemplateProfile.PROVIDER,
+    ))
 
     report = project_doctor.doctor_project(root)
     rows = {row.check_id: row for row in report.checks}
+    assert report.template_profile is ProjectTemplateProfile.PROVIDER
     assert "PARTICIPANT_RUNTIME_UNAVAILABLE" in rows["participant_provider_readiness"].remediation
     assert "MODEL_QUALIFIED_BINDING_UNAVAILABLE" in rows["model_provider_readiness"].remediation
     assert "ENVIRONMENT_OPEN_NOTIMPLEMENTEDERROR" in rows["environment_provider_readiness"].remediation
+    assert rows["application_binding"].disposition is ProjectDoctorDisposition.BLOCKED
+
+def test_root_product_api_exports_project_test_stage_types() -> None:
+    from research_platform.api import ProjectTestStage, ProjectTestStageReceipt
+
+    receipt = ProjectTestStageReceipt(ProjectTestStage.BUILD_INSTALL, ("python",), 0)
+    assert receipt.stage is ProjectTestStage.BUILD_INSTALL
+    assert receipt.passed
 
 
 def test_project_test_runs_generated_contracts(
@@ -191,6 +219,9 @@ def test_project_test_runs_generated_contracts(
     project_scaffold.create_project(ProjectCreateRequest("demo-project", "0.1.0", root))
     receipt = project_testing.test_project(root)
     assert receipt.passed
+    assert tuple(stage.stage for stage in receipt.stages) == (
+        ProjectTestStage.BUILD_INSTALL, ProjectTestStage.CONTRACT_TEST,
+    )
 
 def test_generated_project_has_no_private_platform_imports(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -209,6 +240,7 @@ def test_project_test_timeout_is_fail_closed(
     root = tmp_path / "demo-project"
     (root / "src").mkdir(parents=True)
     (root / "tests").mkdir()
+    (root / "pyproject.toml").write_text("[build-system]\nrequires=[]\nbuild-backend=\"missing\"\n", encoding="utf-8")
 
     def timeout(*args, **kwargs):
         del args, kwargs
@@ -216,7 +248,9 @@ def test_project_test_timeout_is_fail_closed(
 
     monkeypatch.setattr(project_testing.subprocess, "run", timeout)
     receipt = project_testing.test_project(root)
-    assert receipt.exit_code == 124
+    assert len(receipt.stages) == 1
+    assert receipt.stages[0].stage is ProjectTestStage.BUILD_INSTALL
+    assert receipt.stages[0].exit_code == 124
     assert not receipt.passed
 
 
@@ -234,18 +268,16 @@ def test_project_cli_create_and_doctor_fail_closed(
     ]) == 0
     created = json.loads(capsys.readouterr().out)
     assert created["ok"] is True
+    assert created["result"]["template_profile"] == "author"
     assert created["result"]["manifest_semantic_digest"]
 
     assert main(["project", "doctor", "--project", str(root)]) == 4
     diagnosed = json.loads(capsys.readouterr().err)
-    assert diagnosed["ok"] is False
     checks = {row["check_id"]: row["disposition"] for row in diagnosed["result"]["checks"]}
+    assert diagnosed["result"]["template_profile"] == "author"
     assert checks["project_manifest"] == "pass"
-    assert checks["participant_provider_readiness"] == "blocked"
-    assert checks["model_provider_readiness"] == "blocked"
-    assert checks["environment_provider_readiness"] == "blocked"
-    assert checks["application_binding"] == "blocked"
-
+    assert checks["level0_standard_bindings"] == "blocked"
+    assert "participant_provider_readiness" not in checks
 
 def test_project_cli_loads_explicit_project_application_and_defaults_target(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys
@@ -255,7 +287,10 @@ def test_project_cli_loads_explicit_project_application_and_defaults_target(
 
     _bind_fixed_platform(monkeypatch)
     root = tmp_path / "project-route"
-    project_scaffold.create_project(ProjectCreateRequest("project-route", "0.1.0", root))
+    project_scaffold.create_project(ProjectCreateRequest(
+        "project-route", "0.1.0", root,
+        template_profile=ProjectTemplateProfile.PROVIDER,
+    ))
     application = root / "src" / "project_route" / "application.py"
     application.write_text(
         "from research_platform.api import ResearchResult\n\n"
@@ -276,6 +311,24 @@ def test_project_cli_loads_explicit_project_application_and_defaults_target(
     assert result["result"]["payload"] == {"route": "project"}
 
 
+def test_author_project_lifecycle_route_is_compiler_blocked_not_application_driven(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+    import json
+    from research_platform.operator.composition.research import main
+
+    _bind_fixed_platform(monkeypatch)
+    root = tmp_path / "author-route"
+    project_scaffold.create_project(ProjectCreateRequest("author-route", "0.1.0", root))
+    assert not (root / "src" / "author_route" / "application.py").exists()
+
+    assert main(["run", "--project", str(root)]) == 2
+    error = json.loads(capsys.readouterr().err)
+    assert error["ok"] is False
+    assert "Research Compiler" in error["error"]
+    assert "provider-only" in error["error"]
+
+
 def test_project_cli_rejects_ambiguous_application_source(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys
 ) -> None:
@@ -290,3 +343,55 @@ def test_project_cli_rejects_ambiguous_application_source(
     ])
     assert exit_code == 2
     assert "either --project or --application" in capsys.readouterr().err
+
+
+def test_default_project_template_is_author_first(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _bind_fixed_platform(monkeypatch)
+    root = tmp_path / "author-first"
+    receipt = project_scaffold.create_project(
+        ProjectCreateRequest("author-first", "0.1.0", root)
+    )
+    assert receipt.template_profile is ProjectTemplateProfile.AUTHOR
+    generated = set(receipt.generated_files)
+    for name in ("methods.py", "tasks.py", "measurements.py", "studies.py"):
+        assert f"src/author_first/{name}" in generated
+    assert "src/author_first/participant_provider.py" not in generated
+    assert "src/author_first/model_provider.py" not in generated
+    assert "src/author_first/environment_provider.py" not in generated
+    assert "src/author_first/application.py" not in generated
+
+
+def test_provider_template_is_explicit_opt_in(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _bind_fixed_platform(monkeypatch)
+    root = tmp_path / "provider-template"
+    receipt = project_scaffold.create_project(ProjectCreateRequest(
+        "provider-template", "0.1.0", root,
+        template_profile=ProjectTemplateProfile.PROVIDER,
+    ))
+    assert receipt.template_profile is ProjectTemplateProfile.PROVIDER
+    generated = set(receipt.generated_files)
+    assert "src/provider_template/participant_provider.py" in generated
+    assert "src/provider_template/model_provider.py" in generated
+    assert "src/provider_template/environment_provider.py" in generated
+    assert "src/provider_template/application.py" in generated
+    assert "src/provider_template/methods.py" not in generated
+
+
+def test_project_cli_provider_template_is_explicit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+    import json
+    from research_platform.operator.composition.research import main
+
+    _bind_fixed_platform(monkeypatch)
+    root = tmp_path / "provider-cli"
+    assert main([
+        "project", "create", "provider-cli", str(root), "--version", "0.1.0",
+        "--template", "provider",
+    ]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["result"]["template_profile"] == "provider"

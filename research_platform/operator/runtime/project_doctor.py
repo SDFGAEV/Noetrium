@@ -9,7 +9,8 @@ import tomllib
 
 from research_platform.governance.repository_boundary import audit_downstream_project_imports
 from research_platform.operator.api import (
-    PROJECT_TEMPLATE_REVISION,
+    ProjectTemplateProfile,
+    project_template_revision,
     ProjectDoctorCheck,
     ProjectDoctorDisposition,
     ProjectDoctorReport,
@@ -268,16 +269,25 @@ def _provider_readiness(root: Path, package: str) -> tuple[bool, str, bool, str,
     )
 
 
+def _template_profile(revision: str | None) -> ProjectTemplateProfile | None:
+    if revision is None:
+        return None
+    for profile in ProjectTemplateProfile:
+        if revision == project_template_revision(profile):
+            return profile
+    return None
+
+
 def doctor_project(project_root: Path) -> ProjectDoctorReport:
     root = project_root.expanduser().absolute()
     checks: list[ProjectDoctorCheck] = []
     marker = root / ".research-platform-template"
     marker_value = marker.read_text(encoding="utf-8").strip() if marker.is_file() else None
+    profile = _template_profile(marker_value)
     checks.append(_check(
-        "template_revision",
-        marker_value == PROJECT_TEMPLATE_REVISION,
+        "template_revision", profile is not None,
         "project template revision is supported",
-        f"regenerate the project with {PROJECT_TEMPLATE_REVISION}",
+        "regenerate the project with a supported author/provider template",
     ))
 
     try:
@@ -286,40 +296,34 @@ def doctor_project(project_root: Path) -> ProjectDoctorReport:
     except (OSError, ValueError, tomllib.TOMLDecodeError):
         project_id, project_version, dependencies, metadata_ok = "", "", (), False
     checks.append(_check(
-        "project_metadata",
-        metadata_ok,
+        "project_metadata", metadata_ok,
         "pyproject project identity is readable",
         "restore the generated pyproject.toml project name/version",
     ))
 
     manifest = _manifest(root)
     checks.append(_check(
-        "project_manifest",
-        manifest is not None,
+        "project_manifest", manifest is not None,
         "canonical digest-bound project manifest decodes successfully",
         "restore project.manifest.json from the canonical Portfolio codec",
     ))
     manifest_template_ok = bool(
-        manifest is not None
-        and manifest.template_revision == PROJECT_TEMPLATE_REVISION
-        and marker_value == PROJECT_TEMPLATE_REVISION
+        manifest is not None and profile is not None
+        and manifest.template_revision == marker_value
     )
     checks.append(_check(
-        "manifest_template_revision",
-        manifest_template_ok,
-        "manifest template revision matches the installed product template",
-        f"regenerate the project with {PROJECT_TEMPLATE_REVISION}",
+        "manifest_template_revision", manifest_template_ok,
+        "manifest template revision matches the product template marker",
+        "regenerate the project instead of editing template identity bytes",
     ))
 
     identity_ok = bool(
-        manifest is not None
-        and metadata_ok
+        manifest is not None and metadata_ok
         and manifest.project.identity.project_id == project_id
         and manifest.project.identity.version == project_version
     )
     checks.append(_check(
-        "manifest_identity",
-        identity_ok,
+        "manifest_identity", identity_ok,
         "manifest identity matches pyproject identity",
         "regenerate the project; do not hand-edit manifest identity bytes",
     ))
@@ -327,20 +331,17 @@ def doctor_project(project_root: Path) -> ProjectDoctorReport:
     platform = installed_platform_identity()
     dependency_ok = dependencies == (f"research-platform=={platform.version}",)
     checks.append(_check(
-        "platform_version",
-        dependency_ok,
+        "platform_version", dependency_ok,
         f"project pins installed research-platform {platform.version}",
         "regenerate with the installed qualified research-platform artifact",
     ))
-
     provenance_ok = bool(
         manifest is not None
         and manifest.provenance.tool_version == platform.version
         and manifest.provenance.platform_artifact_sha256 == platform.artifact_sha256
     )
     checks.append(_check(
-        "platform_provenance",
-        provenance_ok,
+        "platform_provenance", provenance_ok,
         "manifest provenance matches the installed Platform artifact",
         "regenerate with the currently installed qualified Platform artifact",
     ))
@@ -349,24 +350,34 @@ def doctor_project(project_root: Path) -> ProjectDoctorReport:
         package = project_package_name(project_id) if project_id else ""
     except ValueError:
         package = ""
-    required_files = () if not package else (
+    common_files = () if not package else (
         _MANIFEST_PATH,
         f"src/{package}/project.py",
+    )
+    author_files = () if not package else (
+        f"src/{package}/methods.py", f"src/{package}/tasks.py",
+        f"src/{package}/measurements.py", f"src/{package}/studies.py",
+        "tests/test_generated_author_project.py",
+    )
+    provider_files = () if not package else (
         f"src/{package}/requirements.py",
         f"src/{package}/participant_provider.py",
         f"src/{package}/model_provider.py",
         f"src/{package}/environment_provider.py",
         f"src/{package}/application.py",
-        "tests/test_generated_project_contracts.py",
+        "tests/test_generated_provider_project.py",
+    )
+    required_files = common_files + (
+        author_files if profile is ProjectTemplateProfile.AUTHOR else provider_files
+        if profile is ProjectTemplateProfile.PROVIDER else ()
     )
     files_ok = bool(required_files) and all(
         (root / relative).is_file() and not (root / relative).is_symlink()
         for relative in required_files
     )
     checks.append(_check(
-        "generated_files",
-        files_ok,
-        "generated project/provider/application files are present",
+        "generated_files", files_ok,
+        "generated files match the selected product template profile",
         "restore or regenerate the deterministic project scaffold",
     ))
 
@@ -379,54 +390,53 @@ def doctor_project(project_root: Path) -> ProjectDoctorReport:
     except (OSError, ValueError):
         boundary_ok, violation_detail = False, "downstream import audit could not complete"
     checks.append(_check(
-        "public_import_boundary",
-        boundary_ok,
+        "public_import_boundary", boundary_ok,
         "downstream source imports public Platform boundaries only",
         violation_detail or "remove forbidden private Platform imports",
     ))
 
-    if files_ok:
-        (
-            participant_ready,
-            participant_detail,
-            model_ready,
-            model_detail,
-            environment_ready,
-            environment_detail,
-        ) = _provider_readiness(root, package)
-    else:
-        participant_ready = model_ready = environment_ready = False
-        participant_detail = model_detail = environment_detail = "generated provider files are incomplete"
-    checks.append(_check(
-        "participant_provider_readiness",
-        participant_ready,
-        "Participant provider reports no blocking typed diagnostics",
-        "resolve Participant diagnostics: " + participant_detail,
-    ))
-    checks.append(_check(
-        "model_provider_readiness",
-        model_ready,
-        "Model provider reports no blocking typed diagnostics",
-        "resolve Model diagnostics: " + model_detail,
-    ))
-    checks.append(_check(
-        "environment_provider_readiness",
-        environment_ready,
-        "Environment provider opens a public ready session",
-        "resolve Environment readiness: " + environment_detail,
-    ))
-
-    application = root / f"src/{package}/application.py" if package else root / "missing-application.py"
-    application_ready = application.is_file() and not _contains_unimplemented_raise(application)
-    checks.append(_check(
-        "application_binding",
-        application_ready,
-        "project application contains an explicit RunControl binding",
-        "implement build_application() using the public research_platform.experimentation.api RunControlPort",
-    ))
+    if profile is ProjectTemplateProfile.AUTHOR:
+        checks.append(_check(
+            "level0_standard_bindings", False,
+            "producer-owned author compiler and standard bindings are available",
+            "install a Platform release with producer-owned Level-0 compiler and standard bindings; do not add provider/runtime plumbing to the author project",
+        ))
+    elif profile is ProjectTemplateProfile.PROVIDER:
+        if files_ok:
+            (
+                participant_ready, participant_detail,
+                model_ready, model_detail,
+                environment_ready, environment_detail,
+            ) = _provider_readiness(root, package)
+        else:
+            participant_ready = model_ready = environment_ready = False
+            participant_detail = model_detail = environment_detail = "provider template files are incomplete"
+        checks.append(_check(
+            "participant_provider_readiness", participant_ready,
+            "Participant provider reports no blocking typed diagnostics",
+            "resolve Participant diagnostics: " + participant_detail,
+        ))
+        checks.append(_check(
+            "model_provider_readiness", model_ready,
+            "Model provider reports no blocking typed diagnostics",
+            "resolve Model diagnostics: " + model_detail,
+        ))
+        checks.append(_check(
+            "environment_provider_readiness", environment_ready,
+            "Environment provider opens a public ready session",
+            "resolve Environment readiness: " + environment_detail,
+        ))
+        application = root / f"src/{package}/application.py" if package else root / "missing-application.py"
+        application_ready = application.is_file() and not _contains_unimplemented_raise(application)
+        checks.append(_check(
+            "application_binding", application_ready,
+            "provider template application contains an explicit RunControl binding",
+            "implement build_application() using the public RunControlPort",
+        ))
 
     return ProjectDoctorReport(
         project_root=str(root),
+        template_profile=profile,
         template_revision=marker_value,
         checks=tuple(checks),
     )

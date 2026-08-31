@@ -67,22 +67,28 @@ The adapter rejects target, manifest, control-event-action, and evidence identit
 
 This closes the ROLE 06 consumer side of `CSR-06-GENERIC-RUN-LIFECYCLE-OPERATOR-HANDOFF-20260829`; final availability still depends on the ROLE 03 run-control implementation being present in the integrated source cut.
 
+## Section 42 receipt-authority dependency
+
+The common product envelope must eventually preserve producer-owned receipt contract identity/version and an immutable receipt/content reference; ROLE06 must not invent those semantics from a status string. The current ROLE03 `RunControlReceipt` exposes a typed authoritative `RunControlEventReceipt.event_digest` and independent outcome projections, but it does not yet expose a producer-owned semantic contract version or a digest/reference for the complete receipt. Until that producer handoff lands, `ResearchResult` remains a product projection and is **not** treated as a Section-42 claim-grade receipt envelope. The dependency is tracked by `CSR-06-ROLE03-URE-RUN-CONTROL-RECEIPT-IDENTITY-20260831`.
+
+ROLE06 also waits for the ROLE01 PSC-03 neutral diagnostic metadata envelope instead of creating a competing diagnostic taxonomy.
+
 ## Downstream project experience
 
-`research project create <project-id> <destination> --version <version>` creates a deterministic downstream skeleton outside `research_platform/**`. The scaffold binds canonical Portfolio `ProjectManifest` identity/provenance and emits only public Participant, Model, Environment, Experimentation and product imports.
+`research project create <project-id> <destination> --version <version>` now defaults to the Section-40/41 **author-first Level-0** profile. It binds canonical Portfolio `ProjectManifest` identity/provenance and generates only obvious paper-author modules (`methods.py`, `tasks.py`, `measurements.py`, `studies.py`) plus public-boundary structural tests. It does **not** generate Participant/Model/Environment provider implementations, direct `RunControlPort` wiring, checkpoint stores, resource leases or evidence publishers.
 
-The default scaffold is an **extension-author skeleton**, not a fake ready project. Participant/Model/Environment/Application placeholders expose typed public obligations and deliberately fail closed until real bindings are supplied. Therefore a skeleton may pass generated contract tests while `research project doctor --project .` correctly reports provider/application blockers.
+Provider authors explicitly opt in with `--template provider`. That advanced template retains the public Participant/Model/Environment requirement/provider stubs and application binding seam and deliberately fails closed until real bindings are supplied. Provider-specific plumbing is therefore no longer the default New Project Experience.
 
-`research project test --project .` runs the generated conformance suite in an isolated Python process with user-site and ambient `PYTHONPATH` disabled. `research project doctor --project .` verifies the canonical manifest, installed Platform provenance, generated files, downstream import boundary, typed provider diagnostics, Environment readiness and application binding.
+`research project test --project .` first builds and installs the generated downstream package into an isolated temporary `site-packages`, then runs the generated conformance suite against that installed copy with user-site and ambient `PYTHONPATH` disabled. A source-tree-only import is not accepted as project-test success. `research project doctor --project .` always verifies canonical manifest identity, installed Platform provenance, generated files and the downstream public-import boundary. For the author profile it additionally reports `level0_standard_bindings` blocked until ROLE02/03/04/05 producer-owned compiler/binding/runtime/evidence contracts can supply the standard composition. For the provider profile it verifies typed Participant/Model/Environment diagnostics, Environment readiness and explicit application binding.
 
-Lifecycle commands may load one explicit project root without a service locator:
+`--project` is profile-aware. The default AUTHOR profile must eventually route through the producer-owned ROLE03 Research Compiler and standard bindings; until that producer handoff is available it fails closed with an explicit compiler/binding blocker and never searches for or generates `application.py`. The explicit PROVIDER profile may use direct application loading as a Level-2/provider-author escape hatch:
 
 ```bash
-research run --project . run-123 --payload '{"expected_generation":0}'
-research inspect --project . run-123
+research run --project ./provider-project run-123 --payload '{"expected_generation":0}'
+research inspect --project ./provider-project run-123
 ```
 
-The loader derives the package identity from the canonical manifest and rejects an application module that resolves outside the explicit project root. `--project` and `--application` are mutually exclusive authority sources.
+The provider loader derives the package identity from the canonical manifest and rejects an application module that resolves outside the explicit project root. `--project` and `--application` are mutually exclusive authority sources.
 
 ## NPE reference authority
 

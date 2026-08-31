@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
-import math
-from types import MappingProxyType
 from typing import Protocol
 
-from research_platform.platform.kernel import JsonInput, JsonValue
+from research_platform.platform.kernel import JsonInput, JsonValue, freeze_json
 
 
 class ResearchAction(StrEnum):
@@ -18,24 +15,6 @@ class ResearchAction(StrEnum):
     RECONCILE = "reconcile"
     EVIDENCE = "evidence"
 
-
-def _freeze_json(value: JsonInput, *, path: str = "payload") -> JsonValue:
-    if isinstance(value, float):
-        if not math.isfinite(value):
-            raise ValueError(f"{path} numbers must be finite JSON values")
-        return value
-    if value is None or isinstance(value, (str, int, bool)):
-        return value
-    if isinstance(value, Mapping):
-        frozen: dict[str, JsonValue] = {}
-        for key, item in value.items():
-            if not isinstance(key, str):
-                raise TypeError(f"{path} keys must be strings")
-            frozen[key] = _freeze_json(item, path=f"{path}.{key}")
-        return MappingProxyType(frozen)
-    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
-        return tuple(_freeze_json(item, path=f"{path}[{index}]") for index, item in enumerate(value))
-    raise TypeError(f"{path} must contain JSON values")
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,7 +32,7 @@ class ResearchRequest:
         if not target:
             raise ValueError("research target must not be blank")
         object.__setattr__(self, "target", target)
-        object.__setattr__(self, "payload", _freeze_json(self.payload))
+        object.__setattr__(self, "payload", freeze_json(self.payload))
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,7 +53,7 @@ class ResearchResult:
             raise ValueError("research result target/state must not be blank")
         object.__setattr__(self, "target", target)
         object.__setattr__(self, "state", state)
-        object.__setattr__(self, "payload", _freeze_json(self.payload, path="result.payload"))
+        object.__setattr__(self, "payload", freeze_json(self.payload))
 
 
 class ResearchOperationFailure(RuntimeError):

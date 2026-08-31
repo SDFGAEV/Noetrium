@@ -7,7 +7,22 @@ from typing import Protocol
 
 from research_platform.portfolio.api import ProjectIdentity
 
-PROJECT_TEMPLATE_REVISION = "research-platform.project-template.v1"
+PROJECT_AUTHOR_TEMPLATE_REVISION = "research-platform.project-template.author.v2"
+PROJECT_PROVIDER_TEMPLATE_REVISION = "research-platform.project-template.provider.v2"
+
+
+class ProjectTemplateProfile(StrEnum):
+    AUTHOR = "author"
+    PROVIDER = "provider"
+
+
+def project_template_revision(profile: ProjectTemplateProfile) -> str:
+    if type(profile) is not ProjectTemplateProfile:
+        raise TypeError("project template profile must be ProjectTemplateProfile")
+    return {
+        ProjectTemplateProfile.AUTHOR: PROJECT_AUTHOR_TEMPLATE_REVISION,
+        ProjectTemplateProfile.PROVIDER: PROJECT_PROVIDER_TEMPLATE_REVISION,
+    }[profile]
 
 
 class ProjectDoctorDisposition(StrEnum):
@@ -21,11 +36,14 @@ class ProjectCreateRequest:
     version: str
     destination: Path
     program_id: str = "standalone"
+    template_profile: ProjectTemplateProfile = ProjectTemplateProfile.AUTHOR
 
     def __post_init__(self) -> None:
         ProjectIdentity(self.project_id, self.version)
         if not isinstance(self.destination, Path):
             raise TypeError("project destination must be a pathlib.Path")
+        if type(self.template_profile) is not ProjectTemplateProfile:
+            raise TypeError("project template profile must be ProjectTemplateProfile")
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,6 +52,7 @@ class ProjectCreateReceipt:
     version: str
     program_id: str
     destination: str
+    template_profile: ProjectTemplateProfile
     template_revision: str
     manifest_path: str
     manifest_semantic_digest: str
@@ -57,6 +76,7 @@ class ProjectDoctorCheck:
 @dataclass(frozen=True, slots=True)
 class ProjectDoctorReport:
     project_root: str
+    template_profile: ProjectTemplateProfile | None
     template_revision: str | None
     checks: tuple[ProjectDoctorCheck, ...]
 
@@ -67,9 +87,14 @@ class ProjectDoctorReport:
         )
 
 
+class ProjectTestStage(StrEnum):
+    BUILD_INSTALL = "build_install"
+    CONTRACT_TEST = "contract_test"
+
+
 @dataclass(frozen=True, slots=True)
-class ProjectTestReceipt:
-    project_root: str
+class ProjectTestStageReceipt:
+    stage: ProjectTestStage
     command: tuple[str, ...]
     exit_code: int
 
@@ -78,8 +103,19 @@ class ProjectTestReceipt:
         return self.exit_code == 0
 
 
+@dataclass(frozen=True, slots=True)
+class ProjectTestReceipt:
+    project_root: str
+    stages: tuple[ProjectTestStageReceipt, ...]
+
+    @property
+    def passed(self) -> bool:
+        return bool(self.stages) and all(stage.passed for stage in self.stages)
+
+
 class ProjectExperiencePort(Protocol):
     """Injected product authority for downstream project experience operations."""
+
     def create(self, request: ProjectCreateRequest) -> ProjectCreateReceipt: ...
 
     def doctor(self, project_root: Path) -> ProjectDoctorReport: ...
@@ -103,9 +139,12 @@ class ProjectFacade:
         destination: Path,
         *,
         program_id: str = "standalone",
+        template_profile: ProjectTemplateProfile = ProjectTemplateProfile.AUTHOR,
     ) -> ProjectCreateReceipt:
         return self._experience.create(
-            ProjectCreateRequest(project_id, version, destination, program_id)
+            ProjectCreateRequest(
+                project_id, version, destination, program_id, template_profile
+            )
         )
 
     def doctor(self, project_root: Path) -> ProjectDoctorReport:
@@ -116,7 +155,8 @@ class ProjectFacade:
 
 
 __all__ = [
-    "PROJECT_TEMPLATE_REVISION",
+    "PROJECT_AUTHOR_TEMPLATE_REVISION",
+    "PROJECT_PROVIDER_TEMPLATE_REVISION",
     "ProjectCreateReceipt",
     "ProjectCreateRequest",
     "ProjectDoctorCheck",
@@ -124,5 +164,9 @@ __all__ = [
     "ProjectDoctorReport",
     "ProjectExperiencePort",
     "ProjectFacade",
+    "ProjectTemplateProfile",
     "ProjectTestReceipt",
+    "ProjectTestStage",
+    "ProjectTestStageReceipt",
+    "project_template_revision",
 ]

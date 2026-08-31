@@ -5,7 +5,9 @@ import importlib
 from pathlib import Path
 import sys
 
-from research_platform.operator.api import ResearchApplicationPort
+from research_platform.operator.api import (
+    ProjectTemplateProfile, ResearchApplicationPort, project_template_revision,
+)
 from research_platform.portfolio.api import ProjectManifest, decode_project_manifest_bytes
 
 from .project_layout import project_package_name
@@ -38,6 +40,17 @@ def load_project_application(
     if root.is_symlink() or not root.is_dir():
         raise ValueError("project application root must be a real directory")
     manifest = _project_manifest(root)
+    profile = next((
+        candidate for candidate in ProjectTemplateProfile
+        if manifest.template_revision == project_template_revision(candidate)
+    ), None)
+    if profile is ProjectTemplateProfile.AUTHOR:
+        raise ValueError(
+            "author project lifecycle requires the producer-owned Research Compiler "
+            "and standard bindings; direct project application loading is provider-only"
+        )
+    if profile is not ProjectTemplateProfile.PROVIDER:
+        raise ValueError("project template revision is unsupported for lifecycle routing")
     package = project_package_name(manifest.project.identity.project_id)
     src = (root / "src").resolve()
     application_path = src / package / "application.py"

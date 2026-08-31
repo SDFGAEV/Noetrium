@@ -9,7 +9,6 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
-import venv
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,6 +20,7 @@ class CommandReceipt:
     stderr_sha256: str
     stdout_tail: str
     stderr_tail: str
+    json_output: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +32,7 @@ class NpeCleanRoomReceipt:
     installed_version: str | None
     module_file: str | None
     installed_import_isolated: bool
+    template_profile: str | None
     template_revision: str | None
     project_created: bool
     doctor_ready: bool
@@ -63,10 +64,42 @@ def _venv_python(root: Path) -> Path:
 def _research_executable(root: Path) -> Path:
     return root / ("Scripts/research.exe" if os.name == "nt" else "bin/research")
 
+def _create_venv(root: Path) -> bool:
+    try:
+        import venv
+    except ModuleNotFoundError:
+        return False
+    venv.EnvBuilder(with_pip=True, clear=True).create(root)
+    return True
+
+
+
+def _reject_json_constant(token: str) -> object:
+    raise ValueError(f"non-finite JSON constant: {token}")
+
+
+def _strict_json_object(raw: str) -> dict[str, object] | None:
+    def object_from_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        result: dict[str, object] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"duplicate JSON key: {key!r}")
+            result[key] = value
+        return result
+
+    try:
+        value = json.loads(
+            raw, parse_constant=_reject_json_constant, object_pairs_hook=object_from_pairs
+        )
+    except (json.JSONDecodeError, ValueError):
+        return None
+    return value if isinstance(value, dict) else None
+
 
 def _receipt(name: str, argv: list[str], completed: subprocess.CompletedProcess[str]) -> CommandReceipt:
     stdout = completed.stdout or ""
     stderr = completed.stderr or ""
+    selected = stdout if completed.returncode == 0 else stderr
     return CommandReceipt(
         name=name,
         argv=tuple(argv),
@@ -75,6 +108,9 @@ def _receipt(name: str, argv: list[str], completed: subprocess.CompletedProcess[
         stderr_sha256=_sha256_bytes(stderr.encode("utf-8")),
         stdout_tail=stdout[-4000:],
         stderr_tail=stderr[-4000:],
+        json_output=(
+            selected if _strict_json_object(selected) is not None else None
+        ),
     )
 
 
@@ -92,37 +128,39 @@ def _run(name: str, argv: list[str], *, cwd: Path, env: dict[str, str]) -> Comma
 
 
 def _json_output(receipt: CommandReceipt) -> dict[str, object] | None:
-    raw = receipt.stdout_tail if receipt.returncode == 0 else receipt.stderr_tail
-    try:
-        value = json.loads(raw)
-    except json.JSONDecodeError:
+    if receipt.json_output is None:
         return None
-    return value if isinstance(value, dict) else None
+    return _strict_json_object(receipt.json_output)
 
 
-def _doctor_facts(receipt: CommandReceipt) -> tuple[bool, bool, str | None, tuple[str, ...]]:
+def _doctor_facts(receipt: CommandReceipt) -> tuple[bool, bool, str | None, str | None, tuple[str, ...]]:
     document = _json_output(receipt)
     if document is None:
-        return False, False, None, ("DOCTOR_RECEIPT_INVALID",)
+        return False, False, None, None, ("DOCTOR_RECEIPT_INVALID",)
     result = document.get("result")
     if not isinstance(result, dict):
-        return False, False, None, ("DOCTOR_RESULT_INVALID",)
+        return False, False, None, None, ("DOCTOR_RESULT_INVALID",)
     checks = result.get("checks")
     if not isinstance(checks, list):
-        return False, False, None, ("DOCTOR_CHECKS_INVALID",)
+        return False, False, None, None, ("DOCTOR_CHECKS_INVALID",)
     blocked: list[str] = []
     public_boundary = False
     for row in checks:
         if not isinstance(row, dict):
-            return False, False, None, ("DOCTOR_CHECK_INVALID",)
+            return False, False, None, None, ("DOCTOR_CHECK_INVALID",)
         check_id = row.get("check_id")
         disposition = row.get("disposition")
         if isinstance(check_id, str) and disposition == "blocked":
             blocked.append(check_id)
         if check_id == "public_import_boundary":
             public_boundary = disposition == "pass"
+    profile = result.get("template_profile")
     template = result.get("template_revision")
-    return document.get("ok") is True, public_boundary, template if isinstance(template, str) else None, tuple(blocked)
+    return (
+        document.get("ok") is True, public_boundary,
+        profile if isinstance(profile, str) else None,
+        template if isinstance(template, str) else None, tuple(blocked),
+    )
 
 
 def _blocked_receipt(
@@ -133,6 +171,7 @@ def _blocked_receipt(
     installed_version: str | None = None,
     module_file: str | None = None,
     installed_import_isolated: bool = False,
+    template_profile: str | None = None,
     template_revision: str | None = None,
     project_created: bool = False,
     doctor_ready: bool = False,
@@ -140,13 +179,14 @@ def _blocked_receipt(
     public_import_boundary_passed: bool = False,
 ) -> NpeCleanRoomReceipt:
     return NpeCleanRoomReceipt(
-        schema="research-platform.npe-clean-room.v1",
+        schema="research-platform.npe-clean-room.v2",
         artifact_name=artifact.name,
         artifact_sha256=_sha256_file(artifact),
         artifact_size=artifact.stat().st_size,
         installed_version=installed_version,
         module_file=module_file,
         installed_import_isolated=installed_import_isolated,
+        template_profile=template_profile,
         template_revision=template_revision,
         project_created=project_created,
         doctor_ready=doctor_ready,
@@ -172,7 +212,12 @@ def verify_npe_cleanroom(artifact: Path) -> NpeCleanRoomReceipt:
         work = root / "work"
         project = work / "npe-reference"
         work.mkdir()
-        venv.EnvBuilder(with_pip=True, clear=True).create(venv_root)
+        if not _create_venv(venv_root):
+            return _blocked_receipt(
+                artifact,
+                commands=commands,
+                blockers=["PYTHON_VENV_UNAVAILABLE"],
+            )
         python = _venv_python(venv_root)
         research = _research_executable(venv_root)
         env = dict(os.environ)
@@ -235,25 +280,10 @@ def verify_npe_cleanroom(artifact: Path) -> NpeCleanRoomReceipt:
                 module_file=module_file,
             )
 
-        profile_probe = _run(
-            "reference-profile-probe",
-            [str(research), "project", "create", "--help"],
-            cwd=work,
-            env=env,
-        )
-        commands.append(profile_probe)
-        reference_profile = (
-            profile_probe.returncode == 0
-            and "--profile" in profile_probe.stdout_tail
-            and "reference" in profile_probe.stdout_tail.lower()
-        )
-
         create_argv = [
             str(research), "project", "create", "npe-reference", str(project),
             "--version", "0.0.1",
         ]
-        if reference_profile:
-            create_argv.extend(("--profile", "reference"))
         create = _run("project-create", create_argv, cwd=work, env=env)
         commands.append(create)
         create_document = _json_output(create)
@@ -277,7 +307,7 @@ def verify_npe_cleanroom(artifact: Path) -> NpeCleanRoomReceipt:
             env=env,
         )
         commands.append(doctor)
-        doctor_ready, public_boundary, template_revision, doctor_blockers = _doctor_facts(doctor)
+        doctor_ready, public_boundary, template_profile, template_revision, doctor_blockers = _doctor_facts(doctor)
 
         generated_tests = _run(
             "project-test",
@@ -291,15 +321,15 @@ def verify_npe_cleanroom(artifact: Path) -> NpeCleanRoomReceipt:
             isinstance(test_document, dict) and test_document.get("ok") is True
         )
 
-        if not reference_profile:
-            blockers.append("REFERENCE_PROFILE_UNAVAILABLE")
         if not doctor_ready:
             blockers.extend(f"DOCTOR_BLOCKED:{check_id}" for check_id in doctor_blockers)
+            if "level0_standard_bindings" in doctor_blockers:
+                blockers.append("URE_LEVEL0_STANDARD_BINDINGS_UNAVAILABLE")
         if not tests_passed:
             blockers.append("GENERATED_TESTS_FAILED")
         if not public_boundary:
             blockers.append("PUBLIC_IMPORT_BOUNDARY_FAILED")
-        if reference_profile and doctor_ready:
+        if doctor_ready:
             blockers.append("REFERENCE_LIFECYCLE_DRIVER_UNAVAILABLE")
 
         return _blocked_receipt(
@@ -309,6 +339,7 @@ def verify_npe_cleanroom(artifact: Path) -> NpeCleanRoomReceipt:
             installed_version=installed_version,
             module_file=module_file,
             installed_import_isolated=True,
+            template_profile=template_profile,
             template_revision=template_revision,
             project_created=project_created,
             doctor_ready=doctor_ready,
