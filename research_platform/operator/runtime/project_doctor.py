@@ -398,7 +398,7 @@ def doctor_project(project_root: Path) -> ProjectDoctorReport:
     if profile is ProjectTemplateProfile.AUTHOR:
         checks.append(_check(
             "level0_standard_bindings", False,
-            "producer-owned author compiler and standard bindings are available",
+            "producer-owned author compiler and standard bindings are not yet available",
             "install a Platform release with producer-owned Level-0 compiler and standard bindings; do not add provider/runtime plumbing to the author project",
         ))
     elif profile is ProjectTemplateProfile.PROVIDER:

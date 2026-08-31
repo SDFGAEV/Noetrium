@@ -143,6 +143,8 @@ def test_project_doctor_rejects_manifest_and_private_import_drift(
     assert initial_checks["manifest_identity"] is ProjectDoctorDisposition.PASS
     assert initial_checks["public_import_boundary"] is ProjectDoctorDisposition.PASS
     assert initial_checks["level0_standard_bindings"] is ProjectDoctorDisposition.BLOCKED
+    level0 = next(row for row in initial.checks if row.check_id == "level0_standard_bindings")
+    assert level0.summary == "producer-owned author compiler and standard bindings are not yet available"
     assert "participant_provider_readiness" not in initial_checks
 
     manifest_path = root / "project.manifest.json"
