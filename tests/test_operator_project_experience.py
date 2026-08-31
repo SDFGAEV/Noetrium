@@ -225,6 +225,27 @@ def test_project_test_runs_generated_contracts(
         ProjectTestStage.BUILD_INSTALL, ProjectTestStage.CONTRACT_TEST,
     )
 
+def test_project_cli_test_emits_one_strict_json_document(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capfd
+) -> None:
+    import json
+    from research_platform.operator.composition.research import main
+
+    _bind_fixed_platform(monkeypatch)
+    root = tmp_path / "strict-project-test"
+    project_scaffold.create_project(ProjectCreateRequest("strict-project-test", "0.1.0", root))
+
+    assert main(["project", "test", "--project", str(root)]) == 0
+    captured = capfd.readouterr()
+    assert captured.err == ""
+    document = json.loads(captured.out)
+    assert document["ok"] is True
+    assert document["command"] == "project test"
+    assert [row["stage"] for row in document["result"]["stages"]] == [
+        "build_install", "contract_test",
+    ]
+
+
 def test_generated_project_has_no_private_platform_imports(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -28,7 +28,8 @@ def _run_stage(
     try:
         completed = subprocess.run(
             command, cwd=cwd, env=environment, check=False,
-            timeout=_TIMEOUT_SECONDS,
+            timeout=_TIMEOUT_SECONDS, text=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         )
         exit_code = completed.returncode
     except subprocess.TimeoutExpired:
