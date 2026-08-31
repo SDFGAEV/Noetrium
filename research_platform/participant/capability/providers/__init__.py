@@ -1,1 +1,3 @@
-"""participant.capability providers boundary."""
+from .typed import FunctionalTypedCapabilityProvider
+
+__all__ = ["FunctionalTypedCapabilityProvider"]

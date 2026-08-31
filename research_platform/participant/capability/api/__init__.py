@@ -39,3 +39,13 @@ __all__ += [
     "CapabilityPolicyDenied", "CapabilityPolicySet", "CapabilityPostPolicyPort", "CapabilityPostPolicyViolation",
     "GuardDecision", "GuardVerdict",
 ]
+
+from .typed import (
+    CapabilityInputCarrier, CapabilityOutputCarrier, TypedCapabilityPort,
+    TypedCapabilityRequest, TypedCapabilityResult, require_pure_typed_descriptor,
+)
+
+__all__ += [
+    "CapabilityInputCarrier", "CapabilityOutputCarrier", "TypedCapabilityPort",
+    "TypedCapabilityRequest", "TypedCapabilityResult", "require_pure_typed_descriptor",
+]
