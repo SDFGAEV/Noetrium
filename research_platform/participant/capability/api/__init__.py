@@ -12,40 +12,60 @@ from .contracts import (
     capability_effect_request_id,
     capability_request_digest,
 )
+from .policy import (
+    CapabilityApprovalDenied,
+    CapabilityApprovalPort,
+    CapabilityGuardPort,
+    CapabilityPolicyDenied,
+    CapabilityPolicySet,
+    CapabilityPostPolicyPort,
+    CapabilityPostPolicyViolation,
+    GuardDecision,
+    GuardVerdict,
+)
+from .typed import (
+    CapabilityCarrierTransportPort,
+    CapabilityInputCarrier,
+    CapabilityOutputCarrier,
+    TypedCapabilityCarrierCodec,
+    TypedCarrierReference,
+    decode_typed_capability_input,
+    decode_typed_capability_result,
+    make_typed_capability_request,
+    make_typed_capability_result,
+    require_pure_typed_descriptor,
+)
 
 __all__ = [
+    "CapabilityApprovalDenied",
+    "CapabilityApprovalPort",
+    "CapabilityCarrierTransportPort",
     "CapabilityDescriptor",
-    "CapabilityExportSession",
     "CapabilityEffectReconciliationResult",
+    "CapabilityExportSession",
+    "CapabilityGuardPort",
+    "CapabilityInputCarrier",
+    "CapabilityOutputCarrier",
+    "CapabilityPolicyDenied",
+    "CapabilityPolicySet",
     "CapabilityPort",
+    "CapabilityPostPolicyPort",
+    "CapabilityPostPolicyViolation",
     "CapabilityProviderImplementation",
     "CapabilityProviderIdentity",
     "CapabilityProviderSession",
     "CapabilityRequest",
     "CapabilityResult",
     "DurablePreparedCapabilitySession",
+    "GuardDecision",
+    "GuardVerdict",
+    "TypedCapabilityCarrierCodec",
+    "TypedCarrierReference",
     "capability_effect_request_id",
     "capability_request_digest",
-]
-
-from .policy import (
-    CapabilityApprovalDenied, CapabilityApprovalPort, CapabilityGuardPort,
-    CapabilityPolicyDenied, CapabilityPolicySet, CapabilityPostPolicyPort, CapabilityPostPolicyViolation,
-    GuardDecision, GuardVerdict,
-)
-
-__all__ += [
-    "CapabilityApprovalDenied", "CapabilityApprovalPort", "CapabilityGuardPort",
-    "CapabilityPolicyDenied", "CapabilityPolicySet", "CapabilityPostPolicyPort", "CapabilityPostPolicyViolation",
-    "GuardDecision", "GuardVerdict",
-]
-
-from .typed import (
-    CapabilityInputCarrier, CapabilityOutputCarrier, TypedCapabilityPort,
-    TypedCapabilityRequest, TypedCapabilityResult, require_pure_typed_descriptor,
-)
-
-__all__ += [
-    "CapabilityInputCarrier", "CapabilityOutputCarrier", "TypedCapabilityPort",
-    "TypedCapabilityRequest", "TypedCapabilityResult", "require_pure_typed_descriptor",
+    "decode_typed_capability_input",
+    "decode_typed_capability_result",
+    "make_typed_capability_request",
+    "make_typed_capability_result",
+    "require_pure_typed_descriptor",
 ]

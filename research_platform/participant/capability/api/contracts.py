@@ -17,6 +17,22 @@ class CapabilityProviderIdentity:
     schema_version: str
     artifact_digest: str = ""
 
+    def __post_init__(self) -> None:
+        for field_name in ("provider_id", "implementation_version", "abi_version", "schema_version"):
+            value = getattr(self, field_name)
+            if not isinstance(value, str) or not value.strip() or value != value.strip():
+                raise ValueError(f"capability provider {field_name} must be canonical non-empty text")
+        if not isinstance(self.artifact_digest, str):
+            raise TypeError("capability provider artifact_digest must be text")
+        if self.artifact_digest and (
+            not self.artifact_digest.strip()
+            or self.artifact_digest != self.artifact_digest.strip()
+        ):
+            raise ValueError("capability provider artifact_digest must be canonical text when provided")
+
+    def digest(self) -> str:
+        return canonical_digest(self)
+
 
 @dataclass(frozen=True, slots=True)
 class CapabilityDescriptor:
@@ -34,8 +50,11 @@ class CapabilityDescriptor:
             self.request_schema,
             self.result_schema,
         ):
-            if not value.strip():
-                raise ValueError("capability descriptor identity fields must be non-empty")
+            if not isinstance(value, str) or not value.strip() or value != value.strip():
+                raise ValueError("capability descriptor identity fields must be canonical non-empty text")
+
+    def digest(self) -> str:
+        return canonical_digest(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,6 +113,8 @@ class CapabilityResult:
     artifacts: tuple[str, ...] = ()
     diagnostics: JsonObject = field(default_factory=dict)
     effect: EffectReceipt | None = None
+    provider_identity: CapabilityProviderIdentity | None = None
+    request_digest: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.capability_id, str) or not self.capability_id.strip():
@@ -112,6 +133,28 @@ class CapabilityResult:
         object.__setattr__(
             self, "diagnostics", freeze_json_value_object(self.diagnostics, field="capability result diagnostics")
         )
+        if self.provider_identity is not None and not isinstance(
+            self.provider_identity, CapabilityProviderIdentity
+        ):
+            raise TypeError("capability result provider_identity must be typed")
+        if self.request_digest is not None and (
+            not isinstance(self.request_digest, str)
+            or len(self.request_digest) != 64
+            or any(char not in "0123456789abcdef" for char in self.request_digest)
+        ):
+            raise ValueError("capability result request_digest must be lowercase SHA-256")
+
+    def digest(self) -> str:
+        return canonical_digest({
+            "capability_id": self.capability_id,
+            "payload": self.payload,
+            "generation": self.generation,
+            "artifacts": self.artifacts,
+            "diagnostics": self.diagnostics,
+            "effect": self.effect,
+            "provider_identity": self.provider_identity,
+            "request_digest": self.request_digest,
+        })
 
 
 @dataclass(frozen=True, slots=True)

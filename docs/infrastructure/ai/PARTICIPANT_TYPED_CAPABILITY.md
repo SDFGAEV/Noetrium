@@ -1,23 +1,55 @@
 # Participant Typed Capability Contract
 
-ROLE04 keeps the existing JSON `CapabilityRequest` / `CapabilityResult` path for small tool-style capabilities.
-Research components whose scientific values are not naturally JSON may instead use the additive typed-carrier path.
-Both paths reuse the same `CapabilityDescriptor`, provider identity and `EffectClass`; no second capability registry exists.
+ROLE04 exposes exactly one capability invocation authority: canonical
+`CapabilityRequest` / `CapabilityResult` through `CapabilityExportSession`.
+Typed scientific carriers are a specialization of that authority, not a second
+`invoke_typed` path.
 
-A typed input implements `CapabilityInputCarrier`; a typed output implements `CapabilityOutputCarrier`.
-Each carrier publishes an exact `schema_id` and deterministic `digest()`.
-`TypedCapabilityRequest` binds the descriptor, carrier digest and scientific execution identity while excluding trace/span-only fields.
-`TypedCapabilityResult` binds the exact request digest, provider id, result schema and output carrier digest.
+A typed input implements `CapabilityInputCarrier`; a typed output implements
+`CapabilityOutputCarrier`. Each carrier publishes an exact `schema_id` and a
+deterministic semantic `digest()`.
 
-`FunctionalTypedCapabilityProvider` is a reference implementation for pure local capabilities only.
-It rejects descriptor drift before calling the handler and rejects result-schema drift before publishing a result.
-Effectful capabilities are deliberately rejected by this direct path so existing prepared-effect/reconciliation authority cannot be bypassed.
+`TypedCapabilityCarrierCodec` maps those values to bytes. The codec identity,
+implementation digest, media type, descriptor digest, semantic digest, content
+digest and byte size are bound by `TypedCarrierReference`.
 
-## Downstream authoring
+Only that verified reference crosses the canonical JSON capability envelope.
+Large or high-dimensional scientific payloads remain byte-oriented and therefore
+do not need to be flattened into arbitrary JSON values.
 
-A paper-local `NovelComponentInput` / `NovelComponentOutput` pair can implement the carrier protocols directly.
-No Platform enum, source registration, implementation-class registry, endpoint table or collaboration policy edit is required.
-The component may be substituted behind the same semantic descriptor as long as request/result schema and evidence identity remain exact.
+`CapabilityCarrierTransportPort` is deliberately only a byte transport seam.
+It does not own immutable Artifact/Data identity, retention or catalog authority.
+A paper project may bind local shared memory, IPC, remote object transport or a
+ROLE05-backed content implementation behind this port without changing the
+Participant capability contract.
 
-This contract is intentionally transport-neutral.
-An out-of-process adapter may consume the same carrier identity later, but transport lifecycle/deadline/backpressure authority remains outside this pure reference provider.
+`FunctionalTypedCapabilityProvider` implements the existing
+`CapabilityProviderSession` surface. Consequently typed calls pass through the
+same routing, guard/approval/post-policy pipeline, Kernel operation provenance,
+and session lifecycle as ordinary capabilities.
+
+The canonical result binds exact `CapabilityProviderIdentity` and the canonical
+request digest. Participant generation is copied from
+`ExecutionContext.participant_generations` for the configured participant role;
+the provider cannot invent a result generation independently of runtime identity.
+
+Codec drift, descriptor drift, provider revision drift, byte corruption,
+content-size mismatch and semantic decode drift fail closed before values are
+accepted. Equivalent codec implementations with the same exact codec identity
+may substitute across process/transport boundaries.
+
+## Effectful capabilities
+
+The reference typed provider accepts only `EffectClass.PURE`.
+Effectful typed components must implement the existing canonical
+`DurablePreparedCapabilitySession` contract and therefore remain subject to the
+prepared-effect journal, exactly-once/reconciliation semantics and recovery
+authority. There is no typed direct-execution escape hatch.
+
+## Project authoring
+
+A new paper may define arbitrary request/result schema ids and carrier classes
+without editing a Platform enum, model registry, endpoint registry or global
+component catalogue. Client code calls `make_typed_capability_request`, invokes
+the ordinary capability port, then calls `decode_typed_capability_result` with
+its expected descriptor, codec and provider identity.
