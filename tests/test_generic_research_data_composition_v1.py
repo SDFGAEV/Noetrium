@@ -86,3 +86,61 @@ def test_builtin_research_query_composition_wires_portable_sources() -> None:
         ResearchResultKind.DATASET,
         ResearchResultKind.REPORT,
     }
+
+
+def test_research_query_cut_is_independent_of_artifact_physical_location(tmp_path) -> None:
+    payload = b"portable-report-content"
+    digest = _sha(payload)
+    location_a = tmp_path / "storage-a" / "report.bin"
+    location_b = tmp_path / "storage-b" / "report.bin"
+    location_a.parent.mkdir()
+    location_b.parent.mkdir()
+    location_a.write_bytes(payload)
+    location_b.write_bytes(payload)
+
+    storage_a = compose_filesystem_artifact_storage_bindings(tmp_path / "bindings-a.sqlite3")
+    storage_b = compose_filesystem_artifact_storage_bindings(tmp_path / "bindings-b.sqlite3")
+    binding_a = storage_a.bindings.bind(
+        artifact_id="report:portable",
+        content_sha256=digest,
+        storage_provider_id="artifact.filesystem",
+        location=str(location_a),
+    )
+    binding_b = storage_b.bindings.bind(
+        artifact_id="report:portable",
+        content_sha256=digest,
+        storage_provider_id="artifact.filesystem",
+        location=str(location_b),
+    )
+    assert binding_a.location != binding_b.location
+    assert binding_a.content_sha256 == binding_b.content_sha256 == digest
+
+    record = ArtifactRecord(
+        artifact_id="report:portable",
+        kind=ArtifactKind.REPORT,
+        scope=PLATFORM_SCOPE,
+        digest=digest,
+        producer_component_id="project.analysis",
+        media_type="application/octet-stream",
+    )
+    artifacts_a = InMemoryArtifactRegistry()
+    artifacts_b = InMemoryArtifactRegistry()
+    artifacts_a.put(record)
+    artifacts_b.put(record)
+    query = ResearchResultQuery(kinds=(ResearchResultKind.REPORT,))
+    page_a = compose_builtin_research_result_query(
+        datasets=InMemoryDatasetRegistry(),
+        artifacts=artifacts_a,
+        scopes=InMemoryScopeRegistry(),
+    ).query(query)
+    page_b = compose_builtin_research_result_query(
+        datasets=InMemoryDatasetRegistry(),
+        artifacts=artifacts_b,
+        scopes=InMemoryScopeRegistry(),
+    ).query(query)
+
+    assert page_a.complete is page_b.complete is True
+    assert page_a.records == page_b.records
+    assert page_a.input_cut_digest == page_b.input_cut_digest
+    assert page_a.query_digest == page_b.query_digest
+    assert all(not hasattr(row, "location") for row in page_a.records)

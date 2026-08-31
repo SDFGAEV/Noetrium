@@ -38,12 +38,23 @@ Queries use typed scientific dimensions and result kinds. Each producer adapter 
 
 Dataset and Artifact adapters project producer-owned identities; the federation owns no mutable research truth and exposes no generic `execute`, checkpoint, restore, or state API. Source hard limits are fail-closed as incomplete cuts rather than silent truncation.
 
+## Canonical JSON convergence
+
+ROLE05 consumes the ROLE01 strict finite JSON kernel producer through merge `dfd6801b1c333e3f8014c70235d2205996e55fb8`. Data aliases kernel `strict_finite_json_bytes/text/digest` and `strict_json_loads`; its former local decoder is deleted. Artifact catalog/content/lineage/reference/retention durable record digests use `strict_finite_json_digest` directly.
+
+This keeps one encoding/decoding acceptance authority: valid finite JSON remains byte/digest-identical, while bytes, paths, sets, enums, non-finite values, cycles and other broad canonical values fail before scientific persistence.
+
 ## Cross-role dependencies
 
-ROLE05 does not create private substitutes for missing Core/Governance contracts. Current CSRs are recorded outside the repository under `outputs/reports/role05/`:
+Resolved in the consumed ROLE01 producer:
 
-- `CSR-ROLE05-ROLE01-PSC02-STRICT-FINITE-JSON-CUTOVER-20260831`: consume one ROLE01 strict finite JSON encode/decode/digest authority instead of keeping broad scientific-boundary ambiguity.
-- `CSR-ROLE05-ROLE01-PSC05-DATA-ARTIFACT-CONTENT-REFERENCE-20260831`: define the legal typed Dataset -> Artifact immutable content-reference dependency without giving Data artifact identity authority.
-- `CSR-ROLE05-ROLE01-ROLE06-SEMANTIC-BOUNDARY-GATE-20260831`: replace the historical hard-coded 81 generic-leaf gate with canonical scaffold-vs-semantic-boundary classification.
+- `CSR-ROLE05-ROLE01-PSC02-STRICT-FINITE-JSON-CUTOVER-20260831`: functional strict encode/decode/digest cutover is complete.
+- `CSR-ROLE05-ROLE01-ROLE06-SEMANTIC-BOUNDARY-GATE-20260831`: architecture tests no longer hard-code 81 generic leaves, so `data/query/cross` remains a typed semantic boundary without fake execute/checkpoint state.
 
-Until those producer/gate decisions are integrated, ROLE05 keeps its owned implementation narrow and does not weaken tests or restore duplicate generic authority.
+Open producer/governance dependencies are recorded outside the repository under `outputs/reports/role05/`:
+
+- `CSR-ROLE05-ROLE01-PSC05-DATA-ARTIFACT-CONTENT-REFERENCE-20260831`: approve the typed Dataset -> Artifact immutable content-reference dependency without transferring Artifact identity authority into Data.
+- `CSR-ROLE05-ROLE01-PLATFORM-DEPENDENCY-DECLARATIONS-20260831`: declare the already-existing Artifact/Data -> Platform kernel dependency in canonical governance catalog metadata.
+- `CSR-ROLE05-ROLE03-UNIFIED-RESEARCH-RESULT-READ-PROJECTION-20260831`: publish stable ROLE03 Run/Trial/Task/Measurement/Evidence read authority so ROLE05 can adapt it into the unified read-only federation.
+
+Until those producer decisions land, `run`, `task`, `action`, `observation`, `measurement`, and `evidence` result kinds remain explicitly representable but unsupported sources return typed `NO_SOURCE_CAPABILITY` gaps. ROLE05 does not create a private Run/Measurement registry or restore generic leaf authority.

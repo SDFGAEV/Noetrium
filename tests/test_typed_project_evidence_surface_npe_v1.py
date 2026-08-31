@@ -172,7 +172,12 @@ def test_role05_canonical_encoding_uses_kernel_exact_bytes() -> None:
 
 def test_data_strict_decoder_rejects_duplicate_keys_and_nonfinite_constants() -> None:
     from research_platform.data._canonical import DataCanonicalDecodingError, strict_json_loads
-    with pytest.raises(DataCanonicalDecodingError, match="duplicate object key"):
+    from research_platform.platform.kernel import CanonicalDecodingFailureKind
+
+    with pytest.raises(DataCanonicalDecodingError) as duplicate:
         strict_json_loads('{"a":1,"a":2}')
-    with pytest.raises(DataCanonicalDecodingError, match="non-finite constant"):
+    assert duplicate.value.kind is CanonicalDecodingFailureKind.DUPLICATE_KEY
+
+    with pytest.raises(DataCanonicalDecodingError) as non_finite:
         strict_json_loads('{"value":NaN}')
+    assert non_finite.value.kind is CanonicalDecodingFailureKind.NON_FINITE

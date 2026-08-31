@@ -132,8 +132,7 @@ def test_sha256_digest_requires_canonical_lowercase_text() -> None:
             require_sha256(invalid, "content_sha256")
 
 
-def test_strict_finite_json_bytes_and_digest_match_existing_artifact_and_data_overlap() -> None:
-    from research_platform.artifact._canonical import canonical_bytes as artifact_bytes, canonical_digest as artifact_digest
+def test_strict_finite_json_bytes_and_digest_match_data_overlap() -> None:
     from research_platform.data._canonical import canonical_bytes as data_bytes, canonical_digest as data_digest
     from research_platform.platform.kernel import strict_finite_json_bytes, strict_finite_json_digest
 
@@ -149,9 +148,7 @@ def test_strict_finite_json_bytes_and_digest_match_existing_artifact_and_data_ov
     for value in values:
         expected = strict_finite_json_bytes(value)
         digest = strict_finite_json_digest(value)
-        assert artifact_bytes(value) == expected
         assert data_bytes(value) == expected
-        assert artifact_digest(value) == digest
         assert data_digest(value) == digest
 
 

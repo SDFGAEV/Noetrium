@@ -18,7 +18,7 @@ from research_platform.artifact.content.api import (
     ArtifactStoragePlacementVerifierPort,
     VerifiedArtifactStoragePlacement,
 )
-from research_platform.platform.kernel import canonical_digest
+from research_platform.platform.kernel import strict_finite_json_digest as canonical_digest
 
 
 class SQLiteArtifactStorageBindingStore:
