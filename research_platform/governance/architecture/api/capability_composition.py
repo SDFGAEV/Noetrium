@@ -11,15 +11,17 @@ from dataclasses import dataclass
 from enum import StrEnum
 import inspect
 import re
-from typing import Protocol
+from typing import Generic, Protocol, TypeVar
 
 from research_platform.governance.system_registry.api import SystemIdentity
-from research_platform.platform.kernel import canonical_digest
+from research_platform.platform.kernel import Sha256Digest, canonical_digest
 from research_platform.scope.api import ScopeIdentity
 
 
 _TOKEN = re.compile(r"[a-z][a-z0-9_.-]*")
 _DIGEST = re.compile(r"[0-9a-f]{64}")
+_BINDING_REQUIREMENT = TypeVar("_BINDING_REQUIREMENT")
+_BINDING_PAYLOAD = TypeVar("_BINDING_PAYLOAD")
 
 
 class CompositionContractError(ValueError):
@@ -31,7 +33,13 @@ class CompositionTopologyError(CompositionContractError):
 
 
 class CapabilityBindingError(CompositionContractError):
-    """A requirement cannot be bound to an eligible provider."""
+    """A requirement cannot be bound; machine semantics live in ``diagnostic``."""
+
+    def __init__(self, diagnostic: "BindingDiagnostic") -> None:
+        if not isinstance(diagnostic, BindingDiagnostic):
+            raise TypeError("capability binding error requires typed BindingDiagnostic")
+        self.diagnostic = diagnostic
+        super().__init__(diagnostic.summary)
 
 
 class MissingCapabilityProvider(CapabilityBindingError):
@@ -46,13 +54,76 @@ class CapabilityInterfaceMismatch(CapabilityBindingError):
     pass
 
 
-class CapabilityDependencyCycle(CapabilityBindingError):
-    pass
+class CapabilityDependencyCycle(CompositionContractError):
+    """Graph-level cycle error; unlike one-requirement failures it has no diagnostic envelope."""
+
+    def __init__(self, message: str) -> None:
+        CompositionContractError.__init__(self, message)
 
 
 class RequirementCardinality(StrEnum):
     EXACTLY_ONE = "exactly_one"
     ONE_OR_MORE = "one_or_more"
+
+
+class BindingDiagnosticSeverity(StrEnum):
+    INFO = "info"
+    WARNING = "warning"
+    ERROR = "error"
+
+
+class BindingDiagnosticReferenceKind(StrEnum):
+    IDENTITY = "identity"
+    EVIDENCE = "evidence"
+
+
+class BindingResolutionState(StrEnum):
+    BOUND = "bound"
+    DIAGNOSTIC = "diagnostic"
+
+
+class BindingRemediationCategory(StrEnum):
+    NONE = "none"
+    CONFIGURATION = "configuration"
+    PROVIDER_SELECTION = "provider_selection"
+    CAPABILITY = "capability"
+    INTERFACE = "interface"
+    TOPOLOGY = "topology"
+    DEPENDENCY = "dependency"
+    QUALIFICATION = "qualification"
+    OWNER_ACTION = "owner_action"
+
+
+@dataclass(frozen=True, slots=True, order=True)
+class BindingDiagnosticCode:
+    """Stable namespaced code value without owning domain-specific enumerations."""
+
+    value: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.value, str) or not _TOKEN.fullmatch(self.value) or "." not in self.value:
+            raise CompositionContractError(
+                "binding diagnostic code must be a lowercase namespaced token"
+            )
+
+    def __str__(self) -> str:
+        return self.value
+
+
+@dataclass(frozen=True, slots=True, order=True)
+class BindingDiagnosticReference:
+    kind: BindingDiagnosticReferenceKind
+    reference_id: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.kind, BindingDiagnosticReferenceKind):
+            raise CompositionContractError("binding diagnostic reference kind must be typed")
+        if (
+            not isinstance(self.reference_id, str)
+            or not self.reference_id.strip()
+            or self.reference_id != self.reference_id.strip()
+        ):
+            raise CompositionContractError("binding diagnostic reference_id must be canonical non-empty text")
 
 
 class CompositionSubjectKind(StrEnum):
@@ -174,6 +245,210 @@ class RequirementAddress:
     @property
     def value(self) -> str:
         return f"{self.consumer.key}:{self.requirement_id}"
+
+
+@dataclass(frozen=True, slots=True)
+class BindingDiagnostic:
+    """Neutral machine projection of a producer-owned binding diagnosis."""
+
+    code: BindingDiagnosticCode
+    severity: BindingDiagnosticSeverity
+    blocking: bool
+    owner: CompositionSubject
+    subject: CompositionSubject
+    requirement_digest: Sha256Digest
+    summary: str
+    requirement: RequirementAddress | None = None
+    provider_identity: str | None = None
+    provider_profile_digest: Sha256Digest | None = None
+    related_refs: tuple[BindingDiagnosticReference, ...] = ()
+    remediation: BindingRemediationCategory = BindingRemediationCategory.NONE
+    remediation_action: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.code, BindingDiagnosticCode):
+            raise CompositionContractError("binding diagnostic code must be typed")
+        if not isinstance(self.severity, BindingDiagnosticSeverity):
+            raise CompositionContractError("binding diagnostic severity must be typed")
+        if not isinstance(self.blocking, bool):
+            raise CompositionContractError("binding diagnostic blocking must be bool")
+        if not isinstance(self.owner, CompositionSubject) or not isinstance(self.subject, CompositionSubject):
+            raise CompositionContractError("binding diagnostic owner/subject must be typed")
+        if not isinstance(self.requirement_digest, Sha256Digest):
+            raise CompositionContractError("binding diagnostic requirement_digest must be typed")
+        if not isinstance(self.summary, str) or not self.summary.strip():
+            raise CompositionContractError("binding diagnostic summary must be non-empty")
+        if self.requirement is not None and not isinstance(self.requirement, RequirementAddress):
+            raise CompositionContractError("binding diagnostic requirement must be typed")
+        if self.requirement is not None and self.requirement.consumer != self.subject:
+            raise CompositionContractError(
+                "binding diagnostic requirement consumer must equal diagnostic subject"
+            )
+        if self.provider_identity is not None and (
+            not isinstance(self.provider_identity, str) or not self.provider_identity.strip()
+        ):
+            raise CompositionContractError("binding diagnostic provider_identity must be non-empty")
+        if self.provider_profile_digest is not None and not isinstance(
+            self.provider_profile_digest, Sha256Digest
+        ):
+            raise CompositionContractError("binding diagnostic provider_profile_digest must be typed")
+        if not isinstance(self.related_refs, tuple) or any(
+            not isinstance(ref, BindingDiagnosticReference) for ref in self.related_refs
+        ):
+            raise CompositionContractError("binding diagnostic related_refs must be typed")
+        ordered_refs = tuple(sorted(self.related_refs, key=lambda ref: (ref.kind.value, ref.reference_id)))
+        if len(ordered_refs) != len(set(ordered_refs)):
+            raise CompositionContractError("binding diagnostic related_refs must be unique")
+        object.__setattr__(self, "related_refs", ordered_refs)
+        if not isinstance(self.remediation, BindingRemediationCategory):
+            raise CompositionContractError("binding diagnostic remediation must be typed")
+        if self.remediation_action is not None and (
+            not isinstance(self.remediation_action, str)
+            or not _TOKEN.fullmatch(self.remediation_action)
+            or "." not in self.remediation_action
+        ):
+            raise CompositionContractError(
+                "binding diagnostic remediation_action must be a namespaced token"
+            )
+
+    @property
+    def machine_digest(self) -> str:
+        """Machine identity intentionally excludes the human rendering summary."""
+        return canonical_digest({
+            "code": self.code.value,
+            "severity": self.severity.value,
+            "blocking": self.blocking,
+            "owner": self.owner.key,
+            "subject": self.subject.key,
+            "requirement_digest": self.requirement_digest.value,
+            "requirement": self.requirement.value if self.requirement is not None else None,
+            "provider_identity": self.provider_identity,
+            "provider_profile_digest": (
+                self.provider_profile_digest.value
+                if self.provider_profile_digest is not None else None
+            ),
+            "related_refs": tuple(
+                (ref.kind.value, ref.reference_id) for ref in self.related_refs
+            ),
+            "remediation": self.remediation.value,
+            "remediation_action": self.remediation_action,
+        })
+
+
+@dataclass(frozen=True, slots=True)
+class BindingProof:
+    """Neutral proof metadata paired with a producer-owned typed binding payload."""
+
+    owner: CompositionSubject
+    subject: CompositionSubject
+    requirement_digest: Sha256Digest
+    provider_identity: str
+    provider_profile_digest: Sha256Digest
+    binding_generation: str
+    evidence_refs: tuple[BindingDiagnosticReference, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.owner, CompositionSubject) or not isinstance(self.subject, CompositionSubject):
+            raise CompositionContractError("binding proof owner/subject must be typed")
+        if not isinstance(self.requirement_digest, Sha256Digest):
+            raise CompositionContractError("binding proof requirement_digest must be typed")
+        if not isinstance(self.provider_identity, str) or not self.provider_identity.strip():
+            raise CompositionContractError("binding proof provider_identity must be non-empty")
+        if not isinstance(self.provider_profile_digest, Sha256Digest):
+            raise CompositionContractError("binding proof provider_profile_digest must be typed")
+        if not isinstance(self.binding_generation, str) or not _TOKEN.fullmatch(self.binding_generation):
+            raise CompositionContractError("binding proof binding_generation must be a canonical token")
+        if not isinstance(self.evidence_refs, tuple) or any(
+            not isinstance(ref, BindingDiagnosticReference)
+            or ref.kind is not BindingDiagnosticReferenceKind.EVIDENCE
+            for ref in self.evidence_refs
+        ):
+            raise CompositionContractError("binding proof evidence_refs must be typed evidence references")
+        ordered_refs = tuple(sorted(self.evidence_refs, key=lambda ref: ref.reference_id))
+        if len(ordered_refs) != len(set(ordered_refs)):
+            raise CompositionContractError("binding proof evidence_refs must be unique")
+        object.__setattr__(self, "evidence_refs", ordered_refs)
+
+    @property
+    def digest(self) -> str:
+        return canonical_digest(self)
+
+
+@dataclass(frozen=True, slots=True)
+class BindingResolution(Generic[_BINDING_PAYLOAD]):
+    """Exactly one successful typed binding or one blocking diagnostic set."""
+
+    binding: _BINDING_PAYLOAD | None = None
+    proof: BindingProof | None = None
+    diagnostics: tuple[BindingDiagnostic, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.binding is not None:
+            if not isinstance(self.proof, BindingProof) or self.diagnostics:
+                raise CompositionContractError(
+                    "successful binding resolution requires proof and no diagnostics"
+                )
+            return
+        if self.proof is not None or not self.diagnostics:
+            raise CompositionContractError(
+                "diagnostic binding resolution requires diagnostics and no proof"
+            )
+        if not isinstance(self.diagnostics, tuple):
+            raise CompositionContractError("binding resolution diagnostics must be an immutable tuple")
+        if any(not isinstance(item, BindingDiagnostic) for item in self.diagnostics):
+            raise CompositionContractError("binding resolution diagnostics must be typed")
+        if not any(item.blocking for item in self.diagnostics):
+            raise CompositionContractError(
+                "diagnostic binding resolution requires at least one blocking diagnostic"
+            )
+        ordered = tuple(sorted(
+            self.diagnostics,
+            key=lambda item: (
+                item.code.value, item.requirement_digest.value,
+                item.provider_identity or "", item.machine_digest,
+            ),
+        ))
+        if len({item.machine_digest for item in ordered}) != len(ordered):
+            raise CompositionContractError("binding resolution diagnostics must be machine-unique")
+        object.__setattr__(self, "diagnostics", ordered)
+
+    @property
+    def state(self) -> BindingResolutionState:
+        return (
+            BindingResolutionState.BOUND
+            if self.binding is not None else BindingResolutionState.DIAGNOSTIC
+        )
+
+    @property
+    def projection_digest(self) -> str:
+        """Digest the neutral envelope only; domain payload identity remains producer-owned."""
+        if self.binding is not None:
+            assert self.proof is not None
+            return canonical_digest({"state": self.state.value, "proof": self.proof.digest})
+        return canonical_digest({
+            "state": self.state.value,
+            "diagnostics": tuple(item.machine_digest for item in self.diagnostics),
+        })
+
+    @classmethod
+    def bound(
+        cls, binding: _BINDING_PAYLOAD, proof: BindingProof
+    ) -> "BindingResolution[_BINDING_PAYLOAD]":
+        return cls(binding=binding, proof=proof)
+
+    @classmethod
+    def diagnosed(
+        cls, diagnostics: tuple[BindingDiagnostic, ...]
+    ) -> "BindingResolution[_BINDING_PAYLOAD]":
+        return cls(diagnostics=diagnostics)
+
+
+class BindingResolverPort(Protocol[_BINDING_REQUIREMENT, _BINDING_PAYLOAD]):
+    """Producer-owned resolver with one common binding-or-diagnostics result shape."""
+
+    def resolve(
+        self, requirement: _BINDING_REQUIREMENT
+    ) -> BindingResolution[_BINDING_PAYLOAD]: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -304,8 +579,18 @@ class CapabilityCompositionPlannerPort(Protocol):
 
 __all__ = [
     "AmbiguousCapabilityProvider",
+    "BindingDiagnostic",
+    "BindingDiagnosticCode",
+    "BindingDiagnosticReference",
+    "BindingDiagnosticReferenceKind",
+    "BindingDiagnosticSeverity",
     "BindingEdge",
     "BindingPlan",
+    "BindingProof",
+    "BindingRemediationCategory",
+    "BindingResolution",
+    "BindingResolutionState",
+    "BindingResolverPort",
     "CapabilityBindingError",
     "CapabilityCompositionPlannerPort",
     "CapabilityDependencyCycle",

@@ -1,20 +1,34 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, replace
+
 import pytest
 
 from research_platform.governance.system_registry.api import SystemIdentity
 from research_platform.governance.system_registry.runtime import build_default_system_registry
 from research_platform.governance.architecture.api.capability_composition import (
     AmbiguousCapabilityProvider,
+    BindingDiagnostic,
+    BindingDiagnosticCode,
+    BindingDiagnosticReference,
+    BindingDiagnosticReferenceKind,
+    BindingDiagnosticSeverity,
+    BindingProof,
+    BindingRemediationCategory,
+    BindingResolution,
+    BindingResolutionState,
+    BindingResolverPort,
     CapabilityDependencyCycle,
     CapabilityInterfaceMismatch,
     CapabilityKey,
     CapabilityOffer,
     CapabilityRequirement,
     CompositionContract,
+    CompositionContractError,
     CompositionIdentity,
     CompositionSubject,
     CompositionTopologyError,
+    MissingCapabilityProvider,
     ProviderSelection,
     RequirementAddress,
     interface_contract_digest,
@@ -22,7 +36,7 @@ from research_platform.governance.architecture.api.capability_composition import
 from research_platform.governance.architecture.runtime.capability_composition import (
     CapabilityCompositionPlanner,
 )
-from research_platform.platform.kernel import canonical_digest
+from research_platform.platform.kernel import Sha256Digest, canonical_digest
 from research_platform.runtime.host.api import OperatingSystemRoute
 from research_platform.runtime.server.identity.api import ServerConnectionFactoryPort
 from research_platform.observability.logging.record.api import LoggingSystemPort
@@ -143,8 +157,13 @@ def test_ambiguous_provider_requires_explicit_selection() -> None:
     planner = CapabilityCompositionPlanner(systems=systems, scopes=scopes)
     identity = CompositionIdentity("runtime.infrastructure", PLATFORM_SCOPE, _system("runtime"))
 
-    with pytest.raises(AmbiguousCapabilityProvider):
+    with pytest.raises(AmbiguousCapabilityProvider) as raised:
         planner.freeze(identity, contracts)
+    diagnostic = raised.value.diagnostic
+    assert diagnostic.code.value == "governance.binding.provider-ambiguous"
+    assert diagnostic.requirement == requirement.address
+    assert diagnostic.requirement_digest == Sha256Digest(canonical_digest(requirement))
+    assert tuple(ref.reference_id for ref in diagnostic.related_refs) == ("host.a", "host.b")
 
     plan = planner.freeze(
         identity,
@@ -173,7 +192,7 @@ def test_incompatible_interface_digest_fails_before_binding() -> None:
     )
     planner = CapabilityCompositionPlanner(systems=systems, scopes=scopes)
 
-    with pytest.raises(CapabilityInterfaceMismatch):
+    with pytest.raises(CapabilityInterfaceMismatch) as raised:
         planner.freeze(
             CompositionIdentity("runtime.infrastructure", PLATFORM_SCOPE, _system("runtime")),
             (
@@ -181,6 +200,33 @@ def test_incompatible_interface_digest_fails_before_binding() -> None:
                 CompositionContract(server, PLATFORM_SCOPE, requirements=(requirement,)),
             ),
         )
+    diagnostic = raised.value.diagnostic
+    assert diagnostic.code.value == "governance.binding.interface-mismatch"
+    assert diagnostic.remediation is BindingRemediationCategory.INTERFACE
+    assert tuple(ref.reference_id for ref in diagnostic.related_refs) == ("local.host-route",)
+
+
+def test_missing_provider_failure_carries_typed_machine_diagnostic() -> None:
+    systems = build_default_system_registry()
+    scopes = _scope_registry()
+    server = _system("runtime", ("server",))
+    requirement = _requirement(
+        consumer=server, requirement_id="host-route",
+        capability=HOST_ROUTE, interface=OperatingSystemRoute,
+    )
+    planner = CapabilityCompositionPlanner(systems=systems, scopes=scopes)
+    with pytest.raises(MissingCapabilityProvider) as raised:
+        planner.freeze(
+            CompositionIdentity("runtime.infrastructure", PLATFORM_SCOPE, _system("runtime")),
+            (CompositionContract(server, PLATFORM_SCOPE, requirements=(requirement,)),),
+        )
+    diagnostic = raised.value.diagnostic
+    assert diagnostic.code.value == "governance.binding.provider-missing"
+    assert diagnostic.blocking
+    assert diagnostic.owner == _system("governance", ("architecture",))
+    assert diagnostic.subject == server
+    assert diagnostic.provider_identity is None
+    assert diagnostic.remediation is BindingRemediationCategory.CAPABILITY
 
 
 def test_plan_rejects_cycles_and_nonlocal_child_composition() -> None:
@@ -375,3 +421,198 @@ def test_interface_digest_tracks_inherited_port_surface() -> None:
         port.__qualname__ = "DerivedPort"
 
     assert interface_contract_digest(int_port) != interface_contract_digest(str_port)
+
+
+def _blocking_binding_diagnostic(
+    *, subject: CompositionSubject, owner: CompositionSubject
+) -> BindingDiagnostic:
+    requirement = RequirementAddress(subject, "model-provider")
+    return BindingDiagnostic(
+        code=BindingDiagnosticCode("model.binding.capability-missing"),
+        severity=BindingDiagnosticSeverity.ERROR,
+        blocking=True,
+        owner=owner,
+        subject=subject,
+        requirement_digest=Sha256Digest("a" * 64),
+        summary="No compatible model provider is currently bindable.",
+        requirement=requirement,
+        provider_identity="model.local",
+        provider_profile_digest=Sha256Digest("b" * 64),
+        related_refs=(
+            BindingDiagnosticReference(
+                BindingDiagnosticReferenceKind.EVIDENCE, "evidence:model-canary-17"
+            ),
+        ),
+        remediation=BindingRemediationCategory.QUALIFICATION,
+        remediation_action="model.qualification.refresh",
+    )
+
+
+def test_binding_diagnostic_envelope_has_stable_machine_identity_not_prose_identity() -> None:
+    subject = CompositionSubject.project_subject("paper", "1")
+    owner = _system("model")
+    diagnostic = _blocking_binding_diagnostic(subject=subject, owner=owner)
+    reworded = replace(diagnostic, summary="Human wording may change without changing diagnosis truth.")
+
+    assert diagnostic.machine_digest == reworded.machine_digest
+    assert diagnostic.code.value == "model.binding.capability-missing"
+    assert diagnostic.requirement is not None and diagnostic.requirement.consumer == subject
+    assert diagnostic.related_refs[0].kind is BindingDiagnosticReferenceKind.EVIDENCE
+    with pytest.raises(CompositionContractError, match="namespaced token"):
+        BindingDiagnosticCode("MODEL_CAPABILITY_MISSING")
+
+
+def test_binding_resolution_preserves_distinct_domain_payload_types() -> None:
+    @dataclass(frozen=True, slots=True)
+    class ModelDomainBinding:
+        model_id: str
+
+    @dataclass(frozen=True, slots=True)
+    class ParticipantDomainBinding:
+        participant_id: str
+
+    subject = CompositionSubject.project_subject("paper", "1")
+    evidence = (BindingDiagnosticReference(
+        BindingDiagnosticReferenceKind.EVIDENCE, "evidence:binding-proof"
+    ),)
+    model_binding = ModelDomainBinding("model-a")
+    model_proof = BindingProof(
+        owner=_system("model"), subject=subject, requirement_digest=Sha256Digest("c" * 64),
+        provider_identity="model.local", provider_profile_digest=Sha256Digest("d" * 64),
+        binding_generation="generation-1", evidence_refs=evidence,
+    )
+    participant_binding = ParticipantDomainBinding("participant-a")
+    participant_proof = BindingProof(
+        owner=_system("participant"), subject=subject, requirement_digest=Sha256Digest("e" * 64),
+        provider_identity="participant.local", provider_profile_digest=Sha256Digest("f" * 64),
+        binding_generation="generation-9", evidence_refs=evidence,
+    )
+
+    model = BindingResolution.bound(model_binding, model_proof)
+    participant = BindingResolution.bound(participant_binding, participant_proof)
+    assert model.binding is model_binding and type(model.binding) is ModelDomainBinding
+    assert participant.binding is participant_binding and type(participant.binding) is ParticipantDomainBinding
+    assert model.proof is model_proof and participant.proof is participant_proof
+    assert model.diagnostics == () and participant.diagnostics == ()
+
+
+def test_binding_resolution_is_fail_closed_and_cannot_mix_success_with_diagnostics() -> None:
+    subject = CompositionSubject.project_subject("paper", "1")
+    diagnostic = _blocking_binding_diagnostic(subject=subject, owner=_system("model"))
+    diagnosed = BindingResolution.diagnosed((diagnostic,))
+    assert diagnosed.binding is None and diagnosed.proof is None
+    assert diagnosed.diagnostics == (diagnostic,)
+
+    nonblocking = replace(diagnostic, blocking=False, severity=BindingDiagnosticSeverity.WARNING)
+    with pytest.raises(CompositionContractError, match="at least one blocking"):
+        BindingResolution.diagnosed((nonblocking,))
+
+    proof = BindingProof(
+        owner=_system("model"), subject=subject, requirement_digest=Sha256Digest("1" * 64),
+        provider_identity="model.local", provider_profile_digest=Sha256Digest("2" * 64),
+        binding_generation="generation-2",
+    )
+    with pytest.raises(CompositionContractError, match="no diagnostics"):
+        BindingResolution(binding=object(), proof=proof, diagnostics=(diagnostic,))
+    with pytest.raises(CompositionContractError, match="requires proof"):
+        BindingResolution(binding=object())
+
+
+def test_binding_envelope_rejects_untyped_or_cross_subject_metadata() -> None:
+    project = CompositionSubject.project_subject("paper", "1")
+    other = CompositionSubject.project_subject("other", "1")
+    diagnostic = _blocking_binding_diagnostic(subject=project, owner=_system("model"))
+    with pytest.raises(CompositionContractError, match="consumer must equal diagnostic subject"):
+        replace(diagnostic, subject=other)
+    with pytest.raises(CompositionContractError, match="provider_profile_digest must be typed"):
+        replace(diagnostic, provider_profile_digest="b" * 64)
+    with pytest.raises(CompositionContractError, match="remediation_action must be a namespaced token"):
+        replace(diagnostic, remediation_action="refresh")
+
+
+def test_binding_diagnostic_examples_are_complete_ordered_and_digest_stable() -> None:
+    subject = CompositionSubject.project_subject("paper", "1")
+    owner = _system("model")
+    base = _blocking_binding_diagnostic(subject=subject, owner=owner)
+    rows = (
+        replace(
+            base, code=BindingDiagnosticCode("governance.binding.provider-missing"),
+            provider_identity=None, provider_profile_digest=None,
+            remediation=BindingRemediationCategory.CAPABILITY,
+            remediation_action="provider.capability.configure",
+        ),
+        replace(
+            base, code=BindingDiagnosticCode("governance.binding.provider-ambiguous"),
+            remediation=BindingRemediationCategory.PROVIDER_SELECTION,
+            remediation_action="provider.selection.choose",
+        ),
+        replace(
+            base, code=BindingDiagnosticCode("governance.binding.capability-mismatch"),
+            remediation=BindingRemediationCategory.INTERFACE,
+            remediation_action="provider.interface.align",
+        ),
+        replace(
+            base, code=BindingDiagnosticCode("model.binding.qualification-unready"),
+            remediation=BindingRemediationCategory.QUALIFICATION,
+            remediation_action="model.qualification.refresh",
+        ),
+        replace(
+            base, code=BindingDiagnosticCode("participant.binding.provenance-drift"),
+            owner=_system("participant"),
+            remediation=BindingRemediationCategory.OWNER_ACTION,
+            remediation_action="participant.provenance.rebind",
+        ),
+    )
+
+    forward = BindingResolution.diagnosed(rows)
+    reverse = BindingResolution.diagnosed(tuple(reversed(rows)))
+    expected_codes = tuple(sorted(row.code.value for row in rows))
+    assert forward.state is BindingResolutionState.DIAGNOSTIC
+    assert tuple(row.code.value for row in forward.diagnostics) == expected_codes
+    assert reverse.diagnostics == forward.diagnostics
+    assert reverse.projection_digest == forward.projection_digest
+    assert {row.remediation for row in forward.diagnostics} == {
+        BindingRemediationCategory.CAPABILITY,
+        BindingRemediationCategory.PROVIDER_SELECTION,
+        BindingRemediationCategory.INTERFACE,
+        BindingRemediationCategory.QUALIFICATION,
+        BindingRemediationCategory.OWNER_ACTION,
+    }
+
+
+def test_success_projection_digest_is_neutral_and_domain_payload_identity_stays_owned() -> None:
+    @dataclass(frozen=True, slots=True)
+    class DomainBinding:
+        domain_revision: str
+
+    subject = CompositionSubject.project_subject("paper", "1")
+    proof = BindingProof(
+        owner=_system("model"), subject=subject, requirement_digest=Sha256Digest("3" * 64),
+        provider_identity="model.local", provider_profile_digest=Sha256Digest("4" * 64),
+        binding_generation="generation-3",
+    )
+    first = BindingResolution.bound(DomainBinding("domain-a"), proof)
+    second = BindingResolution.bound(DomainBinding("domain-b"), proof)
+    assert first.state is BindingResolutionState.BOUND
+    assert first.projection_digest == second.projection_digest
+    assert first.binding != second.binding
+    assert first.proof.digest == proof.digest
+
+
+def test_binding_resolution_rejects_duplicate_machine_diagnostics_and_mutable_sequence() -> None:
+    subject = CompositionSubject.project_subject("paper", "1")
+    diagnostic = _blocking_binding_diagnostic(subject=subject, owner=_system("model"))
+    reworded = replace(diagnostic, summary="Different prose, same machine diagnosis.")
+    with pytest.raises(CompositionContractError, match="machine-unique"):
+        BindingResolution.diagnosed((diagnostic, reworded))
+    with pytest.raises(CompositionContractError, match="immutable tuple"):
+        BindingResolution(diagnostics=[diagnostic])  # type: ignore[arg-type]
+
+
+def test_binding_envelope_is_exported_from_public_architecture_api() -> None:
+    from research_platform.governance.architecture import api as architecture_api
+
+    assert architecture_api.BindingDiagnostic is BindingDiagnostic
+    assert architecture_api.BindingProof is BindingProof
+    assert architecture_api.BindingResolution is BindingResolution
+    assert architecture_api.BindingResolverPort is BindingResolverPort
