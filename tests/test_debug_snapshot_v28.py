@@ -1,4 +1,4 @@
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import json
 from pathlib import Path
 
@@ -10,7 +10,7 @@ from research_platform.platform.kernel import ExecutionContext
 from research_platform.reliability.failure.api import RecoveryAction, RiskLevel
 from research_platform.reliability.failure.api import build_failure
 from research_platform.reliability.forensics.api.mutation import MutationRecord
-from research_platform.reliability.diagnostics.runtime import DebugSnapshotService
+from research_platform.reliability.diagnostics.runtime import DebugSnapshotService, FailureDiagnosisService
 from research_platform.observability.telemetry.metric.composition import build_default_registry, build_telemetry_sqlite_backend
 from research_platform.platform.concurrency.composition import build_concurrency_runtime
 from research_platform.observability.telemetry.metric.runtime import TelemetryStore
@@ -47,6 +47,36 @@ def test_debug_snapshot_joins_failure_graph_writers_and_metrics(tmp_path: Path):
     rendered = asdict(snap)
     assert rendered["diagnosis"]["headline"] == "LLM:MODEL_ERROR"
     json.dumps(rendered, sort_keys=True)
+
+
+def test_diagnostic_outputs_preserve_tail_record_for_output_cardinality_lower_bound(tmp_path: Path):
+    root = tmp_path / "forensics"
+    store = ForensicStore(root)
+    ctx = _ctx()
+    for index in range(32):
+        store.append_mutation(MutationRecord(
+            mutation_id=f"tail-proof-{index:02d}", state_name="agent.plan", aggregate_id="agent:r1",
+            expected_version=index, new_version=index + 1, old_digest=f"old-{index}", new_digest=f"new-{index}",
+            component_id="agent.planner", operation_id=f"mutation-{index:02d}", context=ctx, created_at=101.0 + index,
+        ))
+    failure = replace(build_failure(
+        component_id="agent.planner", operation_id="op1", operation_type="plan", stage="inference",
+        failure_domain="LLM", failure_code="MODEL_ERROR", context=ctx, exc=RuntimeError("boom"),
+    ), created_at=100.0)
+    store.append_failure(failure)
+    evidence = ForensicDiagnosticEvidence(store)
+    diagnosis = FailureDiagnosisService(evidence)
+
+    timeline = diagnosis.timeline(failure.failure_id, seconds=60.0)
+    why = diagnosis.why(failure.failure_id, window_seconds=60.0, writer_limit=32)
+    snapshot = DebugSnapshotService(evidence).build(failure.failure_id, seconds=60.0)
+
+    assert len(timeline) == 33
+    assert len(why.related_objects) == 33
+    assert len(snapshot.timeline) == 33
+    assert timeline[-1]["mutation_id"] == "tail-proof-31"
+    assert why.related_objects[-1]["mutation_id"] == "tail-proof-31"
+    assert snapshot.timeline[-1]["mutation_id"] == "tail-proof-31"
 
 
 def test_graph_projectors_remain_explicit_reference_only(tmp_path: Path):

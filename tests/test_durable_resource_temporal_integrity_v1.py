@@ -6,6 +6,9 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
+from research_platform.platform.kernel.durability.durable_file import atomic_replace_bytes as platform_atomic_replace_bytes
+import research_platform.reliability.recovery.providers.lease_store as recovery_lease_store_module
+import research_platform.resource.directory.runtime.workspaces as workspace_runtime_module
 from research_platform.reliability.recovery.api.lease import RecoveryLease
 from research_platform.reliability.recovery.execution.runtime.file_lock import (
     FileLockedRecoveryExecutionFactory,
@@ -24,6 +27,8 @@ from research_platform.resource.allocation.api import (
     NetworkEndpoint,
 )
 from research_platform.resource.allocation.runtime import AtomicEndpointAllocator
+from research_platform.resource.directory.api import ManagedDirectoryKind
+from research_platform.resource.directory.runtime.workspaces import LocalWorkspaceManager
 from research_platform.resource.lease.api import (
     ResourceIdentity,
     ResourceKind,
@@ -49,6 +54,16 @@ class _LeaseStateStub:
     def renew(self, *args, **kwargs): raise AssertionError("must not renew")
     def assert_owned(self, *args, **kwargs): raise AssertionError("must not inspect")
     def release(self, *args, **kwargs): raise AssertionError("must not release")
+
+
+class _DirectoryLayoutStub:
+    def __init__(self, root: Path) -> None:
+        self._root = root
+
+    def root(self, kind: ManagedDirectoryKind) -> Path:
+        path = self._root / kind.value
+        path.mkdir(parents=True, exist_ok=True)
+        return path
 
 
 def _resource_lease(*, expires_at: float | None = None) -> ResourceLease:
@@ -133,6 +148,29 @@ def test_endpoint_authorities_reject_non_finite_runtime_budgets() -> None:
                 store.renew(reserved.allocation_id, ttl_seconds=value, now=1.0)
             with pytest.raises(ValueError, match="observation time must be finite"):
                 store.reconcile_orphans(now=value)
+
+
+def test_resource_and_recovery_reuse_platform_atomic_publication_without_merging_authorities() -> None:
+    assert workspace_runtime_module.atomic_replace_bytes is platform_atomic_replace_bytes
+    assert recovery_lease_store_module.atomic_replace_bytes is platform_atomic_replace_bytes
+
+    with TemporaryDirectory() as directory:
+        root = Path(directory)
+        workspace = LocalWorkspaceManager(_DirectoryLayoutStub(root / "resource"))
+        allocation = workspace.allocate_workspace(
+            "workspace-a", scope=PLATFORM_SCOPE, category="proof", owner="role02"
+        )
+        recovery_path = root / "reliability" / "recovery.json"
+        recovery = RecoveryLeaseStore(recovery_path)
+        lease = recovery.acquire("recovery-owner", "manifest-digest", ttl_seconds=10.0, now=1.0)
+
+        workspace_document = json.loads((allocation.path / ".workspace.json").read_text(encoding="utf-8"))
+        recovery_document = json.loads(recovery_path.read_text(encoding="utf-8"))
+        assert workspace_document["schema"] == "resource.workspace-allocation.v2"
+        assert recovery_document["schema"] == RECOVERY_LEASE_DOCUMENT_SCHEMA
+        assert workspace.list_workspaces(scope=PLATFORM_SCOPE, category="proof") == (allocation,)
+        assert recovery.read() == lease
+        assert allocation.workspace_id != lease.owner_id
 
 
 def test_recovery_lease_rejects_non_finite_or_non_monotonic_timeline() -> None:
