@@ -724,6 +724,33 @@
     ],
     "components": []
   },
+  "experimentation/run/control": {
+    "authority": "run_control",
+    "must_not_own": "operator product intents, server supervision internals or duplicate run manifest/checkpoint truth",
+    "owns": "durable generic run lifecycle control authority and fenced control generations",
+    "package_prefix": "research_platform.experimentation.run.control",
+    "parent": "experimentation/run",
+    "shape": [
+      "api",
+      "runtime",
+      "providers",
+      "composition"
+    ],
+    "requires": [
+      "execution",
+      "execution/operation",
+      "experimentation/checkpoint",
+      "experimentation/run",
+      "experimentation/run/identity",
+      "experimentation/run/lifecycle",
+      "experimentation/run/manifest",
+      "platform"
+    ],
+    "provides": [
+      "run.control"
+    ],
+    "components": []
+  },
   "experimentation/run/identity": {
     "authority": "run_identity",
     "must_not_own": "live execution state",
@@ -858,38 +885,6 @@
     "provides": [
       "architecture.audit"
     ],
-    "components": []
-  },
-  "governance/architecture/authority": {
-    "authority": "authority_policy",
-    "must_not_own": "authority mutation",
-    "owns": "authority uniqueness and boundary policy",
-    "package_prefix": "research_platform.governance.architecture.authority",
-    "parent": "governance.architecture",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
-    "components": []
-  },
-  "governance/architecture/dependency": {
-    "authority": "dependency_policy",
-    "must_not_own": "runtime behavior",
-    "owns": "allowed dependency graph and import ownership rules",
-    "package_prefix": "research_platform.governance.architecture.dependency",
-    "parent": "governance.architecture",
-    "shape": [
-      "api",
-      "runtime",
-      "providers",
-      "composition"
-    ],
-    "requires": [],
-    "provides": [],
     "components": []
   },
   "governance/concurrency": {
@@ -1772,10 +1767,13 @@
     ],
     "requires": [
       "environment",
+      "execution",
+      "experimentation",
       "governance",
       "model",
       "observability",
       "platform",
+      "portfolio",
       "reliability",
       "resource",
       "scope"
@@ -2113,6 +2111,7 @@
       "composition"
     ],
     "requires": [
+      "platform",
       "scope"
     ],
     "provides": [],

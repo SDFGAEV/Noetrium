@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .source_index import source_text
 from .source_scan import SourceInvariantViolation, imports, violation
 
 
@@ -10,7 +11,7 @@ def _require_tokens(root: Path, path: Path, invariant: str, tokens: tuple[str, .
         return []
     if not path.exists():
         return [violation(root, path, invariant, 1, "required module missing")]
-    text = path.read_text(encoding="utf-8")
+    text = source_text(path)
     return [
         violation(root, path, invariant, 1, f"missing required boundary token: {token}")
         for token in tokens

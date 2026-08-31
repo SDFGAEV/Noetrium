@@ -6,7 +6,7 @@ from pathlib import Path
 from research_platform.platform.kernel.durability.durable_file import atomic_replace_bytes
 from research_platform.platform.kernel.project_root import discover_project_root
 from .composition import build_algorithm_governance
-from .runtime import AlgorithmBaselineMissing, markdown_report
+from .runtime import AlgorithmBaselineApprovalMissing, AlgorithmBaselineMissing, markdown_report
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -15,6 +15,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--root", type=Path)
     parser.add_argument("--exact", action="store_true", help="disable advisory cache")
     parser.add_argument("--report", type=Path, help="write Markdown report")
+    parser.add_argument("--git-executable", help="Git executable for immutable exact-source scans")
+    parser.add_argument("--source-revision", help="historical Git revision to replay for baseline acceptance")
     return parser
 
 
@@ -23,9 +25,13 @@ def main(argv: list[str] | None = None) -> int:
     root = (args.root or discover_project_root(__file__)).resolve()
     # Gate and baseline are always exact; cache is advisory only.
     exact = bool(args.exact or args.command in {"gate", "baseline"})
-    service = build_algorithm_governance(root, exact=exact)
+    service = build_algorithm_governance(root, exact=exact, git_executable=args.git_executable)
     if args.command == "baseline":
-        snapshot = service.accept_baseline()
+        try:
+            snapshot = service.accept_baseline(source_revision=args.source_revision)
+        except AlgorithmBaselineApprovalMissing as exc:
+            print(f"ALGORITHM_BASELINE_NOT_APPROVED {exc}")
+            return 2
         print(f"ALGORITHM_BASELINE_ACCEPTED symbols={len(snapshot.symbols)} candidates={snapshot.candidate_count}")
     elif args.command == "gate":
         try:

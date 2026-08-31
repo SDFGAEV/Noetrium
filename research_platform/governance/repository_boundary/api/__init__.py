@@ -1,3 +1,15 @@
-from .contracts import RepositoryBoundaryReport, RepositoryBoundaryViolation
+from .contracts import (
+    DownstreamImportKind,
+    DownstreamImportObservation,
+    DownstreamProjectImportReport,
+    RepositoryBoundaryReport,
+    RepositoryBoundaryViolation,
+)
 
-__all__ = ["RepositoryBoundaryReport", "RepositoryBoundaryViolation"]
+__all__ = [
+    "DownstreamImportKind",
+    "DownstreamImportObservation",
+    "DownstreamProjectImportReport",
+    "RepositoryBoundaryReport",
+    "RepositoryBoundaryViolation",
+]

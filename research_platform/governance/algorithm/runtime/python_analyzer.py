@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 from dataclasses import replace
 
+from research_platform.governance.api import RepositorySourceIndexPort
 from research_platform.governance.algorithm.api import (
     AlgorithmLanguage,
     AlgorithmMetrics,
@@ -60,8 +61,11 @@ class _FunctionMetricsVisitor(ast.NodeVisitor):
         self.loops = 0
         self.max_loop_depth = 0
         self._loop_depth = 0
+        self.unbounded_loops = 0
+        self._bounded_names: set[str] = set()
         self.comprehensions = 0
         self.sort_calls = 0
+        self.unbounded_sort_calls = 0
         self.database_calls_in_loops = 0
         self.io_calls_in_loops = 0
         self.serialization_calls_in_loops = 0
@@ -70,18 +74,89 @@ class _FunctionMetricsVisitor(ast.NodeVisitor):
         self.recursive_calls = 0
         self.call_count = 0
 
+    @staticmethod
+    def _assigned_names(node: ast.AST) -> tuple[str, ...]:
+        if isinstance(node, ast.Name):
+            return (node.id,)
+        if isinstance(node, (ast.Tuple, ast.List)):
+            return tuple(name for child in node.elts for name in _FunctionMetricsVisitor._assigned_names(child))
+        return ()
+
+    def _is_statically_bounded(self, node: ast.AST) -> bool:
+        """Return true only when iterable cardinality is source-bounded, not input-bounded.
+
+        This is intentionally conservative. Unknown calls/names remain unbounded. A
+        bounded comprehension may compute arbitrary values; only its generator
+        cardinalities matter for the result-size upper bound.
+        """
+        if isinstance(node, (ast.Tuple, ast.List, ast.Set, ast.Dict)):
+            return True
+        if isinstance(node, ast.Name):
+            return node.id in self._bounded_names
+        if isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+            return all(self._is_statically_bounded(generator.iter) for generator in node.generators)
+        if isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name):
+                if node.func.id == "range":
+                    return bool(node.args) and all(isinstance(arg, ast.Constant) and type(arg.value) is int for arg in node.args)
+                if node.func.id in {"sorted", "list", "tuple", "set", "frozenset", "reversed", "enumerate"}:
+                    return len(node.args) == 1 and self._is_statically_bounded(node.args[0])
+            if isinstance(node.func, ast.Attribute) and node.func.attr in {"keys", "values", "items"}:
+                return not node.args and not node.keywords and self._is_statically_bounded(node.func.value)
+        return False
+
+    @staticmethod
+    def _mutated_container_name(node: ast.AST) -> str | None:
+        current = node
+        while isinstance(current, (ast.Subscript, ast.Attribute)):
+            current = current.value
+        return current.id if isinstance(current, ast.Name) else None
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        self.visit(node.value)
+        bounded = self._is_statically_bounded(node.value)
+        for target in node.targets:
+            names = self._assigned_names(target)
+            if names:
+                for name in names:
+                    if bounded:
+                        self._bounded_names.add(name)
+                    else:
+                        self._bounded_names.discard(name)
+            else:
+                mutated = self._mutated_container_name(target)
+                if mutated is not None:
+                    self._bounded_names.discard(mutated)
+            self.visit(target)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        if node.value is not None:
+            self.visit(node.value)
+        bounded = node.value is not None and self._is_statically_bounded(node.value)
+        for name in self._assigned_names(node.target):
+            if bounded:
+                self._bounded_names.add(name)
+            else:
+                self._bounded_names.discard(name)
+        self.visit(node.target)
+        self.visit(node.annotation)
+
     def _visit_loop(self, node: ast.AST) -> None:
         self.loops += 1
-        # iterable expression is evaluated once, outside the loop body
+        bounded = False
+        # Iterable expression is evaluated once, outside the loop body.
         if isinstance(node, (ast.For, ast.AsyncFor)):
             self.visit(node.iter)
-            for target in (node.target,):
-                self.visit(target)
-        self._loop_depth += 1
-        self.max_loop_depth = max(self.max_loop_depth, self._loop_depth)
+            bounded = self._is_statically_bounded(node.iter)
+            self.visit(node.target)
+        if not bounded:
+            self.unbounded_loops += 1
+            self._loop_depth += 1
+            self.max_loop_depth = max(self.max_loop_depth, self._loop_depth)
         for child in getattr(node, "body", ()):
             self.visit(child)
-        self._loop_depth -= 1
+        if not bounded:
+            self._loop_depth -= 1
         for child in getattr(node, "orelse", ()):
             self.visit(child)
 
@@ -132,15 +207,16 @@ class _FunctionMetricsVisitor(ast.NodeVisitor):
 
         self.comprehensions += 1
         previous = self._loop_depth
-        entered = 0
         try:
             for generator in generators:
                 # Iterable expression is evaluated at the current depth.
                 self.visit(generator.iter)
                 self.loops += 1
-                self._loop_depth += 1
-                entered += 1
-                self.max_loop_depth = max(self.max_loop_depth, self._loop_depth)
+                bounded = self._is_statically_bounded(generator.iter)
+                if not bounded:
+                    self.unbounded_loops += 1
+                    self._loop_depth += 1
+                    self.max_loop_depth = max(self.max_loop_depth, self._loop_depth)
                 self.visit(generator.target)
                 for condition in generator.ifs:
                     self.branches += 1
@@ -167,8 +243,24 @@ class _FunctionMetricsVisitor(ast.NodeVisitor):
         path = _call_path(node)
         components = set(path)
         leaf = path[-1] if path else ""
+        if isinstance(node.func, ast.Attribute) and node.func.attr in {
+            "add", "append", "clear", "discard", "extend", "insert", "pop",
+            "popitem", "remove", "setdefault", "update",
+        }:
+            mutated = self._mutated_container_name(node.func.value)
+            if mutated is not None:
+                self._bounded_names.discard(mutated)
         if leaf in _SORT_COMPONENTS:
             self.sort_calls += 1
+            bounded_sort = False
+            if leaf == "sorted" and node.args:
+                bounded_sort = self._is_statically_bounded(node.args[0])
+            elif leaf in {"nsmallest", "nlargest"} and len(node.args) >= 2:
+                bounded_sort = self._is_statically_bounded(node.args[1])
+            elif leaf == "sort" and isinstance(node.func, ast.Attribute):
+                bounded_sort = self._is_statically_bounded(node.func.value)
+            if not bounded_sort:
+                self.unbounded_sort_calls += 1
         recursive = False
         if isinstance(node.func, ast.Name):
             recursive = node.func.id == self.symbol_name
@@ -207,13 +299,19 @@ class _FunctionMetricsVisitor(ast.NodeVisitor):
 
 class PythonAlgorithmAnalyzer:
     language = AlgorithmLanguage.PYTHON
-    revision = "python-ast-v4"
+    revision = "python-ast-v5"
+
+    def __init__(self, source_index: RepositorySourceIndexPort | None = None) -> None:
+        self._source_index = source_index
 
     def analyze(self, document: SourceDocument) -> FileAnalysis:
-        try:
-            tree = ast.parse(document.text, filename=document.relative_path)
-        except SyntaxError:
-            return FileAnalysis(document.relative_path, document.language, document.sha256, self.revision, (), 1)
+        if self._source_index is None:
+            try:
+                tree = ast.parse(document.text, filename=document.relative_path)
+            except SyntaxError:
+                return FileAnalysis(document.relative_path, document.language, document.sha256, self.revision, (), 1)
+        else:
+            tree = self._source_index.python_tree(document.relative_path, sha256=document.sha256)
 
         symbols: list[AlgorithmSymbol] = []
 
@@ -244,9 +342,9 @@ class PythonAlgorithmAnalyzer:
                         estimated_complexity=(
                             declared_complexity
                             or estimated_complexity(
-                                loops=visitor.loops,
+                                loops=visitor.unbounded_loops,
                                 max_loop_depth=visitor.max_loop_depth,
-                                sort_calls=visitor.sort_calls,
+                                sort_calls=visitor.unbounded_sort_calls,
                                 recursive_calls=visitor.recursive_calls,
                             )
                         ),

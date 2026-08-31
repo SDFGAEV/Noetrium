@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 
+from research_platform.governance.api import RepositorySourceIndexPort
 from research_platform.governance.concurrency.api import (
     ConcurrencyDocument,
     ConcurrencyFileAnalysis,
@@ -19,18 +20,24 @@ class PythonConcurrencyAnalyzer:
     language = ConcurrencyLanguage.PYTHON
     revision = "python-concurrency-ast-v10"
 
+    def __init__(self, source_index: RepositorySourceIndexPort | None = None) -> None:
+        self._source_index = source_index
+
     def analyze(self, document: ConcurrencyDocument) -> ConcurrencyFileAnalysis:
-        try:
-            tree = ast.parse(document.text, filename=document.relative_path)
-        except SyntaxError:
-            return ConcurrencyFileAnalysis(
-                document.relative_path,
-                document.language,
-                document.sha256,
-                self.revision,
-                (),
-                1,
-            )
+        if self._source_index is None:
+            try:
+                tree = ast.parse(document.text, filename=document.relative_path)
+            except SyntaxError:
+                return ConcurrencyFileAnalysis(
+                    document.relative_path,
+                    document.language,
+                    document.sha256,
+                    self.revision,
+                    (),
+                    1,
+                )
+        else:
+            tree = self._source_index.python_tree(document.relative_path, sha256=document.sha256)
 
         hotspots: list[ConcurrencyHotspot] = []
         local_blocking = LocalBlockingCatalog(tree)

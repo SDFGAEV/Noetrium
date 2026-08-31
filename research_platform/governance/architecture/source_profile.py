@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from research_platform.governance.api import RepositorySourceIndexPort
+
 from .hotspots import ModuleHotspot
 from .import_graph import ImportEdge, _resolve_relative, module_name
 from .optimization import (
@@ -57,15 +59,6 @@ class _OptimizationRaw:
     self_mutation_sites: int
     exception_handlers: int
     long_functions: int
-
-
-def _package_paths(root: Path, package_roots: tuple[str, ...]) -> tuple[Path, ...]:
-    rows: list[Path] = []
-    for prefix in package_roots:
-        base = root / prefix
-        if base.exists():
-            rows.extend(sorted(base.rglob("*.py")))
-    return tuple(rows)
 
 
 def _scan_seams(root: Path, path: Path, tree: ast.AST, nodes: tuple[ast.AST, ...]) -> list[SeamEdge]:
@@ -122,6 +115,7 @@ def _scan_seams(root: Path, path: Path, tree: ast.AST, nodes: tuple[ast.AST, ...
 def scan_architecture_source_profile(
     root: Path,
     *,
+    source_index: RepositorySourceIndexPort,
     package_roots: tuple[str, ...] = ("research_platform", "projects"),
     authority_rules: Iterable[SourceAuthorityRule] = (),
 ) -> ArchitectureSourceProfile:
@@ -141,16 +135,22 @@ def scan_architecture_source_profile(
     authority_rows: list[SourceAuthorityViolation] = []
     parsed = 0
 
-    for path in _package_paths(root, package_roots):
-        try:
-            text = path.read_text(encoding="utf-8")
-            tree = ast.parse(text, filename=str(path))
-        except (OSError, UnicodeDecodeError, SyntaxError):
-            continue
+    python_sources = tuple(
+        blob
+        for blob in source_index.documents(suffixes={".py"})
+        if any(
+            blob.relative_path == prefix or blob.relative_path.startswith(prefix + "/")
+            for prefix in package_roots
+        )
+    )
+    for source in python_sources:
+        path = root / source.relative_path
+        text = source.text
+        tree = source_index.python_tree(source.relative_path, sha256=source.sha256)
         parsed += 1
         nodes = tuple(ast.walk(tree))
         module = module_name(root, path)
-        rel = path.relative_to(root).as_posix()
+        rel = source.relative_path
 
         raw_imports: list[tuple[str, int]] = []
         aliases: dict[str, str] = {}
@@ -219,7 +219,7 @@ def scan_architecture_source_profile(
                             ),
                         ))
 
-        # Do not retain source text, AST or ast.walk tuple beyond this file.
+        # The shared source index owns the AST for this cut; this scanner retains only compact facts.
         del nodes, tree, text
 
     fan_in: dict[str, int] = {}
