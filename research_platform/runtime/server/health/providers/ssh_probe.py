@@ -12,6 +12,32 @@ def _line_command(executable: str, *arguments: str) -> str:
     return shlex.join((executable, *arguments))
 
 
+def _inotify_probe_script() -> str:
+    return """import ctypes, os, sys
+status = 'not_required'
+if sys.platform.startswith('linux'):
+    status = 'unavailable'
+    try:
+        libc = ctypes.CDLL(None, use_errno=True)
+        init = libc.inotify_init1
+        add_watch = libc.inotify_add_watch
+        init.argtypes = [ctypes.c_int]
+        init.restype = ctypes.c_int
+        add_watch.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_uint32]
+        add_watch.restype = ctypes.c_int
+        fd = int(init(os.O_NONBLOCK | getattr(os, 'O_CLOEXEC', 0)))
+        if fd >= 0:
+            try:
+                watch = int(add_watch(fd, os.fsencode('/tmp'), 0x00000FC0))
+                if watch >= 0:
+                    status = 'available'
+            finally:
+                os.close(fd)
+    except (AttributeError, OSError, TypeError):
+        pass
+print(status)"""
+
+
 class SSHServerHealthProbe(ServerHealthProbePort):
     """Collect connectivity and managed-runtime facts through SSH."""
 
@@ -41,6 +67,7 @@ class SSHServerHealthProbe(ServerHealthProbePort):
             "set +e",
             "printf 'host='; hostname 2>&1",
             f"python_version=$({_line_command(specification.python_executable, '--version')} 2>&1); printf 'python_version=%s\\n' \"$python_version\"",
+            f"inotify_watch_authority=$({_line_command(specification.python_executable, '-c', _inotify_probe_script())} 2>/dev/null); printf 'inotify_watch_authority=%s\\n' \"$inotify_watch_authority\"",
             "python_packages_probe=$(mktemp); "
             f"{_line_command(specification.python_executable, '-m', 'pip', 'freeze', '--all')} >\"$python_packages_probe\" 2>&1; "
             "python_packages_status=$?; "
@@ -94,6 +121,12 @@ class SSHServerHealthProbe(ServerHealthProbePort):
             )
         }
         issues = [key for key, value in checks.items() if value != "present"]
+        inotify_status = values.get("inotify_watch_authority", "unavailable")
+        checks["inotify_watch_authority"] = (
+            inotify_status if inotify_status in {"available", "not_required"} else "unavailable"
+        )
+        if checks["inotify_watch_authority"] == "unavailable":
+            issues.append("inotify_watch_authority")
         digest_line = values.get("tmux_digest", "")
         actual_digest = digest_line.split(maxsplit=1)[0].lower() if digest_line.strip() else ""
         checks["tmux_binary_identity"] = "verified" if actual_digest == specification.tmux_binary_sha256.lower() else "mismatch"

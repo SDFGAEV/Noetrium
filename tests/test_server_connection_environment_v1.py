@@ -358,6 +358,7 @@ def test_managed_health_verifies_python_package_identity() -> None:
             "host=box\n"
             "python_version=Python 3.11.15\n"
             "python_packages_status=0\n"
+            "inotify_watch_authority=available\n"
             f"python_packages_digest={package_digest}  -\n"
             "python_binary_digest=" + "c" * 64 + "  /srv/research-platform/envs/sem/bin/python\n"
             "node_binary_digest=" + "d" * 64 + "  /srv/toolchains/node/bin/node\n"
