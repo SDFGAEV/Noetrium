@@ -18,7 +18,7 @@ from .effect_safety import EffectSafetyPolicy
 
 
 class ActionReconciliationPolicy:
-    """Pure reconciliation and scientific-consistency policy.
+    """Pure reconciliation and trial-consistency policy.
 
     No dispatcher, Environment provider, journal, or persistence authority is allowed
     here.  This keeps safety semantics independently testable and reusable.

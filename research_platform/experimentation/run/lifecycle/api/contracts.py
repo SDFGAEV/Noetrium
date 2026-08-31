@@ -15,9 +15,9 @@ class RunCleanupReport:
 
 
 class RunCleanupFailure(RuntimeError):
-    def __init__(self, report: RunCleanupReport, *, scientific_cycle_completed: bool) -> None:
+    def __init__(self, report: RunCleanupReport, *, trial_completed: bool) -> None:
         self.report = report
-        self.scientific_cycle_completed = scientific_cycle_completed
+        self.trial_completed = trial_completed
         ids = ",".join(x.operation_id for x in report.failures)
         super().__init__(f"study cleanup failed after component execution: {ids}")
 

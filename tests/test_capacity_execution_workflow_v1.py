@@ -1,22 +1,36 @@
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+from research_platform.execution.command.api import CommandId
 from research_platform.execution.operation.api import OperationId
+from research_platform.execution.operation.providers import SQLiteOperationStore
+from research_platform.execution.operation.runtime import OperationOwner
 from research_platform.execution.workflow.api import (
     WorkflowGraph, WorkflowProgressConflict, WorkflowRunId, WorkflowStep,
 )
 from research_platform.execution.workflow.providers import SQLiteWorkflowProgressStore
 from research_platform.execution.workflow.runtime import WorkflowProgressOwner
 
+def _operation_owner(path: Path) -> OperationOwner:
+    return OperationOwner(SQLiteOperationStore(path))
+
+def _workflow_owner(workflow_path: Path, operation_path: Path) -> WorkflowProgressOwner:
+    return WorkflowProgressOwner(SQLiteWorkflowProgressStore(workflow_path), _operation_owner(operation_path))
 
 def test_concurrent_claim_of_same_step_has_one_winner(tmp_path: Path):
-    path = tmp_path / "workflow.sqlite3"
+    workflow_path = tmp_path / "workflow.sqlite3"
+    operation_path = tmp_path / "operations.sqlite3"
     run_id = WorkflowRunId("wf:race")
     graph = WorkflowGraph((WorkflowStep("effect", "effect"),))
-    WorkflowProgressOwner(SQLiteWorkflowProgressStore(path)).start(run_id, graph)
+    _workflow_owner(workflow_path, operation_path).start(run_id, graph)
+    operations = _operation_owner(operation_path)
+    for index in range(16):
+        operations.submit(
+            CommandId(f"cmd:{index}"), operation_id=OperationId(f"op:{index}"), now_unix=10.0
+        )
 
     def claim(index: int) -> bool:
-        owner = WorkflowProgressOwner(SQLiteWorkflowProgressStore(path))
+        owner = _workflow_owner(workflow_path, operation_path)
         try:
             owner.claim(run_id, graph, "effect", OperationId(f"op:{index}"))
             return True
@@ -26,13 +40,17 @@ def test_concurrent_claim_of_same_step_has_one_winner(tmp_path: Path):
     with ThreadPoolExecutor(max_workers=8) as pool:
         outcomes = tuple(pool.map(claim, range(16)))
     assert sum(outcomes) == 1
-    final = WorkflowProgressOwner(SQLiteWorkflowProgressStore(path)).require(run_id)
+    final = _workflow_owner(workflow_path, operation_path).require(run_id)
     assert len(final.running) == 1
 
-
 def test_claim_reads_durable_progress_once_before_cas(tmp_path: Path):
-    store = SQLiteWorkflowProgressStore(tmp_path / "workflow-loads.sqlite3")
-    owner = WorkflowProgressOwner(store)
+    workflow_path = tmp_path / "workflow-loads.sqlite3"
+    operation_path = tmp_path / "operations-loads.sqlite3"
+    store = SQLiteWorkflowProgressStore(workflow_path)
+    operations = _operation_owner(operation_path)
+    operation_id = OperationId("op:single-load")
+    operations.submit(CommandId("cmd:single-load"), operation_id=operation_id, now_unix=10.0)
+    owner = WorkflowProgressOwner(store, operations)
     run_id = WorkflowRunId("wf:single-load")
     graph = WorkflowGraph((WorkflowStep("effect", "effect"),))
     owner.start(run_id, graph)
@@ -45,25 +63,23 @@ def test_claim_reads_durable_progress_once_before_cas(tmp_path: Path):
         return original_load(workflow_run_id)
 
     store.load = counted_load  # type: ignore[method-assign]
-    owner.claim(run_id, graph, "effect", OperationId("op:single-load"))
+    owner.claim(run_id, graph, "effect", operation_id)
     assert calls == 1
 
-
 def test_concurrent_workflow_start_is_replay_safe(tmp_path: Path):
-    path = tmp_path / "workflow-start-race.sqlite3"
+    workflow_path = tmp_path / "workflow-start-race.sqlite3"
+    operation_path = tmp_path / "operations-start-race.sqlite3"
     run_id = WorkflowRunId("wf:start-race")
     graph = WorkflowGraph((WorkflowStep("effect", "effect"),))
 
     def start(_: int):
-        owner = WorkflowProgressOwner(SQLiteWorkflowProgressStore(path))
-        return owner.start(run_id, graph)
+        return _workflow_owner(workflow_path, operation_path).start(run_id, graph)
 
     with ThreadPoolExecutor(max_workers=8) as pool:
         outcomes = tuple(pool.map(start, range(16)))
-
     assert len(outcomes) == 16
     assert all(item.workflow_run_id == run_id for item in outcomes)
     assert len({item.graph_digest for item in outcomes}) == 1
     assert all(item.version == 0 for item in outcomes)
-    final = WorkflowProgressOwner(SQLiteWorkflowProgressStore(path)).require(run_id)
+    final = _workflow_owner(workflow_path, operation_path).require(run_id)
     assert final == outcomes[0]

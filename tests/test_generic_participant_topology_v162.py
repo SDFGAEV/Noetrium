@@ -11,8 +11,8 @@ from research_platform.experimentation.checkpoint.providers.directory_store impo
 from research_platform.execution.decision.cycle_identity import DecisionCycleIdentity
 from research_platform.experimentation.run.identity.api import RunIdentity
 from research_platform.experimentation.experiment.runtime import ExperimentRuntime
-from research_platform.experimentation.experiment.runtime.participant_topology import ExperimentParticipantTopology
-from research_platform.execution.workflow.api import ScientificCycleExecution
+from research_platform.experimentation.experiment.api import ExperimentParticipantTopology
+from research_platform.execution.workflow.api import TrialCycleExecution
 from research_platform.experimentation.experiment.api import ExperimentParticipantSpec, ExperimentSpec
 
 
@@ -74,14 +74,14 @@ class SidecarAdapter:
         session.state = checkpoint.opaque_payload
 
 
-class NoOpWorkflow:
-    workflow_id = "no_op.v1"
+class NoOpTrialProtocol:
+    protocol_id = "no_op.v1"
     surface_id = "empty.operations.v1"
-    configuration_digest = ""
+    configuration_digest = "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
 
     def run(self, operations, context, *, task, input_kind, input_payload):
         del operations, input_kind
-        return ScientificCycleExecution(str(task), {"input": input_payload}, context, ())
+        return TrialCycleExecution(str(task), {"input": input_payload}, context, ())
 
 
 def spec():
@@ -91,14 +91,15 @@ def spec():
         project_id="default-project",
         participants=(participant("sidecar", "controller", "custom", implementation_version="1", abi_version="1", schema_version="1", configuration_digest="cfg"),),
         model_stack_digest="model", prompt_generation="prompt", workload_digest="work",
-        seed_digest="seed", repetitions=1, scientific_workflow_id="no_op.v1",
+        seed_digest="seed", repetitions=1, trial_protocol_id="no_op.v1",
+        trial_protocol_configuration_digest="44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
     )
 
 
 def runtime(store=None):
     from tests_support import EmptyWorkflowSurfaceFactory
     return build_experiment_runtime(
-        scientific_workflow=NoOpWorkflow(),
+        trial_protocol=NoOpTrialProtocol(),
         participant_adapters=(SidecarAdapter(),),
         checkpoint_store=store,
         workflow_surface_factories=(EmptyWorkflowSurfaceFactory(),),
@@ -204,14 +205,15 @@ def _dependency_spec(*participants: ExperimentParticipantSpec) -> ExperimentSpec
         study_id="default-study",
         project_id="default-project", participants=participants, model_stack_digest="model",
         prompt_generation="prompt", workload_digest="work", seed_digest="seed", repetitions=1,
-        scientific_workflow_id="no_op.v1",
+        trial_protocol_id="no_op.v1",
+        trial_protocol_configuration_digest="44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
     )
 
 
 def _dependency_runtime() -> ExperimentRuntime:
     from tests_support import EmptyWorkflowSurfaceFactory
     return build_experiment_runtime(
-        scientific_workflow=NoOpWorkflow(), participant_adapters=(DependencyAdapter(),),
+        trial_protocol=NoOpTrialProtocol(), participant_adapters=(DependencyAdapter(),),
         workflow_surface_factories=(EmptyWorkflowSurfaceFactory(),),
     )
 

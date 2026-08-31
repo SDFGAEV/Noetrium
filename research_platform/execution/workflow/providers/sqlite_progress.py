@@ -5,10 +5,9 @@ import json
 import sqlite3
 from dataclasses import replace
 from pathlib import Path
-from threading import Lock
-import time
 
-from research_platform.execution.operation.api import OperationId
+from research_platform.platform.kernel.retry import retry_until_deadline
+from research_platform.execution.operation.api import EffectId, OperationId
 from research_platform.execution.workflow.api.progress import (
     WorkflowOperationBinding,
     WorkflowProgress,
@@ -17,7 +16,6 @@ from research_platform.execution.workflow.api.progress import (
     WorkflowRunId,
 )
 
-_INITIALIZE_LOCK = Lock()
 
 
 class SQLiteWorkflowProgressStore:
@@ -39,38 +37,38 @@ class SQLiteWorkflowProgressStore:
         return db
 
     def _initialize(self) -> None:
-        deadline = time.monotonic() + 30.0
-        with _INITIALIZE_LOCK:
-            while True:
-                try:
-                    with closing(self._connect()) as db, db:
-                        if db.execute("PRAGMA journal_mode").fetchone()[0].lower() != "wal":
-                            db.execute("PRAGMA journal_mode=WAL").fetchone()
-                        db.execute("""CREATE TABLE IF NOT EXISTS workflow_progress (
-                            workflow_run_id TEXT PRIMARY KEY,
-                            graph_digest TEXT NOT NULL,
-                            version INTEGER NOT NULL,
-                            completed_json TEXT NOT NULL,
-                            running_json TEXT NOT NULL,
-                            uncertain_json TEXT NOT NULL,
-                            failed_json TEXT,
-                            cancellation_requested INTEGER NOT NULL,
-                            cancellation_reason TEXT
-                        )""")
-                        columns = tuple(row[1] for row in db.execute("PRAGMA table_info(workflow_progress)"))
-                        expected = (
-                            "workflow_run_id", "graph_digest", "version", "completed_json", "running_json",
-                            "uncertain_json", "failed_json", "cancellation_requested", "cancellation_reason",
-                        )
-                        if columns != expected:
-                            raise WorkflowProgressCorruption(
-                                "workflow progress schema does not match current durable contract"
-                            )
-                    return
-                except sqlite3.OperationalError as exc:
-                    if "locked" not in str(exc).lower() or time.monotonic() >= deadline:
-                        raise
-                    time.sleep(0.01)
+        retry_until_deadline(
+            self._initialize_once,
+            should_retry=lambda exc: isinstance(exc, sqlite3.OperationalError)
+            and "locked" in str(exc).lower(),
+            timeout_seconds=30.0,
+        )
+
+    def _initialize_once(self) -> None:
+        with closing(self._connect()) as db, db:
+            if db.execute("PRAGMA journal_mode").fetchone()[0].lower() != "wal":
+                db.execute("PRAGMA journal_mode=WAL").fetchone()
+            db.execute("""CREATE TABLE IF NOT EXISTS workflow_progress (
+                workflow_run_id TEXT PRIMARY KEY,
+                graph_digest TEXT NOT NULL,
+                version INTEGER NOT NULL,
+                completed_json TEXT NOT NULL,
+                running_json TEXT NOT NULL,
+                uncertain_json TEXT NOT NULL,
+                failed_json TEXT,
+                cancellation_requested INTEGER NOT NULL,
+                cancellation_reason TEXT
+            )""")
+            columns = tuple(row[1] for row in db.execute("PRAGMA table_info(workflow_progress)"))
+            expected = (
+                "workflow_run_id", "graph_digest", "version", "completed_json", "running_json",
+                "uncertain_json", "failed_json", "cancellation_requested", "cancellation_reason",
+            )
+            if columns != expected:
+                raise WorkflowProgressCorruption(
+                    "workflow progress schema does not match current durable contract"
+                )
+        return
 
     @staticmethod
     def _json_list(value: object, *, field: str) -> list[object]:
@@ -89,9 +87,20 @@ class SQLiteWorkflowProgressStore:
         rows = cls._json_list(value, field=field)
         bindings: list[WorkflowOperationBinding] = []
         for row in rows:
-            if not isinstance(row, list) or len(row) != 2 or not all(isinstance(item, str) for item in row):
-                raise WorkflowProgressCorruption(f"workflow {field} binding must be [step_id, operation_id]")
-            bindings.append(WorkflowOperationBinding(row[0], OperationId(row[1])))
+            if not isinstance(row, list) or len(row) != 5:
+                raise WorkflowProgressCorruption(
+                    f"workflow {field} binding must be [step_id, operation_id, effect_id, request_id, request_digest]"
+                )
+            if not isinstance(row[0], str) or not isinstance(row[1], str):
+                raise WorkflowProgressCorruption(f"workflow {field} step/operation identity must be text")
+            effect_values = row[2:5]
+            if not (all(value is None for value in effect_values) or all(isinstance(value, str) for value in effect_values)):
+                raise WorkflowProgressCorruption(f"workflow {field} effect identity must be all-text or all-null")
+            bindings.append(WorkflowOperationBinding(
+                row[0], OperationId(row[1]),
+                None if row[2] is None else EffectId(row[2]),
+                row[3], row[4],
+            ))
         return tuple(bindings)
 
     @classmethod
@@ -101,15 +110,15 @@ class SQLiteWorkflowProgressStore:
         rows = cls._json_list(value, field="failed_json")
         if len(rows) != 1:
             raise WorkflowProgressCorruption("workflow failed_json must contain exactly one binding")
-        row = rows[0]
-        if not isinstance(row, list) or len(row) != 2 or not all(isinstance(item, str) for item in row):
-            raise WorkflowProgressCorruption("workflow failed_json binding must be [step_id, operation_id]")
-        return WorkflowOperationBinding(row[0], OperationId(row[1]))
+        encoded = json.dumps(rows, separators=(",", ":"))
+        return cls._bindings(encoded, field="failed_json")[0]
 
     @staticmethod
     def _binding_json(bindings: tuple[WorkflowOperationBinding, ...]) -> str:
         return json.dumps(
-            [[item.step_id, item.operation_id.value] for item in bindings],
+            [[item.step_id, item.operation_id.value,
+              None if item.effect_id is None else item.effect_id.value,
+              item.effect_request_id, item.effect_request_digest] for item in bindings],
             separators=(",", ":"),
         )
 

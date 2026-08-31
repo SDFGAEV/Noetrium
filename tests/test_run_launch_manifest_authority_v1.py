@@ -58,6 +58,15 @@ def test_run_launch_manifest_rejects_non_string_identity_values() -> None:
         replace(manifest, config_digests=(("config", False),))
 
 
+def test_project_manifest_digest_is_canonical_and_changes_run_identity() -> None:
+    manifest = frozen_runtime_manifest(project_manifest_digest="a" * 64)
+    changed = replace(manifest, project_manifest_digest="b" * 64)
+    assert manifest.digest() != changed.digest()
+    assert RunLaunchIdentity.from_manifest(manifest) != RunLaunchIdentity.from_manifest(changed)
+    with pytest.raises(ValueError, match="lowercase SHA-256"):
+        replace(manifest, project_manifest_digest="A" * 64)
+
+
 def test_composition_plan_reference_rejects_non_string_fields() -> None:
     with pytest.raises(ValueError):
         CompositionPlanReference(

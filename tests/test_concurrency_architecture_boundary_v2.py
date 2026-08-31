@@ -6,12 +6,24 @@ import tempfile
 from research_platform.governance.architecture.concurrency_boundary_invariants import (
     audit_concurrency_boundary_invariants,
 )
+from research_platform.governance.system_registry.api import system_catalog
+from research_platform.execution.admission.api import boundary as admission_boundary
 
 
 def _write(root: Path, relative: str, text: str) -> None:
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
+
+
+def test_admission_leaf_ownership_projection_matches_authoritative_catalog() -> None:
+    descriptor = next(
+        item for item in system_catalog() if item.identity.key == "execution/admission"
+    )
+    assert admission_boundary.OWNS == descriptor.owns
+    assert admission_boundary.CONTRACT.owns == descriptor.owns
+    assert admission_boundary.AUTHORITY == descriptor.authority_id
+    assert admission_boundary.CONTRACT.authority_id == descriptor.authority_id
 
 
 def test_business_system_cannot_import_concurrency_provider_or_deep_provider_port() -> None:

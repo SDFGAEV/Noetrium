@@ -9,7 +9,7 @@ import uuid
 
 @dataclass(frozen=True, slots=True)
 class DecisionCycleIdentity:
-    """Stable identity for one scientific decision cycle.
+    """Stable identity for one trial decision cycle.
 
     Exact recovery must reuse this object.  It deliberately contains no method or
     environment state; those identities are frozen independently by ``ExperimentSpec``.

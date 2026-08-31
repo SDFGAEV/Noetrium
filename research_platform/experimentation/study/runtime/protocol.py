@@ -157,8 +157,9 @@ class BasicStudyMetricAggregator(StudyMetricAggregationPort):
         self,
         protocol: StudyProtocol,
         observations: tuple[StudyMetricObservation, ...],
+        expected_assignments: tuple[StudyAssignment, ...],
     ) -> tuple[StudyMetricAggregate, ...]:
-        expected = DeterministicStudyAssignment().assignments(protocol)
+        expected = expected_assignments
         expected_by_digest = {item.assignment_digest: item for item in expected}
         observed_by_digest = _index_observations(
             protocol, expected_by_digest, observations

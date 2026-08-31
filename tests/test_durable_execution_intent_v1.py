@@ -1,4 +1,8 @@
 from pathlib import Path
+import hashlib
+
+from research_platform.governance.algorithm.api import AlgorithmLanguage, SourceDocument
+from research_platform.governance.algorithm.runtime.python_analyzer import PythonAlgorithmAnalyzer
 
 from research_platform.execution.api import ExecutionOperationIntent
 from research_platform.execution.command.api import ExecutionCommand
@@ -60,3 +64,28 @@ def test_command_then_operation_crash_window_is_replayable(tmp_path: Path):
     assert not replayed.operation_created
     assert replayed.command == recovered.command
     assert replayed.operation == recovered.operation
+
+def _estimated_complexity(relative_path: str, qualified_name: str) -> str:
+    root = Path(__file__).resolve().parents[1]
+    text = (root / relative_path).read_text(encoding="utf-8")
+    document = SourceDocument(
+        relative_path,
+        AlgorithmLanguage.PYTHON,
+        hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        text,
+    )
+    analysis = PythonAlgorithmAnalyzer().analyze(document)
+    symbol = next(row for row in analysis.symbols if row.qualified_name == qualified_name)
+    return symbol.metrics.estimated_complexity
+
+
+def test_fixed_identity_validation_does_not_reintroduce_algorithm_regressions() -> None:
+    targets = (
+        ("research_platform/execution/api/intent.py", "ExecutionOperationIntent.__post_init__"),
+        ("research_platform/execution/operation/api/contracts.py", "OperationSnapshot.__post_init__"),
+        ("research_platform/execution/workflow/api/progress.py", "WorkflowOperationBinding.__post_init__"),
+        ("research_platform/experimentation/run/manifest/api/evidence.py", "EvidenceBundleManifest.__post_init__"),
+    )
+    assert {name: _estimated_complexity(path, name) for path, name in targets} == {
+        name: "O(1)" for _, name in targets
+    }

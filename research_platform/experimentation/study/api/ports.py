@@ -22,6 +22,7 @@ class StudyMetricAggregationPort(Protocol):
         self,
         protocol: StudyProtocol,
         observations: tuple[StudyMetricObservation, ...],
+        expected_assignments: tuple[StudyAssignment, ...],
     ) -> tuple[StudyMetricAggregate, ...]: ...
 
 

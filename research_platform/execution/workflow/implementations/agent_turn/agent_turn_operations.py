@@ -16,7 +16,7 @@ from research_platform.execution.workflow.api import EffectIntentOperationPort, 
 from research_platform.participant.core.api import ParticipantSessionBinding
 
 
-class AgentTurnScientificOperations:
+class AgentTurnTrialOperations:
     """Agent+Capability operation surface only; no Method/Environment action dependencies."""
 
     def __init__(
@@ -100,4 +100,4 @@ class AgentTurnScientificOperations:
             router.close()
 
 
-__all__ = ["AgentTurnScientificOperations"]
+__all__ = ["AgentTurnTrialOperations"]

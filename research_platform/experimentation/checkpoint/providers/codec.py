@@ -96,6 +96,10 @@ class RunCheckpointManifestCodec:
             ) from exc
         if manifest.digest() != expected:
             raise RunCheckpointIntegrityError("study checkpoint manifest digest mismatch")
+        if payload != RunCheckpointManifestCodec.encode(manifest):
+            raise RunCheckpointIntegrityError(
+                "study checkpoint manifest bytes are not canonical JSON"
+            )
         return manifest
 
 

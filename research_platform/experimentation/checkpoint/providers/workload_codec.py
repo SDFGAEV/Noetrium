@@ -15,7 +15,7 @@ _ENVELOPE_FIELDS = {"manifest", "manifest_digest"}
 _MANIFEST_FIELDS = {
     "checkpoint_id", "schema_version", "run_id", "study_id", "workload_id",
     "branch_id", "source_cut_id", "environment_generation", "method_generation",
-    "task_manifest_digest", "execution_cut", "execution_cut_digest", "component_refs",
+    "task_manifest_digest", "checkpoint_compatibility_digest", "execution_cut", "execution_cut_digest", "component_refs",
 }
 _CUT_FIELDS = {"completed_task_ids", "current_task_id", "decision_cycle_id", "status"}
 _REF_FIELDS = {"component_id", "codec_id", "schema_version", "payload_sha256", "payload_size"}

@@ -12,7 +12,7 @@ from research_platform.participant.core.api.contracts import (
     )
 from research_platform.participant.core.api.runtime import ParticipantRuntimeHandle
 from research_platform.experimentation.experiment.runtime import ExperimentRuntime
-from research_platform.execution.workflow.api import ScientificCycleExecution
+from research_platform.execution.workflow.api import TrialCycleExecution
 from research_platform.experimentation.experiment.api import ExperimentParticipantSpec, ExperimentSpec
 from tests_support import EmptyWorkflowSurfaceFactory, frozen_runtime_manifest, run_launch_manifest, runtime_identity_for_test
 
@@ -56,14 +56,14 @@ class RemoteResolver:
         return ParticipantRuntimeHandle(binding, self.endpoint)
 
 
-class NoOpWorkflow:
-    workflow_id = "remote-noop.v1"
+class NoOpTrialProtocol:
+    protocol_id = "remote-noop.v1"
     surface_id = "empty.operations.v1"
-    configuration_digest = ""
+    configuration_digest = "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
 
     def run(self, operations, context, *, task, input_kind, input_payload):
         del operations, input_kind
-        return ScientificCycleExecution(str(task), input_payload, context, ())
+        return TrialCycleExecution(str(task), input_payload, context, ())
 
 
 def test_study_can_run_remote_endpoint_without_local_implementation_catalog():
@@ -79,11 +79,12 @@ def test_study_can_run_remote_endpoint_without_local_implementation_catalog():
         workload_digest="work",
         seed_digest="seed",
         repetitions=1,
-        scientific_workflow_id="remote-noop.v1",
+        trial_protocol_id="remote-noop.v1",
+        trial_protocol_configuration_digest="44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
     )
     runtime = build_experiment_runtime(
         participant_adapters=(generic_participant_adapter("robot", resolver),),
-        scientific_workflow=NoOpWorkflow(),
+        trial_protocol=NoOpTrialProtocol(),
         workflow_surface_factories=(EmptyWorkflowSurfaceFactory(),),
     )
 
