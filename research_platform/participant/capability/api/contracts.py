@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
 from research_platform.reliability.effect.api import EffectReconciliationDisposition, PreparedEffectHandle
-from research_platform.platform.kernel import EffectClass, EffectReceipt, ExecutionContext, JsonObject, JsonValue, canonical_digest
+from research_platform.platform.kernel import EffectClass, EffectReceipt, ExecutionContext, JsonObject, JsonValue, canonical_digest, freeze_json
+
 
 
 @dataclass(frozen=True, slots=True)
@@ -14,6 +16,22 @@ class CapabilityProviderIdentity:
     abi_version: str
     schema_version: str
     artifact_digest: str = ""
+
+    def __post_init__(self) -> None:
+        for field_name in ("provider_id", "implementation_version", "abi_version", "schema_version"):
+            value = getattr(self, field_name)
+            if not isinstance(value, str) or not value.strip() or value != value.strip():
+                raise ValueError(f"capability provider {field_name} must be canonical non-empty text")
+        if not isinstance(self.artifact_digest, str):
+            raise TypeError("capability provider artifact_digest must be text")
+        if self.artifact_digest and (
+            not self.artifact_digest.strip()
+            or self.artifact_digest != self.artifact_digest.strip()
+        ):
+            raise ValueError("capability provider artifact_digest must be canonical text when provided")
+
+    def digest(self) -> str:
+        return canonical_digest(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,8 +50,11 @@ class CapabilityDescriptor:
             self.request_schema,
             self.result_schema,
         ):
-            if not value.strip():
-                raise ValueError("capability descriptor identity fields must be non-empty")
+            if not isinstance(value, str) or not value.strip() or value != value.strip():
+                raise ValueError("capability descriptor identity fields must be canonical non-empty text")
+
+    def digest(self) -> str:
+        return canonical_digest(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +63,19 @@ class CapabilityRequest:
     payload: JsonValue
     context: ExecutionContext
     idempotency_key: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.capability_id, str) or not self.capability_id.strip():
+            raise ValueError("capability request identity is required")
+        if not isinstance(self.context, ExecutionContext):
+            raise TypeError("capability request context must be an ExecutionContext")
+        if self.idempotency_key is not None and (
+            not isinstance(self.idempotency_key, str) or not self.idempotency_key.strip()
+        ):
+            raise ValueError("capability request idempotency_key must be non-empty when provided")
+        object.__setattr__(
+            self, "payload", freeze_json(self.payload)
+        )
 
 
 def capability_effect_request_id(request: CapabilityRequest) -> str:
@@ -79,6 +113,50 @@ class CapabilityResult:
     artifacts: tuple[str, ...] = ()
     diagnostics: JsonObject = field(default_factory=dict)
     effect: EffectReceipt | None = None
+    provider_identity: CapabilityProviderIdentity | None = None
+    request_digest: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.capability_id, str) or not self.capability_id.strip():
+            raise ValueError("capability result identity is required")
+        if self.generation is not None and (
+            not isinstance(self.generation, str) or not self.generation.strip()
+        ):
+            raise ValueError("capability result generation must be non-empty when provided")
+        if not isinstance(self.artifacts, tuple) or any(
+            not isinstance(item, str) or not item.strip() for item in self.artifacts
+        ):
+            raise TypeError("capability result artifacts must be a tuple of non-empty strings")
+        object.__setattr__(
+            self, "payload", freeze_json(self.payload)
+        )
+        if not isinstance(self.diagnostics, Mapping):
+            raise TypeError("capability result diagnostics must be a mapping")
+        object.__setattr__(
+            self, "diagnostics", freeze_json(self.diagnostics)
+        )
+        if self.provider_identity is not None and not isinstance(
+            self.provider_identity, CapabilityProviderIdentity
+        ):
+            raise TypeError("capability result provider_identity must be typed")
+        if self.request_digest is not None and (
+            not isinstance(self.request_digest, str)
+            or len(self.request_digest) != 64
+            or any(char not in "0123456789abcdef" for char in self.request_digest)
+        ):
+            raise ValueError("capability result request_digest must be lowercase SHA-256")
+
+    def digest(self) -> str:
+        return canonical_digest({
+            "capability_id": self.capability_id,
+            "payload": self.payload,
+            "generation": self.generation,
+            "artifacts": self.artifacts,
+            "diagnostics": self.diagnostics,
+            "effect": self.effect,
+            "provider_identity": self.provider_identity,
+            "request_digest": self.request_digest,
+        })
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +165,18 @@ class CapabilityEffectReconciliationResult:
     disposition: EffectReconciliationDisposition
     result: CapabilityResult | None
     diagnostics: JsonObject = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.capability_id, str) or not self.capability_id.strip():
+            raise ValueError("capability reconciliation identity is required")
+        if self.result is not None and not isinstance(self.result, CapabilityResult):
+            raise TypeError("capability reconciliation result must be CapabilityResult")
+        if not isinstance(self.diagnostics, Mapping):
+            raise TypeError("capability reconciliation diagnostics must be a mapping")
+        object.__setattr__(
+            self, "diagnostics",
+            freeze_json(self.diagnostics),
+        )
 
 
 @runtime_checkable

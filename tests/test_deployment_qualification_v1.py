@@ -19,7 +19,10 @@ from research_platform.model.qualification.api import (
     CandidateDecision,
     native_cuda_runtime_package_names,
 )
-from research_platform.model.qualification.runtime.qualification import DeploymentQualificationResolver
+from research_platform.model.qualification.runtime.qualification import (
+    DeploymentQualificationResolver,
+    _QualificationFactView,
+)
 from research_platform.operator.maintenance.runtime.management.deployments import _qualification_python_path
 from research_platform.model.qualification.providers.qualification_probe import LocalDeploymentCapabilityProbe
 from research_platform.platform.kernel.process import LocalCommandResult
@@ -73,6 +76,20 @@ def _facts(*, kernel_architectures: tuple[str, ...] = ("sm100",)) -> DeploymentC
         fabric=GpuFabricFacts(("GPU0 GPU1 NV1",), "2.18", "/usr/lib/libnccl.so.2"),
         storage=StorageCapabilityFacts("/models/example-model", 1 << 40, 512 << 30, 1_000_000, "xfs", "dev0", True, True),
     )
+
+
+
+def test_qualification_fact_view_indexes_are_structurally_immutable() -> None:
+    view = _QualificationFactView.build(_facts())
+    assert not isinstance(view.by_package, dict)
+    assert not isinstance(view.by_identity, dict)
+    assert view.by_package["vllm"][0].selected_version == "0.27.1"
+
+    import pytest
+    with pytest.raises(TypeError):
+        dict.__setitem__(view.by_package, "forged", ())
+    with pytest.raises(TypeError):
+        dict.__setitem__(view.by_identity, ("vllm", "forged"), view.by_package["vllm"][0])
 
 
 def test_resolver_rejects_observed_sglang_architecture_mismatch_and_selects_vllm() -> None:
@@ -480,3 +497,27 @@ def test_package_index_probe_preserves_target_stderr_on_failure() -> None:
 
     assert item.selected_version is None
     assert "metadata endpoint failed" in (item.dependency_closure_error or "")
+
+
+def test_resolver_rejects_incomplete_python_capability_facts() -> None:
+    request = DeploymentQualificationRequest(
+        "example-model",
+        Path("/models/example-model"),
+        Path("/opt/python/bin/python"),
+        backends=("vllm",),
+    )
+    facts = _facts()
+    facts = replace(
+        facts,
+        python=replace(
+            facts.python,
+            errors=("Python capability probe returned invalid typed facts: field set mismatch",),
+        ),
+    )
+
+    plan = DeploymentQualificationResolver().resolve(request, facts)
+
+    candidate = plan.candidates[0]
+    assert candidate.decision is CandidateDecision.REJECTED
+    assert "target Python capability facts are incomplete" in " ".join(candidate.reasons)
+    assert plan.selected_backend is None

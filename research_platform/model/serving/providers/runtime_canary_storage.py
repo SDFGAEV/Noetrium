@@ -14,7 +14,7 @@ from research_platform.platform.kernel.durability.durable_file import atomic_rep
 from research_platform.platform.kernel.durability.file_lock import InterprocessFileLock
 
 
-_SCHEMA = "runtime-canary-evidence.v2"
+_SCHEMA = "runtime-canary-evidence.v3"
 _FIELDS = frozenset({
     "deployment_id", "deployment_generation", "route_digest", "role", "canary_id",
     "suite_digest", "process_pid", "process_start_marker", "argv_digest",
@@ -50,8 +50,10 @@ def _local_lock(path: Path) -> Lock:
         return lock
 
 
-def _encode(evidence: RuntimeCanaryEvidence) -> bytes:
-    payload = {"evidence": {
+def _encode(evidence: RuntimeCanaryEvidence, runtime_manifest_digest: str) -> bytes:
+    payload = {
+        "runtime_manifest_digest": _digest(runtime_manifest_digest, "runtime_manifest_digest"),
+        "evidence": {
         "deployment_id": evidence.deployment_id,
         "deployment_generation": evidence.deployment_generation,
         "route_digest": evidence.route_digest,
@@ -68,17 +70,27 @@ def _encode(evidence: RuntimeCanaryEvidence) -> bytes:
         "passed": evidence.passed,
         "observed_at": evidence.observed_at,
         "evidence_digest": evidence.evidence_digest,
-    }}
+        },
+    }
     return encode_checksummed_document(_SCHEMA, payload)
 
 
-def _decode(raw: bytes) -> RuntimeCanaryEvidence:
+def _decode(
+    raw: bytes,
+    *,
+    expected_runtime_manifest_digest: str | None = None,
+) -> RuntimeCanaryEvidence:
     try:
         payload = decode_checksummed_document(raw, expected_schema=_SCHEMA).payload
     except ChecksummedDocumentError as exc:
         raise RuntimeCanaryEvidenceError("runtime canary document integrity failure") from exc
-    if type(payload) is not dict or frozenset(payload) != frozenset({"evidence"}):
+    if type(payload) is not dict or frozenset(payload) != frozenset({"runtime_manifest_digest", "evidence"}):
         raise RuntimeCanaryEvidenceError("runtime canary payload field set mismatch")
+    manifest = _digest(payload["runtime_manifest_digest"], "runtime_manifest_digest")
+    if expected_runtime_manifest_digest is not None:
+        expected = _digest(expected_runtime_manifest_digest, "expected_runtime_manifest_digest")
+        if manifest != expected:
+            raise RuntimeCanaryEvidenceError("runtime canary runtime manifest binding mismatch")
     value = payload["evidence"]
     if type(value) is not dict or frozenset(value) != _FIELDS:
         raise RuntimeCanaryEvidenceError("runtime canary evidence field set mismatch")
@@ -124,17 +136,23 @@ class DirectoryRuntimeCanaryEvidenceStore:
     def publish(self, runtime_manifest_digest: str, evidence: RuntimeCanaryEvidence) -> str:
         path = self._path(runtime_manifest_digest, evidence.evidence_digest)
         lock_path = path.with_name(path.name + ".lock")
-        raw = _encode(evidence)
+        raw = _encode(evidence, runtime_manifest_digest)
         with _local_lock(lock_path), InterprocessFileLock(lock_path):
             if path.exists():
-                existing = _decode(path.read_bytes())
+                existing = _decode(
+                    path.read_bytes(),
+                    expected_runtime_manifest_digest=runtime_manifest_digest,
+                )
                 if existing != evidence:
                     raise RuntimeCanaryEvidenceError(
                         "runtime canary evidence digest already exists with different content"
                     )
                 return str(path)
             atomic_replace_bytes(path, raw)
-            persisted = _decode(path.read_bytes())
+            persisted = _decode(
+                path.read_bytes(),
+                expected_runtime_manifest_digest=runtime_manifest_digest,
+            )
             if persisted != evidence:
                 raise RuntimeCanaryEvidenceError("runtime canary evidence readback drift")
             return str(path)
@@ -146,7 +164,10 @@ class DirectoryRuntimeCanaryEvidenceStore:
     ) -> RuntimeCanaryEvidence:
         path = self._path(runtime_manifest_digest, evidence_digest)
         try:
-            evidence = _decode(path.read_bytes())
+            evidence = _decode(
+                path.read_bytes(),
+                expected_runtime_manifest_digest=runtime_manifest_digest,
+            )
         except OSError as exc:
             raise RuntimeCanaryEvidenceError(
                 f"runtime canary evidence cannot be read: {path}"

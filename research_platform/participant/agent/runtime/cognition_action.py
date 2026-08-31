@@ -12,12 +12,8 @@ from ..api.cognition import (
     AgentObservation,
     AgentStepReceipt,
 )
-from ..api.cognition_ports import (
-    AgentActionExecutorPort,
-    AgentEvidencePort,
-    AgentMemoryPort,
-    AgentObservationPort,
-)
+from ..api.cognition_ports import AgentActionExecutorPort, AgentMemoryPort
+from .cognition_observation import CognitionObservationPhase
 
 
 EventSink = Callable[..., None]
@@ -32,21 +28,19 @@ class ActionPhaseResult:
 
 
 class CognitionActionPhase:
-    """Own one action attempt from typed step to observed receipt."""
+    """Own one action attempt; observation authority remains in observe phase."""
 
     def __init__(
         self,
         *,
         executor: AgentActionExecutorPort,
-        observation: AgentObservationPort,
-        evidence: AgentEvidencePort,
+        observation: CognitionObservationPhase,
         memory: AgentMemoryPort,
         event: EventSink,
         failure: FailureSink,
     ) -> None:
         self._executor = executor
         self._observation = observation
-        self._evidence = evidence
         self._memory = memory
         self._event = event
         self._failure = failure
@@ -59,31 +53,6 @@ class CognitionActionPhase:
         actual = (receipt.action_id, receipt.action_type, receipt.skill_id, receipt.sequence_id)
         if actual != expected:
             raise ValueError("agent action receipt identity mismatch")
-
-    def _observe_after_action(self, context: ExecutionContext) -> AgentObservation:
-        try:
-            value = self._observation.observe(context)
-            if not isinstance(value, AgentObservation):
-                raise TypeError("agent observation port returned an invalid observation")
-            self._evidence.ingest(value, context)
-            self._event(
-                "AGENT_OBSERVATION",
-                phase="post_action_observe",
-                observation_id=value.observation_id,
-                state_digest=value.state_digest,
-                modality=value.modality,
-            )
-            return value
-        except AgentCognitionError:
-            raise
-        except BaseException as exc:
-            self._failure("AGENT_OBSERVATION_FAILED", str(exc), phase="post_action_observe")
-            raise AgentCognitionError(
-                "post_action_observe",
-                "AGENT_OBSERVATION_FAILED",
-                str(exc),
-                cause=exc,
-            ) from exc
 
     @staticmethod
     def _summary(step: AgentActionStep, receipt: AgentStepReceipt) -> AgentActionSummary:
@@ -108,11 +77,14 @@ class CognitionActionPhase:
         try:
             receipt = self._executor.execute(step, context)
             self._validate_receipt(step, receipt)
-            if receipt.observation is not None:
-                observation = receipt.observation
-                self._evidence.ingest(observation, context)
+            if receipt.observation is None:
+                observation = self._observation.observe(context, phase="post_action_observe")
             else:
-                observation = self._observe_after_action(context)
+                observation = self._observation.accept(
+                    receipt.observation,
+                    context,
+                    phase="post_action_receipt_observe",
+                )
             self._memory.record(receipt, context)
         except AgentCognitionError:
             raise

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 
 from research_platform.platform.kernel import canonical_digest
 
@@ -18,6 +19,15 @@ class PromptPromotionEvidence:
     objective_evidence_digest:str
     created_at:float
 
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.created_at, bool)
+            or not isinstance(self.created_at, (int, float))
+            or not math.isfinite(float(self.created_at))
+            or self.created_at < 0
+        ):
+            raise ValueError("prompt promotion created_at must be finite and non-negative")
+
     def digest(self)->str:
         return canonical_digest(self)
 
@@ -29,3 +39,12 @@ class PromptPromotionRecord:
     promotion_evidence_digest:str
     previous_generation_id:str|None
     activated_at:float
+
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.activated_at, bool)
+            or not isinstance(self.activated_at, (int, float))
+            or not math.isfinite(float(self.activated_at))
+            or self.activated_at < 0
+        ):
+            raise ValueError("prompt promotion activated_at must be finite and non-negative")

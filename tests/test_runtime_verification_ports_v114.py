@@ -76,7 +76,7 @@ class RuntimeVerificationPortsV114Tests(unittest.TestCase):
         self.assertGreaterEqual(len(runtime_port.verify(manifest)),2)
         self.assertEqual(len(binding_port.verify(manifest)),3)
 
-        changed_impl=ParticipantImplementationIdentity("method","sem","9","mabi","schema","artifact-drift")
+        changed_impl=ParticipantImplementationIdentity("method","sem","9","mabi","schema","e" * 64)
         changed_binding=replace(bindings[0], implementation=changed_impl)
         changed_inventory=ParticipantImplementationInventory.from_bindings((changed_binding, bindings[1]))
         with self.assertRaises(ValueError):

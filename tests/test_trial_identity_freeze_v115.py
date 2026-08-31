@@ -26,7 +26,7 @@ class MethodSession:
 
 
 class WrongMethod:
-    identity=MethodIdentity("actual","2","abi-2","schema-2","cfg-m")
+    identity=MethodIdentity("actual","2","abi-2","schema-2","c" * 64)
     def open_session(self,*,session_id,services): return MethodSession()
 
 
@@ -83,7 +83,7 @@ class TrialIdentityFreezeV115Tests(unittest.TestCase):
 
     def test_matching_logical_identity_then_rejects_schema_drift_before_session_open(self):
         class Matching(WrongMethod):
-            identity=MethodIdentity("requested","2","abi-2","schema-WRONG","cfg-m")
+            identity=MethodIdentity("requested","2","abi-2","schema-WRONG","c" * 64)
         with self.assertRaisesRegex(ParticipantIdentityMismatch,"implementation mismatch"):
             runtime(Matching).execute_cycle(spec(),task="x",input_kind="a",input_payload={})
 

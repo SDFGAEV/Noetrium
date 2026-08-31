@@ -3,10 +3,10 @@ from __future__ import annotations
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 import math
-from typing import Protocol, runtime_checkable
+from typing import Protocol, TypeVar, runtime_checkable
 
 from research_platform.platform.kernel.context import ExecutionContext
-from research_platform.platform.kernel import JsonValue
+from research_platform.platform.kernel import JsonValue, canonical_digest, require_sha256
 
 
 @dataclass(frozen=True, slots=True)
@@ -15,7 +15,61 @@ class MethodIdentity:
     implementation_version: str
     abi_version: str
     schema_version: str
-    artifact_digest: str = ""
+    artifact_digest: str | None = None
+
+    def __post_init__(self) -> None:
+        if any(not isinstance(value, str) or not value.strip() for value in (self.method_id, self.implementation_version, self.abi_version, self.schema_version)):
+            raise ValueError("method identity fields must be non-empty text")
+        if self.artifact_digest is not None:
+            require_sha256(self.artifact_digest, "method artifact_digest")
+
+
+TaskT = TypeVar("TaskT", contravariant=True)
+InputT = TypeVar("InputT", contravariant=True)
+ResultT = TypeVar("ResultT", covariant=True)
+
+
+@dataclass(frozen=True, slots=True)
+class MethodProgramIdentity:
+    """Exact implementation/configuration identity for one downstream scientific program."""
+
+    implementation: MethodIdentity
+    configuration_digest: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.implementation, MethodIdentity):
+            raise TypeError("method program implementation must be a MethodIdentity")
+        if self.configuration_digest is not None:
+            require_sha256(self.configuration_digest, "method program configuration_digest")
+
+    def digest(self) -> str:
+        return canonical_digest({"implementation": self.implementation, "configuration_digest": self.configuration_digest})
+
+
+class MethodProgramIdentityMismatch(RuntimeError):
+    """A hosted method program does not match the frozen Participant identity."""
+
+
+@runtime_checkable
+class ResearchMethodProgram(Protocol[TaskT, InputT, ResultT]):
+    """Downstream-owned whole-method control graph hosted inside a Trial boundary."""
+
+    @property
+    def program_identity(self) -> MethodProgramIdentity: ...
+
+    def run(self, *, task: TaskT, input_value: InputT, context: ExecutionContext) -> ResultT: ...
+
+
+@runtime_checkable
+class StatefulResearchMethodProgram(Protocol):
+    """Optional project-owned scientific-state trait for a whole-method program.
+
+    The payload is method-owned. Platform binding/session/checksum identity remains
+    outside this trait in the canonical ParticipantCheckpoint envelope.
+    """
+
+    def checkpoint_state(self) -> bytes: ...
+    def restore_state(self, payload: bytes) -> None: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -140,5 +194,5 @@ class MethodSession(Protocol):
     def task_completed(self, result: JsonValue, context: ExecutionContext) -> MethodTaskCompletionReceipt | None: ...
     def checkpoint(self) -> MethodSnapshot: ...
     def restore(self, snapshot: MethodSnapshot) -> None: ...
-    def diagnostics(self) -> dict[str, object]: ...
+    def diagnostics(self) -> Mapping[str, JsonValue]: ...
     def close(self) -> None: ...

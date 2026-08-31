@@ -85,3 +85,39 @@ def test_simple_index_different_keys_remain_parallel(monkeypatch) -> None:
         second.result(timeout=2.0)
 
     assert max_active >= 2
+
+
+def test_blocking_map_preserves_input_order_under_platform_concurrency() -> None:
+    release = threading.Event()
+    entered = threading.Barrier(2)
+
+    def work(value: int) -> int:
+        if value < 2:
+            entered.wait(timeout=1.0)
+            release.set()
+        assert release.wait(timeout=1.0)
+        return value * 10
+
+    assert worker._blocking_map("ordered-test", work, (0, 1, 2)) == (0, 10, 20)
+
+
+def test_blocking_map_waits_for_physical_completion_before_raising() -> None:
+    slow_started = threading.Event()
+    slow_completed = threading.Event()
+
+    def work(value: str) -> str:
+        if value == "fail":
+            assert slow_started.wait(timeout=1.0)
+            raise RuntimeError("boom")
+        slow_started.set()
+        time.sleep(0.03)
+        slow_completed.set()
+        return value
+
+    try:
+        worker._blocking_map("failure-test", work, ("fail", "slow"))
+    except RuntimeError as exc:
+        assert str(exc) == "boom"
+    else:
+        raise AssertionError("blocking map must propagate the first task failure")
+    assert slow_completed.is_set()

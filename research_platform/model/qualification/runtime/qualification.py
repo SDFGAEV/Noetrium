@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 
 from research_platform.model.qualification.api import (
     BackendCandidatePlan,
@@ -24,8 +26,8 @@ PYPI_SIMPLE = DEFAULT_PACKAGE_INDEX_URL
 class _QualificationFactView:
     facts: DeploymentCapabilityFacts
     facts_digest: str
-    by_package: dict[str, tuple[PackageIndexFacts, ...]]
-    by_identity: dict[tuple[str, str], PackageIndexFacts]
+    by_package: Mapping[str, tuple[PackageIndexFacts, ...]]
+    by_identity: Mapping[tuple[str, str], PackageIndexFacts]
 
     @classmethod
     def build(cls, facts: DeploymentCapabilityFacts) -> "_QualificationFactView":
@@ -37,8 +39,8 @@ class _QualificationFactView:
         return cls(
             facts=facts,
             facts_digest=facts.digest(),
-            by_package={key: tuple(rows) for key, rows in grouped.items()},
-            by_identity=identities,
+            by_package=MappingProxyType({key: tuple(rows) for key, rows in grouped.items()}),
+            by_identity=MappingProxyType(dict(identities)),
         )
 
     def first_compatible(self, package: str) -> PackageIndexFacts | None:
@@ -105,6 +107,10 @@ class DeploymentQualificationResolver:
                 reasons.append("multi-GPU topology was not observed for tensor parallel deployment")
         if facts.model.error or not facts.model.config_present:
             reasons.append("model config.json was not captured; model identity is incomplete")
+        if facts.python.errors:
+            reasons.append(
+                "target Python capability facts are incomplete: " + "; ".join(facts.python.errors)
+            )
         if not facts.python.pip_version:
             reasons.append("selected Python interpreter has no usable pip")
         if not facts.python.ensurepip_available:

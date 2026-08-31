@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+import math
 from typing import Callable
 
 from research_platform.platform.kernel import ExecutionContext
@@ -33,7 +34,14 @@ class ActionExecutionPolicy:
     resumable: bool = True
 
     def __post_init__(self) -> None:
-        if self.timeout_s <= 0 or self.retry_on_rejection < 0:
+        if (
+            isinstance(self.timeout_s, bool)
+            or not isinstance(self.timeout_s, (int, float))
+            or not math.isfinite(float(self.timeout_s))
+            or self.timeout_s <= 0
+            or type(self.retry_on_rejection) is not int
+            or self.retry_on_rejection < 0
+        ):
             raise ValueError("action policy limits are invalid")
 
 

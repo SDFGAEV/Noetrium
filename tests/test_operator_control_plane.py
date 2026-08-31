@@ -21,7 +21,7 @@ class _Executor:
     def __init__(self, fail_at=None):
         self.fail_at = fail_at
         self.calls = []
-    def execute(self, step, plan):
+    def run_step(self, step, plan):
         self.calls.append(step)
         if step == self.fail_at:
             raise OSError("injected recovery defect")

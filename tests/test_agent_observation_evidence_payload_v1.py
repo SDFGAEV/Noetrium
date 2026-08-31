@@ -1,6 +1,7 @@
 import pytest
 
 from research_platform.participant.agent.api import AgentObservation
+from research_platform.platform.kernel import canonical_bytes
 
 
 def test_agent_observation_preserves_evidence_payload_without_mixing_it_into_state():
@@ -13,8 +14,12 @@ def test_agent_observation_preserves_evidence_payload_without_mixing_it_into_sta
         evidence_payload=evidence,
     )
 
-    assert observation.state == state
-    assert observation.evidence_payload == evidence
+    assert canonical_bytes(observation.state) == canonical_bytes(state)
+    assert canonical_bytes(observation.evidence_payload) == canonical_bytes(evidence)
+    state["position"].append(4)
+    evidence["events"][0]["kind"] = "caller-mutated"
+    assert observation.state["position"] == (1, 2, 3)
+    assert observation.evidence_payload["events"][0]["kind"] == "observation"
     assert "events" not in observation.state
     assert observation.state_digest
 

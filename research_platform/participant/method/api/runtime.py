@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
-from research_platform.platform.kernel import canonical_digest
+from research_platform.platform.kernel import canonical_digest, require_sha256
 
 from .contracts import MethodIdentity, MethodSession
 from .observability import MethodObservationOutboxFactoryPort, MethodServices
@@ -23,6 +23,7 @@ class MethodRuntimeIdentity:
             self.runtime_id, self.runtime_version, self.abi_version, self.artifact_digest
         )):
             raise ValueError("method runtime identity fields must be non-empty")
+        require_sha256(self.artifact_digest, "method runtime artifact_digest")
 
 
 @dataclass(frozen=True, slots=True)

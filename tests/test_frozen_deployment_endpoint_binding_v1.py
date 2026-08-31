@@ -52,7 +52,7 @@ def test_binder_resolves_role_from_frozen_deployment_and_preserves_digest() -> N
 def test_binder_rejects_route_generation_drift_before_endpoint_factory() -> None:
     factory = Factory()
     binder = FrozenDeploymentEndpointBinder(
-        routes=(ModelEndpointRoute("dep-1", "x" * 64, "http://127.0.0.1:30000"),),
+        routes=(ModelEndpointRoute("dep-1", "e" * 64, "http://127.0.0.1:30000"),),
         endpoint_factory=factory,
     )
     with pytest.raises(ValueError, match="generation drift"):

@@ -21,7 +21,7 @@ class MethodSession:
 
 
 class Method:
-    identity=MethodIdentity("m", "1", "1", "1", "mcfg")
+    identity=MethodIdentity("m", "1", "1", "1", "c" * 64)
     def open_session(self, *, session_id, services): return MethodSession()
 
 
@@ -43,7 +43,7 @@ class Environment:
 
 
 def spec():
-    return context_action_spec(study_id="s", method_id="m", environment_id="e", model_stack_digest="model", prompt_generation="prompt", workload_digest="work", seed_digest="seed", repetitions=1, method_artifact_digest="mcfg", environment_artifact_digest="ecfg")
+    return context_action_spec(study_id="s", method_id="m", environment_id="e", model_stack_digest="model", prompt_generation="prompt", workload_digest="work", seed_digest="seed", repetitions=1, method_artifact_digest="c" * 64, environment_artifact_digest="ecfg")
 
 
 def runtime(provider=None):

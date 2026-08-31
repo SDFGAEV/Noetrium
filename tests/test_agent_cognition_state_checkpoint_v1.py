@@ -125,3 +125,25 @@ def test_result_builder_binds_checkpoint_and_observation_diagnostics() -> None:
     assert result.diagnostics["checkpoint_digest"] == checkpoint.digest
     assert result.diagnostics["last_observation_digest"] == observation.state_digest
     assert result.plan_calls == 2
+
+
+def test_goal_and_observation_detach_from_caller_owned_json() -> None:
+    context = {"route": [{"x": 1}]}
+    state = {"inventory": [{"item": "oak"}]}
+    evidence = {"proof": [{"ok": True}]}
+    goal = AgentGoal("goal:immutable", "hold immutable context", context=context)
+    observation = AgentObservation(
+        "obs:immutable", "world-v1", state, evidence_payload=evidence
+    )
+
+    context["route"][0]["x"] = 2
+    state["inventory"][0]["item"] = "stone"
+    evidence["proof"][0]["ok"] = False
+    assert goal.context["route"][0]["x"] == 1
+    assert observation.state["inventory"][0]["item"] == "oak"
+    assert observation.evidence_payload["proof"][0]["ok"] is True
+
+    with pytest.raises((TypeError, AttributeError)):
+        goal.context["route"].append({"x": 3})
+    with pytest.raises(TypeError):
+        observation.state["inventory"][0]["item"] = "tampered"

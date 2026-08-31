@@ -23,7 +23,7 @@ from ..api.recovery_state import (
 
 
 class DurableRecoveryExecutor(Protocol):
-    def execute(self, step: RecoveryStep, plan: RecoveryPlan) -> tuple[str, ...]: ...
+    def run_step(self, step: RecoveryStep, plan: RecoveryPlan) -> tuple[str, ...]: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +87,11 @@ class DurableExactRecoveryRunner:
         attempt_id: str,
         cancellation: CancellationTokenPort | None,
     ) -> DurableRecoveryReport:
+        """Advance each remaining recovery step with crash-safe prefix durability.
+
+        Algorithm-Complexity: O(N)
+        Algorithm-Rationale: N is the number of remaining recovery steps; each step persists begin and terminal state around one external recovery effect so cancellation or process loss resumes from the exact completed prefix.
+        """
         observer_failures: list[RecoveryObserverFailure] = []
         existed = self.store.exists()
         cause = "resume" if existed else "initial"
@@ -121,7 +126,7 @@ class DurableExactRecoveryRunner:
                 if failure is not None:
                     observer_failures.append(failure)
                 try:
-                    refs = tuple(self.executor.execute(step, plan))
+                    refs = tuple(self.executor.run_step(step, plan))
                 except Exception:
                     failure = self._notify(f"step_finished:{step.value}:failed", lambda step=step: self.observer.step_finished(step, result="failed"))
                     if failure is not None:

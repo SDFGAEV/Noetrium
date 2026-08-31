@@ -1,18 +1,25 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 import hashlib
-import json
+
+from research_platform.platform.kernel import JsonObject, canonical_bytes, freeze_json
 
 
 @dataclass(frozen=True, slots=True)
 class OutputSchemaSpec:
     schema_id: str
     version: str
-    schema: dict[str, object]
+    schema: JsonObject
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.schema, Mapping):
+            raise TypeError("output schema must be a mapping")
+        object.__setattr__(self, "schema", freeze_json(self.schema))
 
     def digest(self) -> str:
-        raw=json.dumps({"schema_id":self.schema_id,"version":self.version,"schema":self.schema},sort_keys=True,ensure_ascii=False,separators=(",",":")).encode()
+        raw=canonical_bytes({"schema_id":self.schema_id,"version":self.version,"schema":self.schema})
         return hashlib.sha256(raw).hexdigest()
 
 

@@ -112,7 +112,7 @@ class ToolAgentSession:
 
 
 class ToolAgent:
-    identity = AgentIdentity("tool-agent", "1", "1", "1", "tool-agent-cfg")
+    identity = AgentIdentity("tool-agent", "1", "1", "1", "a" * 64)
     def open_session(self, *, session_id: str, services: object):
         del services
         return ToolAgentSession(session_id)
@@ -125,7 +125,7 @@ def _spec():
         project_id="default-project",
         participants=(
             participant("capability_provider", "writer", "write-tool", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="write-tool-cfg"),
-            participant("agent", "agent", "tool-agent", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="tool-agent-cfg", depends_on_roles=("writer",)),
+            participant("agent", "agent", "tool-agent", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="a" * 64, depends_on_roles=("writer",)),
         ),
         model_stack_digest="model", prompt_generation="prompt", workload_digest="work",
         seed_digest="seed", repetitions=1, trial_protocol_id="agent_turn.v1",

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from typing import Mapping, Protocol
 
 from research_platform.platform.kernel import ExecutionContext, canonical_digest
@@ -33,7 +34,14 @@ class VisionInterpretation:
     evidence_refs: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        if not self.frame_id.strip() or not self.description.strip() or not 0 <= self.confidence <= 1:
+        if (
+            not self.frame_id.strip()
+            or not self.description.strip()
+            or isinstance(self.confidence, bool)
+            or not isinstance(self.confidence, (int, float))
+            or not math.isfinite(float(self.confidence))
+            or not 0 <= self.confidence <= 1
+        ):
             raise ValueError("vision interpretation is invalid")
 
 

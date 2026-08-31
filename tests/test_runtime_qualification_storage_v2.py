@@ -80,7 +80,7 @@ def test_valid_checksum_cannot_hide_receipt_type_corruption(tmp_path: Path) -> N
     document = json.loads(path.read_text(encoding="utf-8"))
     payload = document["payload"]
     payload["receipt"]["created_at"] = "1.0"
-    path.write_bytes(encode_checksummed_document("runtime-qualification-receipt.v3", payload))
+    path.write_bytes(encode_checksummed_document("runtime-qualification-receipt.v4", payload))
 
     with pytest.raises(RuntimeQualificationEvidenceError):
         store.load(manifest, receipt.deployment_id)
@@ -97,6 +97,20 @@ def test_legacy_unchecksummed_receipt_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(RuntimeQualificationEvidenceError):
         store.load(manifest, receipt.deployment_id)
 
+
+
+def test_receipt_cannot_be_rebound_to_another_runtime_manifest(tmp_path: Path) -> None:
+    store = DirectoryRuntimeQualificationEvidenceStore(tmp_path / "qualification")
+    receipt = _receipt()
+    source_manifest = _digest("2")
+    target_manifest = _digest("3")
+    source_path = Path(store.publish(source_manifest, receipt))
+    target_path = store._path(target_manifest, receipt.deployment_id)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    target_path.write_bytes(source_path.read_bytes())
+
+    with pytest.raises(RuntimeQualificationEvidenceError, match="runtime manifest binding mismatch"):
+        store.load(target_manifest, receipt.deployment_id)
 
 def test_same_receipt_publish_is_single_domain_across_store_instances(tmp_path: Path) -> None:
     root = tmp_path / "qualification"

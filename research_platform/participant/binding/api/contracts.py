@@ -10,6 +10,7 @@ from research_platform.participant.core.api.contracts import (
 )
 from research_platform.participant.core.api.runtime import (
     ParticipantRuntimeEndpoint,
+    ParticipantRuntimeHandle,
     ParticipantSessionRuntime,
 )
 
@@ -49,7 +50,7 @@ ParticipantRuntimeEndpointFactory = Callable[
 
 
 class ParticipantBindingResolverPort(Protocol):
-    def resolve(self, binding: ParticipantRuntimeBinding) -> object: ...
+    def resolve(self, binding: ParticipantRuntimeBinding) -> ParticipantRuntimeHandle: ...
 
 
 __all__ = [

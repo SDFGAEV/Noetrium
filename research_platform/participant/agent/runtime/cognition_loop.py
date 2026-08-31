@@ -33,7 +33,10 @@ from ..api.cognition_ports import (
 )
 from .cognition_action import CognitionActionPhase
 from .cognition_checkpoint import CognitionCheckpointPhase, build_cognition_result
+from .cognition_context import CognitionContextPhase
+from .cognition_observation import CognitionObservationPhase
 from .cognition_planning import CognitionPlanningPhase, PlanningDisposition
+from .cognition_reasoning import CognitionReasoningPhase
 from .cognition_state import CognitionCounters
 
 
@@ -64,15 +67,22 @@ class AgentCognitionLoop:
         diagnostics: AgentDiagnosticsPort | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
-        self.observation = observation
         self.completion = completion
-        self.evidence = evidence
         self.diagnostics = diagnostics
         self.clock = clock
         self._diagnostic_failures: list[dict[str, object]] = []
-        self._planning = CognitionPlanningPhase(
+        self._observation_phase = CognitionObservationPhase(
+            observation=observation,
+            evidence=evidence,
+            event=self._event,
+            failure=self._failure,
+        )
+        self._context_phase = CognitionContextPhase(
             memory=memory,
-            planner=planner,
+            skill_library=skill_library,
+            failure=self._failure,
+        )
+        self._planning = CognitionPlanningPhase(
             skills=skills,
             safety=safety,
             completion=completion,
@@ -81,10 +91,14 @@ class AgentCognitionLoop:
             event=self._event,
             failure=self._failure,
         )
+        self._reasoning = CognitionReasoningPhase(
+            planner=planner,
+            available_skills=self._planning.available_skills,
+            failure=self._failure,
+        )
         self._action = CognitionActionPhase(
             executor=executor,
-            observation=observation,
-            evidence=evidence,
+            observation=self._observation_phase,
             memory=memory,
             event=self._event,
             failure=self._failure,
@@ -151,26 +165,6 @@ class AgentCognitionLoop:
             component_id="participant.agent.cognition",
         )
 
-    def _observe(self, context: ExecutionContext, *, phase: str) -> AgentObservation:
-        try:
-            value = self.observation.observe(context)
-            if not isinstance(value, AgentObservation):
-                raise TypeError("agent observation port returned an invalid observation")
-            self.evidence.ingest(value, context)
-            self._event(
-                "AGENT_OBSERVATION",
-                phase=phase,
-                observation_id=value.observation_id,
-                state_digest=value.state_digest,
-                modality=value.modality,
-            )
-            return value
-        except AgentCognitionError:
-            raise
-        except BaseException as exc:
-            self._failure("AGENT_OBSERVATION_FAILED", str(exc), phase=phase)
-            raise AgentCognitionError(phase, "AGENT_OBSERVATION_FAILED", str(exc), cause=exc) from exc
-
     def run(
         self,
         goal: AgentGoal,
@@ -192,7 +186,7 @@ class AgentCognitionLoop:
         invalid_completion_claims = 0
         started = self.clock()
         loop_context = self._context(context, goal, "observe:initial")
-        observation = self._observe(loop_context, phase="initial_observe")
+        observation = self._observation_phase.observe(loop_context, phase="initial_observe")
         last_action_type = summaries[-1].action_type if summaries else ""
         last_receipt = None if checkpoint is None or checkpoint.last_receipt is None else checkpoint.last_receipt.to_receipt()
 
@@ -232,16 +226,29 @@ class AgentCognitionLoop:
                 )
 
             plan_context = self._context(context, goal, f"plan:{counters.plan_calls}")
-            planning = self._planning.plan(
+            context_snapshot = self._context_phase.gather(
                 goal=goal,
                 observation=observation,
+                context=plan_context,
+            )
+            memory_queries += 1
+            reasoning = self._reasoning.reason(
+                goal=goal,
+                observation=observation,
+                context_snapshot=context_snapshot,
                 plan_context=plan_context,
                 step=counters.step,
                 plan_call=counters.plan_calls,
                 prior_actions=tuple(summaries),
+            )
+            planning = self._planning.plan(
+                selection=reasoning.selection,
+                goal=goal,
+                observation=observation,
+                plan_context=plan_context,
+                plan_call=counters.plan_calls,
                 last_receipt=last_receipt,
             )
-            memory_queries += 1
             counters = counters.with_plan_calls(planning.next_plan_call)
 
             if planning.disposition is PlanningDisposition.SAFETY_ABORT:

@@ -28,7 +28,7 @@ def stack_parts():
 
 class _RecoveryExecutor:
     def __init__(self, fail_once_at=None): self.fail_once_at=fail_once_at; self.failed=False; self.calls=[]
-    def execute(self,step,plan):
+    def run_step(self,step,plan):
         self.calls.append(step)
         if step==self.fail_once_at and not self.failed:
             self.failed=True; raise OSError("injected hard interruption")

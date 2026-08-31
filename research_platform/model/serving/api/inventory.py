@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 import hashlib
 import json
+import math
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,6 +21,15 @@ class CPUInventory:
     cgroup_quota_cpus: float | None
     numa_nodes: tuple[CPUNode,...]
 
+    def __post_init__(self) -> None:
+        if self.cgroup_quota_cpus is not None and (
+            isinstance(self.cgroup_quota_cpus, bool)
+            or not isinstance(self.cgroup_quota_cpus, (int, float))
+            or not math.isfinite(float(self.cgroup_quota_cpus))
+            or self.cgroup_quota_cpus <= 0
+        ):
+            raise ValueError("CPU cgroup quota must be finite and positive when provided")
+
 
 @dataclass(frozen=True, slots=True)
 class GPUInventory:
@@ -32,6 +42,15 @@ class GPUInventory:
     compute_capability: str | None
     power_limit_watts: float | None
 
+    def __post_init__(self) -> None:
+        if self.power_limit_watts is not None and (
+            isinstance(self.power_limit_watts, bool)
+            or not isinstance(self.power_limit_watts, (int, float))
+            or not math.isfinite(float(self.power_limit_watts))
+            or self.power_limit_watts < 0
+        ):
+            raise ValueError("GPU power limit must be finite and non-negative when provided")
+
 
 @dataclass(frozen=True, slots=True)
 class GPUFabricLink:
@@ -39,6 +58,15 @@ class GPUFabricLink:
     b_uuid: str
     link_type: str
     bandwidth_gbps: float
+
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.bandwidth_gbps, bool)
+            or not isinstance(self.bandwidth_gbps, (int, float))
+            or not math.isfinite(float(self.bandwidth_gbps))
+            or self.bandwidth_gbps < 0
+        ):
+            raise ValueError("GPU fabric bandwidth must be finite and non-negative")
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,6 +128,13 @@ class HostInventory:
     listening_ports: tuple[int,...]
 
     def __post_init__(self)->None:
+        if (
+            isinstance(self.captured_at_unix, bool)
+            or not isinstance(self.captured_at_unix, (int, float))
+            or not math.isfinite(float(self.captured_at_unix))
+            or self.captured_at_unix < 0
+        ):
+            raise ValueError("host inventory captured_at_unix must be finite and non-negative")
         if len({g.uuid for g in self.gpus})!=len(self.gpus): raise ValueError("duplicate GPU UUID")
         if len(set(self.cpu.allowed_cpu_ids))!=len(self.cpu.allowed_cpu_ids): raise ValueError("duplicate allowed CPU")
         if len(set(self.listening_ports))!=len(self.listening_ports): raise ValueError("duplicate listening port")

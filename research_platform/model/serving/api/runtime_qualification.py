@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
+import re
 import time
 
 from research_platform.platform.kernel import canonical_digest
@@ -9,10 +10,11 @@ from .heartbeat import ServiceHeartbeat
 from .qualified_deployment import QualifiedDeploymentManifest
 
 
+_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+
+
 def _require_digest(value: str, field: str) -> str:
-    if not isinstance(value, str) or len(value) != 64 or any(
-        char not in "0123456789abcdef" for char in value
-    ):
+    if not isinstance(value, str) or _SHA256.fullmatch(value) is None:
         raise ValueError(f"{field} must be a lowercase SHA-256 digest")
     return value
 
@@ -94,44 +96,42 @@ class RuntimeQualificationReceipt:
         return canonical_digest(self)
 
 
-def build_runtime_qualification_receipt(
-    deployment: QualifiedDeploymentManifest,
-    heartbeat: ServiceHeartbeat,
-    *,
-    required_roles: tuple[str, ...],
-    evidence_refs: tuple[str, ...],
-    max_heartbeat_age_seconds: float,
-    now: float | None = None,
-) -> RuntimeQualificationReceipt:
-    """Validate live qualification against one exact frozen deployment."""
-
-    if heartbeat.deployment_id != deployment.deployment_id:
-        raise ValueError("runtime qualification heartbeat belongs to another deployment")
-    if heartbeat.stack_digest != deployment.stack.digest():
-        raise ValueError("runtime qualification stack digest drift")
-    if not heartbeat.ready:
-        raise ValueError("runtime qualification requires READY service")
-    if heartbeat.age(now) > max_heartbeat_age_seconds:
-        raise ValueError("runtime qualification heartbeat is stale")
-
-    certificate_digest = deployment.certificate.digest()
-    if heartbeat.qualification_digest != certificate_digest:
-        raise ValueError("live service qualification digest does not match frozen certificate")
-
-    allowed = set(deployment.certificate.qualified_roles)
-    missing = set(required_roles) - allowed
-    if missing:
-        raise ValueError(f"runtime qualification certificate missing roles: {sorted(missing)}")
-    if type(max_heartbeat_age_seconds) not in {int, float} or isinstance(max_heartbeat_age_seconds, bool):
+def _qualification_age_limit(value: float) -> float:
+    if type(value) not in {int, float} or isinstance(value, bool):
         raise TypeError("runtime qualification heartbeat age limit must be numeric")
-    age_limit = float(max_heartbeat_age_seconds)
+    age_limit = float(value)
     if not math.isfinite(age_limit) or age_limit <= 0:
         raise ValueError("runtime qualification heartbeat age limit must be finite and positive")
+    return age_limit
+
+
+def _qualification_created_at(now: float | None, heartbeat: ServiceHeartbeat) -> float:
     created_at = time.time() if now is None else float(now)
     if not math.isfinite(created_at):
         raise ValueError("runtime qualification time must be finite")
     if heartbeat.timestamp > created_at:
         raise ValueError("runtime qualification heartbeat timestamp is in the future")
+    return created_at
+
+
+def _qualification_roles(
+    deployment: QualifiedDeploymentManifest, required_roles: tuple[str, ...]
+) -> tuple[str, ...]:
+    allowed = set(deployment.certificate.qualified_roles)
+    missing = set(required_roles) - allowed
+    if missing:
+        raise ValueError(f"runtime qualification certificate missing roles: {sorted(missing)}")
+    return tuple(sorted(required_roles))
+
+
+def _qualification_evidence_refs(
+    heartbeat: ServiceHeartbeat, evidence_refs: tuple[str, ...]
+) -> tuple[str, ...]:
+    """Validate and canonicalize all caller evidence references.
+
+    Algorithm-Complexity: O(N log N)
+    Algorithm-Rationale: N is the caller evidence count; every extra digest-bound ref is validated and the final immutable evidence tuple is sorted for deterministic qualification identity.
+    """
     expected_ref = (
         f"heartbeat:{heartbeat.deployment_id}:{heartbeat.pid}:"
         f"{heartbeat.process_start_marker}:{heartbeat.timestamp}"
@@ -149,18 +149,49 @@ def build_runtime_qualification_receipt(
     if any(ref.startswith("heartbeat:sha256:") for ref in extras):
         raise ValueError("runtime qualification heartbeat evidence is owned by the live heartbeat")
     evidence_digest = canonical_digest(heartbeat)
+    return (f"heartbeat:sha256:{evidence_digest}", *tuple(sorted(extras)))
+
+
+def build_runtime_qualification_receipt(
+    deployment: QualifiedDeploymentManifest,
+    heartbeat: ServiceHeartbeat,
+    *,
+    required_roles: tuple[str, ...],
+    evidence_refs: tuple[str, ...],
+    max_heartbeat_age_seconds: float,
+    now: float | None = None,
+) -> RuntimeQualificationReceipt:
+    """Validate live qualification against one exact frozen deployment."""
+
+    age_limit = _qualification_age_limit(max_heartbeat_age_seconds)
+    created_at = _qualification_created_at(now, heartbeat)
+    if heartbeat.deployment_id != deployment.deployment_id:
+        raise ValueError("runtime qualification heartbeat belongs to another deployment")
+    stack_digest = deployment.stack.digest()
+    if heartbeat.stack_digest != stack_digest:
+        raise ValueError("runtime qualification stack digest drift")
+    if not heartbeat.ready:
+        raise ValueError("runtime qualification requires READY service")
+    if heartbeat.age(created_at) > age_limit:
+        raise ValueError("runtime qualification heartbeat is stale")
+
+    certificate_digest = deployment.certificate.digest()
+    if heartbeat.qualification_digest != certificate_digest:
+        raise ValueError("live service qualification digest does not match frozen certificate")
+    qualified_roles = _qualification_roles(deployment, required_roles)
+    qualified_evidence = _qualification_evidence_refs(heartbeat, evidence_refs)
     return RuntimeQualificationReceipt(
         deployment_id=deployment.deployment_id,
-        stack_digest=deployment.stack.digest(),
+        stack_digest=stack_digest,
         qualification_certificate_digest=certificate_digest,
         heartbeat_qualification_digest=heartbeat.qualification_digest,
-        qualified_roles=tuple(sorted(required_roles)),
+        qualified_roles=qualified_roles,
         process_pid=heartbeat.pid,
         process_start_marker=heartbeat.process_start_marker,
         argv_digest=_require_digest(heartbeat.argv_digest, "heartbeat.argv_digest"),
         heartbeat_timestamp=float(heartbeat.timestamp),
         valid_until=float(heartbeat.timestamp) + age_limit,
-        evidence_refs=(f"heartbeat:sha256:{evidence_digest}", *tuple(sorted(extras))),
+        evidence_refs=qualified_evidence,
         created_at=float(created_at),
     )
 
