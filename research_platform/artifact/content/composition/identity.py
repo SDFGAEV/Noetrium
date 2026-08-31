@@ -1,6 +1,13 @@
 from __future__ import annotations
 
 from research_platform.artifact.catalog.api import ArtifactNotFound, ArtifactRegistryPort
+from research_platform.artifact.reference.api import (
+    ArtifactReference,
+    ArtifactReferenceNotFound,
+    ArtifactReferencePort,
+)
+from research_platform.scope.api import ScopeIdentity
+
 from research_platform.artifact.content.api import (
     ArtifactContentIdentity,
     ArtifactContentIdentityVerificationError,
@@ -82,4 +89,73 @@ def verify_artifact_content_identity(
     return identity
 
 
-__all__ = ["verify_artifact_content_identity"]
+def load_verified_artifact_content_identity(
+    artifact_id: str,
+    *,
+    artifacts: ArtifactRegistryPort,
+    storage: ArtifactStorageBindingPort,
+    placement_verifier: ArtifactStoragePlacementVerifierPort,
+) -> ArtifactContentIdentity:
+    """Load a portable content identity from Artifact authority and prove its bytes."""
+
+    try:
+        record = artifacts.get(artifact_id)
+    except ArtifactNotFound as exc:
+        raise ArtifactContentIdentityVerificationError(
+            "ARTIFACT_NOT_FOUND", f"artifact {artifact_id!r} is not registered"
+        ) from exc
+    if record.artifact_id != artifact_id:
+        raise ArtifactContentIdentityVerificationError(
+            "CATALOG_IDENTITY_MISMATCH",
+            f"catalog returned foreign artifact identity for {artifact_id!r}",
+        )
+    identity = ArtifactContentIdentity(record.artifact_id, record.digest)
+    return verify_artifact_content_identity(
+        identity,
+        artifacts=artifacts,
+        storage=storage,
+        placement_verifier=placement_verifier,
+    )
+
+
+def resolve_artifact_reference_content_identity(
+    reference_id: str,
+    scope: ScopeIdentity,
+    *,
+    references: ArtifactReferencePort,
+    artifacts: ArtifactRegistryPort,
+    storage: ArtifactStorageBindingPort,
+    placement_verifier: ArtifactStoragePlacementVerifierPort,
+) -> ArtifactContentIdentity:
+    """Snapshot a mutable Artifact reference into a verified immutable content identity."""
+
+    try:
+        reference = references.resolve(reference_id, scope)
+    except ArtifactReferenceNotFound as exc:
+        raise ArtifactContentIdentityVerificationError(
+            "ARTIFACT_REFERENCE_NOT_FOUND",
+            f"artifact reference {reference_id!r} is not registered for the requested scope",
+        ) from exc
+    if type(reference) is not ArtifactReference:
+        raise ArtifactContentIdentityVerificationError(
+            "ARTIFACT_REFERENCE_TYPE_MISMATCH",
+            f"artifact reference {reference_id!r} resolved to an untrusted runtime value",
+        )
+    if reference.reference_id != reference_id or reference.scope != scope:
+        raise ArtifactContentIdentityVerificationError(
+            "ARTIFACT_REFERENCE_IDENTITY_MISMATCH",
+            f"artifact reference {reference_id!r} resolved to foreign reference facts",
+        )
+    return load_verified_artifact_content_identity(
+        reference.artifact_id,
+        artifacts=artifacts,
+        storage=storage,
+        placement_verifier=placement_verifier,
+    )
+
+
+__all__ = [
+    "load_verified_artifact_content_identity",
+    "resolve_artifact_reference_content_identity",
+    "verify_artifact_content_identity",
+]

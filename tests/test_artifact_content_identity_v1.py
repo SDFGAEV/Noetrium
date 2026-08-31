@@ -13,7 +13,13 @@ from research_platform.artifact.content.api import (
     ArtifactStorageVerificationError,
     VerifiedArtifactStoragePlacement,
 )
-from research_platform.artifact.content.composition import verify_artifact_content_identity
+from research_platform.artifact.content.composition import (
+    load_verified_artifact_content_identity,
+    resolve_artifact_reference_content_identity,
+    verify_artifact_content_identity,
+)
+from research_platform.artifact.reference.api import ArtifactReference, ArtifactReferenceNotFound
+from research_platform.scope.api import ScopeIdentity, ScopeKind
 
 
 DIGEST = "a" * 64
@@ -27,13 +33,26 @@ class _Record:
 
 
 class _Artifacts:
-    def __init__(self, digest: str | None) -> None:
+    def __init__(self, digest: str | None, artifact_id: str = "artifact-1") -> None:
         self.digest = digest
+        self.artifact_id = artifact_id
 
     def get(self, artifact_id: str) -> _Record:
         if self.digest is None:
             raise ArtifactNotFound(artifact_id)
-        return _Record(artifact_id, self.digest)
+        return _Record(self.artifact_id, self.digest)
+
+
+
+
+class _References:
+    def __init__(self, reference: ArtifactReference | None) -> None:
+        self.reference = reference
+
+    def resolve(self, reference_id: str, scope: ScopeIdentity) -> ArtifactReference:
+        if self.reference is None:
+            raise ArtifactReferenceNotFound(reference_id)
+        return self.reference
 
 
 class _Storage:
@@ -74,9 +93,15 @@ def _verify(identity, *, artifacts, storage, placement_verifier=None):
         placement_verifier=placement_verifier or _PlacementVerifier(),
     )
 
-def _binding(*, digest: str = DIGEST, location: str = "A:/artifact.bin", generation: int = 1) -> ArtifactStorageBinding:
+def _binding(
+    *,
+    artifact_id: str = "artifact-1",
+    digest: str = DIGEST,
+    location: str = "A:/artifact.bin",
+    generation: int = 1,
+) -> ArtifactStorageBinding:
     return ArtifactStorageBinding(
-        artifact_id="artifact-1",
+        artifact_id=artifact_id,
         content_sha256=digest,
         storage_provider_id="artifact.filesystem",
         location=location,
@@ -189,3 +214,101 @@ def test_artifact_content_identity_rejects_foreign_placement_proof() -> None:
             placement_verifier=_PlacementVerifier(foreign=True),
         )
     assert error.value.code == "STORAGE_PLACEMENT_MISMATCH"
+
+
+def test_load_verified_artifact_content_identity_builds_from_artifact_authority() -> None:
+    identity = load_verified_artifact_content_identity(
+        "artifact-1",
+        artifacts=_Artifacts(DIGEST),
+        storage=_Storage(_binding()),
+        placement_verifier=_PlacementVerifier(),
+    )
+    assert identity == ArtifactContentIdentity("artifact-1", DIGEST)
+
+
+def test_mutable_reference_is_snapshotted_to_immutable_content_identity() -> None:
+    scope = ScopeIdentity(ScopeKind.PROJECT, "project-1")
+    first_reference = ArtifactReference("latest", scope, "artifact-1", 1)
+    first = resolve_artifact_reference_content_identity(
+        "latest",
+        scope,
+        references=_References(first_reference),
+        artifacts=_Artifacts(DIGEST),
+        storage=_Storage(_binding()),
+        placement_verifier=_PlacementVerifier(),
+    )
+    assert first == ArtifactContentIdentity("artifact-1", DIGEST)
+    assert not hasattr(first, "generation")
+    assert not hasattr(first, "reference_id")
+
+
+def test_reference_snapshot_rejects_missing_or_foreign_reference_facts() -> None:
+    scope = ScopeIdentity(ScopeKind.PROJECT, "project-1")
+    with pytest.raises(ArtifactContentIdentityVerificationError) as missing:
+        resolve_artifact_reference_content_identity(
+            "latest",
+            scope,
+            references=_References(None),
+            artifacts=_Artifacts(DIGEST),
+            storage=_Storage(_binding()),
+            placement_verifier=_PlacementVerifier(),
+        )
+    assert missing.value.code == "ARTIFACT_REFERENCE_NOT_FOUND"
+
+    foreign = ArtifactReference("other", scope, "artifact-1", 1)
+    with pytest.raises(ArtifactContentIdentityVerificationError) as mismatch:
+        resolve_artifact_reference_content_identity(
+            "latest",
+            scope,
+            references=_References(foreign),
+            artifacts=_Artifacts(DIGEST),
+            storage=_Storage(_binding()),
+            placement_verifier=_PlacementVerifier(),
+        )
+    assert mismatch.value.code == "ARTIFACT_REFERENCE_IDENTITY_MISMATCH"
+
+
+def test_reference_retarget_creates_new_snapshot_without_mutating_old_identity() -> None:
+    scope = ScopeIdentity(ScopeKind.PROJECT, "project-1")
+    first = resolve_artifact_reference_content_identity(
+        "latest",
+        scope,
+        references=_References(ArtifactReference("latest", scope, "artifact-1", 1)),
+        artifacts=_Artifacts(DIGEST, "artifact-1"),
+        storage=_Storage(_binding(artifact_id="artifact-1", digest=DIGEST)),
+        placement_verifier=_PlacementVerifier(),
+    )
+    second = resolve_artifact_reference_content_identity(
+        "latest",
+        scope,
+        references=_References(ArtifactReference("latest", scope, "artifact-2", 2)),
+        artifacts=_Artifacts(OTHER_DIGEST, "artifact-2"),
+        storage=_Storage(_binding(artifact_id="artifact-2", digest=OTHER_DIGEST)),
+        placement_verifier=_PlacementVerifier(),
+    )
+    assert first == ArtifactContentIdentity("artifact-1", DIGEST)
+    assert second == ArtifactContentIdentity("artifact-2", OTHER_DIGEST)
+    assert first != second
+
+
+def test_reference_snapshot_rejects_runtime_reference_impostor() -> None:
+    scope = ScopeIdentity(ScopeKind.PROJECT, "project-1")
+
+    class _Impostor:
+        reference_id = "latest"
+        artifact_id = "artifact-1"
+        generation = 1
+
+        def __init__(self, resolved_scope: ScopeIdentity) -> None:
+            self.scope = resolved_scope
+
+    with pytest.raises(ArtifactContentIdentityVerificationError) as error:
+        resolve_artifact_reference_content_identity(
+            "latest",
+            scope,
+            references=_References(_Impostor(scope)),
+            artifacts=_Artifacts(DIGEST),
+            storage=_Storage(_binding()),
+            placement_verifier=_PlacementVerifier(),
+        )
+    assert error.value.code == "ARTIFACT_REFERENCE_TYPE_MISMATCH"

@@ -34,6 +34,8 @@ Relocation verifies the destination and may recover from a corrupted old source 
 
 `verify_artifact_content_identity(...)` composes `ArtifactRegistryPort`, `ArtifactStorageBindingPort`, and an explicit provider-owned `ArtifactStoragePlacementVerifierPort` without creating another store. A binding row is never sufficient proof by itself: the verifier must re-prove the current physical bytes for the binding provider/location. Exact artifact identity, immutable catalog digest, binding digest, provider identity, canonical location, and placement proof must agree; missing authorities, digest drift, unverified placement, and foreign-identity impostors fail closed with typed verification codes. Storage relocation may change provider/location/generation while the content identity remains unchanged.
 
+`load_verified_artifact_content_identity(...)` produces the immutable value directly from Artifact authority. `resolve_artifact_reference_content_identity(...)` is the migration seam for mutable aliases: it verifies an exact `ArtifactReference`, resolves its current artifact, and returns only the verified immutable content snapshot. Later reference retargets/generation changes create a new snapshot and cannot mutate the previously captured scientific identity. Runtime reference impostors fail closed.
+
 Data and ROLE03 may consume this producer-owned value only after the governance dependency cut is declared; they must not replace it with a mutable `ArtifactReference` alias or a second content authority.
 
 ## Typed research-result query federation
