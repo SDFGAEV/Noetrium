@@ -4,8 +4,14 @@ from .contracts import (
     ModelPromotionDisposition,
     ModelPromotionReceipt,
     ModelRevisionAuthorityPort,
+    ModelRevisionAuthoritySnapshot,
     ModelRevisionCommit,
+    ModelRevisionConflictError,
+    ModelRevisionEvidence,
+    ModelRevisionEvidenceKind,
     ModelRevisionIdentity,
+    ModelRevisionIntegrityError,
+    ModelRevisionStateError,
     ModelRollbackReceipt,
     ModelUpdateProducerPort,
     ModelUpdateProposal,
@@ -13,9 +19,10 @@ from .contracts import (
 )
 
 __all__ = [
-    "CONTRACT", "contract",
-    "ModelPromotionDecision", "ModelPromotionDisposition", "ModelPromotionReceipt",
-    "ModelRevisionAuthorityPort", "ModelRevisionCommit", "ModelRevisionIdentity",
-    "ModelRollbackReceipt", "ModelUpdateProducerPort", "ModelUpdateProposal",
-    "PreparedModelRevision",
+    "CONTRACT", "contract", "ModelPromotionDecision", "ModelPromotionDisposition",
+    "ModelPromotionReceipt", "ModelRevisionAuthorityPort", "ModelRevisionAuthoritySnapshot",
+    "ModelRevisionCommit", "ModelRevisionConflictError", "ModelRevisionEvidence",
+    "ModelRevisionEvidenceKind", "ModelRevisionIdentity", "ModelRevisionIntegrityError",
+    "ModelRevisionStateError", "ModelRollbackReceipt", "ModelUpdateProducerPort",
+    "ModelUpdateProposal", "PreparedModelRevision",
 ]

@@ -33,9 +33,10 @@ from .project import (
 
 from research_platform.model.catalog.revision.api import (
     ModelPromotionDecision, ModelPromotionDisposition, ModelPromotionReceipt,
-    ModelRevisionAuthorityPort, ModelRevisionCommit, ModelRevisionIdentity,
-    ModelRollbackReceipt, ModelUpdateProducerPort, ModelUpdateProposal,
-    PreparedModelRevision,
+    ModelRevisionAuthorityPort, ModelRevisionAuthoritySnapshot, ModelRevisionCommit,
+    ModelRevisionConflictError, ModelRevisionEvidence, ModelRevisionEvidenceKind,
+    ModelRevisionIdentity, ModelRevisionIntegrityError, ModelRevisionStateError,
+    ModelRollbackReceipt, ModelUpdateProducerPort, ModelUpdateProposal, PreparedModelRevision,
 )
 
 __all__ = [
@@ -59,8 +60,14 @@ __all__ = [
     "ModelPromotionDisposition",
     "ModelPromotionReceipt",
     "ModelRevisionAuthorityPort",
+    "ModelRevisionAuthoritySnapshot",
     "ModelRevisionCommit",
+    "ModelRevisionConflictError",
+    "ModelRevisionEvidence",
+    "ModelRevisionEvidenceKind",
     "ModelRevisionIdentity",
+    "ModelRevisionIntegrityError",
+    "ModelRevisionStateError",
     "ModelRollbackReceipt",
     "ModelUpdateProducerPort",
     "ModelUpdateProposal",

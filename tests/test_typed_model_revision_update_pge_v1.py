@@ -1,19 +1,24 @@
 from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
+from pathlib import Path
 
 import pytest
 
 from research_platform.model.api import (
     ModelPromotionDecision,
     ModelPromotionDisposition,
-    ModelPromotionReceipt,
-    ModelRevisionCommit,
+    ModelRevisionConflictError,
+    ModelRevisionEvidence,
+    ModelRevisionEvidenceKind,
     ModelRevisionIdentity,
-    ModelRollbackReceipt,
+    ModelRevisionIntegrityError,
+    ModelRevisionStateError,
+    ModelRevisionCommit,
     ModelUpdateProposal,
     PreparedModelRevision,
 )
+from research_platform.model.catalog.revision.providers import SQLiteModelRevisionAuthority
 from research_platform.platform.kernel import ImmutableModelIdentity
 
 
@@ -29,9 +34,16 @@ def _initial() -> ModelRevisionIdentity:
     return ModelRevisionIdentity(_model("r1"), "1" * 64)
 
 
-def _proposal(initial: ModelRevisionIdentity) -> ModelUpdateProposal:
+def _candidate(initial: ModelRevisionIdentity, revision: str = "r2") -> ModelRevisionIdentity:
+    digit = "6" if revision == "r2" else "7"
+    return ModelRevisionIdentity(
+        _model(revision), digit * 64, parent_revision_digest=initial.digest()
+    )
+
+
+def _proposal(initial: ModelRevisionIdentity, proposal_id: str = "online-update-1") -> ModelUpdateProposal:
     return ModelUpdateProposal(
-        proposal_id="online-update-1",
+        proposal_id=proposal_id,
         predecessor_revision_digest=initial.digest(),
         update_contract_id="paper.online-learning.v1",
         implementation_digest="2" * 64,
@@ -42,95 +54,224 @@ def _proposal(initial: ModelRevisionIdentity) -> ModelUpdateProposal:
     )
 
 
+def _evidence(kind: ModelRevisionEvidenceKind, revision: str, digit: str) -> ModelRevisionEvidence:
+    return ModelRevisionEvidence(kind, revision, digit * 64, f"paper.evidence.{kind.value}.v1")
+
+
 def _prepared(initial: ModelRevisionIdentity) -> PreparedModelRevision:
-    proposal = _proposal(initial)
-    candidate = ModelRevisionIdentity(
-        _model("r2"), "6" * 64, parent_revision_digest=initial.digest()
-    )
     return PreparedModelRevision(
-        proposal.digest(), initial.digest(), candidate, 1, "7" * 64, "8" * 64
+        _proposal(initial), initial, _candidate(initial), 2, "8" * 64, "9" * 64
     )
 
 
-def test_online_update_prepares_distinct_candidate_without_mutating_predecessor() -> None:
+def _decision(initial: ModelRevisionIdentity, candidate: ModelRevisionIdentity) -> ModelPromotionDecision:
+    digest = candidate.digest()
+    return ModelPromotionDecision(
+        candidate_revision_digest=digest,
+        predecessor_active_revision_digest=initial.digest(),
+        qualification_evidence=(
+            _evidence(ModelRevisionEvidenceKind.QUALIFICATION, digest, "a"),
+        ),
+        evaluation_evidence=(
+            _evidence(ModelRevisionEvidenceKind.EVALUATION, digest, "b"),
+        ),
+        disposition=ModelPromotionDisposition.PROMOTE,
+        reason_digest="c" * 64,
+        policy_contract_id="paper.promotion.v1",
+        policy_implementation_digest="d" * 64,
+        policy_configuration_digest="e" * 64,
+    )
+
+
+def _authority(tmp_path: Path) -> tuple[Path, SQLiteModelRevisionAuthority, ModelRevisionIdentity]:
+    path = tmp_path / "model-revisions.sqlite3"
+    authority = SQLiteModelRevisionAuthority(path)
     initial = _initial()
-    before = initial.digest()
+    authority.initialize(initial)
+    return path, authority, initial
+
+
+def test_revision_values_are_immutable_and_bind_exact_lineage() -> None:
+    initial = _initial()
     prepared = _prepared(initial)
-    assert prepared.predecessor_revision_digest == before
-    assert prepared.candidate.digest() != before
-    assert initial.digest() == before
+    assert prepared.predecessor_revision_digest == initial.digest()
+    assert prepared.candidate.parent_revision_digest == initial.digest()
     with pytest.raises(FrozenInstanceError):
-        initial.revision_artifact_digest = "9" * 64  # type: ignore[misc]
-
-
-def test_prepare_rejects_candidate_not_bound_to_exact_predecessor() -> None:
-    initial = _initial()
-    proposal = _proposal(initial)
-    wrong = ModelRevisionIdentity(_model("r2"), "6" * 64, parent_revision_digest="a" * 64)
+        initial.revision_artifact_digest = "f" * 64  # type: ignore[misc]
+    wrong = ModelRevisionIdentity(_model("r2"), "6" * 64, parent_revision_digest="f" * 64)
     with pytest.raises(ValueError, match="exact predecessor"):
-        PreparedModelRevision(
-            proposal.digest(), initial.digest(), wrong, 1, "7" * 64, "8" * 64
+        PreparedModelRevision(_proposal(initial), initial, wrong, 2, "8" * 64, "9" * 64)
+
+
+def test_commit_and_promotion_evidence_must_bind_exact_candidate() -> None:
+    initial = _initial()
+    prepared = _prepared(initial)
+    wrong = _evidence(ModelRevisionEvidenceKind.VALIDATION, initial.digest(), "a")
+    with pytest.raises(ValueError, match="exact model revision"):
+        ModelRevisionCommit(prepared, (wrong,), 3)
+    candidate = prepared.candidate
+    wrong_qualification = _evidence(
+        ModelRevisionEvidenceKind.QUALIFICATION, initial.digest(), "b"
+    )
+    with pytest.raises(ValueError, match="exact model revision"):
+        ModelPromotionDecision(
+            candidate.digest(), initial.digest(), (wrong_qualification,),
+            (_evidence(ModelRevisionEvidenceKind.EVALUATION, candidate.digest(), "c"),),
+            ModelPromotionDisposition.PROMOTE, "d" * 64,
+            "paper.promotion.v1", "e" * 64, "f" * 64,
         )
 
 
-def test_commit_cannot_swap_prepared_candidate_for_another_successor() -> None:
+def test_promotion_policy_implementation_and_configuration_change_decision_identity() -> None:
     initial = _initial()
-    prepared = _prepared(initial)
-    commit = ModelRevisionCommit(prepared, prepared.candidate, ("9" * 64,), 2)
-    assert commit.successor_revision_digest == prepared.candidate.digest()
-    other = ModelRevisionIdentity(
-        _model("r3"), "a" * 64, parent_revision_digest=initial.digest()
+    candidate = _candidate(initial)
+    a = _decision(initial, candidate)
+    b = ModelPromotionDecision(
+        a.candidate_revision_digest, a.predecessor_active_revision_digest,
+        a.qualification_evidence, a.evaluation_evidence, a.disposition, a.reason_digest,
+        a.policy_contract_id, "f" * 64, a.policy_configuration_digest,
     )
-    with pytest.raises(ValueError, match="prepared candidate"):
-        ModelRevisionCommit(prepared, other, ("9" * 64,), 2)
-
-
-def test_promotion_binds_exact_candidate_and_both_evidence_classes() -> None:
-    initial = _initial()
-    prepared = _prepared(initial)
-    decision = ModelPromotionDecision(
-        prepared.candidate.digest(), initial.digest(),
-        ("b" * 64,), ("c" * 64,), ModelPromotionDisposition.PROMOTE, "d" * 64,
+    c = ModelPromotionDecision(
+        a.candidate_revision_digest, a.predecessor_active_revision_digest,
+        a.qualification_evidence, a.evaluation_evidence, a.disposition, a.reason_digest,
+        a.policy_contract_id, a.policy_implementation_digest, "f" * 64,
     )
-    receipt = ModelPromotionReceipt(decision, 3)
-    assert receipt.active_revision_digest == prepared.candidate.digest()
-    assert receipt.previous_active_revision_digest == initial.digest()
+    assert len({a.digest(), b.digest(), c.digest()}) == 3
 
 
-def test_rejected_candidate_cannot_be_activated() -> None:
-    initial = _initial()
-    prepared = _prepared(initial)
-    decision = ModelPromotionDecision(
-        prepared.candidate.digest(), initial.digest(),
-        ("b" * 64,), ("c" * 64,), ModelPromotionDisposition.REJECT, "d" * 64,
+def test_durable_prepare_allocates_generation_and_reopens_after_crash(tmp_path: Path) -> None:
+    path, authority, initial = _authority(tmp_path)
+    candidate = _candidate(initial)
+    prepared = authority.prepare_successor(
+        _proposal(initial), initial, candidate, expected_generation=1,
+        recovery_anchor_digest="8" * 64, validation_plan_digest="9" * 64,
     )
-    with pytest.raises(ValueError, match="cannot be promoted"):
-        ModelPromotionReceipt(decision, 3)
+    assert prepared.preparation_generation == 2
+    assert authority.snapshot().authority_generation == 2
+    reopened = SQLiteModelRevisionAuthority(path)
+    recovered = reopened.load_prepared(prepared.proposal.digest())
+    assert recovered == prepared
+    assert recovered.digest() == prepared.digest()
 
 
-def test_rollback_binds_failed_active_target_and_trigger_evidence() -> None:
-    initial = _initial()
-    prepared = _prepared(initial)
-    rollback = ModelRollbackReceipt(
-        failed_active_revision_digest=prepared.candidate.digest(),
-        rollback_target_revision_digest=initial.digest(),
-        triggering_evidence_digests=("e" * 64,),
-        recovery_anchor_digest="f" * 64,
-        rollback_generation=4,
+def test_prepare_exact_retry_is_idempotent_but_stale_different_prepare_is_fenced(tmp_path: Path) -> None:
+    _, authority, initial = _authority(tmp_path)
+    first = authority.prepare_successor(
+        _proposal(initial), initial, _candidate(initial), expected_generation=1,
+        recovery_anchor_digest="8" * 64, validation_plan_digest="9" * 64,
     )
-    assert rollback.rollback_target_revision_digest == initial.digest()
-    with pytest.raises(ValueError, match="must differ"):
-        ModelRollbackReceipt(
-            initial.digest(), initial.digest(), ("e" * 64,), "f" * 64, 4
+    retry = authority.prepare_successor(
+        _proposal(initial), initial, _candidate(initial), expected_generation=1,
+        recovery_anchor_digest="8" * 64, validation_plan_digest="9" * 64,
+    )
+    assert retry == first
+    with pytest.raises(ModelRevisionConflictError, match="stale"):
+        authority.prepare_successor(
+            _proposal(initial, "competing-update"), initial,
+            _candidate(initial, "r3"), expected_generation=1,
+            recovery_anchor_digest="a" * 64, validation_plan_digest="b" * 64,
         )
 
 
-def test_update_contract_and_evidence_change_identity() -> None:
-    initial = _initial()
-    a = _proposal(initial)
-    b = ModelUpdateProposal(
-        a.proposal_id, a.predecessor_revision_digest, "paper.distillation.v1",
-        a.implementation_digest, a.configuration_digest, a.training_input_digest,
-        a.randomness_digest, a.evidence_refs,
+def test_commit_is_durable_idempotent_and_generation_fenced(tmp_path: Path) -> None:
+    _, authority, initial = _authority(tmp_path)
+    prepared = authority.prepare_successor(
+        _proposal(initial), initial, _candidate(initial), expected_generation=1,
+        recovery_anchor_digest="8" * 64, validation_plan_digest="9" * 64,
     )
-    assert a.digest() != b.digest()
+    validation = (
+        _evidence(ModelRevisionEvidenceKind.VALIDATION, prepared.candidate.digest(), "a"),
+    )
+    commit = authority.commit_successor(prepared, validation, expected_generation=2)
+    assert commit.commit_generation == 3
+    assert authority.commit_successor(prepared, validation, expected_generation=2) == commit
+
+
+def _committed(
+    authority: SQLiteModelRevisionAuthority,
+    initial: ModelRevisionIdentity,
+) -> tuple[PreparedModelRevision, object]:
+    prepared = authority.prepare_successor(
+        _proposal(initial), initial, _candidate(initial), expected_generation=1,
+        recovery_anchor_digest="8" * 64, validation_plan_digest="9" * 64,
+    )
+    validation = (
+        _evidence(ModelRevisionEvidenceKind.VALIDATION, prepared.candidate.digest(), "a"),
+    )
+    commit = authority.commit_successor(prepared, validation, expected_generation=2)
+    return prepared, commit
+
+
+def test_promotion_requires_exact_committed_successor_and_updates_active_generation(tmp_path: Path) -> None:
+    _, authority, initial = _authority(tmp_path)
+    prepared, _ = _committed(authority, initial)
+    decision = _decision(initial, prepared.candidate)
+    receipt = authority.promote(decision, expected_generation=3)
+    assert receipt.activation_generation == 4
+    snapshot = authority.snapshot()
+    assert snapshot.authority_generation == 4
+    assert snapshot.active_revision == prepared.candidate
+    assert authority.promote(decision, expected_generation=3) == receipt
+
+
+def test_uncommitted_candidate_cannot_be_promoted(tmp_path: Path) -> None:
+    _, authority, initial = _authority(tmp_path)
+    candidate = _candidate(initial)
+    with pytest.raises(ModelRevisionStateError, match="not committed"):
+        authority.promote(_decision(initial, candidate), expected_generation=1)
+
+
+def test_rollback_requires_current_failed_revision_and_committed_ancestor(tmp_path: Path) -> None:
+    path, authority, initial = _authority(tmp_path)
+    prepared, _ = _committed(authority, initial)
+    promoted = authority.promote(_decision(initial, prepared.candidate), expected_generation=3)
+    trigger = (
+        _evidence(
+            ModelRevisionEvidenceKind.ROLLBACK_TRIGGER,
+            promoted.active_revision_digest,
+            "f",
+        ),
+    )
+    with pytest.raises(ModelRevisionStateError, match="committed ancestor"):
+        authority.rollback(
+            promoted.active_revision_digest, "0" * 64, trigger,
+            recovery_anchor_digest="1" * 64, expected_generation=4,
+        )
+    receipt = authority.rollback(
+        promoted.active_revision_digest, initial.digest(), trigger,
+        recovery_anchor_digest="1" * 64, expected_generation=4,
+    )
+    assert receipt.rollback_generation == 5
+    assert SQLiteModelRevisionAuthority(path).snapshot().active_revision == initial
+    assert authority.rollback(
+        promoted.active_revision_digest, initial.digest(), trigger,
+        recovery_anchor_digest="1" * 64, expected_generation=4,
+    ) == receipt
+
+
+def test_stale_rollback_is_fenced(tmp_path: Path) -> None:
+    _, authority, initial = _authority(tmp_path)
+    prepared, _ = _committed(authority, initial)
+    promoted = authority.promote(_decision(initial, prepared.candidate), expected_generation=3)
+    trigger = (_evidence(ModelRevisionEvidenceKind.ROLLBACK_TRIGGER, promoted.active_revision_digest, "f"),)
+    with pytest.raises(ModelRevisionConflictError, match="stale"):
+        authority.rollback(
+            promoted.active_revision_digest, initial.digest(), trigger,
+            recovery_anchor_digest="1" * 64, expected_generation=3,
+        )
+
+
+def test_corrupt_or_torn_revision_database_fails_closed(tmp_path: Path) -> None:
+    torn = tmp_path / "torn.sqlite3"
+    torn.write_bytes(b"not-a-sqlite-database")
+    with pytest.raises(ModelRevisionIntegrityError):
+        SQLiteModelRevisionAuthority(torn)
+
+    path, authority, _ = _authority(tmp_path / "schema")
+    connection = authority._connect()  # adversarial corruption fixture
+    try:
+        connection.execute("DROP TABLE commits")
+    finally:
+        connection.close()
+    with pytest.raises(ModelRevisionIntegrityError, match="table set"):
+        SQLiteModelRevisionAuthority(path)
