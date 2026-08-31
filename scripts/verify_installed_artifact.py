@@ -9,7 +9,6 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
-import venv
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,6 +75,14 @@ def _research_executable(root: Path) -> Path:
     return root / ("Scripts/research.exe" if os.name == "nt" else "bin/research")
 
 
+def _create_venv(root: Path) -> None:
+    try:
+        import venv
+    except ModuleNotFoundError as exc:
+        raise RuntimeError("Python venv module is unavailable") from exc
+    venv.EnvBuilder(with_pip=True, clear=True).create(root)
+
+
 def verify_installed_artifact(artifact: Path) -> InstalledArtifactReceipt:
     artifact = Path(artifact).resolve()
     if not artifact.is_file():
@@ -86,7 +93,7 @@ def verify_installed_artifact(artifact: Path) -> InstalledArtifactReceipt:
         venv_root = root / "venv"
         work = root / "work"
         work.mkdir()
-        venv.EnvBuilder(with_pip=True, clear=True).create(venv_root)
+        _create_venv(venv_root)
         python = _venv_python(venv_root)
         research = _research_executable(venv_root)
         env = dict(os.environ)

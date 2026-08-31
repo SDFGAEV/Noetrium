@@ -9,6 +9,7 @@ from tempfile import TemporaryDirectory
 import pytest
 
 import scripts.release_distribution as distribution
+import scripts.verify_installed_artifact as installed_artifact
 from scripts.verify_installed_artifact import verify_installed_artifact
 
 
@@ -58,6 +59,20 @@ def test_distribution_output_must_be_outside_source_tree():
 def test_installed_artifact_verifier_rejects_missing_file():
     with pytest.raises(FileNotFoundError):
         verify_installed_artifact(distribution.ROOT / ".local" / "missing-role06.whl")
+
+
+
+def test_installed_artifact_verifier_fails_closed_when_venv_is_unavailable(tmp_path: Path, monkeypatch):
+    artifact = tmp_path / "research_platform.whl"
+    artifact.write_bytes(b"wheel")
+
+    def unavailable(root: Path) -> None:
+        del root
+        raise RuntimeError("Python venv module is unavailable")
+
+    monkeypatch.setattr(installed_artifact, "_create_venv", unavailable)
+    with pytest.raises(RuntimeError, match="venv module is unavailable"):
+        verify_installed_artifact(artifact)
 
 
 def test_release_authority_text_writer_uses_portable_lf_bytes():
