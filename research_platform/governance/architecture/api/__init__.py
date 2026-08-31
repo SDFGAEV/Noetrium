@@ -34,6 +34,18 @@ from .capability_composition import (
     interface_contract_digest,
 )
 
+from .provider_ingress import (
+    ProviderIngressContractError,
+    ProviderIngressProtocol,
+    ProviderIngressViolation,
+    ProviderImplementationIdentity,
+    ProviderIngressBoundary,
+    ProviderQualificationIdentity,
+    ProviderRevision,
+    ProviderRevisionKind,
+    provider_implementation_from_repository_source,
+)
+
 from .semantic_boundary import (
     SemanticBoundaryClaim,
     SemanticBoundaryClaimError,
@@ -72,6 +84,15 @@ __all__ = [
     "CompositionTopologyError",
     "MissingCapabilityProvider",
     "ProviderSelection",
+    "ProviderIngressContractError",
+    "ProviderIngressProtocol",
+    "ProviderIngressViolation",
+    "ProviderImplementationIdentity",
+    "ProviderIngressBoundary",
+    "ProviderQualificationIdentity",
+    "ProviderRevision",
+    "ProviderRevisionKind",
+    "provider_implementation_from_repository_source",
     "RequirementAddress",
     "RequirementCardinality",
     "interface_contract_digest",

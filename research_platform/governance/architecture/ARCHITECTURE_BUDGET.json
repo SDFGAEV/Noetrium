@@ -64,7 +64,7 @@
         "authorities": 1,
         "import_edges": 54
       },
-      "justification": "Exact ROLE01 public governance baseline seam removes two sibling-concrete runtime dependencies from the prior provenance cut, preserves NPE topology and typed governance authority, and declares Operator→Portfolio for the canonical ProjectManifest consumer; measured delta is one subsystem, thirteen contract declarations, one authority and fifty-four import edges.",
+      "justification": "Exact ROLE01 public governance baseline seam removes two sibling-concrete runtime dependencies from the prior provenance cut, preserves NPE topology and typed governance authority, and declares Operator\u2192Portfolio for the canonical ProjectManifest consumer; measured delta is one subsystem, thirteen contract declarations, one authority and fifty-four import edges.",
       "applicability": {
         "module_prefixes": [
           "research_platform.platform",
@@ -104,9 +104,9 @@
         "subsystems": -31,
         "contract_declarations": 14,
         "authorities": -32,
-        "import_edges": 39
+        "import_edges": 45
       },
-      "justification": "Breaking-clean semantic convergence retires Scientific plus twenty-five scaffold-only catalog authorities, keeps truthful Study-to-Artifact, Data-to-Artifact, shared-kernel, and Runtime-to-Resource dependencies, and preserves typed topology; the signed delta is full frozen-baseline-relative and grants zero headroom without independent ROLE00 approval.",
+      "justification": "Breaking-clean semantic convergence retires Scientific plus twenty-five scaffold-only catalog authorities, keeps truthful Study-to-Artifact, Data-to-Artifact, shared-kernel, and Runtime-to-Resource dependencies, and adds v4.0 capability-federation provider provenance/adapter-boundary governance without a registry or durable provider authority; the signed delta is full frozen-baseline-relative and grants zero headroom without independent ROLE00 approval.",
       "applicability": {
         "module_prefixes": [
           "research_platform.platform",
@@ -114,7 +114,7 @@
           "research_platform.scope",
           "research_platform.portfolio"
         ],
-        "import_projection_sha256": "59de5bba61ab0b83d094b2aab97e952b79be8ece954e3fa1ef89a33267d64a48"
+        "import_projection_sha256": "f5dbc1290ca0e043028813b3bbb06a3b33053795a9629f829fdafc4722b53420"
       }
     },
     {

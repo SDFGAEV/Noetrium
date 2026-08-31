@@ -105,3 +105,9 @@ Catalog/source completeness is bidirectional for package authorities. A concrete
 ### PSC-08 Runtime read-only Resource topology
 
 Runtime declares the top-level `resource` dependency because standard preflight composition consumes ROLE02's read-only `ComputeCandidatePort`; allocation, lease mutation and resource lifecycle remain Resource authority. The edge is acyclic: Resource has no dependency path back to Runtime. The historical ROLE02 `+8` migration remains evidence only after the 795b2d53 scaffold contraction; the contracted scope is below its frozen import baseline and needs no new growth allowance.
+
+### Playbook v4.0 ?19?21 capability federation ingress governance
+
+External provider integration extends PSC03 rather than creating a second registry or invocation authority. `ProviderImplementationIdentity` binds one exact Git/content/OCI/package/service revision plus an immutable provenance/descriptor digest; `ProviderQualificationIdentity` binds provider identity, ingress protocol, capability contract, adapter contract and qualification evidence into a typed `profile_digest` consumed directly by `BindingProof.provider_profile_digest`. Mutable branch/latest aliases are not representable as claim-grade revisions, and an ecosystem-native package/service version never stands alone without immutable provenance.
+
+Provider-native SDK, CLI or MCP implementation modules remain adapter-private. `ProviderIngressBoundary` plus `audit_provider_ingress_boundaries()` lets a provider declare its adapter package and implementation import prefixes while Governance supplies the reusable fail-closed rule: imports of provider-native modules anywhere outside that adapter are violations. This is intentionally not a Provider Registry, does not store provider runtime objects, and does not require existing native providers to migrate merely to satisfy capability-federation governance.

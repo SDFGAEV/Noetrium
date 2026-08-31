@@ -18,3 +18,5 @@ from .platform_policy import build_platform_audit
 __all__ = tuple(__all__) + ("build_platform_audit",)
 from .semantic_boundary import classify_semantic_boundaries, classify_semantic_boundary
 __all__ = tuple(__all__) + ("classify_semantic_boundaries", "classify_semantic_boundary")
+from .provider_ingress_invariants import audit_provider_ingress_boundaries
+__all__ = tuple(__all__) + ("audit_provider_ingress_boundaries",)
