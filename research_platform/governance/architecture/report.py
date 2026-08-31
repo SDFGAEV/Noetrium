@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Callable
 
@@ -125,6 +125,34 @@ class ArchitectureReport:
         )
 
 
+def _build_historical_observation_resolver(
+    root: Path,
+    factory: Callable[[str], RepositorySourceIndexPort],
+) -> Callable[[str, tuple[str, ...]], tuple[str, ArchitectureMigrationObservation]]:
+    cache: dict[str, tuple[RepositorySourceIndexPort, tuple[tuple[str, str], ...], ArchitectureComplexity]] = {}
+
+    def resolve(git_sha: str, module_prefixes: tuple[str, ...]) -> tuple[str, ArchitectureMigrationObservation]:
+        cached = cache.get(git_sha)
+        if cached is None:
+            index = factory(git_sha)
+            profile = scan_architecture_source_profile(root, source_index=index)
+            pairs = tuple((edge.source_module, edge.target_module) for edge in profile.import_edges)
+            global_complexity = source_catalog_complexity(index, import_edges=len(profile.import_edges))
+            cached = (index, pairs, global_complexity)
+            cache[git_sha] = cached
+        index, pairs, global_complexity = cached
+        projection = import_projection_digest(pairs, module_prefixes) if module_prefixes else None
+        complexity = scoped_architecture_complexity(
+            global_complexity, import_edge_pairs=pairs, module_prefixes=module_prefixes
+        ) if module_prefixes else global_complexity
+        return index.source_digest, ArchitectureMigrationObservation(
+            complexity=complexity, import_projection_sha256=projection,
+            owner_source_sha256=source_scope_digest(index, module_prefixes) if module_prefixes else None,
+        )
+
+    return resolve
+
+
 def build_architecture_report(
     root: Path,
     *,
@@ -173,52 +201,10 @@ def build_architecture_report(
     hotspots = profile.hotspots[:hotspot_limit]
     risks = profile.optimization_risks[:hotspot_limit]
     source_authority_violations = profile.authority_violations
-    historical_observation_resolver = None
-    if historical_source_index_factory is not None:
-        historical_cache: dict[str, tuple[
-            RepositorySourceIndexPort, tuple[tuple[str, str], ...], ArchitectureComplexity
-        ]] = {}
-
-        def historical_observation_resolver(
-            git_sha: str, module_prefixes: tuple[str, ...]
-        ) -> tuple[str, ArchitectureMigrationObservation]:
-            cached = historical_cache.get(git_sha)
-            if cached is None:
-                historical_index = historical_source_index_factory(git_sha)
-                historical_profile = scan_architecture_source_profile(
-                    root, source_index=historical_index
-                )
-                historical_pairs = tuple(
-                    (edge.source_module, edge.target_module)
-                    for edge in historical_profile.import_edges
-                )
-                global_complexity = source_catalog_complexity(
-                    historical_index, import_edges=len(historical_profile.import_edges)
-                )
-                cached = (historical_index, historical_pairs, global_complexity)
-                historical_cache[git_sha] = cached
-            historical_index, historical_pairs, global_complexity = cached
-            projection = (
-                import_projection_digest(historical_pairs, module_prefixes)
-                if module_prefixes else None
-            )
-            complexity = (
-                scoped_architecture_complexity(
-                    global_complexity,
-                    import_edge_pairs=historical_pairs,
-                    module_prefixes=module_prefixes,
-                )
-                if module_prefixes else global_complexity
-            )
-            return historical_index.source_digest, ArchitectureMigrationObservation(
-                complexity=complexity,
-                import_projection_sha256=projection,
-                owner_source_sha256=(
-                    source_scope_digest(historical_index, module_prefixes)
-                    if module_prefixes else None
-                ),
-            )
-
+    historical_observation_resolver = (
+        _build_historical_observation_resolver(root, historical_source_index_factory)
+        if historical_source_index_factory is not None else None
+    )
     architecture_complexity, architecture_complexity_budget, architecture_budget_violations = (
         audit_architecture_complexity_budget(
             root,
@@ -239,37 +225,9 @@ def build_architecture_report(
     system_graph = declared_system_graph()
     subsystem_graph = declared_subsystem_graph()
 
-    payload = {
-        "source_root": str(root),
-        "source_digest": source_index.source_digest,
-        "import_edges": len(edges),
-        "import_violations": [asdict(item) for item in import_violations],
-        "layer_violations": [asdict(item) for item in layer_violations],
-        "package_cycles": [list(item) for item in cycles],
-        "declared_authority_violations": [asdict(item) for item in declared_authority_violations],
-        "source_invariant_violations": [asdict(item) for item in source_invariant_violations],
-        "source_authority_violations": [asdict(item) for item in source_authority_violations],
-        "architecture_complexity": asdict(architecture_complexity),
-        "architecture_complexity_budget": (
-            asdict(architecture_complexity_budget)
-            if architecture_complexity_budget is not None
-            else None
-        ),
-        "architecture_budget_violations": [asdict(item) for item in architecture_budget_violations],
-        "top_hotspots": [asdict(item) for item in hotspots],
-        "top_optimization_risks": [asdict(item) for item in risks],
-        "capability_graph": [asdict(item) for item in capability_graph],
-        "operation_graph": [asdict(item) for item in operation_graph],
-        "event_graph": [asdict(item) for item in event_graph],
-        "system_graph": [asdict(item) for item in system_graph],
-        "subsystem_graph": [asdict(item) for item in subsystem_graph],
-    }
-    identity = {key: value for key, value in payload.items() if key != "source_root"}
-    digest = canonical_digest(identity)
-
-    return ArchitectureReport(
-        source_root=payload["source_root"],
-        source_digest=payload["source_digest"],
+    draft = ArchitectureReport(
+        source_root=str(root),
+        source_digest=source_index.source_digest,
         import_edges=len(edges),
         import_violations=import_violations,
         layer_violations=layer_violations,
@@ -287,5 +245,9 @@ def build_architecture_report(
         event_graph=event_graph,
         system_graph=system_graph,
         subsystem_graph=subsystem_graph,
-        report_sha256=digest,
+        report_sha256="",
     )
+    identity = asdict(draft)
+    identity.pop("source_root")
+    identity.pop("report_sha256")
+    return replace(draft, report_sha256=canonical_digest(identity))

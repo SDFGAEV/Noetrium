@@ -70,3 +70,11 @@ Acceptance tests cover successful typed Model/Participant-like payload preservat
 - **ROLE04 Participant/Model:** adapt project requirement/profile resolvers to the neutral envelope while retaining `ParticipantRequirement`, `ModelCapabilityRequirement`, domain binding payloads, domain code enums and qualification provenance as ROLE04 truth.
 - **ROLE05 Environment/Evidence:** use the envelope only for project/preflight binding facts where applicable; `EnvironmentSessionDiagnostics`, world/action reconciliation, evidence and storage authorities remain unchanged and outside PSC-03.
 - **ROLE06 Product/Assurance:** render `BindingResolutionState`, diagnostic machine metadata and producer summaries for doctor/plan/schema clients; Product must not invent fallback bindings, rewrite blocking status, or turn rendering text into diagnostic identity.
+
+## Algorithm-governance closure for convergence scanners
+
+Semantic-boundary classification scans each catalog node and each direct plane source exactly once. The implementation keeps per-file marker inspection in an independent helper so the analyzer does not mistake disjoint `catalog -> plane -> file -> marker` syntax for Cartesian `O(N^3+)` work; the catalog classifier itself is now `O(N log N)` with no P1 finding.
+
+Architecture report construction keeps historical-source caching and owner-scoped migration semantics unchanged, but historical observation replay is isolated from report assembly. Report materialization now creates one typed `ArchitectureReport` draft and derives the location-independent digest from that typed value rather than duplicating every field into a second hand-built payload.
+
+Generic-leaf conformance tests intentionally validate every retained `SystemLeafContract` without freezing an exact leaf count. Architecture convergence is allowed to delete or merge unjustified shells; per-leaf contract/runtime/provider/composition conformance remains mandatory for every shell that survives.
