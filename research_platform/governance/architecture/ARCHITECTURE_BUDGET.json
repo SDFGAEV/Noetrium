@@ -76,6 +76,27 @@
       }
     },
     {
+      "migration_id": "role01-platform-semantic-convergence-v1",
+      "owner_role": "ROLE01",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 1,
+        "contract_declarations": 13,
+        "authorities": 1,
+        "import_edges": 59
+      },
+      "justification": "ROLE01 Platform Semantic Convergence adds machine-verifiable semantic-boundary evidence and consolidates canonical, strict, frozen JSON and SHA-256 primitives in Platform kernel while cutting Portfolio and generic leaf mechanics over to the shared authority; no new top-level system or domain durable authority is introduced.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.platform",
+          "research_platform.governance",
+          "research_platform.scope",
+          "research_platform.portfolio"
+        ],
+        "import_projection_sha256": "fd225e4d33b57a9f4b52495941b69d89f33cb333ddcc031ab87a983b8c1f6c98"
+      }
+    },
+    {
       "migration_id": "role02-runtime-reliability-v1",
       "owner_role": "ROLE02",
       "delta": {

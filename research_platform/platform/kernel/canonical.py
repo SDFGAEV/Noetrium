@@ -1,15 +1,23 @@
 from __future__ import annotations
 
-from dataclasses import fields, is_dataclass
+from dataclasses import dataclass, fields, is_dataclass
 from enum import Enum
 import hashlib
 import json
 from pathlib import Path
-from typing import Mapping
+import re
+from types import MappingProxyType
+from typing import Mapping, cast
+
+from .json_value import JsonInput, JsonMutableValue, JsonValue
 
 
 class CanonicalEncodingError(TypeError):
     """Value cannot be represented by the platform canonical JSON contract."""
+
+
+class CanonicalDecodingError(ValueError):
+    """Bytes/text violate the strict platform JSON decoding contract."""
 
 
 _DEFAULT_MAX_DEPTH = 128
@@ -94,6 +102,42 @@ def _normalize(value: object, *, active: set[int], depth: int, max_depth: int) -
             active.remove(entered)
 
 
+
+def _reject_constant(token: str) -> object:
+    raise CanonicalDecodingError(f"canonical JSON forbids non-finite constant: {token}")
+
+
+def _object_from_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise CanonicalDecodingError(f"canonical JSON contains duplicate JSON key: {key!r}")
+        result[key] = value
+    return result
+
+
+def strict_json_loads(raw: str | bytes) -> JsonMutableValue:
+    if isinstance(raw, bytes) and raw.startswith(b"\xef\xbb\xbf"):
+        raise CanonicalDecodingError("canonical JSON must not include a UTF-8 BOM")
+    try:
+        value = cast(
+            JsonMutableValue,
+            json.loads(
+                raw,
+                parse_constant=_reject_constant,
+                object_pairs_hook=_object_from_pairs,
+            ),
+        )
+    except CanonicalDecodingError:
+        raise
+    except (json.JSONDecodeError, UnicodeDecodeError, RecursionError) as exc:
+        raise CanonicalDecodingError("canonical JSON cannot be decoded") from exc
+    try:
+        canonical_bytes(value)
+    except (CanonicalEncodingError, UnicodeEncodeError) as exc:
+        raise CanonicalDecodingError(str(exc)) from exc
+    return value
+
 def canonical_bytes(
     value: object,
     *,
@@ -123,4 +167,77 @@ def canonical_digest(value: object, *, max_depth: int = _DEFAULT_MAX_DEPTH) -> s
     return hashlib.sha256(canonical_bytes(value, max_depth=max_depth)).hexdigest()
 
 
-__all__ = ["CanonicalEncodingError", "canonical_bytes", "canonical_digest", "canonical_text"]
+_SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
+
+
+class DigestValidationError(ValueError):
+    """Digest text is not in the canonical representation required by Platform."""
+
+
+def require_sha256(value: str, field: str = "sha256") -> str:
+    if not isinstance(value, str) or _SHA256_RE.fullmatch(value) is None:
+        raise DigestValidationError(f"{field} must be canonical lowercase SHA-256")
+    return value
+
+
+@dataclass(frozen=True, slots=True, order=True)
+class Sha256Digest:
+    value: str
+
+    def __post_init__(self) -> None:
+        require_sha256(self.value, "digest")
+
+    def __str__(self) -> str:
+        return self.value
+
+
+def _freeze_json(value: JsonInput, *, active: set[int], depth: int, max_depth: int) -> JsonValue:
+    if depth > max_depth:
+        raise CanonicalEncodingError(f"frozen JSON exceeds maximum depth {max_depth}")
+    if value is None or isinstance(value, (str, int, bool)):
+        return value
+    if isinstance(value, float):
+        if value != value or value in (float("inf"), float("-inf")):
+            raise CanonicalEncodingError("frozen JSON forbids non-finite floats")
+        return value
+    if not isinstance(value, (Mapping, list, tuple)):
+        raise CanonicalEncodingError(f"unsupported frozen JSON type: {type(value).__name__}")
+    identity = id(value)
+    if identity in active:
+        raise CanonicalEncodingError("cyclic frozen JSON is forbidden")
+    active.add(identity)
+    try:
+        if isinstance(value, Mapping):
+            frozen: dict[str, JsonValue] = {}
+            for key, item in tuple(value.items()):
+                if not isinstance(key, str):
+                    raise CanonicalEncodingError("frozen JSON mappings require string keys")
+                frozen[key] = _freeze_json(item, active=active, depth=depth + 1, max_depth=max_depth)
+            return MappingProxyType(frozen)
+        return tuple(
+            _freeze_json(item, active=active, depth=depth + 1, max_depth=max_depth)
+            for item in tuple(value)
+        )
+    finally:
+        active.remove(identity)
+
+
+def freeze_json(value: JsonInput, *, max_depth: int = _DEFAULT_MAX_DEPTH) -> JsonValue:
+    if max_depth < 0:
+        raise ValueError("max_depth must be >= 0")
+    return _freeze_json(value, active=set(), depth=0, max_depth=max_depth)
+
+
+def thaw_json(value: JsonValue) -> JsonMutableValue:
+    if isinstance(value, Mapping):
+        return {key: thaw_json(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [thaw_json(item) for item in value]
+    return value
+
+
+__all__ = [
+    "CanonicalDecodingError", "CanonicalEncodingError", "DigestValidationError",
+    "Sha256Digest", "canonical_bytes", "canonical_digest", "canonical_text",
+    "freeze_json", "require_sha256", "strict_json_loads", "thaw_json",
+]

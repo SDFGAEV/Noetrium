@@ -2,16 +2,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-import json
 import re
 from typing import cast
 
 from research_platform.platform.kernel import (
+    CanonicalDecodingError,
     CanonicalEncodingError,
     JsonDocument,
     JsonInput,
     canonical_bytes,
     canonical_digest,
+    require_sha256,
+    strict_json_loads,
 )
 from research_platform.scope.api import ScopeIdentity, ScopeKind
 
@@ -19,7 +21,6 @@ from research_platform.scope.api import ScopeIdentity, ScopeKind
 PROJECT_MANIFEST_SCHEMA = "research-platform.project-manifest.v1"
 _TOKEN = re.compile(r"[a-z][a-z0-9_.-]*")
 _VERSION = re.compile(r"[0-9A-Za-z][0-9A-Za-z._+-]*")
-_SHA256 = re.compile(r"[0-9a-f]{64}")
 
 
 class ProjectManifestDecodeError(ValueError):
@@ -37,8 +38,7 @@ def _require_text(value: str, field: str) -> None:
 
 
 def _require_sha256(value: str, field: str) -> None:
-    if not _SHA256.fullmatch(value):
-        raise ValueError(f"{field} must be a lowercase SHA-256 digest")
+    require_sha256(value, field)
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -343,35 +343,14 @@ def encode_project_manifest(manifest: ProjectManifest) -> bytes:
     return canonical_bytes(project_manifest_document(manifest))
 
 
-def _reject_json_constant(value: str) -> None:
-    raise ProjectManifestDecodeError(f"non-finite JSON constant is forbidden: {value}")
-
-
-def _unique_json_object(pairs: list[tuple[str, JsonInput]]) -> dict[str, JsonInput]:
-    result: dict[str, JsonInput] = {}
-    for key, value in pairs:
-        if key in result:
-            raise ProjectManifestDecodeError(f"duplicate JSON key: {key}")
-        result[key] = value
-    return result
-
-
 def decode_project_manifest_bytes(raw: bytes) -> ProjectManifest:
     """Decode strict UTF-8 JSON and verify exact schema plus semantic digest."""
     if not isinstance(raw, bytes):
         raise ProjectManifestDecodeError("project manifest input must be bytes")
     try:
-        text = raw.decode("utf-8", errors="strict")
-    except UnicodeDecodeError as exc:
-        raise ProjectManifestDecodeError("project manifest must be canonical UTF-8") from exc
-    try:
-        value = json.loads(
-            text,
-            parse_constant=_reject_json_constant,
-            object_pairs_hook=_unique_json_object,
-        )
-    except (json.JSONDecodeError, TypeError) as exc:
-        raise ProjectManifestDecodeError("project manifest is not strict JSON") from exc
+        value = strict_json_loads(raw)
+    except CanonicalDecodingError as exc:
+        raise ProjectManifestDecodeError(str(exc)) from exc
     if not isinstance(value, dict):
         raise ProjectManifestDecodeError("project manifest root must be an object")
     document = cast(JsonDocument, value)
@@ -439,8 +418,10 @@ def _decode_project_manifest_document(document: JsonDocument) -> ProjectManifest
     if _text(root["schema"], "schema") != PROJECT_MANIFEST_SCHEMA:
         raise ProjectManifestDecodeError("unsupported project manifest schema")
     expected_digest = _text(root["semantic_digest"], "semantic_digest")
-    if not _SHA256.fullmatch(expected_digest):
-        raise ProjectManifestDecodeError("semantic_digest must be lowercase SHA-256")
+    try:
+        require_sha256(expected_digest, "semantic_digest")
+    except ValueError as exc:
+        raise ProjectManifestDecodeError(str(exc)) from exc
     template_revision = _text(root["template_revision"], "template_revision")
     provenance_raw = _object(root["provenance"], "provenance")
     _exact_fields(

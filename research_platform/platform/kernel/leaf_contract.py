@@ -3,13 +3,11 @@ from __future__ import annotations
 """Neutral typed contract for generated platform leaf ownership seams."""
 
 from dataclasses import dataclass
-import hashlib
-import json
 from pathlib import Path
 from typing import Mapping, Protocol
 
 from .json_value import JsonValue
-from .canonical import canonical_digest
+from .canonical import canonical_bytes, canonical_digest, strict_json_loads
 from .durability.durable_file import atomic_replace_bytes
 from .errors import describe_exception
 from .leaf_failure import LeafFailureClass, LeafFailureReceipt, receipt
@@ -40,11 +38,13 @@ class FileLeafStateStore:
         if not self.path.is_file():
             return LeafStateSnapshot(0, {}, canonical_digest({}))
         try:
-            document = json.loads(self.path.read_text(encoding="utf-8"))
+            document = strict_json_loads(self.path.read_bytes())
+            if not isinstance(document, dict):
+                raise ValueError("leaf state root must be an object")
             generation = int(document["generation"])
             values = document["values"]
             digest = str(document["digest"])
-        except (OSError, UnicodeError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
+        except (OSError, UnicodeError, ValueError, KeyError, TypeError) as exc:
             raise LeafExecutionError(f"leaf state is unreadable: {self.path}") from exc
         if not isinstance(values, dict) or digest != canonical_digest(values):
             raise LeafExecutionError(f"leaf state integrity mismatch: {self.path}")
@@ -56,12 +56,9 @@ class FileLeafStateStore:
             raise LeafExecutionError("leaf state generation conflict")
         snapshot = LeafStateSnapshot(current.generation + 1, dict(values), canonical_digest(dict(values)))
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        payload = json.dumps(
-            {"generation": snapshot.generation, "values": snapshot.values, "digest": snapshot.digest},
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        ).encode("utf-8") + b"\n"
+        payload = canonical_bytes(
+            {"generation": snapshot.generation, "values": snapshot.values, "digest": snapshot.digest}
+        ) + b"\n"
         atomic_replace_bytes(self.path, payload)
         return snapshot
 
@@ -174,7 +171,7 @@ class SystemLeafContract:
 
     @property
     def digest(self) -> str:
-        payload = json.dumps(
+        return canonical_digest(
             {
                 "system_id": self.system_id,
                 "node": self.node,
@@ -186,12 +183,8 @@ class SystemLeafContract:
                 "runtime_module": self.runtime_module,
                 "provider_module": self.provider_module,
                 "composition_module": self.composition_module,
-            },
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        ).encode("utf-8")
-        return hashlib.sha256(payload).hexdigest()
+            }
+        )
 
 
 @dataclass(frozen=True, slots=True)
