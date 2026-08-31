@@ -4,6 +4,7 @@ from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from research_platform.observability.telemetry.metric.api import TelemetryMetricCorruptionError
 from research_platform.observability.telemetry.metric.composition import build_default_registry
@@ -71,6 +72,88 @@ class TelemetryQuerySummaryTests(unittest.TestCase):
                 self.assertNotIn("USE TEMP B-TREE FOR ORDER BY", plan)
             finally:
                 db.close()
+
+    def test_summary_percentiles_use_one_database_roundtrip(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "metrics.sqlite3"
+            store = self._store(path)
+            context = self._context()
+            for value in range(1, 21):
+                store.observe(context, "operation.latency", float(value), component="c", operation="op", status="ok")
+            reader = SQLiteTelemetryReader(path)
+            real = reader._connect()
+
+            class CountingConnection:
+                def __init__(self, connection: sqlite3.Connection) -> None:
+                    self.connection = connection
+                    self.percentile_queries = 0
+
+                def execute(self, sql: str, parameters=()):
+                    if "WITH ordered AS" in sql:
+                        self.percentile_queries += 1
+                    return self.connection.execute(sql, parameters)
+
+                def close(self) -> None:
+                    self.connection.close()
+
+            counted = CountingConnection(real)
+            with patch.object(reader, "_connect", return_value=counted):
+                summary = reader.summarize(run_id="summary-run", metric="operation.latency")
+            self.assertAlmostEqual(summary.p95, 19.05)
+            self.assertEqual(counted.percentile_queries, 1)
+
+    def test_read_session_materializes_every_requested_typed_row(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "metrics.sqlite3"
+            db = sqlite3.connect(path)
+            try:
+                initialize_telemetry_schema(db)
+                with db:
+                    for index in range(5):
+                        db.execute(
+                            "INSERT INTO metric_observations("
+                            "metric,value,timestamp,run_id,trace_id,span_id,participant_generations_json,dimensions_json"
+                            ") VALUES(?,?,?,?,?,?,?,?)",
+                            ("latency", float(index + 1), float(index), "run", "trace", "span", "{}", "{}"),
+                        )
+            finally:
+                db.close()
+            from research_platform.observability.telemetry.metric.providers.sqlite_reader import TelemetryReadSession
+            session = TelemetryReadSession(lambda: sqlite3.connect(path))
+            try:
+                rows = session.query(run_id="run", metric="latency", decision_cycle_id=None, limit=5)
+                self.assertEqual(len(rows), 5)
+                self.assertEqual(tuple(row[0] for row in rows), (1, 2, 3, 4, 5))
+            finally:
+                session.close()
+
+    def test_read_session_rejects_corrupt_tail_row_in_requested_result(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "metrics.sqlite3"
+            db = sqlite3.connect(path)
+            try:
+                initialize_telemetry_schema(db)
+                with db:
+                    for index in range(5):
+                        db.execute(
+                            "INSERT INTO metric_observations("
+                            "metric,value,timestamp,run_id,trace_id,span_id,participant_generations_json,dimensions_json"
+                            ") VALUES(?,?,?,?,?,?,?,?)",
+                            ("latency", float(index + 1), float(index), "run", "trace", "span", "{}", "{}"),
+                        )
+                    db.execute(
+                        "UPDATE metric_observations SET metric=? WHERE sequence=(SELECT MAX(sequence) FROM metric_observations)",
+                        (sqlite3.Binary(b"latency"),),
+                    )
+            finally:
+                db.close()
+            from research_platform.observability.telemetry.metric.providers.sqlite_reader import TelemetryReadSession
+            session = TelemetryReadSession(lambda: sqlite3.connect(path))
+            try:
+                with self.assertRaises(TelemetryMetricCorruptionError):
+                    session.query(run_id="run", metric=None, decision_cycle_id=None, limit=5)
+            finally:
+                session.close()
 
     def test_reader_rejects_corrupt_json_shape(self) -> None:
         with tempfile.TemporaryDirectory() as td:

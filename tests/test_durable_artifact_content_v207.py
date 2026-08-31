@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import io
+import os
+import stat
 from pathlib import Path
 import tarfile
 import threading
@@ -122,6 +124,34 @@ def test_member_nested_below_symlink_is_rejected_before_extraction(tmp_path: Pat
     assert not destination.exists()
 
 
+def test_restrictive_tar_modes_remain_owner_materializable(tmp_path: Path) -> None:
+    archive_path = tmp_path / "restrictive.tar.gz"
+    destination = tmp_path / "runtime-home"
+    payload = b"owner-readable\n"
+    with tarfile.open(archive_path, "w:gz") as archive:
+        root = tarfile.TarInfo("runtime")
+        root.type = tarfile.DIRTYPE
+        root.mode = 0
+        archive.addfile(root)
+        file = tarfile.TarInfo("runtime/data.txt")
+        file.mode = 0
+        file.size = len(payload)
+        archive.addfile(file, io.BytesIO(payload))
+
+    result = SafeTarArchiveMaterializer().materialize(
+        ArchiveMaterializationRequest(
+            archive_path=str(archive_path.resolve()),
+            destination=str(destination.resolve()),
+            required_relative_paths=("data.txt",),
+        )
+    )
+    assert result.file_count == 1
+    assert (destination / "data.txt").read_bytes() == payload
+    if os.name != "nt":
+        assert stat.S_IMODE(destination.stat().st_mode) == 0o700
+        assert stat.S_IMODE((destination / "data.txt").stat().st_mode) == 0o400
+
+
 def test_forward_hardlink_chain_resolves_to_regular_source(tmp_path: Path) -> None:
     archive_path = tmp_path / "hardlink-chain.tar.gz"
     destination = tmp_path / "runtime-home"
@@ -153,6 +183,10 @@ def test_forward_hardlink_chain_resolves_to_regular_source(tmp_path: Path) -> No
     assert (destination / "bin" / "base").read_bytes() == payload
     assert (destination / "bin" / "alias1").read_bytes() == payload
     assert (destination / "bin" / "alias2").read_bytes() == payload
+    if os.name != "nt":
+        assert stat.S_IMODE(destination.stat().st_mode) & 0o700 == 0o700
+        assert stat.S_IMODE((destination / "bin").stat().st_mode) & 0o700 == 0o700
+        assert stat.S_IMODE((destination / "bin" / "base").stat().st_mode) & 0o400 == 0o400
 
 
 

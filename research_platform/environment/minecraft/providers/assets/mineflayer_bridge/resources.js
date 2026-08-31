@@ -12,6 +12,36 @@ function findBlock (query, maxDistance) {
   })
 }
 
+function dropNamesForBlock (activeBot, block) {
+  const names = []
+  for (const row of Array.isArray(block && block.drops) ? block.drops : []) {
+    const id = typeof row === 'number' ? row
+      : row && typeof row.drop === 'number' ? row.drop
+        : row && row.drop && typeof row.drop.id === 'number' ? row.drop.id
+          : row && typeof row.id === 'number' ? row.id : null
+    const item = id == null ? null : activeBot.registry.items && activeBot.registry.items[id]
+    if (item && item.name && !names.includes(item.name)) names.push(item.name)
+  }
+  if (names.length === 0 && block && block.name) names.push(String(block.name))
+  return names
+}
+
+async function waitForAnyInventoryIncrease (names, before, timeoutMs) {
+  const deadline = Date.now() + Math.max(1, timeoutMs)
+  while (Date.now() < deadline) {
+    for (const name of names) {
+      const delta = runtime.inventoryCount(name) - Number(before[name] || 0)
+      if (delta > 0) return { name, count: delta }
+    }
+    await runtime.sleep(Math.min(100, Math.max(1, deadline - Date.now())))
+  }
+  for (const name of names) {
+    const delta = runtime.inventoryCount(name) - Number(before[name] || 0)
+    if (delta > 0) return { name, count: delta }
+  }
+  return { name: null, count: 0 }
+}
+
 async function collectBlock (msg) {
   const activeBot = runtime.getBot()
   await runtime.ensureMovements()
@@ -24,6 +54,8 @@ async function collectBlock (msg) {
   const before = runtime.inventoryMap()
   const broken = []
   const errors = []
+  let groundedCollectedBlocks = 0
+  let groundedCollectedItems = 0
   for (let index = 0; index < action.count; index++) {
     const block = findBlock(action.block, action.max_distance)
     if (!block) break
@@ -40,8 +72,18 @@ async function collectBlock (msg) {
     const live = activeBot.blockAt(position)
     if (!live || live.name === 'air') continue
     const blockName = live.name
-    const itemBefore = runtime.inventoryCount(blockName)
-    const dropCapture = runtime.captureItemDropNear(position, blockName, 0.5)
+    const heldType = activeBot.heldItem && activeBot.heldItem.type != null ? activeBot.heldItem.type : null
+    if (typeof live.canHarvest === 'function' && !live.canHarvest(heldType)) {
+      errors.push({
+        phase: 'harvest', code: 'HARVEST_TOOL_REQUIRED', block: blockName,
+        held_item: activeBot.heldItem ? activeBot.heldItem.name : null,
+        required_tool_ids: Object.keys(live.harvestTools || {}).map(Number).filter(Number.isFinite)
+      })
+      break
+    }
+    const dropNames = dropNamesForBlock(activeBot, live)
+    const inventoryBeforeBlock = runtime.inventoryMap()
+    const dropCapture = runtime.captureItemDropNear(position, dropNames, 0.5)
     let dropped = null
     try {
       await runtime.withTimeout(
@@ -66,9 +108,12 @@ async function collectBlock (msg) {
     try {
       const afterDig = activeBot.blockAt(position)
       if (!afterDig || afterDig.name !== blockName) broken.push({ name: blockName, position: runtime.vec(position) })
-      let gainedForBlock = await runtime.waitForInventoryIncrease(
-        blockName, itemBefore, runtime.remainingMs(deadline, 1250)
+      const observedDropName = dropped ? runtime.droppedItemName(dropped) : null
+      const watchedNames = observedDropName ? [observedDropName] : dropNames
+      let gained = await waitForAnyInventoryIncrease(
+        watchedNames, inventoryBeforeBlock, runtime.remainingMs(deadline, 1250)
       )
+      let gainedForBlock = gained.count
       if (gainedForBlock <= 0) {
         const pickupEntity = (dropped && dropped.position && dropped.isValid !== false) ? dropped : dropCapture.pickupTarget()
         if (pickupEntity) {
@@ -82,23 +127,25 @@ async function collectBlock (msg) {
               navigationError = error
             }
             const collectedByBot = await ownCollection
-            gainedForBlock = await runtime.waitForInventoryIncrease(
-              blockName, itemBefore, runtime.remainingMs(deadline, 2500)
+            gained = await waitForAnyInventoryIncrease(
+              watchedNames, inventoryBeforeBlock, runtime.remainingMs(deadline, 2500)
             )
+            gainedForBlock = gained.count
             if (!collectedByBot && gainedForBlock <= 0 && navigationError) throw navigationError
             if (!collectedByBot && gainedForBlock <= 0) throw new Error('PLAYER_COLLECT_NOT_OBSERVED')
           } catch (error) {
             errors.push({ phase: 'pickup', message: String(error.message || error), position: runtime.vec(pickupEntity.position) })
           }
         } else if (dropCapture.hasOwnCollection()) {
-          gainedForBlock = await runtime.waitForInventoryIncrease(
-            blockName, itemBefore, runtime.remainingMs(deadline, 2500)
+          gained = await waitForAnyInventoryIncrease(
+            watchedNames, inventoryBeforeBlock, runtime.remainingMs(deadline, 2500)
           )
+          gainedForBlock = gained.count
           if (gainedForBlock <= 0) errors.push({
             phase: 'pickup',
             message: 'PLAYER_COLLECT_WITHOUT_EXPECTED_INVENTORY_DELTA',
             position: runtime.vec(position),
-            expected_item: blockName,
+            expected_items: watchedNames,
             collection_candidates: dropCapture.collection_candidates
           })
         } else {
@@ -106,7 +153,7 @@ async function collectBlock (msg) {
             phase: 'pickup',
             message: 'ITEM_DROP_NOT_OBSERVED',
             position: runtime.vec(position),
-            expected_item: blockName,
+            expected_items: watchedNames,
             association_radius: 0.5,
             drop_candidates: dropCapture.candidates,
             spawn_candidates: dropCapture.spawn_candidates,
@@ -115,13 +162,17 @@ async function collectBlock (msg) {
           })
         }
       }
+      if (gainedForBlock > 0) {
+        groundedCollectedBlocks++
+        groundedCollectedItems += gainedForBlock
+      }
     } finally {
       dropCapture.cancel()
     }
   }
   const after = runtime.inventoryMap()
   const delta = runtime.inventoryDelta(before, after)
-  const collectedCount = Object.values(delta).filter(value => value > 0).reduce((sum, value) => sum + value, 0)
+  const collectedCount = groundedCollectedItems
   const details = {
     requested_count: action.count,
     broken,
@@ -129,10 +180,15 @@ async function collectBlock (msg) {
     inventory_before: before,
     inventory_after: after,
     inventory_delta: delta,
-    collected_count: collectedCount
+    collected_count: collectedCount,
+    grounded_collected_blocks: groundedCollectedBlocks,
+    grounded_collected_items: groundedCollectedItems
   }
-  if (broken.length === 0) return runtime.rejected('collect_block', action, errors.length ? 'COLLECTION_FAILED' : 'BLOCK_NOT_FOUND', details)
-  if (broken.length >= action.count && collectedCount >= action.count) {
+  if (broken.length === 0) {
+    const harvestBlocked = errors.some(row => row && row.code === 'HARVEST_TOOL_REQUIRED')
+    return runtime.rejected('collect_block', action, harvestBlocked ? 'HARVEST_TOOL_REQUIRED' : errors.length ? 'COLLECTION_FAILED' : 'BLOCK_NOT_FOUND', details)
+  }
+  if (broken.length >= action.count && groundedCollectedBlocks >= action.count) {
     return runtime.applied('collect_block', action, 'BLOCKS_COLLECTED', details)
   }
   return runtime.partial('collect_block', action, 'COLLECTION_INCOMPLETE', details)

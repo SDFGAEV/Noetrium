@@ -148,31 +148,34 @@ class SQLiteTelemetryReader:
             maximum = _finite_number(aggregate[2], label="metric maximum")
             total = _finite_number(aggregate[3], label="metric sum")
 
-            positions = {
-                q: self._percentile_positions(count, q)
-                for q in (0.50, 0.95, 0.99)
-            }
-            required = sorted({
-                position
-                for low, high, _ in positions.values()
-                for position in (low, high)
-            })
-            selected: dict[int, float] = {}
-            for position in required:
-                row = db.execute(
-                    f"SELECT value FROM metric_observations INDEXED BY {index} "
-                    "WHERE run_id=? AND metric=? ORDER BY value LIMIT 1 OFFSET ?",
-                    (run_id, metric, position),
-                ).fetchone()
-                if row is None or len(row) != 1:
-                    raise TelemetryMetricCorruptionError("telemetry percentile lookup is incomplete")
-                selected[position] = _finite_number(row[0], label="metric percentile value")
-
-        def percentile(q: float) -> float:
-            low, high, fraction = positions[q]
-            low_value = selected[low]
-            high_value = selected[high]
-            return low_value + (high_value - low_value) * fraction
+            p50_low, p50_high, p50_fraction = self._percentile_positions(count, 0.50)
+            p95_low, p95_high, p95_fraction = self._percentile_positions(count, 0.95)
+            p99_low, p99_high, p99_fraction = self._percentile_positions(count, 0.99)
+            percentile_row = db.execute(
+                f"WITH ordered AS ("
+                f"SELECT value, ROW_NUMBER() OVER (ORDER BY value) - 1 AS position "
+                f"FROM metric_observations INDEXED BY {index} "
+                "WHERE run_id=? AND metric=?"
+                ") SELECT "
+                "MAX(CASE WHEN position=? THEN value END),"
+                "MAX(CASE WHEN position=? THEN value END),"
+                "MAX(CASE WHEN position=? THEN value END),"
+                "MAX(CASE WHEN position=? THEN value END),"
+                "MAX(CASE WHEN position=? THEN value END),"
+                "MAX(CASE WHEN position=? THEN value END) FROM ordered",
+                (
+                    run_id, metric,
+                    p50_low, p50_high, p95_low, p95_high, p99_low, p99_high,
+                ),
+            ).fetchone()
+            if percentile_row is None or len(percentile_row) != 6:
+                raise TelemetryMetricCorruptionError("telemetry percentile lookup is incomplete")
+            p50_low_value = _finite_number(percentile_row[0], label="metric percentile value")
+            p50_high_value = _finite_number(percentile_row[1], label="metric percentile value")
+            p95_low_value = _finite_number(percentile_row[2], label="metric percentile value")
+            p95_high_value = _finite_number(percentile_row[3], label="metric percentile value")
+            p99_low_value = _finite_number(percentile_row[4], label="metric percentile value")
+            p99_high_value = _finite_number(percentile_row[5], label="metric percentile value")
 
         return MetricSummary(
             metric=metric,
@@ -180,9 +183,9 @@ class SQLiteTelemetryReader:
             minimum=minimum,
             maximum=maximum,
             mean=total / count,
-            p50=percentile(0.50),
-            p95=percentile(0.95),
-            p99=percentile(0.99),
+            p50=p50_low_value + (p50_high_value - p50_low_value) * p50_fraction,
+            p95=p95_low_value + (p95_high_value - p95_low_value) * p95_fraction,
+            p99=p99_low_value + (p99_high_value - p99_low_value) * p99_fraction,
         )
 
 

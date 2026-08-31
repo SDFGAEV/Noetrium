@@ -11,7 +11,7 @@ from research_platform.platform.kernel import ExecutionContext, JsonObject
 from research_platform.platform.kernel.errors import describe_exception
 
 from ..api.contracts import RawObservationReceipt, RawObservationSchema
-from .segment_codec import RawSegmentCodecError, decode_record_json, encode_record
+from .segment_codec import RawSegmentCodecError, canonical_record_bytes, decode_record_json, encode_record
 from .segment_pool import RawSegmentPool
 from .segment_recovery import scan_raw_segment
 from .segment_writer import RawSegmentWriter
@@ -59,6 +59,19 @@ class FileRawObservationPersistence:
         timestamp: float | None,
         idempotency_key: str | None,
     ) -> RawObservationReceipt:
+        resolved_timestamp = time.time() if timestamp is None else float(timestamp)
+        preflight: dict[str, object] = {
+            "sequence": 0,
+            "timestamp": resolved_timestamp,
+            "family": schema.family,
+            "schema_version": schema.schema_version,
+            "retention": schema.retention.value,
+            "context": asdict(context),
+            "payload": dict(payload),
+        }
+        if idempotency_key is not None:
+            preflight["idempotency_key"] = idempotency_key
+        canonical_record_bytes(preflight)
         actor = self._actor_for(context.run_id, schema.family)
 
         def append_owned() -> RawObservationReceipt:
@@ -70,7 +83,7 @@ class FileRawObservationPersistence:
             sequence = segment.sequence + 1
             record: dict[str, object] = {
                 "sequence": sequence,
-                "timestamp": time.time() if timestamp is None else float(timestamp),
+                "timestamp": resolved_timestamp,
                 "family": schema.family,
                 "schema_version": schema.schema_version,
                 "retention": schema.retention.value,

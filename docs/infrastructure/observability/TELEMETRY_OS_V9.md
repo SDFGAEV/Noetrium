@@ -21,3 +21,10 @@ The default registry now spans generic operations, LLM client attempts, Prompt O
 - high-card IDs are forbidden as dimensions but retained in `ExecutionContext` columns.
 
 No scientific or runtime behavior changes based on these metrics. They are observational evidence for later filtering, performance analysis and debugging.
+
+## Raw-observation preflight
+
+Raw scientific observations are canonical-JSON validated before a persistence actor or
+segment writer is created. Invalid payloads such as NaN/Inf therefore fail before any
+segment file or writer-lock side effect exists. Durable append, fsync, idempotency, and
+sequence ownership begin only after this storage-neutral preflight succeeds.

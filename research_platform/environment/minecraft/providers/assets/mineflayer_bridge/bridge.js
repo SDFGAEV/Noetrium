@@ -245,6 +245,11 @@ async function command (msg) {
     ack(cmd, {}, requestId)
     return
   }
+  if (cmd === 'observe_entities' && !String(msg.action_id || '').trim()) {
+    const result = await observeEntitiesAction(msg)
+    emitActionResult(cmd, msg, result)
+    return
+  }
   if (ACTION_HANDLERS[cmd]) {
     await runAction(cmd, msg)
     return

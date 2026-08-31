@@ -34,6 +34,12 @@ class MinecraftServerLifecyclePort(Protocol):
     def stop(self) -> ServiceStopOutcome: ...
 
 
+class MinecraftServerEndpointBindingPort(Protocol):
+    """Publish one exact READY process generation into endpoint authority."""
+
+    def bind_ready(self, readiness: ServiceReadyObservation) -> None: ...
+
+
 class MinecraftSessionServices(Protocol):
     """Marker for services supplied by the outer participant composition."""
 
@@ -252,4 +258,5 @@ __all__ = [
     "MinecraftWorldQuiescencePort",
     "MinecraftReconciliation",
     "MinecraftServerLifecyclePort",
+    "MinecraftServerEndpointBindingPort",
 ]

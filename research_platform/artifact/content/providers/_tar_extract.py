@@ -13,6 +13,15 @@ def _target(staging: Path, parts: tuple[str, ...]) -> Path:
     return staging.joinpath(*parts)
 
 
+def _usable_mode(member: tarfile.TarInfo) -> int:
+    mode = member.mode & 0o777
+    if member.isdir():
+        return mode | 0o700
+    if member.isreg():
+        return mode | 0o400
+    return mode
+
+
 def extract_tar_plan(
     archive: tarfile.TarFile,
     plan: TarArchivePlan,
@@ -44,7 +53,7 @@ def extract_tar_plan(
                 "MEMBER_SIZE_MISMATCH",
                 f"extracted member size differs from tar metadata: {member.name}",
             )
-        target.chmod(member.mode & 0o777)
+        target.chmod(_usable_mode(member))
 
     for planned in plan.members:
         member = planned.member
@@ -80,7 +89,7 @@ def extract_tar_plan(
         key=lambda row: len(row[1].parts),
         reverse=True,
     ):
-        target.chmod(member.mode & 0o777)
+        target.chmod(_usable_mode(member))
 
 
 __all__ = ["extract_tar_plan"]

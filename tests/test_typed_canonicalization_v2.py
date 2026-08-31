@@ -150,6 +150,27 @@ def test_strict_finite_json_bytes_and_digest_form_kernel_authority_contract() ->
         encoded = strict_finite_json_bytes(value)
         assert strict_finite_json_digest(value) == hashlib.sha256(encoded).hexdigest()
 
+
+def test_strict_finite_json_bytes_and_digest_match_data_overlap() -> None:
+    from research_platform.data._canonical import canonical_bytes as data_bytes, canonical_digest as data_digest
+    from research_platform.platform.kernel import strict_finite_json_bytes, strict_finite_json_digest
+
+    values = (
+        None,
+        True,
+        7,
+        1.25,
+        "text",
+        {"b": [3, 2, 1], "a": {"nested": False}},
+        ("tuple", {"x": 1}),
+    )
+    for value in values:
+        expected = strict_finite_json_bytes(value)
+        digest = strict_finite_json_digest(value)
+        assert data_bytes(value) == expected
+        assert data_digest(value) == digest
+
+
 def test_strict_finite_json_encoder_rejects_wider_canonical_domain() -> None:
     from research_platform.platform.kernel import (
         CanonicalEncodingError, strict_finite_json_bytes, strict_finite_json_digest,

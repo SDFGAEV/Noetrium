@@ -37,22 +37,39 @@ async function attackTarget (tool, action, target, maxHits) {
   await runtime.ensureMovements()
   const targetId = target.id
   const weapon = await equipStrongestMelee()
-  let hits = 0
+  let attackSignals = 0
   let hurtSignals = 0
+  let ownHurtSignals = 0
   let navigationFailures = 0
   const pvpAvailable = Boolean(activeBot.pvp && typeof activeBot.pvp.attack === 'function')
-  const onEntityHurt = entity => {
-    if (entity && entity.id === targetId) hurtSignals++
+  let lastAttackSignalAt = 0
+  let pvpStopped = false
+  const stopPvp = () => {
+    if (!pvpStopped && pvpAvailable && typeof activeBot.pvp.stop === 'function') activeBot.pvp.stop()
+    pvpStopped = true
   }
+  const onAttackedTarget = () => { attackSignals++; lastAttackSignalAt = Date.now() }
+  const onEntityHurt = (entity, source) => {
+    if (!entity || entity.id !== targetId) return
+    hurtSignals++
+    if (source && activeBot.entity && source.id === activeBot.entity.id) ownHurtSignals++
+  }
+  activeBot.on('attackedTarget', onAttackedTarget)
   activeBot.on('entityHurt', onEntityHurt)
   try {
     if (pvpAvailable) {
       activeBot.pvp.attack(target)
-      for (let index = 0; index < maxHits; index++) {
+      const attackDeadline = Date.now() + Math.max(1800, Number(maxHits) * 1500)
+      let confirmationDeadline = null
+      while (Date.now() < attackDeadline) {
         const live = activeBot.entities[targetId]
-        if (!live || live.isValid === false || !live.position) break
-        hits++
-        await runtime.sleep(550)
+        if (!live || live.isValid === false || !live.position || ownHurtSignals > 0) break
+        if (attackSignals >= maxHits) {
+          stopPvp()
+          if (confirmationDeadline == null) confirmationDeadline = Math.max(Date.now(), lastAttackSignalAt) + 750
+          if (Date.now() >= confirmationDeadline) break
+        }
+        await runtime.sleep(50)
       }
     } else {
       for (let index = 0; index < maxHits; index++) {
@@ -61,7 +78,7 @@ async function attackTarget (tool, action, target, maxHits) {
         const distance = live.position.distanceTo(activeBot.entity.position)
         if (distance > 3.2) {
           try {
-            await runtime.gotoPos(live.position, 2)
+            await runtime.gotoEntity(live, 2)
           } catch (_) {
             navigationFailures++
             if (navigationFailures >= 2) break
@@ -72,12 +89,13 @@ async function attackTarget (tool, action, target, maxHits) {
         if (!current || current.isValid === false || !current.position) break
         await activeBot.lookAt(current.position.offset(0, Math.max(0.5, Number(current.height || 1.6) * 0.6), 0), true)
         await activeBot.attack(current)
-        hits++
+        attackSignals++
         await runtime.sleep(550)
       }
     }
   } finally {
-    if (pvpAvailable && typeof activeBot.pvp.stop === 'function') activeBot.pvp.stop()
+    stopPvp()
+    activeBot.removeListener('attackedTarget', onAttackedTarget)
     activeBot.removeListener('entityHurt', onEntityHurt)
   }
   const liveAfter = activeBot.entities[targetId]
@@ -87,17 +105,19 @@ async function attackTarget (tool, action, target, maxHits) {
     target_name: target.username || target.displayName || target.name || null,
     weapon,
     combat_mode: pvpAvailable ? 'mineflayer-pvp' : 'bounded-melee',
-    hits,
+    hits: attackSignals,
+    attack_signals: attackSignals,
     hurt_signals: hurtSignals,
+    own_hurt_signals: ownHurtSignals,
     navigation_failures: navigationFailures,
     target_valid_after: !defeated
   }
-  if (defeated) return runtime.applied(tool, action, 'TARGET_DEFEATED', details)
-  if (hurtSignals > 0) return runtime.applied(tool, action, 'TARGET_HIT_CONFIRMED', details)
-  if (hits > 0) return runtime.partial(tool, action, 'TARGET_DAMAGED_NOT_DEFEATED', details)
+  if (defeated && ownHurtSignals > 0) return runtime.applied(tool, action, 'TARGET_DEFEATED', details)
+  if (ownHurtSignals > 0) return runtime.applied(tool, action, 'TARGET_HIT_CONFIRMED', details)
+  if (attackSignals > 0) return runtime.partial(tool, action, 'ATTACK_PERFORMED_HIT_UNCONFIRMED', details)
+  if (hurtSignals > 0) return runtime.partial(tool, action, 'TARGET_HURT_SOURCE_UNATTRIBUTED', details)
   return runtime.rejected(tool, action, 'ATTACK_NOT_APPLIED', details)
 }
-
 async function attackNearest (msg) {
   const action = {
     entity: String(msg.entity || msg.query || ''),

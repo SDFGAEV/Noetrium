@@ -5,6 +5,7 @@ from research_platform.environment.api.errors import (
     ActionRecoveryRequired,
     ActionSafetyCapabilityMissing,
     ActionScientificCommitContradiction,
+    EnvironmentCapabilityUnsupported,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "ActionRecoveryRequired",
     "ActionSafetyCapabilityMissing",
     "ActionScientificCommitContradiction",
+    "EnvironmentCapabilityUnsupported",
 ]

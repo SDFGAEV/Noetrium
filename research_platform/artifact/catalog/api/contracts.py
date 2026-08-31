@@ -31,7 +31,6 @@ class ArtifactRecord:
     kind: ArtifactKind
     scope: ScopeIdentity
     digest: str
-    location: str
     producer_component_id: str
     producer_operation_id: str | None = None
     media_type: str = "application/octet-stream"
@@ -42,8 +41,13 @@ class ArtifactRecord:
     metadata: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
-        if not self.artifact_id.strip() or not self.location.strip():
-            raise ValueError("artifact identity and location must be non-empty")
+        """Validate every lineage and metadata entry before accepting artifact authority.
+
+        Algorithm-Complexity: O(N)
+        Algorithm-Rationale: N is lineage plus metadata cardinality; non-empty and uniqueness checks must inspect the complete caller-supplied authority.
+        """
+        if not self.artifact_id.strip():
+            raise ValueError("artifact identity must be non-empty")
         if len(self.digest) != 64 or any(char not in "0123456789abcdef" for char in self.digest):
             raise ValueError("artifact digest must be lowercase SHA-256")
         if not self.producer_component_id.strip() or not self.media_type.strip():
