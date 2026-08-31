@@ -436,6 +436,41 @@ def source_scope_digest(
     return _canonical_json_sha256(rows)
 
 
+def _module_in_scope(module: str, module_prefixes: Iterable[str]) -> bool:
+    return any(module == prefix or module.startswith(prefix + ".") for prefix in module_prefixes)
+
+
+def _scope_owns_catalog(module_prefixes: Iterable[str]) -> bool:
+    # The canonical topology/catalog is ROLE01 Governance-owned source.
+    return "research_platform.governance" in tuple(module_prefixes)
+
+
+def scoped_architecture_complexity(
+    global_complexity: ArchitectureComplexity,
+    *,
+    import_edge_pairs: Iterable[tuple[str, str]],
+    module_prefixes: Iterable[str],
+) -> ArchitectureComplexity:
+    prefixes = tuple(module_prefixes)
+    owns_catalog = _scope_owns_catalog(prefixes)
+    return ArchitectureComplexity(
+        top_level_systems=global_complexity.top_level_systems if owns_catalog else 0,
+        subsystems=global_complexity.subsystems if owns_catalog else 0,
+        contract_declarations=global_complexity.contract_declarations if owns_catalog else 0,
+        authorities=global_complexity.authorities if owns_catalog else 0,
+        import_edges=sum(
+            1 for source, _target in import_edge_pairs if _module_in_scope(str(source), prefixes)
+        ),
+    )
+
+
+def _scopes_overlap(left: Iterable[str], right: Iterable[str]) -> bool:
+    return any(
+        a == b or a.startswith(b + ".") or b.startswith(a + ".")
+        for a in left for b in right
+    )
+
+
 def current_architecture_complexity(*, import_edges: int) -> ArchitectureComplexity:
     descriptors = system_catalog()
     return ArchitectureComplexity(
@@ -530,6 +565,7 @@ def _validated_approval_observations(
             "external approval set baseline does not match architecture budget baseline"
         )
     migrations = {item.migration_id: item for item in budget.migrations}
+    baseline_scopes: dict[tuple[str, ...], ArchitectureMigrationObservation] = {}
     validated: dict[str, ArchitectureMigrationObservation] = {}
     for approval in approval_set.approvals:
         if not approval.approved:
@@ -544,13 +580,24 @@ def _validated_approval_observations(
             for field in _BUDGET_FIELDS if field != "import_edges"
         ):
             continue
+        if not _scope_owns_catalog(migration.module_prefixes) and any(
+            getattr(migration.delta, field) != 0
+            for field in _BUDGET_FIELDS if field != "import_edges"
+        ):
+            continue
+        baseline_scope = baseline_scopes.get(migration.module_prefixes)
+        if baseline_scope is None:
+            _baseline_scope_digest, baseline_scope = historical_observation_resolver(
+                budget.baseline.git_sha, migration.module_prefixes
+            )
+            baseline_scopes[migration.module_prefixes] = baseline_scope
         observed_digest, observation = historical_observation_resolver(
             approval.source_git_sha, migration.module_prefixes
         )
         if observed_digest != approval.source_digest:
             continue
         if observation.complexity != _expected_migration_complexity(
-            budget.baseline.complexity, migration.delta
+            baseline_scope.complexity, migration.delta
         ):
             continue
         if observation.import_projection_sha256 != migration.import_projection_sha256:
@@ -559,6 +606,7 @@ def _validated_approval_observations(
             continue
         validated[migration.migration_id] = observation
     return validated
+
 
 def _effective_budget(
     budget: ArchitectureComplexityBudget,
@@ -570,6 +618,7 @@ def _effective_budget(
     pairs = tuple(import_edge_pairs)
     values = {field: getattr(budget.baseline.complexity, field) for field in _BUDGET_FIELDS}
     applicable: list[str] = []
+    applied_scopes: list[tuple[str, ...]] = []
     for migration in budget.migrations:
         approved = approved_observations.get(migration.migration_id)
         if approved is None or source_index is None:
@@ -580,6 +629,11 @@ def _effective_budget(
             continue
         if source_scope_digest(source_index, migration.module_prefixes) != approved.owner_source_sha256:
             continue
+        if any(_scopes_overlap(migration.module_prefixes, scope) for scope in applied_scopes):
+            raise ArchitectureBudgetProvenanceError(
+                "multiple approved architecture migrations overlap the same source scope"
+            )
+        applied_scopes.append(migration.module_prefixes)
         applicable.append(migration.migration_id)
         for field in _BUDGET_FIELDS:
             values[field] += getattr(migration.delta, field)
@@ -593,6 +647,100 @@ def _effective_budget(
         effective_limits=ArchitectureComplexity(**values),
         applicable_migration_ids=tuple(applicable),
     )
+
+
+def _formal_scope_budget_violations(
+    budget: ArchitectureComplexityBudget,
+    evaluated: ArchitectureComplexityBudget,
+    *,
+    current: ArchitectureComplexity,
+    import_edge_pairs: Iterable[tuple[str, str]],
+    historical_observation_resolver: _HistoricalObservationResolver,
+) -> tuple[ArchitectureBudgetViolation, ...]:
+    pairs = tuple(import_edge_pairs)
+    scopes: list[tuple[str, ...]] = []
+    for migration in budget.migrations:
+        if migration.module_prefixes and migration.module_prefixes not in scopes:
+            scopes.append(migration.module_prefixes)
+    for index, left in enumerate(scopes):
+        for right in scopes[index + 1:]:
+            if _scopes_overlap(left, right):
+                raise ArchitectureBudgetProvenanceError(
+                    "architecture migration scopes overlap and cannot provide independent headroom"
+                )
+
+    migrations = {item.migration_id: item for item in budget.migrations}
+    applicable_by_scope: dict[tuple[str, ...], ArchitectureMigrationAllowance] = {}
+    for migration_id in evaluated.applicable_migration_ids:
+        migration = migrations[migration_id]
+        if migration.module_prefixes in applicable_by_scope:
+            raise ArchitectureBudgetProvenanceError(
+                "multiple applicable architecture migrations share one source scope"
+            )
+        applicable_by_scope[migration.module_prefixes] = migration
+
+    baseline_parts: list[ArchitectureComplexity] = []
+    current_parts: list[ArchitectureComplexity] = []
+    violations: list[ArchitectureBudgetViolation] = []
+    for scope in scopes:
+        _baseline_digest, baseline_observation = historical_observation_resolver(
+            budget.baseline.git_sha, scope
+        )
+        baseline_part = baseline_observation.complexity
+        current_part = scoped_architecture_complexity(
+            current, import_edge_pairs=pairs, module_prefixes=scope
+        )
+        baseline_parts.append(baseline_part)
+        current_parts.append(current_part)
+        migration = applicable_by_scope.get(scope)
+        expected = (
+            baseline_part
+            if migration is None
+            else _apply_complexity_delta(
+                baseline_part, migration.delta,
+                field=f"applicable migration {migration.migration_id}",
+            )
+        )
+        scope_label = ",".join(scope)
+        for field in _BUDGET_FIELDS:
+            observed = getattr(current_part, field)
+            limit = getattr(expected, field)
+            if observed > limit:
+                violations.append(ArchitectureBudgetViolation(
+                    dimension=field,
+                    observed=observed,
+                    limit=limit,
+                    detail=(
+                        f"{field} scoped architecture budget exceeded: scope={scope_label} "
+                        f"observed={observed} limit={limit} "
+                        f"migration={(migration.migration_id if migration else 'none')}"
+                    ),
+                ))
+
+    for field in _BUDGET_FIELDS[:-1]:
+        baseline_total = sum(getattr(part, field) for part in baseline_parts)
+        current_total = sum(getattr(part, field) for part in current_parts)
+        if baseline_total != getattr(budget.baseline.complexity, field):
+            raise ArchitectureBudgetProvenanceError(
+                f"architecture migration scopes do not partition baseline {field} authority"
+            )
+        if current_total != getattr(current, field):
+            raise ArchitectureBudgetProvenanceError(
+                f"architecture migration scopes do not partition current {field} authority"
+            )
+
+    if len(pairs) == current.import_edges:
+        baseline_imports = sum(part.import_edges for part in baseline_parts)
+        current_imports = sum(part.import_edges for part in current_parts)
+        if baseline_imports != budget.baseline.complexity.import_edges:
+            raise ArchitectureBudgetProvenanceError(
+                "architecture migration scopes do not partition baseline import-edge authority"
+            )
+        if current_imports != current.import_edges:
+            raise ArchitectureBudgetProvenanceError(
+                "architecture migration scopes do not partition current import-edge authority"
+            )
+    return tuple(violations)
 
 
 def audit_architecture_complexity_budget(
@@ -635,17 +783,30 @@ def audit_architecture_complexity_budget(
         source_index=source_index,
         approved_observations=approved,
     )
-    violations: list[ArchitectureBudgetViolation] = []
-    for field in _BUDGET_FIELDS:
-        observed = getattr(current, field)
-        limit = getattr(evaluated.limits, field)
-        if observed > limit:
-            violations.append(ArchitectureBudgetViolation(
-                dimension=field,
-                observed=observed,
-                limit=limit,
-                detail=f"{field} complexity budget exceeded: observed={observed} limit={limit}",
-            ))
+    if formal:
+        if historical_observation_resolver is None:
+            raise ArchitectureBudgetProvenanceError(
+                "formal architecture budget verification requires historical Git observations"
+            )
+        violations = list(_formal_scope_budget_violations(
+            budget,
+            evaluated,
+            current=current,
+            import_edge_pairs=import_edge_pairs,
+            historical_observation_resolver=historical_observation_resolver,
+        ))
+    else:
+        violations = []
+        for field in _BUDGET_FIELDS:
+            observed = getattr(current, field)
+            limit = getattr(evaluated.limits, field)
+            if observed > limit:
+                violations.append(ArchitectureBudgetViolation(
+                    dimension=field,
+                    observed=observed,
+                    limit=limit,
+                    detail=f"{field} complexity budget exceeded: observed={observed} limit={limit}",
+                ))
     return current, evaluated, tuple(violations)
 
 
@@ -664,6 +825,7 @@ __all__ = [
     "import_projection_digest",
     "load_architecture_complexity_budget",
     "load_architecture_migration_approval_set",
+    "scoped_architecture_complexity",
     "source_catalog_complexity",
     "source_scope_digest",
     "verify_architecture_baseline_authority",

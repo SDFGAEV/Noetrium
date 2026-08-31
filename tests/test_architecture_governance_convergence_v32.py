@@ -227,16 +227,22 @@ def test_external_approval_applies_only_to_exact_owner_source_scope(tmp_path: Pa
     def resolve(sha: str, prefixes: tuple[str,...]):
         calls.append((sha,prefixes))
         if sha == "1"*40:
-            return "2"*64, ArchitectureMigrationObservation(ArchitectureComplexity(**_baseline_complexity()),None,None)
+            complexity = ArchitectureComplexity(**_baseline_complexity(0 if prefixes else 4749))
+            return "2"*64, ArchitectureMigrationObservation(complexity,None,None)
         return "b"*64, ArchitectureMigrationObservation(
-            ArchitectureComplexity(**_baseline_complexity(4750)), projection, owner_digest
+            ArchitectureComplexity(**_baseline_complexity(1)), projection, owner_digest
         )
     _current,budget,violations=audit_architecture_complexity_budget(
         tmp_path,import_edges=4750,import_edge_pairs=pairs,source_index=index,
         approval_set=_typed_approval_set(),historical_observation_resolver=resolve,verify_provenance=True)
     assert violations == () and budget is not None and budget.limits.import_edges == 4750
     assert budget.applicable_migration_ids == ("test-reviewed-migration",)
-    assert calls == [("1"*40,()),("3"*40,("research_platform.governance",))]
+    assert calls == [
+        ("1"*40,()),
+        ("1"*40,("research_platform.governance",)),
+        ("3"*40,("research_platform.governance",)),
+        ("1"*40,("research_platform.governance",)),
+    ]
 
 
 def test_mismatched_external_source_digest_contributes_zero_headroom(tmp_path: Path) -> None:
@@ -246,13 +252,104 @@ def test_mismatched_external_source_digest_contributes_zero_headroom(tmp_path: P
     owner_digest=source_scope_digest(index,("research_platform.governance",))
     def resolve(sha: str, prefixes: tuple[str,...]):
         if sha == "1"*40:
-            return "2"*64, ArchitectureMigrationObservation(ArchitectureComplexity(**_baseline_complexity()),None,None)
-        return "b"*64, ArchitectureMigrationObservation(ArchitectureComplexity(**_baseline_complexity(4750)),projection,owner_digest)
+            complexity = ArchitectureComplexity(**_baseline_complexity(0 if prefixes else 4749))
+            return "2"*64, ArchitectureMigrationObservation(complexity,None,None)
+        return "b"*64, ArchitectureMigrationObservation(ArchitectureComplexity(**_baseline_complexity(1)),projection,owner_digest)
     _current,budget,violations=audit_architecture_complexity_budget(
         tmp_path,import_edges=4750,import_edge_pairs=pairs,source_index=index,
         approval_set=_typed_approval_set(source_digest="c"*64),historical_observation_resolver=resolve,verify_provenance=True)
     assert budget is not None and budget.limits.import_edges == 4749
-    assert [(v.observed,v.limit) for v in violations] == [(4750,4749)]
+    assert [(v.observed,v.limit) for v in violations] == [(1,0)]
+
+
+def test_scoped_approval_cannot_be_borrowed_by_disjoint_growth_and_contraction(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import research_platform.governance.architecture.budget as budget_module
+
+    governance = ("research_platform.governance",)
+    runtime = ("research_platform.runtime",)
+    reliability = ("research_platform.reliability",)
+    pairs = (
+        ("research_platform.governance.a", "research_platform.platform.x"),
+        ("research_platform.governance.b", "research_platform.platform.x"),
+        ("research_platform.runtime.a", "research_platform.platform.x"),
+        ("research_platform.runtime.b", "research_platform.platform.x"),
+    )
+    document = {
+        "schema_version": "architecture-complexity-budget.v3",
+        "baseline": {
+            "git_sha": "1" * 40, "source_digest": "2" * 64,
+            "complexity": {
+                "top_level_systems": 17, "subsystems": 174,
+                "contract_declarations": 142, "authorities": 191, "import_edges": 3,
+            },
+        },
+        "migrations": [
+            {
+                "migration_id": "test-reviewed-migration", "owner_role": "ROLE01",
+                "delta": {"top_level_systems":0,"subsystems":0,"contract_declarations":0,"authorities":0,"import_edges":1},
+                "justification": "Approved governance scope adds one import edge and must not lend that headroom to another owner scope.",
+                "applicability": {
+                    "module_prefixes": list(governance),
+                    "import_projection_sha256": import_projection_digest(pairs, governance),
+                },
+            },
+            {
+                "migration_id": "test-unapproved-runtime-growth", "owner_role": "ROLE02",
+                "delta": {"top_level_systems":0,"subsystems":0,"contract_declarations":0,"authorities":0,"import_edges":1},
+                "justification": "Unapproved runtime growth is present specifically to prove cross-scope headroom cannot be borrowed.",
+                "applicability": {
+                    "module_prefixes": list(runtime),
+                    "import_projection_sha256": import_projection_digest(pairs, runtime),
+                },
+            },
+            {
+                "migration_id": "test-unapproved-reliability-contraction", "owner_role": "ROLE02",
+                "delta": {"top_level_systems":0,"subsystems":0,"contract_declarations":0,"authorities":0,"import_edges":-1},
+                "justification": "Unapproved reliability contraction offsets runtime growth globally but must not hide that separate growth.",
+                "applicability": {
+                    "module_prefixes": list(reliability),
+                    "import_projection_sha256": import_projection_digest(pairs, reliability),
+                },
+            },
+        ],
+    }
+    _write_budget(tmp_path, document)
+    index = _synthetic_git_index(tmp_path)
+    governance_owner_digest = source_scope_digest(index, governance)
+    monkeypatch.setattr(
+        budget_module, "current_architecture_complexity",
+        lambda *, import_edges: ArchitectureComplexity(17,174,142,191,import_edges),
+    )
+
+    def resolve(sha: str, prefixes: tuple[str, ...]):
+        if sha == "1" * 40:
+            if not prefixes:
+                complexity = ArchitectureComplexity(17,174,142,191,3)
+            elif prefixes == governance:
+                complexity = ArchitectureComplexity(17,174,142,191,1)
+            else:
+                complexity = ArchitectureComplexity(0,0,0,0,1)
+            return "2" * 64, ArchitectureMigrationObservation(complexity, None, None)
+        assert sha == "3" * 40 and prefixes == governance
+        return "b" * 64, ArchitectureMigrationObservation(
+            ArchitectureComplexity(17,174,142,191,2),
+            import_projection_digest(pairs, governance), governance_owner_digest,
+        )
+
+    current, evaluated, violations = audit_architecture_complexity_budget(
+        tmp_path, import_edges=4, import_edge_pairs=pairs, source_index=index,
+        approval_set=_typed_approval_set(), historical_observation_resolver=resolve,
+        verify_provenance=True,
+    )
+    assert current.import_edges == 4
+    assert evaluated is not None and evaluated.limits.import_edges == 4
+    assert evaluated.applicable_migration_ids == ("test-reviewed-migration",)
+    assert [(row.dimension, row.observed, row.limit) for row in violations] == [
+        ("import_edges", 2, 1)
+    ]
+    assert "scope=research_platform.runtime" in violations[0].detail
 
 
 def _multidim_budget_document(projection: str) -> dict[str, object]:
@@ -276,8 +373,9 @@ def _multidim_budget_document(projection: str) -> dict[str, object]:
 def _multidim_resolver(projection: str, owner_digest: str):
     def resolve(sha: str, prefixes: tuple[str, ...]):
         if sha == "1" * 40:
-            return "2" * 64, ArchitectureMigrationObservation(ArchitectureComplexity(17,173,141,190,4749),None,None)
-        return "b" * 64, ArchitectureMigrationObservation(ArchitectureComplexity(17,174,142,191,4750),projection,owner_digest)
+            complexity = ArchitectureComplexity(17,173,141,190,0 if prefixes else 4749)
+            return "2" * 64, ArchitectureMigrationObservation(complexity,None,None)
+        return "b" * 64, ArchitectureMigrationObservation(ArchitectureComplexity(17,174,142,191,1),projection,owner_digest)
     return resolve
 
 def test_v2_approval_file_decodes_complete_complexity_delta(tmp_path: Path) -> None:
@@ -765,8 +863,9 @@ def test_v2_signed_approval_authorizes_exact_contraction(tmp_path: Path, monkeyp
     monkeypatch.setattr(budget_module,"current_architecture_complexity",lambda *,import_edges: ArchitectureComplexity(17,172,142,189,import_edges))
     def resolve(sha: str, prefixes: tuple[str,...]):
         if sha=="1"*40:
-            return "2"*64,ArchitectureMigrationObservation(ArchitectureComplexity(17,173,141,190,4749),None,None)
-        return "b"*64,ArchitectureMigrationObservation(ArchitectureComplexity(17,172,142,189,4750),projection,owner)
+            complexity=ArchitectureComplexity(17,173,141,190,0 if prefixes else 4749)
+            return "2"*64,ArchitectureMigrationObservation(complexity,None,None)
+        return "b"*64,ArchitectureMigrationObservation(ArchitectureComplexity(17,172,142,189,1),projection,owner)
     current,budget,violations=audit_architecture_complexity_budget(
         tmp_path,import_edges=4750,import_edge_pairs=pairs,source_index=index,
         approval_set=_typed_v2_approval_set(signed),historical_observation_resolver=resolve,verify_provenance=True)

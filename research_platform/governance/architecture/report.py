@@ -17,6 +17,7 @@ from .budget import (
     audit_architecture_complexity_budget,
     import_projection_digest,
     load_architecture_migration_approval_set,
+    scoped_architecture_complexity,
     source_catalog_complexity,
     source_scope_digest,
 )
@@ -174,25 +175,43 @@ def build_architecture_report(
     source_authority_violations = profile.authority_violations
     historical_observation_resolver = None
     if historical_source_index_factory is not None:
+        historical_cache: dict[str, tuple[
+            RepositorySourceIndexPort, tuple[tuple[str, str], ...], ArchitectureComplexity
+        ]] = {}
+
         def historical_observation_resolver(
             git_sha: str, module_prefixes: tuple[str, ...]
         ) -> tuple[str, ArchitectureMigrationObservation]:
-            historical_index = historical_source_index_factory(git_sha)
-            historical_profile = scan_architecture_source_profile(
-                root, source_index=historical_index
-            )
-            historical_pairs = tuple(
-                (edge.source_module, edge.target_module)
-                for edge in historical_profile.import_edges
-            )
+            cached = historical_cache.get(git_sha)
+            if cached is None:
+                historical_index = historical_source_index_factory(git_sha)
+                historical_profile = scan_architecture_source_profile(
+                    root, source_index=historical_index
+                )
+                historical_pairs = tuple(
+                    (edge.source_module, edge.target_module)
+                    for edge in historical_profile.import_edges
+                )
+                global_complexity = source_catalog_complexity(
+                    historical_index, import_edges=len(historical_profile.import_edges)
+                )
+                cached = (historical_index, historical_pairs, global_complexity)
+                historical_cache[git_sha] = cached
+            historical_index, historical_pairs, global_complexity = cached
             projection = (
                 import_projection_digest(historical_pairs, module_prefixes)
                 if module_prefixes else None
             )
+            complexity = (
+                scoped_architecture_complexity(
+                    global_complexity,
+                    import_edge_pairs=historical_pairs,
+                    module_prefixes=module_prefixes,
+                )
+                if module_prefixes else global_complexity
+            )
             return historical_index.source_digest, ArchitectureMigrationObservation(
-                complexity=source_catalog_complexity(
-                    historical_index, import_edges=len(historical_profile.import_edges)
-                ),
+                complexity=complexity,
                 import_projection_sha256=projection,
                 owner_source_sha256=(
                     source_scope_digest(historical_index, module_prefixes)

@@ -77,6 +77,16 @@ that delta, and the current immutable cut matches the approved owner-scoped sour
 and import projection. Missing dimensions, stale source identities, copied approvals,
 scope mismatches, or partial approvals contribute zero headroom.
 
+Formal approval accounting is owner-scoped, not a global netting pool. Each unique migration
+`module_prefixes` scope reconstructs its own baseline complexity: Governance owns the canonical
+catalog/topology dimensions, while import edges are charged to the source-module scope that
+emits them. An approved delta raises only that exact frozen scope. Growth in a disjoint,
+unapproved scope fails even if another scope contracts by the same amount and the global total
+would fit under the summed ceiling. Formal Git reports additionally require the declared Role
+scopes to partition the complete import-edge set, so unowned residual growth cannot hide outside
+the scoped accounting model. Overlapping applicable scopes fail provenance rather than double
+counting headroom.
+
 Signed deltas never make absolute complexity negative: baseline complexity remains
 non-negative, and any migration or approved combination that would produce a negative
 dimension fails closed.
