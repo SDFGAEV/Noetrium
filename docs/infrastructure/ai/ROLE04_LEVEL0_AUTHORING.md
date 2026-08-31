@@ -58,3 +58,12 @@ changing their domain identity.
 The separate strict-finite-JSON convergence CSR is also still external to this
 slice. This Level-0 authoring contract neither copies that primitive nor weakens
 the existing Model/Participant canonicalization boundaries.
+
+## Artifact and configuration digest identity
+
+Level-0 Participant declarations treat non-empty `artifact_digest` and
+`configuration_digest` values as canonical lowercase SHA-256 identities. Arbitrary
+labels such as `artifact-v1` or `config-v1` are rejected before a canonical
+`ParticipantRequirement` can be emitted. The empty string remains the explicit
+absence of a separately published artifact/configuration digest; it is not
+reinterpreted as a digest value.

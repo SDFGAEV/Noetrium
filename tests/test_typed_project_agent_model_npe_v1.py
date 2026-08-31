@@ -183,7 +183,7 @@ from research_platform.participant.api import (
 
 AGENT = AgentProjectDefinition(
     role='worker',
-    identity=AgentIdentity('agent', '1', '1', '1', 'artifact'),
+    identity=AgentIdentity('agent', '1', '1', '1', 'a' * 64),
     required_capabilities=('observe',),
 )
 MODEL = ModelCapabilityRequirement(
@@ -330,8 +330,8 @@ def test_model_doctor_reports_capability_and_context_failures_without_endpoint_m
 def _participant_requirement() -> ParticipantRequirement:
     definition = AgentProjectDefinition(
         role="worker",
-        identity=AgentIdentity("agent", "1", "1", "1", "artifact"),
-        configuration_digest="config-v1",
+        identity=AgentIdentity("agent", "1", "1", "1", "a" * 64),
+        configuration_digest="b" * 64,
         required_capabilities=("observe", "act"),
     )
     return definition.requirement()

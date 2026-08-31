@@ -20,6 +20,16 @@ def _text(value: object, field_name: str) -> str:
     return value
 
 
+def _optional_sha256(value: object, field_name: str) -> str:
+    if not isinstance(value, str):
+        raise TypeError(f"{field_name} must be text")
+    if value and (
+        len(value) != 64 or any(char not in "0123456789abcdef" for char in value)
+    ):
+        raise ValueError(f"{field_name} must be a lowercase SHA-256 digest")
+    return value
+
+
 def _tokens(values: object, field_name: str) -> tuple[str, ...]:
     if not isinstance(values, tuple):
         raise TypeError(f"{field_name} must be a tuple")
@@ -40,8 +50,8 @@ class ParticipantRequirement:
         _text(self.role, "participant requirement role")
         if not isinstance(self.implementation, ParticipantImplementationIdentity):
             raise TypeError("participant requirement implementation must be typed")
-        if not isinstance(self.configuration_digest, str):
-            raise TypeError("participant requirement configuration_digest must be text")
+        _optional_sha256(self.configuration_digest, "participant requirement configuration_digest")
+        _optional_sha256(self.implementation.artifact_digest, "participant requirement artifact_digest")
         object.__setattr__(
             self,
             "required_capabilities",
@@ -65,8 +75,8 @@ class AgentProjectDefinition:
         _text(self.role, "agent project role")
         if not isinstance(self.identity, AgentIdentity):
             raise TypeError("agent project identity must be AgentIdentity")
-        if not isinstance(self.configuration_digest, str):
-            raise TypeError("agent project configuration_digest must be text")
+        _optional_sha256(self.configuration_digest, "agent project configuration_digest")
+        _optional_sha256(self.identity.artifact_digest, "agent project artifact_digest")
         object.__setattr__(
             self,
             "required_capabilities",
@@ -110,10 +120,8 @@ class MethodProjectDefinition:
             raise TypeError("method project identity must be MethodIdentity")
         for field_name in ("method_id", "implementation_version", "abi_version", "schema_version"):
             _text(getattr(self.identity, field_name), f"method project {field_name}")
-        if not isinstance(self.identity.artifact_digest, str):
-            raise TypeError("method project artifact_digest must be text")
-        if not isinstance(self.configuration_digest, str):
-            raise TypeError("method project configuration_digest must be text")
+        _optional_sha256(self.identity.artifact_digest, "method project artifact_digest")
+        _optional_sha256(self.configuration_digest, "method project configuration_digest")
         object.__setattr__(
             self, "required_capabilities",
             _tokens(self.required_capabilities, "method project capabilities"),

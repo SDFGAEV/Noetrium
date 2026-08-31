@@ -17,6 +17,7 @@ from research_platform.participant.api import (
     ParticipantRequirementContribution,
 )
 from research_platform.participant.method.api import MethodIdentity
+from research_platform.participant.core.api.contracts import ParticipantImplementationIdentity
 
 
 def _prompt(*, version: str = "1", role: str = "planner") -> PromptSpec:
@@ -42,8 +43,8 @@ def _selection(generation: str = "prompt-gen-1", *, version: str = "1") -> Regis
 def test_agent_level0_compiles_to_canonical_participant_requirement() -> None:
     definition = AgentProjectDefinition(
         role="planner",
-        identity=AgentIdentity("agent-planner", "1", "1", "1", "agent-artifact"),
-        configuration_digest="agent-config",
+        identity=AgentIdentity("agent-planner", "1", "1", "1", "a" * 64),
+        configuration_digest="b" * 64,
         required_capabilities=("tool.search", "memory.recall"),
     )
 
@@ -59,8 +60,8 @@ def test_agent_level0_compiles_to_canonical_participant_requirement() -> None:
 def test_method_level0_uses_same_canonical_participant_requirement_family() -> None:
     definition = MethodProjectDefinition(
         role="method",
-        identity=MethodIdentity("sem-method", "3", "2", "1", "method-artifact"),
-        configuration_digest="method-config",
+        identity=MethodIdentity("sem-method", "3", "2", "1", "c" * 64),
+        configuration_digest="d" * 64,
         required_capabilities=("memory.recall",),
     )
 
@@ -165,3 +166,37 @@ def test_novel_model_capability_needs_no_platform_registry_edit() -> None:
     assert contribution.requirement.capability_id == "paper.novel-value-head"
     assert contribution.requirement.input_schema_id == "paper.novel.input.v1"
     assert contribution.requirement.output_schema_id == "paper.novel.output.v1"
+
+
+def test_level0_rejects_non_sha_artifact_and_configuration_digests() -> None:
+    with pytest.raises(ValueError, match="SHA-256"):
+        AgentProjectDefinition(
+            role="planner",
+            identity=AgentIdentity("agent", "1", "1", "1", "not-a-digest"),
+        )
+    with pytest.raises(ValueError, match="SHA-256"):
+        AgentProjectDefinition(
+            role="planner",
+            identity=AgentIdentity("agent", "1", "1", "1", "a" * 64),
+            configuration_digest="not-a-digest",
+        )
+    with pytest.raises(ValueError, match="SHA-256"):
+        MethodProjectDefinition(
+            role="method",
+            identity=MethodIdentity("method", "1", "1", "1", "not-a-digest"),
+        )
+    with pytest.raises(ValueError, match="SHA-256"):
+        MethodProjectDefinition(
+            role="method",
+            identity=MethodIdentity("method", "1", "1", "1", "c" * 64),
+            configuration_digest="not-a-digest",
+        )
+
+
+def test_direct_participant_requirement_cannot_bypass_digest_validation() -> None:
+    implementation = ParticipantImplementationIdentity(
+        kind="agent", participant_id="agent", implementation_version="1",
+        abi_version="1", schema_version="1", artifact_digest="not-a-digest",
+    )
+    with pytest.raises(ValueError, match="SHA-256"):
+        ParticipantRequirement(role="worker", implementation=implementation)
