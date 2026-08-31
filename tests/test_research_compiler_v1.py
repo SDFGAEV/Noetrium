@@ -1,70 +1,56 @@
-from __future__ import annotations
+from dataclasses import replace
 
-from dataclasses import dataclass, replace
+import pytest
 
 from research_platform.experimentation.api import (
     ResearchBindingContribution,
     ResearchBindingRequirements,
+    ResearchCapabilityBinding,
+    ResearchParticipantBinding,
     ResearchParticipantRequirement,
     compile_research_plan,
     diff_research_plans,
     resolve_research_requirements,
 )
-from research_platform.experimentation.experiment.api import (
-    ExperimentParticipantSpec,
-    ExperimentTrialProtocolIdentity,
-)
+from research_platform.experimentation.experiment.api import ExperimentTrialProtocolIdentity
 from research_platform.experimentation.study.api import (
-    BenchmarkTaskSet, FactorLevelSpec, MeasurementDefinition,
-    MeasurementProtocol, MeasurementValueKind, ResearchRevision,
-    ResearchStudyDefinition, StudyFactorSpec, TaskDefinition, TaskSetSplit, TrialBudget,
+    BenchmarkTaskSet,
+    FactorLevelSpec,
+    MeasurementDefinition,
+    MeasurementProtocol,
+    MeasurementValueKind,
+    ResearchRevision,
+    ResearchStudyDefinition,
+    StudyFactorSpec,
+    TaskDefinition,
+    TaskSetSplit,
+    TrialBudget,
+)
+from research_platform.governance.architecture.api import BindingProof, CompositionSubject
+from research_platform.governance.system_registry.api import SystemIdentity
+from research_platform.participant.api.project import (
+    ParticipantProviderProfile,
+    ParticipantRequirement,
+    ProjectParticipantBinding,
 )
 from research_platform.participant.core.api.contracts import (
-    ParticipantImplementationIdentity, ParticipantSessionRuntimeIdentity,
+    ParticipantImplementationIdentity,
+    ParticipantRuntimeBinding,
+    ParticipantSessionRuntimeIdentity,
+)
+from research_platform.platform.kernel import Sha256Digest, canonical_digest
+from research_platform.portfolio.api import (
+    ProjectCapabilityRequirement,
+    ProjectIdentity,
+    ProjectManifest,
+    ProjectMethodRequirement,
+    ProjectProviderBinding,
+    ProjectSpec,
+    ProjectToolProvenance,
 )
 
-
-@dataclass(frozen=True)
-class _ProjectIdentity:
-    project_id: str
-
-
-@dataclass(frozen=True)
-class _CapabilityRequirement:
-    requirement_id: str
-
-
-@dataclass(frozen=True)
-class _MethodRequirement:
-    method_id: str
-    treatment_id: str
-
-
-@dataclass(frozen=True)
-class _ConfigurationReference:
-    configuration_id: str
-
-
-@dataclass(frozen=True)
-class _ProjectManifest:
-    identity: _ProjectIdentity
-    semantic_digest: str
-    capability_requirements: tuple[_CapabilityRequirement, ...]
-    method_requirements: tuple[_MethodRequirement, ...]
-    configuration_refs: tuple[_ConfigurationReference, ...]
-
-
 CFG = "c" * 64
-
-
-def _participant(role: str, kind: str, *, depends_on_roles: tuple[str, ...] = ()) -> ExperimentParticipantSpec:
-    return ExperimentParticipantSpec(
-        role=role,
-        implementation=ParticipantImplementationIdentity(kind, f"{kind}-impl", "1", "1", "1", "a" * 64),
-        runtime=ParticipantSessionRuntimeIdentity(f"runtime.{kind}", "1", "1", "b" * 64),
-        configuration_digest="d" * 64,
-        depends_on_roles=depends_on_roles,
-    )
+EMPTY_CFG = "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
 
 
 def _benchmark(tag: str = "a") -> BenchmarkTaskSet:
@@ -87,27 +73,109 @@ def _binding_requirements() -> ResearchBindingRequirements:
         "trial-provider",
         participants=(
             ResearchParticipantRequirement("actor", "actor", "method", "actor"),
-            ResearchParticipantRequirement("evaluator", "evaluator", "method", "evaluator", depends_on_roles=("actor",)),
-            ResearchParticipantRequirement("critic", "critic", "method", "critic", depends_on_roles=("evaluator",)),
+            ResearchParticipantRequirement(
+                "evaluator", "evaluator", "method", "evaluator", depends_on_roles=("actor",)
+            ),
+            ResearchParticipantRequirement(
+                "critic", "critic", "method", "critic", depends_on_roles=("evaluator",)
+            ),
         ),
-        model_requirement_id="model",
-        prompt_configuration_id="prompt-config",
     )
 
 
-def _manifest() -> _ProjectManifest:
-    return _ProjectManifest(
-        _ProjectIdentity("project-1"),
-        "9" * 64,
-        (_CapabilityRequirement("trial-provider"), _CapabilityRequirement("model")),
-        (
-            _MethodRequirement("method", "actor"),
-            _MethodRequirement("method", "evaluator"),
-            _MethodRequirement("method", "critic"),
+def _manifest(provider_id: str = "provider-v1") -> ProjectManifest:
+    requirement = ProjectCapabilityRequirement(
+        "trial-provider", "experimentation", "trial", 1, "1" * 64
+    )
+    return ProjectManifest(
+        ProjectSpec(ProjectIdentity("project-1", "1"), "program", "Project"),
+        "template-1",
+        ProjectToolProvenance("tool", "1", "2" * 64),
+        capability_requirements=(requirement,),
+        provider_bindings=(
+            ProjectProviderBinding(
+                "trial-binding", "trial-provider", provider_id, "1", "3" * 64
+            ),
         ),
-        (_ConfigurationReference("prompt-config"),),
+        method_requirements=(
+            ProjectMethodRequirement("method", "actor"),
+            ProjectMethodRequirement("method", "evaluator"),
+            ProjectMethodRequirement("method", "critic"),
+        ),
+        study_ids=("study-1",),
     )
 
+
+def _project_subject(manifest: ProjectManifest) -> CompositionSubject:
+    return CompositionSubject.project_subject(
+        manifest.identity.project_id, manifest.identity.version
+    )
+
+
+def _trial_binding(
+    manifest: ProjectManifest,
+    resolution,
+) -> ResearchCapabilityBinding:
+    requirement = resolution.capability_requirement("trial-provider")
+    provider = manifest.provider_bindings[0]
+    proof = BindingProof(
+        owner=CompositionSubject.system_subject(SystemIdentity("experimentation")),
+        subject=_project_subject(manifest),
+        requirement_digest=Sha256Digest(canonical_digest(requirement)),
+        provider_identity=provider.provider_identity,
+        provider_profile_digest=Sha256Digest("4" * 64),
+        binding_generation="generation-1",
+    )
+    return ResearchCapabilityBinding("trial-provider", proof)
+
+
+def _participant_binding(
+    manifest: ProjectManifest,
+    role: str,
+    kind: str,
+) -> ResearchParticipantBinding:
+    implementation = ParticipantImplementationIdentity(
+        kind, f"{kind}-impl", "1", "1", "1", "a" * 64
+    )
+    runtime = ParticipantSessionRuntimeIdentity(
+        f"runtime.{kind}", "1", "1", "b" * 64
+    )
+    requirement = ParticipantRequirement(role, implementation, "d" * 64)
+    profile = ParticipantProviderProfile(f"participant.{role}", (kind,))
+    runtime_binding = ParticipantRuntimeBinding(role, implementation, runtime, "d" * 64)
+    domain_binding = ProjectParticipantBinding.from_runtime(
+        requirement, profile, runtime_binding
+    )
+    proof = BindingProof(
+        owner=CompositionSubject.system_subject(SystemIdentity("participant")),
+        subject=_project_subject(manifest),
+        requirement_digest=Sha256Digest(domain_binding.requirement_digest),
+        provider_identity=profile.provider_id,
+        provider_profile_digest=Sha256Digest(profile.digest()),
+        binding_generation=f"participant-{runtime.digest()}",
+    )
+    return ResearchParticipantBinding(role, domain_binding, proof)
+
+
+def _resolved_binding(
+    definition: ResearchStudyDefinition,
+    *,
+    provider_id: str = "provider-v1",
+    participant_kinds: tuple[str, str, str] = ("actor", "evaluator", "critic"),
+):
+    manifest = _manifest(provider_id)
+    resolution = resolve_research_requirements(definition, manifest)
+    roles = ("actor", "evaluator", "critic")
+    participants = tuple(
+        _participant_binding(manifest, role, kind)
+        for role, kind in zip(roles, participant_kinds, strict=True)
+    )
+    binding = ResearchBindingContribution(
+        resolution.resolution_digest,
+        (_trial_binding(manifest, resolution),),
+        participants,
+    )
+    return manifest, resolution, binding
 
 def _definition(
     *,
@@ -143,25 +211,8 @@ def _definition(
 
 
 def _compile(definition: ResearchStudyDefinition, *, provider_id: str = "provider-v1"):
-    manifest = _manifest()
-    resolution = resolve_research_requirements(definition, manifest)
-    participants = (
-        _participant("actor", "actor"),
-        _participant("evaluator", "evaluator", depends_on_roles=("actor",)),
-        _participant("critic", "critic", depends_on_roles=("evaluator",)),
-    )
-    binding = ResearchBindingContribution(
-        resolution.resolution_digest,
-        provider_id,
-        participants,
-        "e" * 64,
-        "prompt-v1",
-        resolution.capability_requirement_ids,
-        resolution.method_requirements,
-        resolution.configuration_ref_ids,
-    )
+    _, resolution, binding = _resolved_binding(definition, provider_id=provider_id)
     return compile_research_plan(definition, resolution, binding)
-
 
 def test_compiler_expands_factor_seed_repetition_task_matrix_and_schedule() -> None:
     plan = _compile(_definition())
@@ -228,29 +279,24 @@ def test_provider_replacement_changes_binding_not_scientific_design() -> None:
 
 def test_requirement_resolution_and_binding_drift_fail_closed() -> None:
     definition = _definition()
-    resolution = resolve_research_requirements(definition, _manifest())
-    participants = (
-        _participant("actor", "actor"),
-        _participant("evaluator", "evaluator", depends_on_roles=("actor",)),
-        _participant("critic", "critic", depends_on_roles=("evaluator",)),
-    )
-    binding = ResearchBindingContribution(
-        resolution.resolution_digest, "provider-v1", participants,
-        "e" * 64, "prompt-v1",
-        resolution.capability_requirement_ids,
-        resolution.method_requirements,
-        resolution.configuration_ref_ids,
-    )
-    bad = replace(binding, provider_id="provider-v2")
-    assert bad.contribution_digest != binding.contribution_digest
-    bad_participants = (
-        _participant("actor", "wrongkind"), participants[1], participants[2],
-    )
-    bad_binding = replace(binding, participants=bad_participants)
-    import pytest
-    with pytest.raises(ValueError, match="participant kind"):
-        compile_research_plan(definition, resolution, bad_binding)
+    manifest, resolution, binding = _resolved_binding(definition)
 
+    wrong_subject = CompositionSubject.project_subject("other-project", "1")
+    bad_proof = replace(binding.capability_bindings[0].proof, subject=wrong_subject)
+    bad_capability = replace(binding.capability_bindings[0], proof=bad_proof)
+    with pytest.raises(ValueError, match="another project subject"):
+        compile_research_plan(
+            definition, resolution, replace(binding, capability_bindings=(bad_capability,))
+        )
+
+    wrong_provider = replace(
+        binding.capability_bindings[0].proof, provider_identity="provider-other"
+    )
+    with pytest.raises(ValueError, match="provider selection"):
+        compile_research_plan(
+            definition, resolution,
+            replace(binding, capability_bindings=(replace(binding.capability_bindings[0], proof=wrong_provider),)),
+        )
 
 def test_compiler_is_deterministic_for_identical_author_definition_and_binding() -> None:
     definition = _definition()
@@ -272,3 +318,103 @@ def test_benchmark_split_order_is_execution_order_and_changes_assignment_project
     right = _compile(replace(_definition(benchmark=reverse), benchmark_split_id="train"))
     assert [row.task_id for row in left.experiment_plan.assignments[:2]] != [row.task_id for row in right.experiment_plan.assignments[:2]]
     assert left.experiment_plan.assignment_digest != right.experiment_plan.assignment_digest
+
+
+def test_exactly_one_trial_requirement_rejects_multiple_proofs() -> None:
+    definition = _definition()
+    _, resolution, binding = _resolved_binding(definition)
+    first = binding.capability_bindings[0]
+    second = ResearchCapabilityBinding(
+        first.requirement_id, replace(first.proof, binding_generation="generation-2")
+    )
+    with pytest.raises(ValueError, match="exactly-one capability"):
+        compile_research_plan(
+            definition, resolution,
+            replace(binding, capability_bindings=(first, second)),
+        )
+
+def test_non_generation_model_binding_is_proof_backed_without_fake_prompt() -> None:
+    from research_platform.experimentation.api import ResearchModelBinding
+    from research_platform.model.api.project import (
+        ModelCapabilityRequirement, ModelProviderProfile, ProjectModelBinding,
+    )
+    from research_platform.platform.kernel import ImmutableModelIdentity
+
+    base = _definition()
+    definition = replace(
+        base,
+        binding_requirements=ResearchBindingRequirements(
+            "trial-provider", participants=base.binding_requirements.participants,
+            model_requirement_id="model",
+        ),
+    )
+    trial_requirement = ProjectCapabilityRequirement(
+        "trial-provider", "experimentation", "trial", 1, "1" * 64
+    )
+    model_requirement = ProjectCapabilityRequirement(
+        "model", "model", "embedding", 1, "2" * 64
+    )
+    manifest = ProjectManifest(
+        ProjectSpec(ProjectIdentity("project-1", "1"), "program", "Project"),
+        "template-1", ProjectToolProvenance("tool", "1", "3" * 64),
+        capability_requirements=(trial_requirement, model_requirement),
+        provider_bindings=(
+            ProjectProviderBinding("trial-binding", "trial-provider", "provider-v1", "1", "4" * 64),
+            ProjectProviderBinding("model-binding", "model", "model.provider", "1", "5" * 64),
+        ),
+        method_requirements=(
+            ProjectMethodRequirement("method", "actor"),
+            ProjectMethodRequirement("method", "evaluator"),
+            ProjectMethodRequirement("method", "critic"),
+        ),
+        study_ids=("study-1",),
+    )
+    resolution = resolve_research_requirements(definition, manifest)
+    participant_bindings = tuple(
+        _participant_binding(manifest, role, kind)
+        for role, kind in (("actor", "actor"), ("evaluator", "evaluator"), ("critic", "critic"))
+    )
+    domain_requirement = ModelCapabilityRequirement(
+        role="scientist", capability_id="embedding",
+        input_schema_id="model.embedding.input.v1", output_schema_id="model.embedding.output.v1",
+    )
+    profile = ModelProviderProfile("model.provider", ("embedding",))
+    model_binding = ProjectModelBinding(
+        requirement_digest=domain_requirement.digest(), provider_id=profile.provider_id,
+        provider_profile_digest=profile.digest(), role=domain_requirement.role,
+        model=ImmutableModelIdentity(
+            logical_name="model-a", model_id="model-a", revision="rev-1",
+            engine="engine", engine_version="1", dtype="bf16", quantization=None,
+            context_length=8192, tokenizer_revision="tok-1",
+        ),
+        deployment_id="deployment-a", deployment_generation="6" * 64,
+        model_stack_digest="7" * 64, qualification_certificate_digest="8" * 64,
+        runtime_qualification_digest="9" * 64, host_identity_digest="a" * 64,
+        prompt_generation_id=None, prompt_id=None, prompt_digest=None,
+        capabilities=profile.capabilities, runtime_canary_evidence_digests=("b" * 64,),
+        capability_id="embedding", input_schema_id="model.embedding.input.v1",
+        output_schema_id="model.embedding.output.v1",
+    )
+    subject = _project_subject(manifest)
+    model_proof = BindingProof(
+        owner=CompositionSubject.system_subject(SystemIdentity("model")), subject=subject,
+        requirement_digest=Sha256Digest(model_binding.requirement_digest),
+        provider_identity=model_binding.provider_id,
+        provider_profile_digest=Sha256Digest(model_binding.provider_profile_digest),
+        binding_generation=f"model-{model_binding.deployment_generation}",
+    )
+    model_capability_proof = BindingProof(
+        owner=CompositionSubject.system_subject(SystemIdentity("experimentation")),
+        subject=subject, requirement_digest=Sha256Digest(canonical_digest(model_requirement)),
+        provider_identity="model.provider", provider_profile_digest=Sha256Digest("c" * 64),
+        binding_generation="generation-2",
+    )
+    binding = ResearchBindingContribution(
+        resolution.resolution_digest,
+        (_trial_binding(manifest, resolution), ResearchCapabilityBinding("model", model_capability_proof)),
+        participant_bindings,
+        ResearchModelBinding("model", model_binding, model_proof),
+    )
+    plan = compile_research_plan(definition, resolution, binding)
+    assert plan.experiment.model_stack_digest == "7" * 64
+    assert plan.experiment.prompt_generation is None
