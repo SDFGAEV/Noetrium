@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import errno
+import os
 import sys
 from tempfile import TemporaryDirectory
 import unittest
@@ -39,6 +41,96 @@ class SegmentedEventHotPathV173Tests(unittest.TestCase):
             (root / "99999999.jsonl").write_text("", encoding="utf-8")
             with self.assertRaises(Exception):
                 ledger.append({"event": 2})
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux shared-inotify contract")
+    def test_linux_many_directory_signals_do_not_fall_back_to_stat(self) -> None:
+        with TemporaryDirectory() as td:
+            base = Path(td)
+            signals: list[DirectoryChangeSignal] = []
+            try:
+                for index in range(160):
+                    root = base / f"watch-{index}"
+                    root.mkdir()
+                    signal = DirectoryChangeSignal(root)
+                    signals.append(signal)
+                    self.assertEqual(signal.mode, "inotify")
+                for index, signal in enumerate(signals):
+                    root = base / f"watch-{index}"
+                    (root / "00000000.jsonl").write_bytes(b"x")
+                    self.assertTrue(signal.wait_changed_since(None, timeout_seconds=0.25))
+                    signal.acknowledge()
+            finally:
+                for signal in signals:
+                    signal.close()
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux shared-inotify contract")
+    def test_linux_watch_registration_failure_is_fail_closed(self) -> None:
+        with TemporaryDirectory() as td:
+            root = Path(td) / "events"
+            root.mkdir()
+            failure = OSError(errno.ENOSPC, "inotify watch quota exhausted", str(root))
+            with patch(
+                "research_platform.reliability.forensics.providers.directory_change_signal.open_linux_directory_watch",
+                side_effect=failure,
+            ):
+                with self.assertRaises(OSError) as raised:
+                    DirectoryChangeSignal(root)
+            self.assertEqual(raised.exception.errno, errno.ENOSPC)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux shared-inotify contract")
+    def test_linux_same_directory_tokens_keep_independent_pending_latches(self) -> None:
+        with TemporaryDirectory() as td:
+            root = Path(td) / "events"
+            root.mkdir()
+            first = DirectoryChangeSignal(root)
+            second = DirectoryChangeSignal(root)
+            try:
+                (root / "00000000.jsonl").write_bytes(b"x")
+                self.assertTrue(first.wait_changed_since(None, timeout_seconds=0.25))
+                first.acknowledge()
+                self.assertTrue(second.changed_since(None))
+                second.acknowledge()
+            finally:
+                first.close()
+                second.close()
+
+    @unittest.skipUnless(sys.platform.startswith("linux") and hasattr(os, "fork"), "Linux fork isolation")
+    def test_linux_fork_child_uses_independent_inotify_instance(self) -> None:
+        with TemporaryDirectory() as td:
+            base = Path(td)
+            parent_root = base / "parent"; parent_root.mkdir()
+            child_root = base / "child"; child_root.mkdir()
+            parent_signal = DirectoryChangeSignal(parent_root)
+            child_to_parent_r, child_to_parent_w = os.pipe()
+            parent_to_child_r, parent_to_child_w = os.pipe()
+            pid = os.fork()
+            if pid == 0:
+                try:
+                    os.close(child_to_parent_r); os.close(parent_to_child_w)
+                    child_signal = DirectoryChangeSignal(child_root)
+                    os.write(child_to_parent_w, b"R")
+                    if os.read(parent_to_child_r, 1) != b"G": os._exit(8)
+                    (child_root / "00000000.jsonl").write_bytes(b"x")
+                    os.write(child_to_parent_w, b"C")
+                    if os.read(parent_to_child_r, 1) != b"K": os._exit(9)
+                    observed = child_signal.wait_changed_since(None, timeout_seconds=0.25)
+                    child_signal.close()
+                    os._exit(0 if observed else 10)
+                except BaseException:
+                    os._exit(11)
+            os.close(child_to_parent_w); os.close(parent_to_child_r)
+            try:
+                self.assertEqual(os.read(child_to_parent_r, 1), b"R")
+                os.write(parent_to_child_w, b"G")
+                self.assertEqual(os.read(child_to_parent_r, 1), b"C")
+                self.assertFalse(parent_signal.changed_since(None))
+                os.write(parent_to_child_w, b"K")
+                _, status = os.waitpid(pid, 0)
+                self.assertTrue(os.WIFEXITED(status))
+                self.assertEqual(os.WEXITSTATUS(status), 0)
+            finally:
+                parent_signal.close()
+                os.close(child_to_parent_r); os.close(parent_to_child_w)
 
     @unittest.skipUnless(sys.platform == "win32", "Windows change-notification contract")
     def test_windows_fresh_directory_creation_signal_has_zero_misses(self) -> None:

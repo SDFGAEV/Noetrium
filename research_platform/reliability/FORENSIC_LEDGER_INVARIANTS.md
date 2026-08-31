@@ -9,3 +9,10 @@ Authoritative forensic ledgers are append-only hash chains; SQLite projections a
 - The legacy materialized `VerifiedLedgerSlice` remains suitable for low-volume diagnostic reads and tests, but production rebuild paths use bounded streaming.
 - Failure and mutation ledgers fsync every authoritative append. Event telemetry may batch fsync/projection according to its explicit durability policy; integrity verification still spans the global event hash chain.
 - Projection freshness is never authoritative evidence of ledger truth. It is accepted only when its row/hash checkpoint matches the verified authoritative prefix.
+- Linux directory-mutation authority uses one process-wide inotify instance with independent watch-token latches; one ledger must not consume one kernel inotify instance.
+- Linux never silently degrades to directory `stat()` when inotify initialization or watch registration is unavailable. Registration failure is fail-closed because stat timestamps are not an equivalent mutation authority.
+- A drained shared inotify event marks every live token attached to that watch descriptor, so one consumer cannot erase another consumer's pending mutation observation.
+- Server2 conformance keeps more simultaneous watched ledgers than its `max_user_instances=128` limit would permit under one-fd-per-ledger design and requires every signal to remain in `inotify` mode.
+- After `fork()`, the child abandons the inherited inotify fd and process-local token registry before opening a new hub; parent and child must never drain each other's mutation events.
+- Multiple tokens for the same directory share the kernel watch descriptor but retain independent pending latches; acknowledging one consumer does not acknowledge another.
+- Exhausted Linux inotify watch capacity is a typed operating-system failure boundary: construction fails closed and must be surfaced by preflight/doctor rather than silently changing to a weaker mutation detector.
