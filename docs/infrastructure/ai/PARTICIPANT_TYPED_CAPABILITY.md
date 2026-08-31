@@ -53,3 +53,17 @@ without editing a Platform enum, model registry, endpoint registry or global
 component catalogue. Client code calls `make_typed_capability_request`, invokes
 the ordinary capability port, then calls `decode_typed_capability_result` with
 its expected descriptor, codec and provider identity.
+
+## Out-of-process conformance
+
+The canonical session contract is transport-neutral. Conformance tests execute
+the same arbitrary typed capability once with the local functional provider and
+once in a real Windows `spawn` child process over a content-addressed file byte
+transport. The two implementations produce the same canonical request digest,
+provider identity, participant generation, typed output and full
+`CapabilityResult.digest()`.
+
+The subprocess wire encoding in that test is test-proxy plumbing only; it is not
+a second Platform serialization authority. Process creation/lifecycle remains
+outside Participant, while the provider on either side still satisfies the same
+`CapabilityExportSession` semantics.

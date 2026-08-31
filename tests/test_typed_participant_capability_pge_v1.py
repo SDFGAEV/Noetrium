@@ -419,3 +419,152 @@ def test_provider_requires_runtime_participant_generation() -> None:
     request = _request(transport, context=context)
     with pytest.raises(ValueError, match="missing participant generation"):
         _provider(transport).invoke(request)
+
+
+import multiprocessing
+from pathlib import Path
+from research_platform.participant.capability.api import CapabilityResult
+
+
+class FileTransport:
+    def __init__(self, root: Path) -> None:
+        self.root = root
+        self.root.mkdir(parents=True, exist_ok=True)
+
+    def _path(self, reference) -> Path:
+        return self.root / f"{reference.content_digest}.bin"
+
+    def publish(self, reference, payload: bytes) -> None:
+        if hashlib.sha256(payload).hexdigest() != reference.content_digest:
+            raise ValueError("test file transport publish digest mismatch")
+        path = self._path(reference)
+        if path.exists():
+            if path.read_bytes() != payload:
+                raise ValueError("test file transport digest collision")
+            return
+        path.write_bytes(payload)
+
+    def load(self, reference) -> bytes:
+        return self._path(reference).read_bytes()
+
+
+def _wire_request(request: CapabilityRequest) -> dict[str, object]:
+    context = request.context
+    return {
+        "capability_id": request.capability_id,
+        "payload": dict(request.payload),
+        "idempotency_key": request.idempotency_key,
+        "context": {
+            "run_id": context.run_id,
+            "trace_id": context.trace_id,
+            "span_id": context.span_id,
+            "parent_span_id": context.parent_span_id,
+            "study_id": context.study_id,
+            "condition_id": context.condition_id,
+            "lifetime_id": context.lifetime_id,
+            "branch_id": context.branch_id,
+            "task_id": context.task_id,
+            "decision_cycle_id": context.decision_cycle_id,
+            "checkpoint_id": context.checkpoint_id,
+            "operation_id": context.operation_id,
+            "component_id": context.component_id,
+            "participant_generations": context.participant_generations,
+            "platform_generation": context.platform_generation,
+        },
+    }
+
+
+def _spawn_typed_provider(connection, root: str, wire: dict[str, object]) -> None:
+    try:
+        context_row = dict(wire["context"])
+        context_row["participant_generations"] = tuple(
+            tuple(row) for row in context_row["participant_generations"]
+        )
+        request = CapabilityRequest(
+            wire["capability_id"],
+            wire["payload"],
+            ExecutionContext(**context_row),
+            wire["idempotency_key"],
+        )
+        result = _provider(FileTransport(Path(root))).invoke(request)
+        identity = result.provider_identity
+        connection.send({
+            "ok": True,
+            "result": {
+                "capability_id": result.capability_id,
+                "payload": dict(result.payload),
+                "generation": result.generation,
+                "artifacts": result.artifacts,
+                "diagnostics": dict(result.diagnostics),
+                "provider_identity": None if identity is None else (
+                    identity.provider_id,
+                    identity.implementation_version,
+                    identity.abi_version,
+                    identity.schema_version,
+                    identity.artifact_digest,
+                ),
+                "request_digest": result.request_digest,
+            },
+        })
+    except BaseException as exc:
+        connection.send({
+            "ok": False,
+            "type": type(exc).__name__,
+            "message": str(exc),
+        })
+    finally:
+        connection.close()
+
+
+def _unwire_result(wire: dict[str, object]) -> CapabilityResult:
+    identity_row = wire["provider_identity"]
+    identity = (
+        None
+        if identity_row is None
+        else CapabilityProviderIdentity(*identity_row)
+    )
+    return CapabilityResult(
+        capability_id=wire["capability_id"],
+        payload=wire["payload"],
+        generation=wire["generation"],
+        artifacts=tuple(wire["artifacts"]),
+        diagnostics=wire["diagnostics"],
+        provider_identity=identity,
+        request_digest=wire["request_digest"],
+    )
+
+
+def test_local_and_spawned_provider_emit_equivalent_canonical_receipts(
+    tmp_path: Path,
+) -> None:
+    transport = FileTransport(tmp_path / "carrier")
+    request = _request(transport)
+    local = _provider(transport).invoke(request)
+
+    process_context = multiprocessing.get_context("spawn")
+    parent, child = process_context.Pipe(duplex=True)
+    process = process_context.Process(
+        target=_spawn_typed_provider,
+        args=(child, str(transport.root), _wire_request(request)),
+    )
+    process.start()
+    child.close()
+    assert parent.poll(15), "spawned typed capability provider did not reply"
+    reply = parent.recv()
+    process.join(15)
+    assert process.exitcode == 0
+    assert reply["ok"] is True, reply
+    remote = _unwire_result(reply["result"])
+
+    assert remote.digest() == local.digest()
+    assert remote.request_digest == capability_request_digest(request)
+    assert remote.provider_identity == local.provider_identity == _identity()
+    assert remote.generation == local.generation == "planner-r7"
+    assert decode_typed_capability_result(
+        remote,
+        request=request,
+        descriptor=_descriptor(),
+        codec=NovelCodec(),
+        transport=transport,
+        expected_provider_identity=_identity(),
+    ) == NovelOutput(4.0)
