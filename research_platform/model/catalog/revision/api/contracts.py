@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from research_platform.platform.kernel import ImmutableModelIdentity, canonical_digest
+
+if TYPE_CHECKING:
+    from .update import ModelUpdateBuildReceipt
 
 
 def _text(value: object, field: str) -> str:
@@ -153,6 +156,7 @@ class PreparedModelRevision:
     proposal: ModelUpdateProposal
     predecessor: ModelRevisionIdentity
     candidate: ModelRevisionIdentity
+    build_receipt_digest: str
     preparation_generation: int
     recovery_anchor_digest: str
     validation_plan_digest: str
@@ -175,6 +179,7 @@ class PreparedModelRevision:
             raise ValueError("model revision candidate must preserve model_id identity")
         if self.candidate.digest() == predecessor_digest:
             raise ValueError("prepared model candidate must be a distinct revision")
+        _sha256(self.build_receipt_digest, "prepared model build receipt digest")
         _generation(self.preparation_generation, "prepared model generation")
         _sha256(self.recovery_anchor_digest, "prepared model recovery anchor digest")
         _sha256(self.validation_plan_digest, "prepared model validation plan digest")
@@ -363,15 +368,6 @@ class ModelRevisionAuthoritySnapshot:
 
 
 @runtime_checkable
-class ModelUpdateProducerPort(Protocol):
-    def build_candidate(
-        self,
-        proposal: ModelUpdateProposal,
-        predecessor: ModelRevisionIdentity,
-    ) -> ModelRevisionIdentity: ...
-
-
-@runtime_checkable
 class ModelRevisionAuthorityPort(Protocol):
     def initialize(self, initial: ModelRevisionIdentity) -> ModelRevisionAuthoritySnapshot: ...
 
@@ -381,9 +377,7 @@ class ModelRevisionAuthorityPort(Protocol):
 
     def prepare_successor(
         self,
-        proposal: ModelUpdateProposal,
-        predecessor: ModelRevisionIdentity,
-        candidate: ModelRevisionIdentity,
+        build_receipt: "ModelUpdateBuildReceipt",
         *,
         expected_generation: int,
         recovery_anchor_digest: str,
@@ -430,7 +424,6 @@ __all__ = [
     "ModelRevisionIntegrityError",
     "ModelRevisionStateError",
     "ModelRollbackReceipt",
-    "ModelUpdateProducerPort",
     "ModelUpdateProposal",
     "PreparedModelRevision",
 ]

@@ -22,8 +22,14 @@ from research_platform.model.catalog.revision.api.contracts import (
     ModelUpdateProposal,
     PreparedModelRevision,
 )
+from research_platform.model.catalog.revision.api.update import (
+    ModelUpdateBuildEvidence,
+    ModelUpdateBuildReceipt,
+    ModelUpdatePlan,
+    ModelUpdateSource,
+)
 
-_SCHEMA_VERSION = "model-revision-authority.sqlite.v1"
+_SCHEMA_VERSION = "model-revision-authority.sqlite.v2"
 _TABLES = frozenset({"authority_meta", "revisions", "proposals", "prepared", "commits", "promotions", "rollbacks"})
 JsonNode = str | int | None | list["JsonNode"] | tuple["JsonNode", ...] | dict[str, "JsonNode"]
 
@@ -183,6 +189,121 @@ def _decode_proposal(raw: bytes) -> ModelUpdateProposal:
         raise ModelRevisionIntegrityError("model update proposal payload is invalid") from exc
 
 
+
+def _encode_build_receipt(value: ModelUpdateBuildReceipt) -> bytes:
+    plan = value.plan
+    return _bytes({
+        "build_evidence": [
+            {
+                "candidate_revision_digest": row.candidate_revision_digest,
+                "evidence_digest": row.evidence_digest,
+                "plan_digest": row.plan_digest,
+                "producer_contract_id": row.producer_contract_id,
+            }
+            for row in value.build_evidence
+        ],
+        "plan": {
+            "configuration_digest": plan.configuration_digest,
+            "implementation_digest": plan.implementation_digest,
+            "output_lineage_contract_id": plan.output_lineage_contract_id,
+            "plan_id": plan.plan_id,
+            "predecessor_revision_digest": plan.predecessor_revision_digest,
+            "randomness_digest": plan.randomness_digest,
+            "source_revisions": [
+                {
+                    "revision_digest": source.revision_digest,
+                    "role": source.role,
+                    "source_id": source.source_id,
+                }
+                for source in plan.source_revisions
+            ],
+            "training_input_digest": plan.training_input_digest,
+            "update_contract_id": plan.update_contract_id,
+        },
+        "producer_contract_id": value.producer_contract_id,
+        "producer_implementation_digest": value.producer_implementation_digest,
+    })
+
+
+def _decode_build_receipt(
+    raw: bytes,
+    *,
+    proposal: ModelUpdateProposal,
+    predecessor: ModelRevisionIdentity,
+    candidate: ModelRevisionIdentity,
+) -> ModelUpdateBuildReceipt:
+    root = _loads(raw, field="model update build receipt")
+    _expect(root, frozenset({
+        "build_evidence", "plan", "producer_contract_id", "producer_implementation_digest",
+    }), field="model update build receipt")
+    plan_raw = root["plan"]
+    if not isinstance(plan_raw, dict):
+        raise ModelRevisionIntegrityError("model update build plan must be an object")
+    _expect(plan_raw, frozenset({
+        "configuration_digest", "implementation_digest", "output_lineage_contract_id", "plan_id",
+        "predecessor_revision_digest", "randomness_digest", "source_revisions",
+        "training_input_digest", "update_contract_id",
+    }), field="model update build plan")
+    sources_raw = plan_raw["source_revisions"]
+    if not isinstance(sources_raw, list):
+        raise ModelRevisionIntegrityError("model update build sources must be a list")
+    sources: list[ModelUpdateSource] = []
+    for index, source_raw in enumerate(sources_raw):
+        if not isinstance(source_raw, dict):
+            raise ModelRevisionIntegrityError(f"model update source[{index}] must be an object")
+        _expect(source_raw, frozenset({"revision_digest", "role", "source_id"}), field=f"model update source[{index}]")
+        try:
+            sources.append(ModelUpdateSource(
+                source_id=_string(source_raw["source_id"], field="source_id"),
+                role=_string(source_raw["role"], field="source role"),
+                revision_digest=_string(source_raw["revision_digest"], field="source revision digest"),
+            ))
+        except (TypeError, ValueError) as exc:
+            raise ModelRevisionIntegrityError(f"model update source[{index}] is invalid") from exc
+    evidence_raw = root["build_evidence"]
+    if not isinstance(evidence_raw, list) or not evidence_raw:
+        raise ModelRevisionIntegrityError("model update build evidence must be a non-empty list")
+    evidence: list[ModelUpdateBuildEvidence] = []
+    for index, row in enumerate(evidence_raw):
+        if not isinstance(row, dict):
+            raise ModelRevisionIntegrityError(f"model update build evidence[{index}] must be an object")
+        _expect(row, frozenset({
+            "candidate_revision_digest", "evidence_digest", "plan_digest", "producer_contract_id",
+        }), field=f"model update build evidence[{index}]")
+        try:
+            evidence.append(ModelUpdateBuildEvidence(
+                plan_digest=_string(row["plan_digest"], field="build evidence plan digest"),
+                candidate_revision_digest=_string(row["candidate_revision_digest"], field="build evidence candidate digest"),
+                evidence_digest=_string(row["evidence_digest"], field="build evidence digest"),
+                producer_contract_id=_string(row["producer_contract_id"], field="build evidence producer contract"),
+            ))
+        except (TypeError, ValueError) as exc:
+            raise ModelRevisionIntegrityError(f"model update build evidence[{index}] is invalid") from exc
+    try:
+        plan = ModelUpdatePlan(
+            plan_id=_string(plan_raw["plan_id"], field="plan_id"),
+            predecessor_revision_digest=_string(plan_raw["predecessor_revision_digest"], field="plan predecessor"),
+            update_contract_id=_string(plan_raw["update_contract_id"], field="update contract"),
+            implementation_digest=_string(plan_raw["implementation_digest"], field="update implementation"),
+            configuration_digest=_string(plan_raw["configuration_digest"], field="update configuration"),
+            training_input_digest=_string(plan_raw["training_input_digest"], field="training input"),
+            randomness_digest=_string(plan_raw["randomness_digest"], field="randomness", optional=True),
+            source_revisions=tuple(sources),
+            output_lineage_contract_id=_string(plan_raw["output_lineage_contract_id"], field="output lineage contract"),
+        )
+        return ModelUpdateBuildReceipt(
+            plan=plan,
+            proposal=proposal,
+            predecessor=predecessor,
+            candidate=candidate,
+            producer_contract_id=_string(root["producer_contract_id"], field="build producer contract"),
+            producer_implementation_digest=_string(root["producer_implementation_digest"], field="build producer implementation"),
+            build_evidence=tuple(evidence),
+        )
+    except (TypeError, ValueError) as exc:
+        raise ModelRevisionIntegrityError("model update build receipt is invalid") from exc
+
+
 def _encode_evidence(values: tuple[ModelRevisionEvidence, ...]) -> bytes:
     return _bytes({"evidence": [
         {
@@ -305,7 +426,7 @@ class SQLiteModelRevisionAuthority:
             "CREATE TABLE authority_meta (singleton INTEGER PRIMARY KEY CHECK(singleton=1), schema_version TEXT NOT NULL, generation INTEGER, active_digest TEXT, initial_digest TEXT)",
             "CREATE TABLE revisions (digest TEXT PRIMARY KEY, parent_digest TEXT, payload BLOB NOT NULL, committed INTEGER NOT NULL CHECK(committed IN (0,1)))",
             "CREATE TABLE proposals (digest TEXT PRIMARY KEY, payload BLOB NOT NULL)",
-            "CREATE TABLE prepared (proposal_digest TEXT PRIMARY KEY, prepared_digest TEXT NOT NULL UNIQUE, predecessor_digest TEXT NOT NULL, candidate_digest TEXT NOT NULL UNIQUE, generation INTEGER NOT NULL, recovery_anchor_digest TEXT NOT NULL, validation_plan_digest TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('prepared','committed')), FOREIGN KEY(proposal_digest) REFERENCES proposals(digest), FOREIGN KEY(predecessor_digest) REFERENCES revisions(digest), FOREIGN KEY(candidate_digest) REFERENCES revisions(digest))",
+            "CREATE TABLE prepared (proposal_digest TEXT PRIMARY KEY, prepared_digest TEXT NOT NULL UNIQUE, predecessor_digest TEXT NOT NULL, candidate_digest TEXT NOT NULL UNIQUE, generation INTEGER NOT NULL, recovery_anchor_digest TEXT NOT NULL, validation_plan_digest TEXT NOT NULL, build_receipt BLOB NOT NULL, status TEXT NOT NULL CHECK(status IN ('prepared','committed')), FOREIGN KEY(proposal_digest) REFERENCES proposals(digest), FOREIGN KEY(predecessor_digest) REFERENCES revisions(digest), FOREIGN KEY(candidate_digest) REFERENCES revisions(digest))",
             "CREATE TABLE commits (candidate_digest TEXT PRIMARY KEY, prepared_digest TEXT NOT NULL UNIQUE, evidence BLOB NOT NULL, generation INTEGER NOT NULL, commit_digest TEXT NOT NULL UNIQUE, FOREIGN KEY(candidate_digest) REFERENCES revisions(digest))",
             "CREATE TABLE promotions (decision_digest TEXT PRIMARY KEY, candidate_digest TEXT NOT NULL, predecessor_digest TEXT NOT NULL, generation INTEGER NOT NULL, receipt_digest TEXT NOT NULL UNIQUE)",
             "CREATE TABLE rollbacks (operation_digest TEXT PRIMARY KEY, failed_digest TEXT NOT NULL, target_digest TEXT NOT NULL, evidence BLOB NOT NULL, recovery_anchor_digest TEXT NOT NULL, generation INTEGER NOT NULL, receipt_digest TEXT NOT NULL UNIQUE)",
@@ -380,10 +501,15 @@ class SQLiteModelRevisionAuthority:
         predecessor = cls._load_revision(connection, row["predecessor_digest"])
         candidate = cls._load_revision(connection, row["candidate_digest"])
         try:
+            build_receipt = _decode_build_receipt(
+                bytes(row["build_receipt"]),
+                proposal=proposal, predecessor=predecessor, candidate=candidate,
+            )
             prepared = PreparedModelRevision(
                 proposal=proposal,
                 predecessor=predecessor,
                 candidate=candidate,
+                build_receipt_digest=build_receipt.digest(),
                 preparation_generation=row["generation"],
                 recovery_anchor_digest=row["recovery_anchor_digest"],
                 validation_plan_digest=row["validation_plan_digest"],
@@ -453,18 +579,17 @@ class SQLiteModelRevisionAuthority:
 
     def prepare_successor(
         self,
-        proposal: ModelUpdateProposal,
-        predecessor: ModelRevisionIdentity,
-        candidate: ModelRevisionIdentity,
+        build_receipt: ModelUpdateBuildReceipt,
         *,
         expected_generation: int,
         recovery_anchor_digest: str,
         validation_plan_digest: str,
     ) -> PreparedModelRevision:
-        if not isinstance(proposal, ModelUpdateProposal):
-            raise TypeError("model revision prepare requires ModelUpdateProposal")
-        if not isinstance(predecessor, ModelRevisionIdentity) or not isinstance(candidate, ModelRevisionIdentity):
-            raise TypeError("model revision prepare requires typed predecessor and candidate")
+        if not isinstance(build_receipt, ModelUpdateBuildReceipt):
+            raise TypeError("model revision prepare requires ModelUpdateBuildReceipt")
+        proposal = build_receipt.proposal
+        predecessor = build_receipt.predecessor
+        candidate = build_receipt.candidate
         proposal_digest = proposal.digest()
         with self._transaction() as connection:
             existing = connection.execute(
@@ -476,6 +601,7 @@ class SQLiteModelRevisionAuthority:
                     prepared.proposal != proposal
                     or prepared.predecessor != predecessor
                     or prepared.candidate != candidate
+                    or prepared.build_receipt_digest != build_receipt.digest()
                     or prepared.recovery_anchor_digest != recovery_anchor_digest
                     or prepared.validation_plan_digest != validation_plan_digest
                 ):
@@ -491,7 +617,7 @@ class SQLiteModelRevisionAuthority:
                 raise ModelRevisionIntegrityError("model update predecessor payload drift")
             next_generation = self._next_generation(generation)
             prepared = PreparedModelRevision(
-                proposal, predecessor, candidate, next_generation,
+                proposal, predecessor, candidate, build_receipt.digest(), next_generation,
                 recovery_anchor_digest, validation_plan_digest,
             )
             candidate_digest = candidate.digest()
@@ -512,10 +638,11 @@ class SQLiteModelRevisionAuthority:
                 (candidate_digest, candidate.parent_revision_digest, _encode_revision(candidate)),
             )
             connection.execute(
-                "INSERT INTO prepared(proposal_digest,prepared_digest,predecessor_digest,candidate_digest,generation,recovery_anchor_digest,validation_plan_digest,status) VALUES(?,?,?,?,?,?,?,'prepared')",
+                "INSERT INTO prepared(proposal_digest,prepared_digest,predecessor_digest,candidate_digest,generation,recovery_anchor_digest,validation_plan_digest,build_receipt,status) VALUES(?,?,?,?,?,?,?,?,'prepared')",
                 (
                     proposal_digest, prepared.digest(), predecessor_digest, candidate_digest,
                     next_generation, recovery_anchor_digest, validation_plan_digest,
+                    _encode_build_receipt(build_receipt),
                 ),
             )
             connection.execute(

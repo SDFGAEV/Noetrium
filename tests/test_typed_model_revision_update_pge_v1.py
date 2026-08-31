@@ -15,6 +15,9 @@ from research_platform.model.api import (
     ModelRevisionIntegrityError,
     ModelRevisionStateError,
     ModelRevisionCommit,
+    ModelUpdateBuildEvidence,
+    ModelUpdateBuildReceipt,
+    ModelUpdatePlan,
     ModelUpdateProposal,
     PreparedModelRevision,
 )
@@ -41,16 +44,37 @@ def _candidate(initial: ModelRevisionIdentity, revision: str = "r2") -> ModelRev
     )
 
 
-def _proposal(initial: ModelRevisionIdentity, proposal_id: str = "online-update-1") -> ModelUpdateProposal:
-    return ModelUpdateProposal(
-        proposal_id=proposal_id,
+def _plan(initial: ModelRevisionIdentity, plan_id: str = "online-update-1") -> ModelUpdatePlan:
+    return ModelUpdatePlan(
+        plan_id=plan_id,
         predecessor_revision_digest=initial.digest(),
         update_contract_id="paper.online-learning.v1",
         implementation_digest="2" * 64,
         configuration_digest="3" * 64,
         training_input_digest="4" * 64,
         randomness_digest="5" * 64,
-        evidence_refs=("artifact:training-cut",),
+    )
+
+
+def _proposal(initial: ModelRevisionIdentity, proposal_id: str = "online-update-1") -> ModelUpdateProposal:
+    return _plan(initial, proposal_id).to_proposal(
+        proposal_id, evidence_refs=("artifact:training-cut",)
+    )
+
+
+def _build(
+    initial: ModelRevisionIdentity,
+    proposal_id: str = "online-update-1",
+    revision: str = "r2",
+) -> ModelUpdateBuildReceipt:
+    plan = _plan(initial, proposal_id)
+    proposal = plan.to_proposal(proposal_id, evidence_refs=("artifact:training-cut",))
+    candidate = _candidate(initial, revision)
+    evidence = ModelUpdateBuildEvidence(
+        plan.digest(), candidate.digest(), "0" * 64, "paper.trainer.build.v1"
+    )
+    return ModelUpdateBuildReceipt(
+        plan, proposal, initial, candidate, "paper.trainer.v1", "f" * 64, (evidence,)
     )
 
 
@@ -59,8 +83,10 @@ def _evidence(kind: ModelRevisionEvidenceKind, revision: str, digit: str) -> Mod
 
 
 def _prepared(initial: ModelRevisionIdentity) -> PreparedModelRevision:
+    build = _build(initial)
     return PreparedModelRevision(
-        _proposal(initial), initial, _candidate(initial), 2, "8" * 64, "9" * 64
+        build.proposal, build.predecessor, build.candidate, build.digest(),
+        2, "8" * 64, "9" * 64
     )
 
 
@@ -100,7 +126,7 @@ def test_revision_values_are_immutable_and_bind_exact_lineage() -> None:
         initial.revision_artifact_digest = "f" * 64  # type: ignore[misc]
     wrong = ModelRevisionIdentity(_model("r2"), "6" * 64, parent_revision_digest="f" * 64)
     with pytest.raises(ValueError, match="exact predecessor"):
-        PreparedModelRevision(_proposal(initial), initial, wrong, 2, "8" * 64, "9" * 64)
+        PreparedModelRevision(_proposal(initial), initial, wrong, "0" * 64, 2, "8" * 64, "9" * 64)
 
 
 def test_commit_and_promotion_evidence_must_bind_exact_candidate() -> None:
@@ -143,7 +169,7 @@ def test_durable_prepare_allocates_generation_and_reopens_after_crash(tmp_path: 
     path, authority, initial = _authority(tmp_path)
     candidate = _candidate(initial)
     prepared = authority.prepare_successor(
-        _proposal(initial), initial, candidate, expected_generation=1,
+        _build(initial), expected_generation=1,
         recovery_anchor_digest="8" * 64, validation_plan_digest="9" * 64,
     )
     assert prepared.preparation_generation == 2
@@ -157,18 +183,17 @@ def test_durable_prepare_allocates_generation_and_reopens_after_crash(tmp_path: 
 def test_prepare_exact_retry_is_idempotent_but_stale_different_prepare_is_fenced(tmp_path: Path) -> None:
     _, authority, initial = _authority(tmp_path)
     first = authority.prepare_successor(
-        _proposal(initial), initial, _candidate(initial), expected_generation=1,
+        _build(initial), expected_generation=1,
         recovery_anchor_digest="8" * 64, validation_plan_digest="9" * 64,
     )
     retry = authority.prepare_successor(
-        _proposal(initial), initial, _candidate(initial), expected_generation=1,
+        _build(initial), expected_generation=1,
         recovery_anchor_digest="8" * 64, validation_plan_digest="9" * 64,
     )
     assert retry == first
     with pytest.raises(ModelRevisionConflictError, match="stale"):
         authority.prepare_successor(
-            _proposal(initial, "competing-update"), initial,
-            _candidate(initial, "r3"), expected_generation=1,
+            _build(initial, "competing-update", "r3"), expected_generation=1,
             recovery_anchor_digest="a" * 64, validation_plan_digest="b" * 64,
         )
 
@@ -176,7 +201,7 @@ def test_prepare_exact_retry_is_idempotent_but_stale_different_prepare_is_fenced
 def test_commit_is_durable_idempotent_and_generation_fenced(tmp_path: Path) -> None:
     _, authority, initial = _authority(tmp_path)
     prepared = authority.prepare_successor(
-        _proposal(initial), initial, _candidate(initial), expected_generation=1,
+        _build(initial), expected_generation=1,
         recovery_anchor_digest="8" * 64, validation_plan_digest="9" * 64,
     )
     validation = (
@@ -192,7 +217,7 @@ def _committed(
     initial: ModelRevisionIdentity,
 ) -> tuple[PreparedModelRevision, object]:
     prepared = authority.prepare_successor(
-        _proposal(initial), initial, _candidate(initial), expected_generation=1,
+        _build(initial), expected_generation=1,
         recovery_anchor_digest="8" * 64, validation_plan_digest="9" * 64,
     )
     validation = (

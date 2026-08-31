@@ -13,7 +13,6 @@ from .contracts import (
     ModelRevisionIntegrityError,
     ModelRevisionStateError,
     ModelRollbackReceipt,
-    ModelUpdateProducerPort,
     ModelUpdateProposal,
     PreparedModelRevision,
 )
@@ -25,4 +24,14 @@ __all__ = [
     "ModelRevisionEvidenceKind", "ModelRevisionIdentity", "ModelRevisionIntegrityError",
     "ModelRevisionStateError", "ModelRollbackReceipt", "ModelUpdateProducerPort",
     "ModelUpdateProposal", "PreparedModelRevision",
+]
+
+from .update import (
+    ModelUpdateBuildEvidence, ModelUpdateBuildReceipt, ModelUpdatePlan,
+    ModelUpdateProducerPort, ModelUpdateSource,
+)
+
+__all__ += [
+    "ModelUpdateBuildEvidence", "ModelUpdateBuildReceipt", "ModelUpdatePlan",
+    "ModelUpdateProducerPort", "ModelUpdateSource",
 ]

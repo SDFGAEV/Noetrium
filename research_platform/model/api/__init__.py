@@ -36,7 +36,8 @@ from research_platform.model.catalog.revision.api import (
     ModelRevisionAuthorityPort, ModelRevisionAuthoritySnapshot, ModelRevisionCommit,
     ModelRevisionConflictError, ModelRevisionEvidence, ModelRevisionEvidenceKind,
     ModelRevisionIdentity, ModelRevisionIntegrityError, ModelRevisionStateError,
-    ModelRollbackReceipt, ModelUpdateProducerPort, ModelUpdateProposal, PreparedModelRevision,
+    ModelRollbackReceipt, ModelUpdateBuildEvidence, ModelUpdateBuildReceipt, ModelUpdatePlan,
+    ModelUpdateProducerPort, ModelUpdateProposal, ModelUpdateSource, PreparedModelRevision,
 )
 
 __all__ = [
@@ -69,8 +70,12 @@ __all__ = [
     "ModelRevisionIntegrityError",
     "ModelRevisionStateError",
     "ModelRollbackReceipt",
+    "ModelUpdateBuildEvidence",
+    "ModelUpdateBuildReceipt",
+    "ModelUpdatePlan",
     "ModelUpdateProducerPort",
     "ModelUpdateProposal",
+    "ModelUpdateSource",
     "PreparedModelRevision",
     "ModelAuthorities",
     "ModelBindingDiagnostic",

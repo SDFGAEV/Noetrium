@@ -47,3 +47,34 @@ the database. SQLite integrity failure, schema drift, missing durable rows,
 digest mismatch, duplicate-key payloads, invalid lineage, and torn/non-database
 content fail closed with `ModelRevisionIntegrityError`; they are never repaired
 by silently recreating authority state.
+
+## Update/training build topology
+
+A candidate cannot now enter the durable prepare phase as a caller-constructed
+`ModelRevisionIdentity`. The update path first produces a typed
+`ModelUpdateBuildReceipt` from a `ModelUpdatePlan`.
+
+The plan binds the primary predecessor, open update contract, implementation and
+configuration digests, frozen training-input digest, randomness identity,
+optional named source revisions, and output-lineage contract. Source roles are
+open project/domain text rather than a central train/fine-tune/distill enum.
+Additional source revisions are canonicalized by source id; algorithms whose
+ordering or weights are material bind those semantics in configuration identity.
+
+`ModelUpdateBuildReceipt` then binds the exact plan, proposal, predecessor,
+candidate, producer contract/implementation and non-empty build evidence. Build
+evidence binds the exact plan digest and candidate revision digest.
+`ModelRevisionAuthorityPort.prepare_successor()` accepts only this build receipt.
+The SQLite authority stores the complete receipt in prepared state and replays
+its typed/domain validation on fresh-process reopen. `PreparedModelRevision`
+retains the exact build-receipt digest, so later commit/promotion lineage stays
+bound to the candidate-construction proof.
+
+The SQLite schema is `model-revision-authority.sqlite.v2`. There is deliberately
+no v1 compatibility decoder: an old authority database fails schema validation
+rather than being reinterpreted under the stronger candidate-provenance contract.
+
+The generic JSON byte/decode mechanism in this provider is still scheduled for
+the separate ROLE01 strict-finite-JSON producer cutover. That convergence changes
+the shared serialization acceptance mechanism, not these Model-owned field-set,
+lineage, plan, build-receipt, CAS, promotion, or rollback semantics.
