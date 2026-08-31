@@ -23,7 +23,7 @@ from research_platform.reliability.effect.api import EffectReconciliationDisposi
 from research_platform.reliability.effect.api import EffectIntentPhase
 from research_platform.reliability.effect.runtime import SQLiteEffectIntentJournal
 from research_platform.platform.kernel import EffectCertainty, EffectClass, EffectReceipt, canonical_digest
-from research_platform.execution.workflow.implementations.agent_turn.agent_turn_workflow import AgentTurnStudyWorkflow
+from research_platform.execution.workflow.implementations.agent_turn.agent_turn_workflow import AgentTurnTrialProtocol
 from research_platform.execution.decision.cycle_identity import DecisionCycleIdentity
 from research_platform.experimentation.experiment.runtime import ExperimentRuntime
 from research_platform.experimentation.experiment.api import ExperimentParticipantSpec, ExperimentSpec
@@ -186,7 +186,8 @@ def _spec() -> ExperimentSpec:
             participant("agent", "agent", "restart-agent", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="restart-agent-cfg", depends_on_roles=("external-write",)),
         ),
         model_stack_digest="model", prompt_generation="prompt", workload_digest="work",
-        seed_digest="seed", repetitions=1, scientific_workflow_id="agent_turn.v1",
+        seed_digest="seed", repetitions=1, trial_protocol_id="agent_turn.v1",
+        trial_protocol_configuration_digest="44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
     )
 
 

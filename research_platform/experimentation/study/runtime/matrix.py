@@ -38,7 +38,7 @@ def _study_units(
         StudyExecutionUnit(
             protocol.study_id,
             repetition,
-            tuple(sorted(grouped[repetition], key=lambda item: item.variant_id)),
+            tuple(sorted(grouped[repetition], key=lambda item: (item.variant_id, item.seed))),
         )
         for repetition in sorted(grouped)
     )
@@ -84,7 +84,7 @@ class StudyMatrixExecutor:
             return tuple((unit, execute_one(unit)) for unit in units)
         if self._task_group is None:
             raise RuntimeError(
-                "parallel scientific repetitions require an injected structured task group"
+                "parallel study repetitions require an injected structured task group"
             )
 
         invocation_id = uuid4().hex
@@ -147,7 +147,7 @@ class StudyMatrixExecutor:
             observations.extend(sorted(unit_observations, key=lambda item: item.assignment.variant_id))
 
         frozen_observations = tuple(observations)
-        aggregates = self._aggregation.aggregate(protocol, frozen_observations)
+        aggregates = self._aggregation.aggregate(protocol, frozen_observations, expected)
         return StudyMatrixExecutionReport(protocol.protocol_digest, frozen_observations, aggregates)
 
     def execute_plan(
@@ -169,7 +169,7 @@ class StudyMatrixExecutor:
             raise TypeError(
                 "compiled experiment plans require an adapter implementing execute_bound"
             )
-        expected = self._assignment_expander.assignments(plan.protocol)
+        expected = plan.assignments
         self._require_exact_assignments(expected, assignments)
         units = _study_units(plan.protocol, assignments)
         binding_index = _binding_index(plan)
@@ -186,7 +186,7 @@ class StudyMatrixExecutor:
             observations.extend(sorted(unit_observations, key=lambda item: item.assignment.variant_id))
 
         frozen_observations = tuple(observations)
-        aggregates = self._aggregation.aggregate(plan.protocol, frozen_observations)
+        aggregates = self._aggregation.aggregate(plan.protocol, frozen_observations, plan.assignments)
         return StudyMatrixExecutionReport(
             plan.protocol.protocol_digest,
             frozen_observations,

@@ -89,7 +89,7 @@ class ActionSlotGuard:
     def _require_existing_intent_replay_allowed(phase: EffectIntentPhase) -> str:
         if phase is EffectIntentPhase.CONSUMED:
             raise EffectAlreadyConsumed(
-                "exact action intent is already CONSUMED by scientific state; restore/return prior cycle result instead of replay"
+                "exact action intent is already CONSUMED by trial state; restore/return prior cycle result instead of replay"
             )
         if phase is EffectIntentPhase.NOT_APPLIED:
             raise ActionNotApplied(

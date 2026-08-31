@@ -11,6 +11,17 @@ from research_platform.execution.command.api import CommandId
 _SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
 
 
+def _normalize_optional_effect_text(value: object, field: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise TypeError(f"{field} must be text or null")
+    normalized = value.strip()
+    if not normalized:
+        raise ValueError(f"{field} cannot be blank")
+    return normalized
+
+
 class OperationState(StrEnum):
     CREATED="created"; QUEUED="queued"; ADMITTED="admitted"; RUNNING="running"; CANCELLING="cancelling"
     RECOVERING="recovering"; UNKNOWN_EFFECT="unknown_effect"; COMPLETED="completed"; FAILED="failed"; CANCELLED="cancelled"
@@ -94,6 +105,8 @@ class OperationSnapshot:
     failure: OperationFailure | None=None
     cancellation_requested: bool=False
     cancellation_reason: str | None=None
+    effect_request_id: str | None=None
+    effect_request_digest: str | None=None
 
     def __post_init__(self) -> None:
         if not isinstance(self.operation_id, OperationId):
@@ -124,6 +137,10 @@ class OperationSnapshot:
             raise ValueError("operation cannot be its own parent")
         if self.effect_id is not None and not isinstance(self.effect_id, EffectId):
             raise TypeError("effect_id must be EffectId or null")
+        request_id = _normalize_optional_effect_text(self.effect_request_id, "effect_request_id")
+        request_digest = _normalize_optional_effect_text(self.effect_request_digest, "effect_request_digest")
+        object.__setattr__(self, "effect_request_id", request_id)
+        object.__setattr__(self, "effect_request_digest", request_digest)
         if not isinstance(self.effect_profile, OperationEffectProfile):
             raise TypeError("effect_profile must be OperationEffectProfile")
         if not isinstance(self.effect_certainty, OperationEffectCertainty):
@@ -139,11 +156,12 @@ class OperationSnapshot:
             if self.state is not OperationState.COMPLETED:
                 raise ValueError("operation result_digest is valid only for COMPLETED state")
             object.__setattr__(self, "result_digest", digest)
-        if self.effect_profile is not OperationEffectProfile.NONE and self.effect_id is None:
-            raise ValueError("effectful operation requires stable effect_id before execution")
+        if self.effect_profile is not OperationEffectProfile.NONE:
+            if self.effect_id is None or request_id is None or request_digest is None:
+                raise ValueError("effectful operation requires stable effect_id/request_id/request_digest before execution")
+        elif self.effect_id is not None or request_id is not None or request_digest is not None:
+            raise ValueError("effect-free operation cannot carry external effect identity")
         if self.effect_profile is OperationEffectProfile.NONE:
-            if self.effect_id is not None:
-                raise ValueError("effect-free operation cannot carry effect_id")
             if self.effect_certainty is not OperationEffectCertainty.NOT_EXECUTED:
                 raise ValueError("effect-free operation must remain NOT_EXECUTED")
         if self.state is OperationState.UNKNOWN_EFFECT:
@@ -192,7 +210,7 @@ _ALLOWED={
     OperationState.ADMITTED:{OperationState.RUNNING,OperationState.CANCELLED,OperationState.FAILED},
     OperationState.RUNNING:{OperationState.CANCELLING,OperationState.COMPLETED,OperationState.FAILED,OperationState.UNKNOWN_EFFECT,OperationState.RECOVERING},
     OperationState.CANCELLING:{OperationState.CANCELLED,OperationState.COMPLETED,OperationState.FAILED,OperationState.UNKNOWN_EFFECT},
-    OperationState.UNKNOWN_EFFECT:{OperationState.RECOVERING,OperationState.CANCELLED},
+    OperationState.UNKNOWN_EFFECT:{OperationState.RECOVERING,OperationState.CANCELLED,OperationState.FAILED},
     OperationState.RECOVERING:{OperationState.RUNNING,OperationState.COMPLETED,OperationState.FAILED,OperationState.CANCELLED,OperationState.UNKNOWN_EFFECT},
 }
 

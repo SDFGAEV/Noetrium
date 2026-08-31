@@ -1,15 +1,17 @@
 from __future__ import annotations
 
-from research_platform.execution.workflow.api import ScientificCycleExecution
+from research_platform.platform.kernel import canonical_digest
+
+from research_platform.execution.workflow.api import TrialCycleExecution
 from .contracts import AgentTurnOperationPort
 
 
-class AgentTurnStudyWorkflow:
+class AgentTurnTrialProtocol:
     """Generic Agent workflow with no Environment or Method assumptions."""
 
-    workflow_id = "agent_turn.v1"
+    protocol_id = "agent_turn.v1"
     surface_id = "agent_turn.operations.v1"
-    configuration_digest = ""
+    configuration_digest = canonical_digest({})
 
     def run(
         self,
@@ -19,7 +21,7 @@ class AgentTurnStudyWorkflow:
         task: object,
         input_kind: str,
         input_payload: object,
-    ) -> ScientificCycleExecution:
+    ) -> TrialCycleExecution:
         result, rows = operations.agent_turn(
             task,
             {"input_kind": input_kind, "payload": input_payload},
@@ -30,7 +32,7 @@ class AgentTurnStudyWorkflow:
             if result.agent_generation is not None
             else context
         )
-        return ScientificCycleExecution(
+        return TrialCycleExecution(
             context_text=str(result.output),
             primary_result=result,
             final_context=final_context,
@@ -38,4 +40,4 @@ class AgentTurnStudyWorkflow:
         )
 
 
-__all__ = ["AgentTurnStudyWorkflow"]
+__all__ = ["AgentTurnTrialProtocol"]

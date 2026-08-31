@@ -11,7 +11,7 @@ from .decision_coordination import identity_context
 from research_platform.execution.decision.cycle_identity import DecisionCycleIdentity
 from research_platform.execution.decision.cycle_result import DecisionCycleResult
 from ..identity.api import RunIdentity
-from research_platform.experimentation.experiment.api import ExperimentScientificCycleExecutorPort
+from research_platform.experimentation.experiment.api import ExperimentTrialCycleExecutorPort
 from research_platform.experimentation.experiment.api import ExperimentSpec
 
 
@@ -27,7 +27,7 @@ class RunCycleExecution:
 
 
 class RunCycleExecutor:
-    """Executes one scientific cycle against an already-open participant topology."""
+    """Executes one trial cycle against an already-open participant topology."""
 
     def __init__(
         self,
@@ -35,14 +35,14 @@ class RunCycleExecutor:
         spec: ExperimentSpec,
         run_identity: RunIdentity,
         bound: BoundParticipants,
-        scientific: ExperimentScientificCycleExecutorPort,
+        trial: ExperimentTrialCycleExecutorPort,
         checkpoint: RunCheckpointCoordinatorPort | None,
         participant_sessions: tuple[ParticipantSessionBinding, ...] = (),
     ) -> None:
         self._spec = spec
         self._run_identity = run_identity
         self._bound = bound
-        self._scientific = scientific
+        self._trial = trial
         self._checkpoint = checkpoint
         self._participant_sessions = participant_sessions
 
@@ -84,7 +84,7 @@ class RunCycleExecutor:
     ) -> RunCycleExecution:
         self._validate_identity(cycle_identity)
         context = self._context(cycle_identity, previous_context)
-        scientific = self._scientific.execute(
+        trial = self._trial.execute(
             bound=self._bound,
             participant_sessions=self._participant_sessions,
             context=context,
@@ -92,8 +92,8 @@ class RunCycleExecutor:
             input_kind=input_kind,
             input_payload=input_payload,
         )
-        rows: list[OperationResult[JsonValue]] = list(scientific.operation_results)
-        final_context = scientific.final_context
+        rows: list[OperationResult[JsonValue]] = list(trial.operation_results)
+        final_context = trial.final_context
         checkpoint_id: str | None = None
         if self._checkpoint is not None:
             checkpoint = self._checkpoint.checkpoint(
@@ -109,8 +109,8 @@ class RunCycleExecutor:
         result = DecisionCycleResult(
             cycle_identity.run_id,
             cycle_identity.decision_cycle_id,
-            scientific.context_text,
-            scientific.primary_result,
+            trial.context_text,
+            trial.primary_result,
             tuple(rows),
             cycle_identity,
         )

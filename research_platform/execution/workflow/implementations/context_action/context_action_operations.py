@@ -16,7 +16,7 @@ from .contracts import StudyTaskCompletionExecution
 from research_platform.execution.workflow.api import WorkflowParticipantRequirementError
 
 
-class ContextActionScientificOperations:
+class ContextActionTrialOperations:
     """Method+Environment operation surface only; no Agent/Capability dependencies."""
 
     def __init__(
@@ -150,10 +150,10 @@ class ContextActionScientificOperations:
     ) -> StudyTaskCompletionExecution:
         completed = self._method_completion.complete(action_result, context)
         rows: list[OperationResult[JsonValue]] = [completed.operation]
-        consumed = self._safe_actions.confirm_scientific_commit(context, completed.consumption)
+        consumed = self._safe_actions.confirm_trial_commit(context, completed.consumption)
         if consumed is not None:
             rows.append(consumed)
         return StudyTaskCompletionExecution(completed.receipt, tuple(rows))
 
 
-__all__ = ["ContextActionScientificOperations"]
+__all__ = ["ContextActionTrialOperations"]

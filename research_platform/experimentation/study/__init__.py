@@ -1,7 +1,12 @@
-"""Public study boundary composed from contracts, runtime, and providers."""
+"""Public Study boundary. Runtime/providers require explicit imports."""
 
 from .api import (
-    ScientificConcurrencyPolicy,
+    StudyConcurrencyPolicy,
+    MeasurementDefinition,
+    MeasurementProtocol,
+    MeasurementRecord,
+    MeasurementValue,
+    MeasurementValueKind,
     StudyAssignment,
     StudyExecutionUnit,
     StudyMatrixExecutionReport,
@@ -17,16 +22,15 @@ from .api import (
     VariantExecutionReceipt,
     VariantExecutionRequest,
 )
-from .providers import RunArtifactStudyPublication
-from .runtime import BasicStudyMetricAggregator, DeterministicStudyAssignment, StudyMatrixExecutor
 from .spec import StudySpec
 
 __all__ = [
-    "BasicStudyMetricAggregator",
-    "DeterministicStudyAssignment",
-    "StudyMatrixExecutor",
-    "RunArtifactStudyPublication",
-    "ScientificConcurrencyPolicy",
+    "StudyConcurrencyPolicy",
+    "MeasurementDefinition",
+    "MeasurementProtocol",
+    "MeasurementRecord",
+    "MeasurementValue",
+    "MeasurementValueKind",
     "StudyAssignment",
     "StudyExecutionUnit",
     "StudyMatrixExecutionReport",

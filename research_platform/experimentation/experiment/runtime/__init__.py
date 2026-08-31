@@ -1,16 +1,16 @@
 from .component_binding import ExperimentComponentBinder
 from .components import ExperimentRuntimeComponents
 from .engine import ExperimentRuntime
-from .scientific_cycle import ExperimentScientificCycleExecutor
-from .workflow_identity import verify_workflow_identity, workflow_identity
+from .trial_cycle import ExperimentTrialCycleExecutor
+from .trial_protocol_identity import verify_trial_protocol_identity, trial_protocol_identity
 from .workflow_surfaces import ExperimentWorkflowSurfaceRegistry
 
 __all__ = [
     "ExperimentComponentBinder",
     "ExperimentRuntime",
     "ExperimentRuntimeComponents",
-    "ExperimentScientificCycleExecutor",
+    "ExperimentTrialCycleExecutor",
     "ExperimentWorkflowSurfaceRegistry",
-    "verify_workflow_identity",
-    "workflow_identity",
+    "verify_trial_protocol_identity",
+    "trial_protocol_identity",
 ]

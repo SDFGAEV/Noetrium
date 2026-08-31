@@ -83,6 +83,7 @@ class WorkloadCheckpointCoordinator:
             environment_generation=binding.environment_generation,
             method_generation=binding.method_generation,
             task_manifest_digest=binding.task_manifest_digest,
+            checkpoint_compatibility_digest=binding.checkpoint_compatibility_digest,
             execution_cut=execution_cut,
             component_refs=tuple(item.ref for item in payloads),
         )

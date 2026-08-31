@@ -10,8 +10,8 @@ from research_platform.participant.core.api import BoundParticipants
 from research_platform.experimentation.experiment.api import ExperimentComponentBindingPort
 from research_platform.execution.decision.cycle_identity import DecisionCycleIdentity
 from research_platform.execution.decision.cycle_result import DecisionCycleResult
-from research_platform.execution.workflow.api import ScientificCycleExecution
-from research_platform.experimentation.experiment.api import ExperimentScientificCycleExecutorPort
+from research_platform.execution.workflow.api import TrialCycleExecution
+from research_platform.experimentation.experiment.api import ExperimentTrialCycleExecutorPort
 from research_platform.participant.core.api import ParticipantSessionBinding
 from research_platform.participant.core.api.runtime_ports import ParticipantSessionLifecyclePort
 from research_platform.experimentation.experiment.api import ExperimentSpec
@@ -23,11 +23,11 @@ def _require_bound_participants(value: BoundParticipants | None) -> BoundPartici
     return value
 
 
-def _require_scientific_execution(
-    value: ScientificCycleExecution | None,
-) -> ScientificCycleExecution:
+def _require_trial_execution(
+    value: TrialCycleExecution | None,
+) -> TrialCycleExecution:
     if value is None:
-        raise RuntimeError("decision cycle scientific executor returned no execution result")
+        raise RuntimeError("decision cycle trial executor returned no execution result")
     return value
 
 
@@ -37,16 +37,16 @@ class _CycleState:
     operations: list[OperationResult[JsonValue]] = field(default_factory=list)
     bound: BoundParticipants | None = None
     participant_sessions: list[ParticipantSessionBinding] = field(default_factory=list)
-    execution: ScientificCycleExecution | None = None
+    execution: TrialCycleExecution | None = None
 
 
 class DecisionCycleCoordinator:
     """One-cycle resource transaction over generic participant topology."""
 
-    def __init__(self, binder: ExperimentComponentBindingPort, lifecycle: ParticipantSessionLifecyclePort, scientific: ExperimentScientificCycleExecutorPort) -> None:
+    def __init__(self, binder: ExperimentComponentBindingPort, lifecycle: ParticipantSessionLifecyclePort, trial: ExperimentTrialCycleExecutorPort) -> None:
         self.binder = binder
         self.lifecycle = lifecycle
-        self.scientific = scientific
+        self.trial = trial
 
 
     def _execute(self, state: _CycleState, spec: ExperimentSpec, identity: DecisionCycleIdentity, *, task: object, input_kind: str, input_payload: object) -> None:
@@ -56,7 +56,7 @@ class DecisionCycleCoordinator:
             binding, operation = self.lifecycle.open_participant(participant, state.context, identity.session_id)
             state.participant_sessions.append(binding)
             state.operations.append(operation)
-        state.execution = _require_scientific_execution(self.scientific.execute(
+        state.execution = _require_trial_execution(self.trial.execute(
             bound=state.bound,
             participant_sessions=tuple(state.participant_sessions),
             context=state.context,
@@ -101,7 +101,7 @@ class DecisionCycleCoordinator:
             attach_cleanup_note(primary, cleanup)
             raise primary
         if cleanup.failures:
-            raise RunCleanupFailure(cleanup, scientific_cycle_completed=state.execution is not None)
+            raise RunCleanupFailure(cleanup, trial_completed=state.execution is not None)
         return self._result(state, identity)
 
 

@@ -72,7 +72,7 @@ class RunSession:
         try:
             return self._closer.close(
                 self.state.last_context,
-                scientific_cycle_completed=self.state.completed_cycles > 0,
+                trial_completed=self.state.completed_cycles > 0,
             )
         finally:
             self.state.mark_closed()

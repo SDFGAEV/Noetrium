@@ -43,7 +43,7 @@ class StudyLifecycleV108Tests(unittest.TestCase):
         spec=context_action_spec(study_id="s", method_id="m", environment_id="e", model_stack_digest="model", prompt_generation="prompt", workload_digest="work", seed_digest="seed", repetitions=1)
         with self.assertRaises(RunCleanupFailure) as cm:
             context_action_runtime(mr,er).execute_cycle(spec,task="x",input_kind="a",input_payload={})
-        self.assertTrue(cm.exception.scientific_cycle_completed)
+        self.assertTrue(cm.exception.trial_completed)
         self.assertEqual(len(cm.exception.report.failures),1)
         self.assertTrue(cm.exception.report.failures[0].operation_id.endswith("environment.close:environment"))
 

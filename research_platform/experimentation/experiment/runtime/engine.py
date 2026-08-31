@@ -4,10 +4,10 @@ from research_platform.execution.decision.cycle_identity import DecisionCycleIde
 from research_platform.execution.decision.cycle_result import DecisionCycleResult
 from research_platform.experimentation.run.identity.api import RunIdentity, RunIdentityProvider
 from research_platform.experimentation.run.api import RunSessionPort
-from research_platform.experimentation.experiment.api import ExperimentSpec, ExperimentWorkflowIdentityMismatch
+from research_platform.experimentation.experiment.api import ExperimentSpec, ExperimentTrialProtocolIdentityMismatch
 
 from .components import ExperimentRuntimeComponents
-from .workflow_identity import verify_workflow_identity
+from .trial_protocol_identity import verify_trial_protocol_identity
 
 
 class ExperimentRuntime:
@@ -25,8 +25,8 @@ class ExperimentRuntime:
         self.run_identity_provider = run_identity_provider
 
     @property
-    def workflow_identity(self):
-        return self._components.workflow_identity
+    def trial_protocol_identity(self):
+        return self._components.trial_protocol_identity
 
     @property
     def coordinator(self):
@@ -44,7 +44,7 @@ class ExperimentRuntime:
         restore_checkpoint_id: str | None = None,
         restore_cycle_identity: DecisionCycleIdentity | None = None,
     ) -> RunSessionPort:
-        verify_workflow_identity(spec, self.workflow_identity)
+        verify_trial_protocol_identity(spec, self.trial_protocol_identity)
         identity = run_identity or self.run_identity_provider.allocate()
         return self.run_coordinator.open(
             spec,
@@ -62,7 +62,7 @@ class ExperimentRuntime:
         input_payload: object = None,
         cycle_identity: DecisionCycleIdentity | None = None,
     ) -> DecisionCycleResult:
-        verify_workflow_identity(spec, self.workflow_identity)
+        verify_trial_protocol_identity(spec, self.trial_protocol_identity)
         identity = cycle_identity or self.cycle_identity_provider.allocate()
         return self.coordinator.run(
             spec,

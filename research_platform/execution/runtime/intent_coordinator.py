@@ -28,6 +28,8 @@ class ExecutionIntentCoordinator:
             parent_operation_id=intent.parent_operation_id,
             effect_profile=intent.effect_profile,
             effect_id=intent.effect_id,
+            effect_request_id=intent.effect_request_id,
+            effect_request_digest=intent.effect_request_digest,
             now_unix=command.submitted_at_unix,
         )
         return ExecutionIntentReceipt(

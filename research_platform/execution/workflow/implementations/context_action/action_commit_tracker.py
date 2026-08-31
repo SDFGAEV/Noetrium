@@ -10,7 +10,7 @@ class ActionCommitTracker:
     """Owns the sole cross-call link between an external action intent and Method commit.
 
     No effect execution or recovery capability is available here.  The tracker can only
-    remember which exact intent is awaiting scientific consumption and terminalize that
+    remember which exact intent is awaiting trial consumption and terminalize that
     intent after Method authority supplies ``EffectCompletionEvidence``.
     """
 

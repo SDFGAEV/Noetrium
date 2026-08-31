@@ -6,7 +6,7 @@ from research_platform.execution.capability.api import (
 )
 from research_platform.execution.workflow.api import WorkflowSurfaceBindingContext
 
-from .agent_turn_operations import AgentTurnScientificOperations
+from .agent_turn_operations import AgentTurnTrialOperations
 
 
 class AgentTurnSurfaceFactory:
@@ -20,8 +20,8 @@ class AgentTurnSurfaceFactory:
         self._capability_pipeline_factory = capability_pipeline_factory
         self._registration_scope_factory = registration_scope_factory
 
-    def bind(self, context: WorkflowSurfaceBindingContext) -> AgentTurnScientificOperations:
-        return AgentTurnScientificOperations(
+    def bind(self, context: WorkflowSurfaceBindingContext) -> AgentTurnTrialOperations:
+        return AgentTurnTrialOperations(
             context.dispatcher,
             context.participant_sessions,
             effect_intents=context.effect_intents,

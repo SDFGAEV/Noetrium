@@ -189,6 +189,7 @@ class WorkloadCheckpointManifest:
     environment_generation: str
     method_generation: str
     task_manifest_digest: str
+    checkpoint_compatibility_digest: str
     execution_cut: WorkloadExecutionCut
     execution_cut_digest: str
     component_refs: tuple[WorkloadCheckpointComponentRef, ...]
@@ -199,11 +200,15 @@ class WorkloadCheckpointManifest:
                 self.checkpoint_id, self.schema_version, self.run_id, self.study_id,
                 self.workload_id, self.branch_id, self.source_cut_id,
                 self.environment_generation, self.method_generation,
-                self.task_manifest_digest, self.execution_cut_digest,
+                self.task_manifest_digest, self.checkpoint_compatibility_digest, self.execution_cut_digest,
             ),
             self.execution_cut,
             self.execution_cut_digest,
             self.component_refs,
+        )
+        _require_sha256(
+            self.checkpoint_compatibility_digest,
+            "workload checkpoint checkpoint_compatibility_digest",
         )
 
     def digest(self) -> str:
@@ -274,6 +279,7 @@ class WorkloadCheckpointBindingPort(Protocol):
     environment_generation: str
     method_generation: str
     task_manifest_digest: str
+    checkpoint_compatibility_digest: str
 
     def checkpoint_components(self) -> tuple[WorkloadCheckpointComponentPort, ...]: ...
 
@@ -288,9 +294,10 @@ def build_workload_checkpoint_manifest(
     environment_generation: str,
     method_generation: str,
     task_manifest_digest: str,
+    checkpoint_compatibility_digest: str,
     execution_cut: WorkloadExecutionCut,
     component_refs: tuple[WorkloadCheckpointComponentRef, ...],
-    schema_version: str = "1",
+    schema_version: str = "3",
 ) -> WorkloadCheckpointManifest:
     identity = {
         "schema_version": schema_version,
@@ -302,6 +309,7 @@ def build_workload_checkpoint_manifest(
         "environment_generation": environment_generation,
         "method_generation": method_generation,
         "task_manifest_digest": task_manifest_digest,
+        "checkpoint_compatibility_digest": checkpoint_compatibility_digest,
         "execution_cut": execution_cut,
         "component_refs": component_refs,
     }
@@ -316,6 +324,7 @@ def build_workload_checkpoint_manifest(
         environment_generation=environment_generation,
         method_generation=method_generation,
         task_manifest_digest=task_manifest_digest,
+        checkpoint_compatibility_digest=checkpoint_compatibility_digest,
         execution_cut=execution_cut,
         execution_cut_digest=execution_cut.digest(),
         component_refs=component_refs,

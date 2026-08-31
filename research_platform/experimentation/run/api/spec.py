@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import re
 
-from research_platform.platform.kernel import canonical_digest
+from research_platform.platform.kernel import canonical_digest, require_sha256
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,15 +46,39 @@ class ExperimentRunSpec:
             raise ValueError("experiment run specification contains an empty identity")
         if re.fullmatch(r"[A-Za-z0-9_.:-]+", self.execution_profile) is None:
             raise ValueError("experiment run execution_profile is not a safe identity")
+        require_sha256(self.task_manifest_digest, "experiment run task_manifest_digest")
+        require_sha256(self.seed_schedule_digest, "experiment run seed_schedule_digest")
+        require_sha256(self.environment_identity_digest, "experiment run environment_identity_digest")
         if self.repetitions <= 0:
             raise ValueError("experiment run repetitions must be positive")
-        if self.model_binding_digest is not None and not self.model_binding_digest.strip():
-            raise ValueError("experiment run model_binding_digest cannot be empty")
+        if self.model_binding_digest is not None:
+            require_sha256(self.model_binding_digest, "experiment run model_binding_digest")
         if self.prompt_generation is not None and not self.prompt_generation.strip():
             raise ValueError("experiment run prompt_generation cannot be empty")
 
+    def scientific_identity_digest(self) -> str:
+        return canonical_digest({
+            "run_id": self.run_id, "project_id": self.project_id,
+            "experiment_id": self.experiment_id, "study_id": self.study_id,
+            "task_manifest_digest": self.task_manifest_digest,
+            "seed_schedule_digest": self.seed_schedule_digest,
+            "repetitions": self.repetitions,
+            "model_binding_digest": self.model_binding_digest,
+            "prompt_generation": self.prompt_generation,
+        })
+
+    def execution_placement_digest(self) -> str:
+        return canonical_digest({
+            "execution_profile": self.execution_profile,
+            "artifact_root": self.artifact_root,
+            "environment_identity_digest": self.environment_identity_digest,
+        })
+
     def identity_digest(self) -> str:
-        return canonical_digest(self)
+        return canonical_digest({
+            "scientific_identity_digest": self.scientific_identity_digest(),
+            "execution_placement_digest": self.execution_placement_digest(),
+        })
 
 
 __all__ = ["ExperimentRunSpec"]
