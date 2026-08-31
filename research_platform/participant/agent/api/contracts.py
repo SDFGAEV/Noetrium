@@ -5,9 +5,8 @@ from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
 from research_platform.participant.capability.api import CapabilityPort
-from research_platform.platform.kernel import (
-    ExecutionContext, JsonInput, JsonValue, freeze_json, require_sha256,
-)
+from research_platform.platform.kernel import ExecutionContext, JsonInput, JsonValue, freeze_json
+
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,13 +15,7 @@ class AgentIdentity:
     implementation_version: str
     abi_version: str
     schema_version: str
-    artifact_digest: str | None = None
-
-    def __post_init__(self) -> None:
-        if any(not isinstance(value, str) or not value.strip() for value in (self.agent_id, self.implementation_version, self.abi_version, self.schema_version)):
-            raise ValueError("agent identity fields must be non-empty text")
-        if self.artifact_digest is not None:
-            require_sha256(self.artifact_digest, "agent artifact_digest")
+    artifact_digest: str = ""
 
 
 @dataclass(frozen=True, slots=True)

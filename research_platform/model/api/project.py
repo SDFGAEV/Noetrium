@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
-from research_platform.model.request.api import ContentRef, ModelRequestEnvelope
+from research_platform.model.request.api import ModelRequestEnvelope
 from research_platform.model.request.prompt.api import PromptSelectionPort
 from research_platform.platform.kernel import (
     ImmutableModelIdentity,
@@ -13,7 +13,6 @@ from research_platform.platform.kernel import (
     JsonValue,
     canonical_digest,
     freeze_json,
-    require_sha256,
 )
 
 
@@ -25,7 +24,9 @@ def _text(value: object, field_name: str) -> str:
 
 def _sha256(value: object, field_name: str) -> str:
     digest = _text(value, field_name)
-    return require_sha256(digest, field_name)
+    if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
+        raise ValueError(f"{field_name} must be a lowercase SHA-256 digest")
+    return digest
 
 
 def _tokens(values: object, field_name: str) -> tuple[str, ...]:
@@ -87,82 +88,6 @@ class ModelCapabilityRequirement:
 
     def digest(self) -> str:
         return canonical_digest(self)
-
-
-@dataclass(frozen=True, slots=True)
-class MultimodalContent:
-    role: str
-    content: ContentRef
-
-    def __post_init__(self) -> None:
-        _text(self.role, "multimodal content role")
-        if not isinstance(self.content, ContentRef):
-            raise TypeError("multimodal content must carry ContentRef")
-
-
-@dataclass(frozen=True, slots=True)
-class MultimodalInferenceInput:
-    content: tuple[MultimodalContent, ...]
-    instruction: str | None = None
-    schema_id: str = field(init=False, default="model.multimodal.input.v1")
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.content, tuple) or not self.content:
-            raise TypeError("multimodal input content must be a non-empty tuple")
-        if any(not isinstance(item, MultimodalContent) for item in self.content):
-            raise TypeError("multimodal input must contain typed MultimodalContent values")
-        if self.instruction is not None:
-            _text(self.instruction, "multimodal instruction")
-
-    def digest(self) -> str:
-        return canonical_digest(self)
-
-
-@dataclass(frozen=True, slots=True)
-class MultimodalInferenceOutput:
-    model_revision: str
-    text: str | None = None
-    content: tuple[MultimodalContent, ...] = ()
-    schema_id: str = field(init=False, default="model.multimodal.output.v1")
-
-    def __post_init__(self) -> None:
-        _text(self.model_revision, "multimodal output model_revision")
-        if self.text is not None:
-            _text(self.text, "multimodal output text")
-        if not isinstance(self.content, tuple) or any(
-            not isinstance(item, MultimodalContent) for item in self.content
-        ):
-            raise TypeError("multimodal output content must be typed MultimodalContent values")
-        if self.text is None and not self.content:
-            raise ValueError("multimodal output must contain text or content references")
-
-    def digest(self) -> str:
-        return canonical_digest(self)
-
-
-@dataclass(frozen=True, slots=True)
-class StructuredGenerationInput:
-    envelope: ModelRequestEnvelope
-    body: Mapping[str, JsonInput]
-    output_schema_sha256: str
-    schema_id: str = field(init=False, default="model.structured-generation.input.v1")
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.envelope, ModelRequestEnvelope):
-            raise TypeError("structured generation envelope must be ModelRequestEnvelope")
-        if not isinstance(self.body, Mapping):
-            raise TypeError("structured generation body must be a mapping")
-        object.__setattr__(self, "body", freeze_json(self.body))
-        require_sha256(self.output_schema_sha256, "structured generation output_schema_sha256")
-
-    def digest(self) -> str:
-        return canonical_digest({
-            "envelope_digest": self.envelope.envelope_digest,
-            "body": dict(self.body),
-            "output_schema_sha256": self.output_schema_sha256,
-        })
-
-
 
 
 @dataclass(frozen=True, slots=True)
@@ -470,9 +395,6 @@ __all__ = [
     "ModelCapabilityRequirement",
     "ModelProjectBindingError",
     "ModelProjectDefinition",
-    "MultimodalInferenceOutput",
-    "MultimodalInferenceInput",
-    "MultimodalContent",
     "ModelRequirementContribution",
     "ModelProviderProfile",
     "ProjectModelBinding",
@@ -480,5 +402,4 @@ __all__ = [
     "ProjectModelProviderPort",
     "ProjectModelRequest",
     "ProjectModelResponse",
-    "StructuredGenerationInput",
 ]

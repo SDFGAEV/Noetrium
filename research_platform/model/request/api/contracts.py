@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass
 from typing import Protocol, runtime_checkable
 
 from research_platform.platform.kernel import (
-    ExecutionContext, ImmutableModelIdentity, JsonInput, JsonObject, JsonValue, canonical_digest, freeze_json, require_sha256,
+    ExecutionContext, ImmutableModelIdentity, JsonInput, JsonObject, JsonValue, canonical_digest, freeze_json,
 )
 
 
@@ -19,7 +19,10 @@ def _text(value: object, field: str) -> str:
 
 
 def _sha256(value: object, field: str) -> str:
-    return require_sha256(value, field)
+    digest = _text(value, field)
+    if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
+        raise ValueError(f"{field} must be a lowercase SHA-256 digest")
+    return digest
 
 
 def _refs(values: object, field: str) -> tuple[str, ...]:
