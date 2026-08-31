@@ -12,6 +12,7 @@
       "composition"
     ],
     "requires": [
+      "platform",
       "scope"
     ],
     "provides": [],
@@ -128,6 +129,7 @@
       "composition"
     ],
     "requires": [
+      "platform",
       "scope"
     ],
     "provides": [],

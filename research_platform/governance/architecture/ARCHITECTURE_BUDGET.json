@@ -102,11 +102,11 @@
       "delta": {
         "top_level_systems": 0,
         "subsystems": -1,
-        "contract_declarations": 13,
+        "contract_declarations": 15,
         "authorities": -1,
         "import_edges": 39
       },
-      "justification": "ROLE01 Semantic IR catalog contraction folds empty architecture authority/dependency scaffold facets into the real parent governance authority, reducing the frozen-baseline subsystem and authority counts by one while retaining thirteen explicit contracts and thirty-nine measured import edges.",
+      "justification": "ROLE01 Semantic IR catalog contraction folds empty architecture authority/dependency scaffold facets into the real parent governance authority and declares truthful parent-level Artifact/Data dependencies on shared Platform kernel primitives; measured owner-scope delta is one fewer subsystem and authority, fifteen explicit contracts, and thirty-nine import edges.",
       "applicability": {
         "module_prefixes": [
           "research_platform.platform",

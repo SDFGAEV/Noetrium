@@ -217,7 +217,15 @@ def test_external_approval_record_digest_is_verified(tmp_path: Path) -> None:
         load_architecture_migration_approval_set(path, expected_sha256=hashlib.sha256(raw).hexdigest())
 
 
-def test_external_approval_applies_only_to_exact_owner_source_scope(tmp_path: Path) -> None:
+def test_external_approval_applies_only_to_exact_owner_source_scope(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import research_platform.governance.architecture.budget as budget_module
+
+    monkeypatch.setattr(
+        budget_module, "current_architecture_complexity",
+        lambda *, import_edges: ArchitectureComplexity(**_baseline_complexity(import_edges)),
+    )
     pairs=(("research_platform.governance.a","research_platform.platform.b"),)
     projection=import_projection_digest(pairs,("research_platform.governance",))
     _write_budget(tmp_path,_budget_document(projection=projection))
@@ -245,7 +253,15 @@ def test_external_approval_applies_only_to_exact_owner_source_scope(tmp_path: Pa
     ]
 
 
-def test_mismatched_external_source_digest_contributes_zero_headroom(tmp_path: Path) -> None:
+def test_mismatched_external_source_digest_contributes_zero_headroom(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import research_platform.governance.architecture.budget as budget_module
+
+    monkeypatch.setattr(
+        budget_module, "current_architecture_complexity",
+        lambda *, import_edges: ArchitectureComplexity(**_baseline_complexity(import_edges)),
+    )
     pairs=(("research_platform.governance.a","research_platform.platform.b"),)
     projection=import_projection_digest(pairs,("research_platform.governance",))
     _write_budget(tmp_path,_budget_document(projection=projection)); index=_synthetic_git_index(tmp_path)
@@ -681,7 +697,7 @@ def test_role01_historical_and_current_architecture_allowances_are_preserved() -
     assert (current.delta.subsystems,current.delta.contract_declarations,current.delta.authorities,current.delta.import_edges)==(1,13,1,59)
     assert current.module_prefixes==("research_platform.platform","research_platform.governance","research_platform.scope","research_platform.portfolio")
     assert current.import_projection_sha256=="fd225e4d33b57a9f4b52495941b69d89f33cb333ddcc031ab87a983b8c1f6c98"
-    assert (contraction.delta.subsystems,contraction.delta.contract_declarations,contraction.delta.authorities,contraction.delta.import_edges)==(-1,13,-1,39)
+    assert (contraction.delta.subsystems,contraction.delta.contract_declarations,contraction.delta.authorities,contraction.delta.import_edges)==(-1,15,-1,39)
     assert contraction.module_prefixes==current.module_prefixes
     assert contraction.import_projection_sha256=="59de5bba61ab0b83d094b2aab97e952b79be8ece954e3fa1ef89a33267d64a48"
 
