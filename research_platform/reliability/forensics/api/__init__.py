@@ -1,7 +1,7 @@
 """Stable contracts for the Forensics authority."""
 
 from .crash_bundle_contracts import CRASH_BUNDLE_SCHEMA_VERSION, CrashBundleManifest, CrashBundleVerification
-from .ledger import VerifiedLedgerSlice
+from .ledger import VerifiedLedgerCut, VerifiedLedgerSlice
 from .mutation import MutationRecord
 from .ports import (
     ForensicCriticalWriteLanePort,
@@ -27,5 +27,6 @@ __all__ = [
     "ForensicStorePort",
     "ForensicWriterLeasePort",
     "MutationRecord",
+    "VerifiedLedgerCut",
     "VerifiedLedgerSlice",
 ]

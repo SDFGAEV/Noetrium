@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from research_platform.runtime.service.api import ServiceLaunchContract, ServiceProcessIdentity
-from service_os_test_support import make_service_supervisor
+from service_os_test_support import make_service_supervisor, ready_evidence
 
 from tests_support import frozen_runtime_manifest
 
@@ -49,7 +49,7 @@ class Adapter:
     def start(self,c):
         self.calls.append("start")
         return ServiceProcessIdentity(self.pid,f"start:{self.pid}",self.pid),(f"start:{self.pid}",)
-    def wait_ready(self,p,c): self.calls.append("ready"); return f"ready:{self.pid}",f"out:{self.pid}",f"err:{self.pid}"
+    def wait_ready(self,p,c): self.calls.append("ready"); return ready_evidence(p,c,f"ready:{self.pid}",f"out:{self.pid}",f"err:{self.pid}")
     def stop(self,p,c): self.calls.append("stop"); return ()
 
 

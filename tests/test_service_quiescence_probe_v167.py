@@ -42,7 +42,7 @@ class ServiceQuiescenceProbeV167Tests(unittest.TestCase):
             store=FileServiceStateStore(Path(td)/'state.json')
             state=ServiceSupervisorState.initial('svc',c.digest())
             store.write(ServiceSupervisorState(
-                state.service_id,state.contract_digest,ServicePhase.RUNNING,1,process,'ready',None,None,None,None,None,state.updated_at
+                state.service_id,state.contract_digest,ServicePhase.RUNNING,1,process,'ready',None,None,None,None,None,state.updated_at,1234.5
             ))
             sup=make_service_supervisor(store,Adapter(process))
             observation=ExactServiceQuiescenceProbe(sup,c).observe()

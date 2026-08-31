@@ -1,9 +1,8 @@
 from __future__ import annotations
 
+import math
 import sqlite3
 
-from research_platform.platform.kernel.retry import retry_until_deadline
-from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
 from time import time
@@ -21,6 +20,7 @@ from research_platform.resource.lease.api import (
     ResourceOwnershipConflict,
     ResourceOwnershipPort,
 )
+from research_platform.resource.providers.sqlite_connection import durable_sqlite_connection
 from research_platform.resource.providers.sqlite_resource import (
     RESOURCE_SCHEMA_VERSION,
     ensure_resource_schema,
@@ -44,7 +44,9 @@ class SQLiteResourceLeaseRegistry(ResourceOwnershipPort, ResourceLeasePort):
     def __init__(self, path: str | Path, *, timeout_seconds: float = 30.0) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.timeout_seconds = timeout_seconds
+        if not math.isfinite(float(timeout_seconds)) or timeout_seconds <= 0:
+            raise ValueError("SQLite resource timeout_seconds must be finite and positive")
+        self.timeout_seconds = float(timeout_seconds)
         with self._connection() as conn:
             conn.execute("BEGIN IMMEDIATE")
             try:
@@ -54,22 +56,8 @@ class SQLiteResourceLeaseRegistry(ResourceOwnershipPort, ResourceLeasePort):
                 conn.rollback()
                 raise
 
-    @contextmanager
     def _connection(self):
-        conn = sqlite3.connect(self.path, timeout=self.timeout_seconds, isolation_level=None)
-        try:
-            conn.execute(f"PRAGMA busy_timeout={max(1, int(self.timeout_seconds * 1000))}")
-            retry_until_deadline(
-                lambda: conn.execute("PRAGMA journal_mode=WAL"),
-                should_retry=lambda exc: isinstance(exc, sqlite3.OperationalError)
-                and "locked" in str(exc).lower(),
-                timeout_seconds=self.timeout_seconds,
-            )
-            conn.execute("PRAGMA synchronous=FULL")
-            conn.execute("PRAGMA foreign_keys=ON")
-            yield conn
-        finally:
-            conn.close()
+        return durable_sqlite_connection(self.path, timeout_seconds=self.timeout_seconds)
 
     @staticmethod
     def _resource_values(resource: ResourceIdentity) -> tuple[str, str, str]:
@@ -156,9 +144,13 @@ class SQLiteResourceLeaseRegistry(ResourceOwnershipPort, ResourceLeasePort):
         ttl_seconds: float | None = None,
         now: float | None = None,
     ) -> ResourceLease:
-        if ttl_seconds is not None and ttl_seconds <= 0:
-            raise ValueError("lease ttl_seconds must be > 0")
+        if ttl_seconds is not None and (
+            not math.isfinite(float(ttl_seconds)) or ttl_seconds <= 0
+        ):
+            raise ValueError("lease ttl_seconds must be finite and > 0")
         now_epoch_s = time() if now is None else float(now)
+        if not math.isfinite(now_epoch_s):
+            raise ValueError("lease observation time must be finite")
         with self._connection() as conn:
             conn.execute("BEGIN IMMEDIATE")
             owner = conn.execute("SELECT 1 FROM resource_owners WHERE resource_key=?", (lease.resource.key,)).fetchone()
@@ -219,9 +211,11 @@ class SQLiteResourceLeaseRegistry(ResourceOwnershipPort, ResourceLeasePort):
         ttl_seconds: float,
         now: float | None = None,
     ) -> ResourceLease:
-        if ttl_seconds <= 0:
-            raise ValueError("lease ttl_seconds must be > 0")
+        if not math.isfinite(float(ttl_seconds)) or ttl_seconds <= 0:
+            raise ValueError("lease ttl_seconds must be finite and > 0")
         now_epoch_s = time() if now is None else float(now)
+        if not math.isfinite(now_epoch_s):
+            raise ValueError("lease observation time must be finite")
         with self._connection() as conn:
             conn.execute("BEGIN IMMEDIATE")
             expire_lease(conn, lease_id, now_epoch_s)
@@ -291,6 +285,8 @@ class SQLiteResourceLeaseRegistry(ResourceOwnershipPort, ResourceLeasePort):
 
     def reconcile_expired(self, *, now: float | None = None) -> tuple[ResourceLease, ...]:
         now_epoch_s = time() if now is None else float(now)
+        if not math.isfinite(now_epoch_s):
+            raise ValueError("lease observation time must be finite")
         with self._connection() as conn:
             conn.execute("BEGIN IMMEDIATE")
             rows = conn.execute(

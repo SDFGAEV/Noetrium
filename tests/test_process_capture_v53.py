@@ -1,8 +1,11 @@
 from tests._concurrency_support import process_capture
 from pathlib import Path
-import tempfile, unittest
+import json, tempfile, unittest
+from unittest.mock import patch
 
 from tests._concurrency_support import segmented_byte_capture
+from research_platform.runtime.process.api import CaptureIntegrityError
+from research_platform.runtime.process.capture.storage import CaptureStorage
 
 
 class ProcessCaptureV53Tests(unittest.TestCase):
@@ -14,6 +17,63 @@ class ProcessCaptureV53Tests(unittest.TestCase):
             self.assertEqual(cap.tail(),b'klmnopqrstuvwxyz')
             receipt=cap.sync(); self.assertEqual(receipt.total_bytes,26); self.assertEqual(len(receipt.tail_sha256),64)
             cap.close()
+
+
+    def test_reopen_uses_resume_checkpoint_without_history_scan(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            cap = segmented_byte_capture(
+                root, 'stdout', max_segment_bytes=4, fsync_every_bytes=64, tail_bytes=8
+            )
+            cap.append(b'abcdefghijkl')
+            cap.sync()
+            cap.close()
+            self.assertTrue((root / 'stdout.resume.json').is_file())
+
+            with patch.object(
+                CaptureStorage, 'sized_files', side_effect=AssertionError('history scan used')
+            ):
+                reopened = segmented_byte_capture(
+                    root, 'stdout', max_segment_bytes=4, fsync_every_bytes=64, tail_bytes=8
+                )
+                self.assertEqual(reopened.tail(), b'efghijkl')
+                reopened.append(b'mn')
+                self.assertEqual(reopened.seal().total_bytes, 14)
+
+    def test_stale_resume_checkpoint_rebuilds_from_append_only_disk(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            cap = segmented_byte_capture(
+                root, 'stderr', max_segment_bytes=8, fsync_every_bytes=64, tail_bytes=8
+            )
+            cap.append(b'abcdef')
+            cap.sync()
+            cap.close()
+            with (root / 'stderr.000000.bin').open('ab') as handle:
+                handle.write(b'GH')
+
+            reopened = segmented_byte_capture(
+                root, 'stderr', max_segment_bytes=8, fsync_every_bytes=64, tail_bytes=8
+            )
+            self.assertEqual(reopened.tail(), b'abcdefGH')
+            self.assertEqual(reopened.writer.state.total_bytes, 8)
+            document = json.loads((root / 'stderr.resume.json').read_text(encoding='utf-8'))
+            self.assertEqual(document['total_bytes'], 8)
+            reopened.close()
+
+    def test_corrupt_resume_checkpoint_fails_closed(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            cap = segmented_byte_capture(root, 'stdout', tail_bytes=8)
+            cap.append(b'abc')
+            cap.sync()
+            cap.close()
+            path = root / 'stdout.resume.json'
+            document = json.loads(path.read_text(encoding='utf-8'))
+            document['resume_sha256'] = '0' * 64
+            path.write_text(json.dumps(document), encoding='utf-8')
+            with self.assertRaisesRegex(CaptureIntegrityError, 'resume checkpoint digest mismatch'):
+                segmented_byte_capture(root, 'stdout', tail_bytes=8)
 
     def test_reopen_recovers_tail_and_continues_append(self):
         with tempfile.TemporaryDirectory() as td:

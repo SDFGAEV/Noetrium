@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import time
+
 from research_platform.runtime.service.api import ServiceLaunchContract, ServiceProcessIdentity
 from .capture_paths import ServiceCapturePathProvider
+from .contracts import ServiceReadyEvidence
 from .environment import MaterializedServiceEnvironment, ServiceEnvironmentProvider
 from .prepared_start import PreparedServiceStartReconcileResult, ServiceStartRecoveryHandle
 from .process_contracts import (
@@ -114,10 +117,17 @@ class LocalServiceProcessAdapter:
         self,
         process: ServiceProcessIdentity,
         contract: ServiceLaunchContract,
-    ) -> tuple[str, str, str]:
+    ) -> ServiceReadyEvidence:
         captures = self.capture_paths.paths(contract)
         ready_ref = self.readiness_probe.wait_ready(process, contract, self.process_backend)
-        return ready_ref, captures.stdout_ref, captures.stderr_ref
+        return ServiceReadyEvidence(
+            contract_digest=contract.digest(),
+            process=process,
+            readiness_ref=ready_ref,
+            stdout_capture_ref=captures.stdout_ref,
+            stderr_capture_ref=captures.stderr_ref,
+            ready_at=time.time(),
+        )
 
     def stop(
         self,

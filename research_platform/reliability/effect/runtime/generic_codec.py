@@ -3,10 +3,19 @@ from __future__ import annotations
 import base64
 import json
 
-from research_platform.reliability.effect.api import PreparedEffectHandle
+from research_platform.reliability.effect.api import (
+    EffectJournalIntegrityError,
+    PreparedEffectHandle,
+)
 from research_platform.platform.kernel import EffectCertainty, EffectClass, EffectReceipt, canonical_digest
 
-from research_platform.reliability.effect.api import EffectCompletionEvidence, EffectIntent, EffectIntentPhase, EffectIntentRecord
+from research_platform.reliability.effect.api import (
+    EffectCompletionEvidence,
+    EffectIntent,
+    EffectIntentPhase,
+    EffectIntentRecord,
+    effect_digest,
+)
 from .persistence import EncodedEffectIntentRecord
 
 
@@ -14,6 +23,15 @@ class EffectJournalDocumentCodec:
     """Provider-agnostic durable document codec for generic effect intents."""
 
     DOCUMENT_SCHEMA = "effect-intent.v1"
+
+    @staticmethod
+    def _require_index_match(
+        intent_id: str, field: str, observed: object, authoritative: object
+    ) -> None:
+        if observed != authoritative:
+            raise EffectJournalIntegrityError(
+                f"effect journal {field} index mismatch: {intent_id}"
+            )
 
     @staticmethod
     def _handle_payload(handle: PreparedEffectHandle | None) -> dict[str, object] | None:
@@ -156,15 +174,104 @@ class EffectJournalDocumentCodec:
         )
 
     def decode_record(self, encoded: EncodedEffectIntentRecord) -> EffectIntentRecord:
-        raw = json.loads(encoded.intent_json)
-        if canonical_digest(raw) != encoded.intent_digest:
-            raise ValueError(f"effect intent document checksum mismatch: {encoded.intent_id}")
-        return EffectIntentRecord(
-            self.decode_intent(encoded.intent_json), EffectIntentPhase(encoded.phase),
-            self.decode_effect(encoded.effect_json), encoded.effect_digest,
-            self.decode_consumption(encoded.consumption_json, encoded.consumption_digest),
-            encoded.consumption_digest,
-        )
+        try:
+            raw = json.loads(encoded.intent_json)
+            if not isinstance(raw, dict):
+                raise EffectJournalIntegrityError(
+                    f"effect intent document must be an object: {encoded.intent_id}"
+                )
+            if canonical_digest(raw) != encoded.intent_digest:
+                raise EffectJournalIntegrityError(
+                    f"effect intent document checksum mismatch: {encoded.intent_id}"
+                )
+            intent = self.decode_intent(encoded.intent_json)
+            self._require_index_match(encoded.intent_id, "intent_id", encoded.intent_id, intent.intent_id)
+            self._require_index_match(
+                encoded.intent_id, "request_digest", encoded.request_digest, intent.request_digest
+            )
+            self._require_index_match(encoded.intent_id, "run_id", encoded.run_id, intent.run_id)
+            self._require_index_match(
+                encoded.intent_id, "lifetime_id", encoded.lifetime_id, intent.lifetime_id
+            )
+
+            phase = EffectIntentPhase(encoded.phase)
+            effect = self.decode_effect(encoded.effect_json)
+            computed_effect_digest = effect_digest(effect)
+            if encoded.effect_digest != computed_effect_digest:
+                raise EffectJournalIntegrityError(
+                    f"effect journal effect checksum mismatch: {encoded.intent_id}"
+                )
+            if effect is not None and effect.request_digest != intent.request_digest:
+                raise EffectJournalIntegrityError(
+                    f"effect journal receipt/request mismatch: {encoded.intent_id}"
+                )
+            consumption = self.decode_consumption(
+                encoded.consumption_json, encoded.consumption_digest
+            )
+            record = EffectIntentRecord(
+                intent,
+                phase,
+                effect,
+                encoded.effect_digest,
+                consumption,
+                encoded.consumption_digest,
+            )
+            self._validate_phase(record)
+            return record
+        except EffectJournalIntegrityError:
+            raise
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise EffectJournalIntegrityError(
+                f"effect journal record is invalid: {encoded.intent_id}"
+            ) from exc
+
+    @staticmethod
+    def _validate_phase(record: EffectIntentRecord) -> None:
+        phase = record.phase
+        effect = record.effect
+        consumption = record.consumption
+        if phase is EffectIntentPhase.PREPARED:
+            if effect is not None or consumption is not None:
+                raise EffectJournalIntegrityError(
+                    "PREPARED effect journal record cannot carry result/completion evidence"
+                )
+            return
+        if phase in {EffectIntentPhase.RESULT_RECORDED, EffectIntentPhase.RECONCILED}:
+            if consumption is not None:
+                raise EffectJournalIntegrityError(
+                    "non-terminal effect journal record cannot carry completion evidence"
+                )
+            if phase is EffectIntentPhase.RECONCILED and effect is None:
+                raise EffectJournalIntegrityError(
+                    "RECONCILED effect journal record requires reconciliation evidence"
+                )
+            return
+        if phase is EffectIntentPhase.CONSUMED:
+            if (
+                effect is None
+                or effect.verification_required
+                or effect.certainty not in {
+                    EffectCertainty.EFFECT_CONFIRMED,
+                    EffectCertainty.EFFECT_REJECTED,
+                }
+                or consumption is None
+            ):
+                raise EffectJournalIntegrityError(
+                    "CONSUMED effect journal record lacks authoritative effect/completion evidence"
+                )
+            return
+        if phase is EffectIntentPhase.NOT_APPLIED:
+            if (
+                effect is None
+                or effect.verification_required
+                or effect.certainty is not EffectCertainty.NO_EFFECT
+                or consumption is not None
+            ):
+                raise EffectJournalIntegrityError(
+                    "NOT_APPLIED effect journal record lacks authoritative NO_EFFECT evidence"
+                )
+            return
+        raise EffectJournalIntegrityError(f"unsupported effect journal phase: {phase}")
 
 
 __all__ = ["EffectJournalDocumentCodec"]

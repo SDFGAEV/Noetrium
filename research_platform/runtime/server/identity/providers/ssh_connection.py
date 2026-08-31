@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import time
 
 from research_platform.runtime.host.api import OperatingSystemRoute
@@ -51,8 +52,8 @@ class SSHServerConnection(ServerConnectionPort):
             raise ValueError("remote command must be non-empty")
         argv = self._argv(command, interactive=interactive)
         effective_timeout = self._profile.command_timeout_seconds if timeout_seconds is None else float(timeout_seconds)
-        if effective_timeout <= 0:
-            raise ValueError("SSH command timeout must be positive")
+        if not math.isfinite(effective_timeout) or effective_timeout <= 0:
+            raise ValueError("SSH command timeout must be finite and positive")
         if interactive:
             argv = (argv[0], "-tt", *argv[1:])
         runner = self._runner
@@ -67,7 +68,7 @@ class SSHServerConnection(ServerConnectionPort):
                 timeout_seconds=effective_timeout,
                 inherit_stdin=interactive,
                 output_limit_bytes=self._profile.output_limit_bytes,
-            ).result(timeout=effective_timeout + 4.0)
+            ).result()
             stdout, stdout_bytes = bounded_output_text(
                 completed.stdout,
                 limit=self._profile.output_limit_bytes,
@@ -116,7 +117,10 @@ class SSHServerConnection(ServerConnectionPort):
             raise RuntimeError("interactive SSH requires an injected async process command runner")
         self._prepare_control_path()
         completed = process_runner.execute(
-            argv, timeout_seconds=None, inherit_stdin=True, inherit_output=True
+            argv,
+            timeout_seconds=self._profile.interactive_timeout_seconds,
+            inherit_stdin=True,
+            inherit_output=True,
         ).result()
         if completed.spawn_error is not None:
             return 127

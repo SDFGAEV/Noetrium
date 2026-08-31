@@ -105,3 +105,19 @@ def test_historical_open_at_query_preserves_temporal_context_after_later_complet
             assert open_at_failure[0].invocation_id == "inv-historical"
             assert open_at_failure[0].terminal_at == 30.0
             assert store.index.operations_open_at(run_id="run-1", timestamp=31.0) == ()
+
+
+def test_operation_query_outputs_preserve_limit_tail_for_output_cardinality_lower_bound() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        with ForensicStore(Path(td)) as store:
+            for index in range(32):
+                store.append_event(_event(f"inv-tail-{index:02d}", "OPERATION_STARTED", timestamp=10.0 + index))
+            store.flush_projections()
+
+            unclosed = store.index.unclosed_operations(run_id="run-1", limit=32)
+            open_at = store.index.operations_open_at(run_id="run-1", timestamp=100.0, limit=32)
+
+            assert len(unclosed) == 32
+            assert len(open_at) == 32
+            assert unclosed[-1].invocation_id == "inv-tail-00"
+            assert open_at[-1].invocation_id == "inv-tail-00"

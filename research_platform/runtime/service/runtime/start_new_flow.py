@@ -63,6 +63,7 @@ class NewServiceStartFlow:
                 attempt=attempt,
                 process=None,
                 ready_evidence_ref=None,
+                ready_at=None,
             )
             if durable is None:
                 process, refs = self._adapter.start(contract)

@@ -2,17 +2,19 @@ from __future__ import annotations
 
 from contextlib import AbstractContextManager
 from pathlib import Path
-from typing import Any, Callable, Protocol, TypeVar
+from typing import Callable, Iterator, ParamSpec, Protocol, TypeVar
 
 from research_platform.observability.api import EventEnvelope
+from research_platform.platform.kernel import JsonDocument
 from research_platform.reliability.failure.api import FailureEnvelope
 from research_platform.reliability.diagnostics.api.records import (
     DiagnosticObjectRecord, OperationInvocationRecord, StateWriterRecord,
 )
 
-from .ledger import VerifiedLedgerSlice
+from .ledger import VerifiedLedgerCut, VerifiedLedgerSlice
 from .mutation import MutationRecord
 
+P = ParamSpec("P")
 T = TypeVar("T")
 
 
@@ -23,10 +25,10 @@ class ForensicWriteActorPort(Protocol):
     def call(
         self,
         operation: str,
-        fn: Callable[..., T],
+        fn: Callable[P, T],
         /,
-        *args: Any,
-        **kwargs: Any,
+        *args: P.args,
+        **kwargs: P.kwargs,
     ) -> T: ...
 
 
@@ -37,6 +39,10 @@ class ForensicLedgerPort(Protocol):
     def find_payload(self, field: str, value: str) -> dict[str, object] | None: ...
     def verify(self) -> tuple[int, str]: ...
     def verified_payloads_after(self, offset: int) -> VerifiedLedgerSlice: ...
+    def verified_cut_after(self, offset: int) -> VerifiedLedgerCut: ...
+    def iter_verified_payload_batches(
+        self, cut: VerifiedLedgerCut, *, batch_size: int = 512
+    ) -> Iterator[tuple[JsonDocument, ...]]: ...
 
 
 class ForensicIndexReadSessionPort(Protocol):

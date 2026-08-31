@@ -163,8 +163,14 @@ def not_applied_transition(
 ) -> EffectIntentRecord:
     """Pure NOT_APPLIED terminal transition authority."""
 
-    if effect.certainty is not EffectCertainty.NO_EFFECT or effect.request_digest != request_digest:
-        raise EffectIntentConflict("NOT_APPLIED terminal requires bound NO_EFFECT proof")
+    if (
+        effect.certainty is not EffectCertainty.NO_EFFECT
+        or effect.request_digest != request_digest
+        or effect.verification_required
+    ):
+        raise EffectIntentConflict(
+            "NOT_APPLIED terminal requires authoritative bound NO_EFFECT proof"
+        )
     _require_request(current, request_digest)
     _require_bound_effect(current, request_digest, effect)
     digest = effect_digest(effect)
