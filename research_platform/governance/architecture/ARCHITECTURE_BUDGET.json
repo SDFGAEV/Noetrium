@@ -356,6 +356,27 @@
         ],
         "import_projection_sha256": "3f367d5717fd4fbca273b3fb4d13af5c54d262afeb2a1e663898338adc713e77"
       }
+    },
+    {
+      "migration_id": "role05-research-data-semantic-convergence-8d1a71aa",
+      "owner_role": "ROLE05",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 64
+      },
+      "justification": "Exact clean/pushed ROLE05 8d1a71aae96f11a630ccc68895a43f3da57ef795 increases the frozen-baseline Environment/Data/Artifact/Observability scope from 872 to 936 import edges (+64); it supersedes older research-data proposals for exact applicability and grants zero headroom absent independent ROLE00 approval.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.environment",
+          "research_platform.data",
+          "research_platform.artifact",
+          "research_platform.observability"
+        ],
+        "import_projection_sha256": "29e446c8368a8441bd2fec8273f9555204623a4d28a6bc267f4e1d6a3bd91f79"
+      }
     }
   ]
 }
