@@ -169,7 +169,7 @@ class _RestartAgentSession:
 
 
 class _RestartAgent:
-    identity = AgentIdentity("restart-agent", "1", "1", "1", "restart-agent-cfg")
+    identity = AgentIdentity("restart-agent", "1", "1", "1", "a" * 64)
 
     def open_session(self, *, session_id: str, services: object):
         del services
@@ -183,7 +183,7 @@ def _spec() -> ExperimentSpec:
         project_id="default-project",
         participants=(
             participant("capability_provider", "external-write", "external-write", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="external-write-cfg"),
-            participant("agent", "agent", "restart-agent", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="restart-agent-cfg", depends_on_roles=("external-write",)),
+            participant("agent", "agent", "restart-agent", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="a" * 64, depends_on_roles=("external-write",)),
         ),
         model_stack_digest="model", prompt_generation="prompt", workload_digest="work",
         seed_digest="seed", repetitions=1, scientific_workflow_id="agent_turn.v1",

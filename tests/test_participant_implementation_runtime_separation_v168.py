@@ -67,3 +67,27 @@ def test_runtime_binding_digest_changes_for_role_or_config_but_not_implementatio
     c = ParticipantRuntimeBinding("planner", impl, runtime_identity_for_test("agent"), "cfg-a")
     assert a.implementation.digest() == b.implementation.digest() == c.implementation.digest()
     assert len({a.digest(), b.digest(), c.digest()}) == 3
+
+
+def test_resolver_uses_typed_empty_configuration_when_binding_has_no_configuration_digest():
+    impl = ParticipantImplementationIdentity("robot", "arm", "7", "abi1", "schema3")
+    implementations = ParticipantImplementationCatalog()
+    seen = []
+    implementations.register(
+        impl,
+        lambda config: seen.append((config.configuration_digest, config.opaque_payload)) or Built(config.opaque_payload),
+    )
+    runtime_identity = runtime_identity_for_test("robot")
+    runtimes = ParticipantSessionRuntimeCatalog()
+    runtimes.register(runtime_identity, lambda: Runtime(runtime_identity))
+    resolver = LocalParticipantResolver(
+        implementations,
+        runtimes,
+        ParticipantConfigurationCatalog(),
+        LocalParticipantRuntimeEndpoint,
+    )
+
+    handle = resolver.resolve(ParticipantRuntimeBinding("arm", impl, runtime_identity, None))
+
+    assert handle.binding.configuration_digest is None
+    assert seen == [(None, b"")]

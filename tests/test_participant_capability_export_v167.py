@@ -123,7 +123,7 @@ class AgentSession:
 
 
 class Agent:
-    identity = AgentIdentity("robot-agent", "1", "1", "1", "agent-cfg")
+    identity = AgentIdentity("robot-agent", "1", "1", "1", "a" * 64)
     def open_session(self, *, session_id: str, services: object):
         del services
         return AgentSession(session_id)
@@ -136,7 +136,7 @@ def _spec():
         project_id="default-project",
         participants=(
             ExperimentParticipantSpec("arm", ParticipantImplementationIdentity("robot", "arm", "1", "1", "1"), runtime_identity_for_test("robot"), "robot-cfg"),
-            ExperimentParticipantSpec("agent", ParticipantImplementationIdentity("agent", "robot-agent", "1", "1", "1", "agent-cfg"), runtime_identity_for_test("agent"), "", depends_on_roles=("arm",)),
+            ExperimentParticipantSpec("agent", ParticipantImplementationIdentity("agent", "robot-agent", "1", "1", "1", "a" * 64), runtime_identity_for_test("agent"), "", depends_on_roles=("arm",)),
         ),
         model_stack_digest="model", prompt_generation="prompt", workload_digest="work", seed_digest="seed",
         repetitions=1, scientific_workflow_id="agent_turn.v1",

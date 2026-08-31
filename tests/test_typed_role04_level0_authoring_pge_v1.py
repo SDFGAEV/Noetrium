@@ -200,3 +200,47 @@ def test_direct_participant_requirement_cannot_bypass_digest_validation() -> Non
     )
     with pytest.raises(ValueError, match="SHA-256"):
         ParticipantRequirement(role="worker", implementation=implementation)
+
+
+def test_level0_digest_absence_is_none_and_empty_string_is_rejected() -> None:
+    definition = AgentProjectDefinition(
+        role="planner",
+        identity=AgentIdentity("agent", "1", "1", "1"),
+    )
+    requirement = definition.requirement()
+    assert definition.identity.artifact_digest is None
+    assert definition.configuration_digest is None
+    assert requirement.implementation.artifact_digest is None
+    assert requirement.configuration_digest is None
+
+    with pytest.raises(ValueError, match="artifact_digest"):
+        AgentIdentity("agent", "1", "1", "1", "")
+    with pytest.raises(ValueError, match="configuration_digest"):
+        AgentProjectDefinition(
+            role="planner",
+            identity=AgentIdentity("agent", "1", "1", "1"),
+            configuration_digest="",
+        )
+    with pytest.raises(ValueError, match="artifact_digest"):
+        MethodIdentity("method", "1", "1", "1", "")
+
+
+@pytest.mark.parametrize(
+    "invalid_digest",
+    (
+        "a" * 63,
+        "g" * 64,
+        "A" * 64,
+    ),
+)
+def test_level0_rejects_noncanonical_digest_spellings(invalid_digest: str) -> None:
+    with pytest.raises(ValueError, match="SHA-256"):
+        AgentIdentity("agent", "1", "1", "1", invalid_digest)
+    with pytest.raises(ValueError, match="SHA-256"):
+        MethodIdentity("method", "1", "1", "1", invalid_digest)
+    with pytest.raises(ValueError, match="SHA-256"):
+        AgentProjectDefinition(
+            role="planner",
+            identity=AgentIdentity("agent", "1", "1", "1", "a" * 64),
+            configuration_digest=invalid_digest,
+        )

@@ -38,7 +38,7 @@ class EchoProvider:
 
 
 class GenericAgent:
-    identity = AgentIdentity("generic", "1", "1", "1", "cfg")
+    identity = AgentIdentity("generic", "1", "1", "1", "a" * 64)
     def open_session(self, *, session_id: str, services: object): return object()
 
 

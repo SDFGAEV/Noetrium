@@ -15,7 +15,17 @@ class MethodIdentity:
     implementation_version: str
     abi_version: str
     schema_version: str
-    artifact_digest: str = ""
+    artifact_digest: str | None = None
+
+    def __post_init__(self) -> None:
+        if any(not isinstance(value, str) or not value.strip() for value in (self.method_id, self.implementation_version, self.abi_version, self.schema_version)):
+            raise ValueError("method identity fields must be non-empty text")
+        if self.artifact_digest is not None and (
+            not isinstance(self.artifact_digest, str)
+            or len(self.artifact_digest) != 64
+            or any(char not in "0123456789abcdef" for char in self.artifact_digest)
+        ):
+            raise ValueError("method artifact_digest must be a lowercase SHA-256 digest when provided")
 
 
 @dataclass(frozen=True, slots=True)

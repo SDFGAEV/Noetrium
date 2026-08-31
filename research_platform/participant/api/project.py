@@ -20,13 +20,15 @@ def _text(value: object, field_name: str) -> str:
     return value
 
 
-def _optional_sha256(value: object, field_name: str) -> str:
+def _optional_sha256(value: object, field_name: str) -> str | None:
+    if value is None:
+        return None
     if not isinstance(value, str):
-        raise TypeError(f"{field_name} must be text")
-    if value and (
+        raise TypeError(f"{field_name} must be text or None")
+    if (
         len(value) != 64 or any(char not in "0123456789abcdef" for char in value)
     ):
-        raise ValueError(f"{field_name} must be a lowercase SHA-256 digest")
+        raise ValueError(f"{field_name} must be a lowercase SHA-256 digest when provided")
     return value
 
 
@@ -43,7 +45,7 @@ def _tokens(values: object, field_name: str) -> tuple[str, ...]:
 class ParticipantRequirement:
     role: str
     implementation: ParticipantImplementationIdentity
-    configuration_digest: str = ""
+    configuration_digest: str | None = None
     required_capabilities: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
@@ -68,7 +70,7 @@ class AgentProjectDefinition:
 
     role: str
     identity: AgentIdentity
-    configuration_digest: str = ""
+    configuration_digest: str | None = None
     required_capabilities: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
@@ -111,7 +113,7 @@ class MethodProjectDefinition:
 
     role: str
     identity: MethodIdentity
-    configuration_digest: str = ""
+    configuration_digest: str | None = None
     required_capabilities: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:

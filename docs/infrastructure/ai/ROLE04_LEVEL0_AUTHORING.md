@@ -61,9 +61,10 @@ the existing Model/Participant canonicalization boundaries.
 
 ## Artifact and configuration digest identity
 
-Level-0 Participant declarations treat non-empty `artifact_digest` and
+Level-0 Participant declarations treat provided `artifact_digest` and
 `configuration_digest` values as canonical lowercase SHA-256 identities. Arbitrary
 labels such as `artifact-v1` or `config-v1` are rejected before a canonical
-`ParticipantRequirement` can be emitted. The empty string remains the explicit
-absence of a separately published artifact/configuration digest; it is not
-reinterpreted as a digest value.
+`ParticipantRequirement` can be emitted. Absence is typed explicitly as `None`;
+an empty string is rejected and is never overloaded as a digest sentinel. The
+Agent/Method identity -> ParticipantRequirement projection preserves `None` or the
+exact lowercase SHA-256 value without inventing a replacement identity.
