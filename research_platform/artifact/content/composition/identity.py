@@ -6,6 +6,8 @@ from research_platform.artifact.content.api import (
     ArtifactContentIdentityVerificationError,
     ArtifactStorageBindingNotFound,
     ArtifactStorageBindingPort,
+    ArtifactStoragePlacementVerifierPort,
+    ArtifactStorageVerificationError,
 )
 
 
@@ -14,8 +16,9 @@ def verify_artifact_content_identity(
     *,
     artifacts: ArtifactRegistryPort,
     storage: ArtifactStorageBindingPort,
+    placement_verifier: ArtifactStoragePlacementVerifierPort,
 ) -> ArtifactContentIdentity:
-    """Verify immutable catalog identity and current storage bytes without binding physical location."""
+    """Verify immutable catalog identity and current provider-owned bytes."""
 
     if type(identity) is not ArtifactContentIdentity:
         raise TypeError("identity must be ArtifactContentIdentity")
@@ -52,6 +55,29 @@ def verify_artifact_content_identity(
         raise ArtifactContentIdentityVerificationError(
             "STORAGE_DIGEST_MISMATCH",
             f"artifact {identity.artifact_id!r} storage digest does not match claimed content",
+        )
+
+    try:
+        placement = placement_verifier.verify(
+            artifact_id=identity.artifact_id,
+            content_sha256=identity.content_sha256,
+            storage_provider_id=binding.storage_provider_id,
+            location=binding.location,
+        )
+    except ArtifactStorageVerificationError as exc:
+        raise ArtifactContentIdentityVerificationError(
+            "STORAGE_PLACEMENT_UNVERIFIED",
+            f"artifact {identity.artifact_id!r} placement verification failed with {exc.code}",
+        ) from exc
+    if (
+        placement.artifact_id != identity.artifact_id
+        or placement.content_sha256 != identity.content_sha256
+        or placement.storage_provider_id != binding.storage_provider_id
+        or placement.location != binding.location
+    ):
+        raise ArtifactContentIdentityVerificationError(
+            "STORAGE_PLACEMENT_MISMATCH",
+            f"artifact {identity.artifact_id!r} placement verifier returned foreign placement facts",
         )
     return identity
 

@@ -32,7 +32,7 @@ Relocation verifies the destination and may recover from a corrupted old source 
 
 `ArtifactContentIdentity(artifact_id, content_sha256)` is the portable claim-grade content identity produced by Artifact. It intentionally excludes mutable `reference_id`/generation and physical provider/location state.
 
-`verify_artifact_content_identity(...)` composes `ArtifactRegistryPort` and `ArtifactStorageBindingPort` without creating another store. It requires exact artifact identity plus matching immutable catalog digest and current verified storage digest; missing authorities, digest drift, and foreign-identity impostors fail closed with typed verification codes. Storage relocation may change provider/location/generation while the content identity remains unchanged.
+`verify_artifact_content_identity(...)` composes `ArtifactRegistryPort`, `ArtifactStorageBindingPort`, and an explicit provider-owned `ArtifactStoragePlacementVerifierPort` without creating another store. A binding row is never sufficient proof by itself: the verifier must re-prove the current physical bytes for the binding provider/location. Exact artifact identity, immutable catalog digest, binding digest, provider identity, canonical location, and placement proof must agree; missing authorities, digest drift, unverified placement, and foreign-identity impostors fail closed with typed verification codes. Storage relocation may change provider/location/generation while the content identity remains unchanged.
 
 Data and ROLE03 may consume this producer-owned value only after the governance dependency cut is declared; they must not replace it with a mutable `ArtifactReference` alias or a second content authority.
 

@@ -10,6 +10,8 @@ from research_platform.artifact.content.api import (
     ArtifactContentIdentityVerificationError,
     ArtifactStorageBinding,
     ArtifactStorageBindingNotFound,
+    ArtifactStorageVerificationError,
+    VerifiedArtifactStoragePlacement,
 )
 from research_platform.artifact.content.composition import verify_artifact_content_identity
 
@@ -44,6 +46,34 @@ class _Storage:
         return self.binding
 
 
+
+class _PlacementVerifier:
+    def __init__(self, *, error_code: str | None = None, foreign: bool = False) -> None:
+        self.error_code = error_code
+        self.foreign = foreign
+
+    def verify(
+        self, *, artifact_id: str, content_sha256: str, storage_provider_id: str, location: str
+    ) -> VerifiedArtifactStoragePlacement:
+        if self.error_code is not None:
+            raise ArtifactStorageVerificationError(self.error_code, "test placement failure")
+        return VerifiedArtifactStoragePlacement(
+            artifact_id="artifact-foreign" if self.foreign else artifact_id,
+            content_sha256=content_sha256,
+            storage_provider_id=storage_provider_id,
+            location=location,
+            size_bytes=1,
+        )
+
+
+def _verify(identity, *, artifacts, storage, placement_verifier=None):
+    return verify_artifact_content_identity(
+        identity,
+        artifacts=artifacts,
+        storage=storage,
+        placement_verifier=placement_verifier or _PlacementVerifier(),
+    )
+
 def _binding(*, digest: str = DIGEST, location: str = "A:/artifact.bin", generation: int = 1) -> ArtifactStorageBinding:
     return ArtifactStorageBinding(
         artifact_id="artifact-1",
@@ -72,12 +102,12 @@ def test_artifact_content_identity_survives_storage_relocation() -> None:
     identity = ArtifactContentIdentity("artifact-1", DIGEST)
     artifacts = _Artifacts(DIGEST)
 
-    first = verify_artifact_content_identity(
+    first = _verify(
         identity,
         artifacts=artifacts,
         storage=_Storage(_binding(location="A:/artifact.bin", generation=1)),
     )
-    relocated = verify_artifact_content_identity(
+    relocated = _verify(
         identity,
         artifacts=artifacts,
         storage=_Storage(_binding(location="B:/archive/artifact.bin", generation=2)),
@@ -91,20 +121,20 @@ def test_artifact_content_identity_fails_closed_on_catalog_or_storage_drift() ->
     identity = ArtifactContentIdentity("artifact-1", DIGEST)
 
     with pytest.raises(ArtifactContentIdentityVerificationError) as missing_artifact:
-        verify_artifact_content_identity(identity, artifacts=_Artifacts(None), storage=_Storage(_binding()))
+        _verify(identity, artifacts=_Artifacts(None), storage=_Storage(_binding()))
     assert missing_artifact.value.code == "ARTIFACT_NOT_FOUND"
 
     with pytest.raises(ArtifactContentIdentityVerificationError) as catalog_drift:
-        verify_artifact_content_identity(identity, artifacts=_Artifacts(OTHER_DIGEST), storage=_Storage(_binding()))
+        _verify(identity, artifacts=_Artifacts(OTHER_DIGEST), storage=_Storage(_binding()))
     assert catalog_drift.value.code == "CATALOG_DIGEST_MISMATCH"
 
 
     with pytest.raises(ArtifactContentIdentityVerificationError) as missing_storage:
-        verify_artifact_content_identity(identity, artifacts=_Artifacts(DIGEST), storage=_Storage(None))
+        _verify(identity, artifacts=_Artifacts(DIGEST), storage=_Storage(None))
     assert missing_storage.value.code == "STORAGE_BINDING_NOT_FOUND"
 
     with pytest.raises(ArtifactContentIdentityVerificationError) as storage_drift:
-        verify_artifact_content_identity(
+        _verify(
             identity,
             artifacts=_Artifacts(DIGEST),
             storage=_Storage(_binding(digest=OTHER_DIGEST)),
@@ -121,7 +151,7 @@ def test_artifact_content_identity_rejects_foreign_identity_impostors() -> None:
     identity = ArtifactContentIdentity("artifact-1", DIGEST)
 
     with pytest.raises(ArtifactContentIdentityVerificationError) as catalog_impostor:
-        verify_artifact_content_identity(identity, artifacts=_ForeignArtifacts(DIGEST), storage=_Storage(_binding()))
+        _verify(identity, artifacts=_ForeignArtifacts(DIGEST), storage=_Storage(_binding()))
     assert catalog_impostor.value.code == "CATALOG_IDENTITY_MISMATCH"
 
     foreign_binding = ArtifactStorageBinding(
@@ -132,5 +162,30 @@ def test_artifact_content_identity_rejects_foreign_identity_impostors() -> None:
         generation=1,
     )
     with pytest.raises(ArtifactContentIdentityVerificationError) as storage_impostor:
-        verify_artifact_content_identity(identity, artifacts=_Artifacts(DIGEST), storage=_Storage(foreign_binding))
+        _verify(identity, artifacts=_Artifacts(DIGEST), storage=_Storage(foreign_binding))
     assert storage_impostor.value.code == "STORAGE_IDENTITY_MISMATCH"
+
+
+def test_artifact_content_identity_requires_provider_owned_placement_proof() -> None:
+    identity = ArtifactContentIdentity("artifact-1", DIGEST)
+    with pytest.raises(ArtifactContentIdentityVerificationError) as error:
+        _verify(
+            identity,
+            artifacts=_Artifacts(DIGEST),
+            storage=_Storage(_binding()),
+            placement_verifier=_PlacementVerifier(error_code="CONTENT_SHA256_MISMATCH"),
+        )
+    assert error.value.code == "STORAGE_PLACEMENT_UNVERIFIED"
+    assert isinstance(error.value.__cause__, ArtifactStorageVerificationError)
+
+
+def test_artifact_content_identity_rejects_foreign_placement_proof() -> None:
+    identity = ArtifactContentIdentity("artifact-1", DIGEST)
+    with pytest.raises(ArtifactContentIdentityVerificationError) as error:
+        _verify(
+            identity,
+            artifacts=_Artifacts(DIGEST),
+            storage=_Storage(_binding()),
+            placement_verifier=_PlacementVerifier(foreign=True),
+        )
+    assert error.value.code == "STORAGE_PLACEMENT_MISMATCH"
