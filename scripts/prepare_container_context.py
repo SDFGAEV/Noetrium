@@ -13,7 +13,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 _SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
-_DISTRIBUTION_SCHEMA = "research-platform.distribution-release.v3"
+_DISTRIBUTION_SCHEMA = "research-platform.distribution-release.v4"
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,6 +105,14 @@ def prepare_container_context(
     expected_sidecar = f"{evidence_digest}  {evidence_path.name}\n".encode("utf-8")
     if sidecar.read_bytes() != expected_sidecar:
         raise ValueError("distribution evidence digest sidecar mismatch")
+    oss_metadata = evidence.get("oss_metadata")
+    if not isinstance(oss_metadata, dict):
+        raise ValueError("distribution OSS metadata authority is missing")
+    if oss_metadata.get("license_expression") != "Apache-2.0":
+        raise ValueError("distribution OSS license expression is invalid")
+    license_files = oss_metadata.get("license_files")
+    if license_files != ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"]:
+        raise ValueError("distribution OSS license-file authority is invalid")
     artifacts = evidence.get("artifacts")
     if not isinstance(artifacts, dict):
         raise ValueError("distribution artifact authority is missing")

@@ -48,7 +48,7 @@ def test_spdx_binds_distribution_artifact_sha256():
         assert document["documentNamespace"].endswith("b" * 40)
         checksum = document["files"][0]["checksums"][0]["checksumValue"]
         assert checksum == hashlib.sha256(b"wheel-bytes").hexdigest()
-        assert document["packages"][0]["licenseDeclared"] == "NOASSERTION"
+        assert document["packages"][0]["licenseDeclared"] == "Apache-2.0"
 
 
 def test_distribution_output_must_be_outside_source_tree():

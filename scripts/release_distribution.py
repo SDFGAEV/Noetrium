@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+from email.parser import BytesParser
+from email.policy import default
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 import hashlib
@@ -10,6 +12,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tarfile
+import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -26,6 +30,66 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+_LICENSE_EXPRESSION = "Apache-2.0"
+_REQUIRED_LICENSE_FILES = ("LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md")
+
+
+def _license_metadata(raw: bytes, *, artifact_kind: str) -> tuple[str, ...]:
+    message = BytesParser(policy=default).parsebytes(raw)
+    expression = message.get("License-Expression")
+    if expression != _LICENSE_EXPRESSION:
+        raise RuntimeError(f"{artifact_kind} metadata License-Expression is not Apache-2.0")
+    files = tuple(message.get_all("License-File") or ())
+    missing = tuple(name for name in _REQUIRED_LICENSE_FILES if name not in files)
+    if missing:
+        raise RuntimeError(f"{artifact_kind} metadata is missing License-File entries: {missing}")
+    return files
+
+
+def _verify_oss_metadata(wheel: Path, sdist: Path) -> dict[str, object]:
+    with zipfile.ZipFile(wheel) as archive:
+        names = archive.namelist()
+        metadata_names = [name for name in names if name.count("/") == 1 and name.endswith(".dist-info/METADATA")]
+        if len(metadata_names) != 1:
+            raise RuntimeError("wheel must contain exactly one top-level dist-info METADATA")
+        metadata_name = metadata_names[0]
+        metadata_raw = archive.read(metadata_name)
+        wheel_metadata_raw = metadata_raw
+        wheel_license_files = _license_metadata(metadata_raw, artifact_kind="wheel")
+        dist_info = metadata_name.rsplit("/", 1)[0]
+        expected = tuple(f"{dist_info}/licenses/{name}" for name in _REQUIRED_LICENSE_FILES)
+        missing = tuple(name for name in expected if name not in names)
+        if missing:
+            raise RuntimeError(f"wheel is missing packaged legal files: {missing}")
+
+    with tarfile.open(sdist, "r:gz") as archive:
+        names = archive.getnames()
+        metadata_names = [name for name in names if name.count("/") == 1 and name.endswith("/PKG-INFO")]
+        if len(metadata_names) != 1:
+            raise RuntimeError("sdist must contain exactly one top-level PKG-INFO")
+        metadata_name = metadata_names[0]
+        handle = archive.extractfile(metadata_name)
+        if handle is None:
+            raise RuntimeError("sdist PKG-INFO is unreadable")
+        metadata_raw = handle.read()
+        sdist_metadata_raw = metadata_raw
+        sdist_license_files = _license_metadata(metadata_raw, artifact_kind="sdist")
+        package_root = metadata_name.rsplit("/", 1)[0]
+        expected = tuple(f"{package_root}/{name}" for name in _REQUIRED_LICENSE_FILES)
+        missing = tuple(name for name in expected if name not in names)
+        if missing:
+            raise RuntimeError(f"sdist is missing packaged legal files: {missing}")
+
+    return {
+        "license_expression": _LICENSE_EXPRESSION,
+        "license_files": list(_REQUIRED_LICENSE_FILES),
+        "wheel_license_file_entries": list(wheel_license_files),
+        "sdist_license_file_entries": list(sdist_license_files),
+        "wheel_metadata_sha256": hashlib.sha256(wheel_metadata_raw).hexdigest(),
+        "sdist_metadata_sha256": hashlib.sha256(sdist_metadata_raw).hexdigest(),
+    }
 
 
 def _git(*args: str) -> str:
@@ -236,7 +300,7 @@ def _spdx_document(*, sha: str, version: str, artifacts: tuple[Path, ...]) -> di
             "downloadLocation": "NOASSERTION",
             "filesAnalyzed": True,
             "licenseConcluded": "NOASSERTION",
-            "licenseDeclared": "NOASSERTION",
+            "licenseDeclared": _LICENSE_EXPRESSION,
             "copyrightText": "NOASSERTION",
         }],
         "files": files,
@@ -250,6 +314,7 @@ def build_distribution_release(output: Path) -> dict:
         raise ValueError("distribution output must be outside the source tree")
     sha, branch = _require_clean_source()
     wheel, sdist, build_command, manifest = _build_distributions(output, sha=sha)
+    oss_metadata = _verify_oss_metadata(wheel, sdist)
     _assert_source_identity(sha, branch)
 
     verification_refs: dict[str, dict[str, str]] = {}
@@ -275,7 +340,7 @@ def build_distribution_release(output: Path) -> dict:
         for path in (wheel, sdist, sbom_path, checksums_path)
     }
     evidence = {
-        "schema": "research-platform.distribution-release.v3",
+        "schema": "research-platform.distribution-release.v4",
         "manifest_source": "external-git-object-database",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "repository": "agent-research-platform-system",
@@ -286,6 +351,7 @@ def build_distribution_release(output: Path) -> dict:
         "platform_version": manifest.platform_code_version,
         "python_requires": manifest.python_requires,
         "build_command": build_command,
+        "oss_metadata": oss_metadata,
         "installed_verification": verification_refs,
         "artifacts": artifacts,
         "sbom_sha256": sbom_sha,

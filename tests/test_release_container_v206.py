@@ -188,6 +188,7 @@ def _write_distribution_evidence(
             "source_materialization_sha256": "9" * 64,
             "source_materialization_file_count": 3000,
         },
+        "oss_metadata": {"license_expression": "Apache-2.0", "license_files": ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"]},
         "artifacts": {wheel.name: {"sha256": wheel_sha, "size": wheel.stat().st_size}},
     }
     evidence_path = dist / "DISTRIBUTION_RELEASE_EVIDENCE.json"
@@ -281,3 +282,27 @@ def test_prepare_context_rejects_tampered_distribution_evidence_sidecar(monkeypa
         monkeypatch.setattr(context, "_git_blob", lambda sha, path: b"exact")
         with pytest.raises(ValueError, match="sidecar mismatch"):
             context.prepare_container_context(dist, root / "ctx", expected_source_sha=SHA)
+
+
+def test_prepare_context_rejects_missing_oss_metadata_authority(tmp_path: Path) -> None:
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    wheel = dist / "research_platform-1.0-py3-none-any.whl"
+    wheel.write_bytes(b"exact-wheel")
+    evidence_path = _write_distribution_evidence(
+        dist,
+        wheel,
+        wheel_sha=hashlib.sha256(wheel.read_bytes()).hexdigest(),
+        tree_sha="d" * 64,
+    )
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+    evidence.pop("oss_metadata")
+    raw = (json.dumps(evidence, sort_keys=True) + "\n").encode("utf-8")
+    evidence_path.write_bytes(raw)
+    digest = hashlib.sha256(raw).hexdigest()
+    (dist / "DISTRIBUTION_RELEASE_EVIDENCE.json.sha256").write_bytes(
+        f"{digest}  {evidence_path.name}\n".encode("utf-8")
+    )
+
+    with pytest.raises(ValueError, match="OSS metadata authority is missing"):
+        context.prepare_container_context(dist, tmp_path / "ctx", expected_source_sha=SHA)

@@ -62,7 +62,7 @@ The GitHub workflow runs source-bound product assurance, wheel/sdist qualificati
 
 ## Licensing boundary
 
-The SBOM records package license fields as `NOASSERTION` until project ownership selects an explicit OSS license. ROLE 06 does not invent or silently apply a legal license policy. A formal public OSS release therefore still requires ROLE 00/project-owner license selection if no repository `LICENSE` is present.
+Project ownership selected Apache License 2.0. Formal releases therefore require PEP 639 `License-Expression: Apache-2.0`, `License-File` entries for `LICENSE`, `NOTICE`, and `THIRD_PARTY_NOTICES.md`, and those exact legal files in both wheel and sdist. `release_distribution.py` verifies these conditions before publishing evidence; the v4 distribution receipt records the verified OSS metadata digests and legal-file authority. The project package is declared `Apache-2.0` in the SBOM, while bundled or external third-party components retain their own upstream licenses and are not relicensed by this declaration.
 
 The container image installs only the already-qualified formal wheel; it does not rebuild Platform code from a mutable checkout. Container qualification verifies wheel/RECORD integrity, effective non-root UID/GID, doctor, and the full reference lifecycle with networking disabled.
 
