@@ -8,6 +8,7 @@ from .acquisition import (
     ArtifactAcquisitionRequest,
     ArtifactAcquisitionResult,
 )
+from .identity import ArtifactContentIdentity, ArtifactContentIdentityVerificationError
 from .storage import (
     ArtifactStorageBinding,
     ArtifactStorageBindingConflict,
@@ -34,6 +35,8 @@ __all__ = [
     "ArtifactAcquisitionPort",
     "ArtifactAcquisitionRequest",
     "ArtifactAcquisitionResult",
+    "ArtifactContentIdentity",
+    "ArtifactContentIdentityVerificationError",
     "ArtifactStorageBinding",
     "ArtifactStorageBindingConflict",
     "ArtifactStorageBindingCorruptionError",

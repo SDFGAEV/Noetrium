@@ -28,6 +28,14 @@ Logical `ArtifactRecord` remains storage-independent. `artifact/content` owns ty
 
 Relocation verifies the destination and may recover from a corrupted old source because logical content identity remains durable. Successful relocation preserves content SHA-256 and increments generation; post-bind, reopen, and destination tamper are detected on authoritative resolve.
 
+## Immutable Artifact content identity
+
+`ArtifactContentIdentity(artifact_id, content_sha256)` is the portable claim-grade content identity produced by Artifact. It intentionally excludes mutable `reference_id`/generation and physical provider/location state.
+
+`verify_artifact_content_identity(...)` composes `ArtifactRegistryPort` and `ArtifactStorageBindingPort` without creating another store. It requires exact artifact identity plus matching immutable catalog digest and current verified storage digest; missing authorities, digest drift, and foreign-identity impostors fail closed with typed verification codes. Storage relocation may change provider/location/generation while the content identity remains unchanged.
+
+Data and ROLE03 may consume this producer-owned value only after the governance dependency cut is declared; they must not replace it with a mutable `ArtifactReference` alias or a second content authority.
+
 ## Typed research-result query federation
 
 `data/query/cross` is a real read-only semantic boundary rather than a generic operation/checkpoint leaf. Public execution is `ResearchResultQuery -> ResearchResultPage` through typed source/query ports.
@@ -53,8 +61,7 @@ Resolved in the consumed ROLE01 producer:
 
 Open producer/governance dependencies are recorded outside the repository under `outputs/reports/role05/`:
 
-- `CSR-ROLE05-ROLE01-PSC05-DATA-ARTIFACT-CONTENT-REFERENCE-20260831`: approve the typed Dataset -> Artifact immutable content-reference dependency without transferring Artifact identity authority into Data.
-- `CSR-ROLE05-ROLE01-PLATFORM-DEPENDENCY-DECLARATIONS-20260831`: declare the already-existing Artifact/Data -> Platform kernel dependency in canonical governance catalog metadata.
+- `CSR-ROLE05-ROLE01-PSC05-DATA-ARTIFACT-CONTENT-REFERENCE-20260831`: Artifact now publishes `ArtifactContentIdentity`; ROLE01 still must declare the typed Data -> Artifact dependency before Dataset can persist the producer-owned value without bypassing the catalog DAG.
 - `CSR-ROLE05-ROLE03-UNIFIED-RESEARCH-RESULT-READ-PROJECTION-20260831`: publish stable ROLE03 Run/Trial/Task/Measurement/Evidence read authority so ROLE05 can adapt it into the unified read-only federation.
 
 Until those producer decisions land, `run`, `task`, `action`, `observation`, `measurement`, and `evidence` result kinds remain explicitly representable but unsupported sources return typed `NO_SOURCE_CAPABILITY` gaps. ROLE05 does not create a private Run/Measurement registry or restore generic leaf authority.
