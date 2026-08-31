@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from research_platform.artifact._canonical import canonical_digest
+from research_platform.platform.kernel import canonical_digest
 
 
 @dataclass(frozen=True, slots=True)

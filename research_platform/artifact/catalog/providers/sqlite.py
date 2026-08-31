@@ -14,7 +14,7 @@ from research_platform.artifact.catalog.api import (
     ArtifactRegistryCorruptionError,
     ArtifactRetention,
 )
-from research_platform.artifact._canonical import canonical_digest
+from research_platform.platform.kernel import canonical_digest
 from research_platform.artifact._sqlite_connection import connect_artifact_reader, connect_artifact_writer, rollback_artifact_writer
 from research_platform.artifact._sqlite_types import require_optional_text, require_text
 from research_platform.scope.api import ScopeIdentity, ScopeKind

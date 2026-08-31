@@ -8,10 +8,12 @@ from research_platform.artifact.catalog.api import (
     ArtifactRetention,
 )
 from research_platform.data.dataset.api import DatasetIdentity, DatasetVersion
+from research_platform.data.fact.api import DurableFact, FactCriticality, FactDecoderPort, FactSchema
+from research_platform.data.fact.runtime import FactDecoderRegistry
 from research_platform.data.record.api import ExecutionRecordPlane
 from research_platform.observability.api import EventEnvelope
 from research_platform.observability.status.api import HealthState, SubsystemSnapshot
-from research_platform.platform.kernel import ExecutionContext, canonical_digest
+from research_platform.platform.kernel import ExecutionContext, canonical_bytes, canonical_digest
 from research_platform.scope.api import ScopeIdentity, ScopeKind
 
 
@@ -117,3 +119,55 @@ def test_public_dataset_version_rejects_tail_parent_tag_and_metadata_corruption(
             DatasetIdentity("project-eval", "v1"), _run_scope(), "b" * 64,
             "artifact://run-npe/datasets/project-eval.jsonl", metadata=(("one", "1"), ("two", "2"), ("", "3")),
         )
+
+
+def test_fact_decoder_is_schema_bound_and_typed() -> None:
+    class IntFactDecoder:
+        schema = FactSchema[int]("project.score", "v1")
+
+        def decode(self, fact: DurableFact) -> int:
+            value = fact.payload.get("value")
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise ValueError("project.score value must be an integer")
+            return value
+
+    decoder = IntFactDecoder()
+    assert isinstance(decoder, FactDecoderPort)
+    registry = FactDecoderRegistry((decoder,))
+    fact = DurableFact(
+        "score-1", "project.score", "v1", FactCriticality.REQUIRED, {"value": 7}
+    )
+    schema = FactSchema[int]("project.score", "v1")
+    assert registry.decoder_for(schema) is decoder
+    assert registry.decode_as(fact, schema) == 7
+
+
+def test_fact_decoder_rejects_schema_mismatch_before_decode() -> None:
+    class IntFactDecoder:
+        schema = FactSchema[int]("project.score", "v1")
+
+        def decode(self, fact: DurableFact) -> int:
+            raise AssertionError("mismatched fact must be rejected before decoder invocation")
+
+    registry = FactDecoderRegistry((IntFactDecoder(),))
+    fact = DurableFact(
+        "score-2", "project.score", "v2", FactCriticality.REQUIRED, {"value": 9}
+    )
+    with pytest.raises(ValueError, match="does not match requested typed schema"):
+        registry.decode_as(fact, FactSchema[int]("project.score", "v1"))
+
+
+def test_role05_canonical_encoding_uses_kernel_exact_bytes() -> None:
+    from research_platform.data._canonical import canonical_bytes as data_canonical_bytes
+    payload = {"b": (2, 3), "a": {"nested": True}, "finite": 1.25}
+    expected = b'{"a":{"nested":true},"b":[2,3],"finite":1.25}'
+    assert canonical_bytes(payload) == expected
+    assert data_canonical_bytes(payload) == expected
+
+
+def test_data_strict_decoder_rejects_duplicate_keys_and_nonfinite_constants() -> None:
+    from research_platform.data._canonical import DataCanonicalDecodingError, strict_json_loads
+    with pytest.raises(DataCanonicalDecodingError, match="duplicate object key"):
+        strict_json_loads('{"a":1,"a":2}')
+    with pytest.raises(DataCanonicalDecodingError, match="non-finite constant"):
+        strict_json_loads('{"value":NaN}')
