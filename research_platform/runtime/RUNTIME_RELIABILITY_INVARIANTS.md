@@ -61,8 +61,12 @@ Server-operation WAL records reject unsafe durable identities and non-canonical 
 
 ## Scaffold contraction
 
-ROLE02 semantic authorities live in the substantive Runtime, Resource, and Reliability parent APIs/runtimes, not in generated `SystemLeafContract` shells. Section 42 contraction therefore retires redundant child packages for diagnostic causal/timeline labels, failure facets, incident/policy/reconciliation labels, recovery evidence/plan/replay labels, resource catalog, Runtime control/history, process identity/launch/lifecycle, session binding/identity, and top-level supervision.
+ROLE02 semantic authorities live in the substantive Runtime, Resource, and Reliability parent APIs/runtimes, not in generated `SystemLeafContract` shells. Semantic-density contraction therefore retires redundant child packages for diagnostic causal/timeline labels, failure facets, incident/policy/reconciliation labels, recovery evidence/plan/replay labels, resource catalog, Runtime control/history, process identity/launch/lifecycle, session binding/identity, and top-level supervision.
 
 The contraction must not move or duplicate authority. Process lifecycle remains in `runtime.process` / `runtime.process.supervision`; session identity and binding remain in `runtime.session`; causal diagnostics remain in `reliability.diagnostics`; failure taxonomy/catalog/fingerprint/envelope semantics remain in `reliability.failure`; uncertain-effect/recovery semantics remain in `reliability.effect` and `reliability.recovery`; live Resource truth remains in compute/lease/allocation/resolution authorities.
 
 Governance catalog retirement is ROLE01-owned and Release manifest regeneration is ROLE06-owned. A producer-side deletion may therefore require a coordinated catalog/release cut, but no empty package may be recreated merely to satisfy stale node-cardinality assertions.
+
+## Read-only compute preflight
+
+Runtime/Research Compiler/doctor preflight consumes Resource capacity through `ComputeCandidatePort` assembled by explicit composition; it must not duplicate scheduler filtering logic. `candidates()` is a read-only projection over current scheduler usage, so existing allocations may remove a host from the candidate set without granting preflight allocate/release authority. Candidate reads must leave allocation truth unchanged.

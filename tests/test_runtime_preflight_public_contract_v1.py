@@ -15,7 +15,9 @@ from research_platform.resource.compute.api import (
     ComputeGPU,
     ComputeHost,
     ComputeRequirement,
+    ComputeSchedulerPort,
 )
+from research_platform.resource.compute.composition import compose_in_memory_compute_scheduler
 from research_platform.runtime.server.health.api import (
     ServerDiagnosticIssue,
     ServerDiagnosticReport,
@@ -25,18 +27,6 @@ from research_platform.runtime.server.health.api import (
 )
 from research_platform.runtime.server.identity.api import ServerCommandResult
 from research_platform.scope.api import ScopeIdentity, ScopeKind
-
-
-def _candidate_hosts(requirement: ComputeRequirement, hosts: tuple[ComputeHost, ...]) -> tuple[str, ...]:
-    required_labels = dict(requirement.required_labels)
-    return tuple(
-        host.host_id for host in hosts
-        if host.enabled
-        and host.cpu_cores >= requirement.cpu_cores
-        and host.memory_bytes >= requirement.memory_bytes
-        and sum(gpu.memory_bytes >= requirement.minimum_gpu_memory_bytes for gpu in host.gpus) >= requirement.gpu_count
-        and all(dict(host.labels).get(key) == value for key, value in required_labels.items())
-    )
 
 
 def _server(status: ServerDiagnosticStatus) -> ServerDiagnosticReport:
@@ -65,6 +55,14 @@ def _recovery(blocked: bool) -> RecoveryDecisionReport:
     ),))
 
 
+def _scheduler_and_candidates(
+    hosts: tuple[ComputeHost, ...],
+) -> tuple[ComputeSchedulerPort, ComputeCandidatePort]:
+    scheduler = compose_in_memory_compute_scheduler(hosts)
+    candidates: ComputeCandidatePort = scheduler
+    return scheduler, candidates
+
+
 def test_public_runtime_resource_recovery_facts_are_sufficient_for_read_only_preflight() -> None:
     scope = ScopeIdentity(ScopeKind.RUN, "run-1")
     requirement = ComputeRequirement(
@@ -75,12 +73,12 @@ def test_public_runtime_resource_recovery_facts_are_sufficient_for_read_only_pre
         ComputeHost("local", scope, 8, 32 * 1024, (ComputeGPU("g0", 8 * 1024),), (("os", "windows"),)),
         ComputeHost("server-2", scope, 8, 32 * 1024, (ComputeGPU("g1", 24 * 1024),), (("os", "linux"),)),
     )
-
-    candidates = _candidate_hosts(requirement, hosts)
+    _, candidates = _scheduler_and_candidates(hosts)
+    candidate_ids = tuple(host.host_id for host in candidates.candidates(requirement, scope=scope))
     server = _server(ServerDiagnosticStatus.READY)
     recovery = _recovery(False)
 
-    assert candidates == ("server-2",)
+    assert candidate_ids == ("server-2",)
     assert server.status is ServerDiagnosticStatus.READY
     assert recovery.blocked == ()
     assert not server.issues
@@ -90,12 +88,37 @@ def test_public_facts_fail_closed_without_mutating_domain_authorities() -> None:
     requirement = ComputeRequirement(cpu_cores=64, memory_bytes=1024)
     scope = ScopeIdentity(ScopeKind.RUN, "run-2")
     hosts = (ComputeHost("small", scope, 4, 4096),)
-    assert _candidate_hosts(requirement, hosts) == ()
+    scheduler, candidates = _scheduler_and_candidates(hosts)
+    before = scheduler.allocations(scope=scope)
+
+    assert candidates.candidates(requirement, scope=scope) == ()
+    assert scheduler.allocations(scope=scope) == before
     assert _server(ServerDiagnosticStatus.REMOTE_NOT_READY).issues
     assert _recovery(True).blocked
 
 
-def test_reference_consumer_uses_public_api_modules_only() -> None:
+def test_compute_candidate_port_tracks_live_usage_without_mutating_allocation_authority() -> None:
+    scope = ScopeIdentity(ScopeKind.RUN, "run-capacity")
+    requirement = ComputeRequirement(cpu_cores=4, memory_bytes=4096)
+    host = ComputeHost("server-2", scope, 4, 4096)
+    scheduler, candidates = _scheduler_and_candidates((host,))
+
+    assert tuple(row.host_id for row in candidates.candidates(requirement, scope=scope)) == ("server-2",)
+    assert scheduler.allocations(scope=scope) == ()
+
+    scheduler.allocate("allocation-1", scope, requirement)
+    allocated = scheduler.allocations(scope=scope)
+    assert len(allocated) == 1
+    assert candidates.candidates(requirement, scope=scope) == ()
+    assert scheduler.allocations(scope=scope) == allocated
+
+    scheduler.release("allocation-1")
+    assert scheduler.allocations(scope=scope) == ()
+    assert tuple(row.host_id for row in candidates.candidates(requirement, scope=scope)) == ("server-2",)
+    assert scheduler.allocations(scope=scope) == ()
+
+
+def test_reference_consumer_uses_public_api_or_explicit_composition_only() -> None:
     tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
     imports = tuple(
         node.module for node in ast.walk(tree)
@@ -104,8 +127,11 @@ def test_reference_consumer_uses_public_api_modules_only() -> None:
         and node.module.startswith("research_platform.")
     )
     assert imports
-    assert all(".api" in module for module in imports)
-    assert all(".providers" not in module and ".composition" not in module for module in imports)
+    assert all(
+        ".api" in module or module == "research_platform.resource.compute.composition"
+        for module in imports
+    )
+    assert all(not ({"runtime", "providers"} & set(module.split(".")[2:])) for module in imports)
 
 
 def test_compute_candidate_port_is_a_read_only_preflight_surface() -> None:
