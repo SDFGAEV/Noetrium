@@ -91,7 +91,7 @@ Artifact and Data are producer-owned domain systems, but their surviving impleme
 
 ### Downstream architecture migration supersession
 
-An active migration proposal is unique per overlapping owner scope. Historical rows remain immutable evidence, but a newer exact source contributes no stacked headroom: only a source/projection/delta-matching ROLE00 approval can become applicable. Current successors are ROLE03 `80eff508` at `+50` Execution/Experimentation imports, ROLE05 `0e573f98ce8a...` at `+61` Environment/Data/Artifact/Observability imports, and ROLE06 `cd664e2` at `+55` Operator/API imports. Older approvals remain historical evidence and contribute zero headroom to these successor source cuts until ROLE00 independently approves the exact new facts.
+An active migration proposal is unique per overlapping owner scope. Historical rows remain immutable evidence, but a newer exact source contributes no stacked headroom: only a source/projection/delta-matching ROLE00 approval can become applicable. Current successors are ROLE03 `80eff508` at `+50` Execution/Experimentation imports, ROLE05 `7c401246d39e...` at `+63` Environment/Data/Artifact/Observability imports, and ROLE06 `cd664e2` at `+55` Operator/API imports. Older approvals remain historical evidence and contribute zero headroom to these successor source cuts until ROLE00 independently approves the exact new facts.
 
 ### Platform Trial runtime consumer cutover
 

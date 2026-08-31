@@ -624,16 +624,19 @@ def test_role05_historical_and_research_data_architecture_allowances_are_preserv
     rows = {row.migration_id: row for row in load_architecture_complexity_budget(root).migrations}
     historical = rows["role05-environment-evidence-v1"]
     final_quality = rows["role05-final-quality-environment-evidence-2e20464"]
-    current = rows["role05-research-data-semantic-convergence-0e573f98"]
+    prior_research_data = rows["role05-research-data-semantic-convergence-0e573f98"]
+    current = rows["role05-research-data-semantic-convergence-7c401246"]
     prefixes = ("research_platform.environment", "research_platform.data", "research_platform.artifact", "research_platform.observability")
     assert historical.delta.import_edges == 2
     assert historical.module_prefixes == prefixes
     assert historical.import_projection_sha256 == "6f9fdf4f5d64703e1be10d2707b49109e365bb7343cd5118a05e73a6e3a5e62b"
     assert final_quality.delta.import_edges == 19
     assert final_quality.import_projection_sha256 == "cee2b53c07b2465a13fc40599e27dd22fa950989fa55eb0fccad98881904d7c2"
-    assert current.delta.import_edges == 61
+    assert prior_research_data.delta.import_edges == 61
+    assert prior_research_data.import_projection_sha256 == "a4d2cd2c05c69c572ae034d76b13cdc3bcf550963e69e06e76f3719939cca311"
+    assert current.delta.import_edges == 63
     assert current.module_prefixes == prefixes
-    assert current.import_projection_sha256 == "a4d2cd2c05c69c572ae034d76b13cdc3bcf550963e69e06e76f3719939cca311"
+    assert current.import_projection_sha256 == "db3db137f16df309dd5de20b3d01c25822cc6b2e03b6c601c5ed160479a39d80"
 
 
 def test_current_downstream_proposals_have_exact_applicability_without_self_approval() -> None:
@@ -642,7 +645,7 @@ def test_current_downstream_proposals_have_exact_applicability_without_self_appr
     expected = {
         "ROLE02": (8, ("research_platform.runtime", "research_platform.resource", "research_platform.reliability"), "e48da451b73527f4e5283fdbf3424c171e9c15d8f48eeaa47b6ec5dbf886e5c8"),
         "ROLE03": (50, ("research_platform.execution", "research_platform.experimentation", "research_platform.scientific"), "2db9d82255181f39e5a3ffc28e64d688380a5bdb9c739ddd84600b814d93f80f"),
-        "ROLE05": (61, ("research_platform.environment", "research_platform.data", "research_platform.artifact", "research_platform.observability"), "a4d2cd2c05c69c572ae034d76b13cdc3bcf550963e69e06e76f3719939cca311"),
+        "ROLE05": (63, ("research_platform.environment", "research_platform.data", "research_platform.artifact", "research_platform.observability"), "db3db137f16df309dd5de20b3d01c25822cc6b2e03b6c601c5ed160479a39d80"),
         "ROLE06": (55, ("research_platform.operator", "research_platform.api"), "3f367d5717fd4fbca273b3fb4d13af5c54d262afeb2a1e663898338adc713e77"),
     }
     for role, (delta, prefixes, projection) in expected.items():

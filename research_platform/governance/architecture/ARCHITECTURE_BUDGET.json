@@ -299,6 +299,27 @@
       }
     },
     {
+      "migration_id": "role05-research-data-semantic-convergence-7c401246",
+      "owner_role": "ROLE05",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 63
+      },
+      "justification": "Exact pushed ROLE05 research-data successor 7c401246 snapshots mutable Artifact references into portable content identity and increases the frozen-baseline Environment/Data/Artifact/Observability scope from 872 to 935 import edges (+63); prior +61 proposal remains historical and grants no stacked headroom.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.environment",
+          "research_platform.data",
+          "research_platform.artifact",
+          "research_platform.observability"
+        ],
+        "import_projection_sha256": "db3db137f16df309dd5de20b3d01c25822cc6b2e03b6c601c5ed160479a39d80"
+      }
+    },
+    {
       "migration_id": "role06-product-assurance-v1",
       "owner_role": "ROLE06",
       "delta": {
