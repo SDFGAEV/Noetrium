@@ -58,3 +58,11 @@ Server-operation WAL records reject unsafe durable identities and non-canonical 
 - When an append legitimately creates a segment, the slow path may boundedly wait up to 250 ms for the same kernel notification handle, then verifies the exact owned directory namespace before consuming the expected notification; notification timeout still fails closed, and coalesced external entries cannot hide behind rotation.
 - Failure to create, wait on, advance, or close the Windows notification handle is surfaced rather than silently degrading to the nondeterministic stat fallback.
 - Managed server health preflight must probe Linux inotify watch registration as a read-only OS authority fact. It reports `inotify_watch_authority=available|unavailable` (`not_required` off Linux), immediately closes the probe fd, and treats `unavailable` as `platform_ready=False` with stable diagnostic code `health:inotify_watch_authority`; doctor/preflight must never infer readiness from sysctl limits alone or silently substitute directory `stat()`.
+
+## Scaffold contraction
+
+ROLE02 semantic authorities live in the substantive Runtime, Resource, and Reliability parent APIs/runtimes, not in generated `SystemLeafContract` shells. Section 42 contraction therefore retires redundant child packages for diagnostic causal/timeline labels, failure facets, incident/policy/reconciliation labels, recovery evidence/plan/replay labels, resource catalog, Runtime control/history, process identity/launch/lifecycle, session binding/identity, and top-level supervision.
+
+The contraction must not move or duplicate authority. Process lifecycle remains in `runtime.process` / `runtime.process.supervision`; session identity and binding remain in `runtime.session`; causal diagnostics remain in `reliability.diagnostics`; failure taxonomy/catalog/fingerprint/envelope semantics remain in `reliability.failure`; uncertain-effect/recovery semantics remain in `reliability.effect` and `reliability.recovery`; live Resource truth remains in compute/lease/allocation/resolution authorities.
+
+Governance catalog retirement is ROLE01-owned and Release manifest regeneration is ROLE06-owned. A producer-side deletion may therefore require a coordinated catalog/release cut, but no empty package may be recreated merely to satisfy stale node-cardinality assertions.
