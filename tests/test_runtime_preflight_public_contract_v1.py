@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import inspect
 from pathlib import Path
 
 from research_platform.reliability.recovery.api import (
@@ -9,7 +10,12 @@ from research_platform.reliability.recovery.api import (
     RecoveryDecisionReport,
     RecoveryRecommendation,
 )
-from research_platform.resource.compute.api import ComputeGPU, ComputeHost, ComputeRequirement
+from research_platform.resource.compute.api import (
+    ComputeCandidatePort,
+    ComputeGPU,
+    ComputeHost,
+    ComputeRequirement,
+)
 from research_platform.runtime.server.health.api import (
     ServerDiagnosticIssue,
     ServerDiagnosticReport,
@@ -100,3 +106,17 @@ def test_reference_consumer_uses_public_api_modules_only() -> None:
     assert imports
     assert all(".api" in module for module in imports)
     assert all(".providers" not in module and ".composition" not in module for module in imports)
+
+
+def test_compute_candidate_port_is_a_read_only_preflight_surface() -> None:
+    public_methods = {
+        name
+        for name, member in ComputeCandidatePort.__dict__.items()
+        if not name.startswith("_") and callable(member)
+    }
+    assert public_methods == {"candidates"}
+
+    signature = inspect.signature(ComputeCandidatePort.candidates)
+    assert tuple(signature.parameters) == ("self", "requirement", "scope")
+    assert "allocate" not in public_methods
+    assert "release" not in public_methods
