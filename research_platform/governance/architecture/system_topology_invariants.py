@@ -29,17 +29,35 @@ def _standard_shape_packages(root: Path) -> tuple[tuple[Path, str], ...]:
 
 
 def audit_system_topology_completeness(root: Path) -> list[SourceInvariantViolation]:
-    """Fail closed when a concrete standard-shaped system lacks catalog ownership.
+    """Fail closed on both undeclared concrete systems and stale package declarations.
 
     The catalog remains the sole topology declaration authority. Filesystem shape is
-    only discovery evidence: it can prove that a system implementation exists and
-    therefore must have an explicit catalog owner, but it never creates topology by
-    inference.
+    discovery evidence only: a concrete standard-shaped package must have catalog
+    ownership, while a catalog package authority must resolve to a real Python package.
+    Non-package projections/facets must be represented outside this package-descriptor
+    contract rather than leaving a missing package behind.
     """
 
     root = Path(root).resolve()
-    registered = {row.package_prefix for row in system_catalog()}
+    descriptors = tuple(system_catalog())
+    registered = {row.package_prefix for row in descriptors}
     rows: list[SourceInvariantViolation] = []
+    canonical_catalog = root / "research_platform/governance/system_registry/catalog.json"
+    if canonical_catalog.is_file():
+        for descriptor in descriptors:
+            package = root.joinpath(*descriptor.package_prefix.split("."))
+            if (package / "__init__.py").is_file():
+                continue
+            rows.append(violation(
+                root,
+                canonical_catalog,
+                "stale_catalog_package",
+                1,
+                (
+                    f"catalog descriptor {descriptor.identity.key} declares package "
+                    f"{descriptor.package_prefix} but that Python package is absent"
+                ),
+            ))
     for path, module in _standard_shape_packages(root):
         if module in registered:
             continue

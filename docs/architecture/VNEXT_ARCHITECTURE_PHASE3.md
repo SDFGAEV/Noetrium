@@ -6,7 +6,7 @@ Phase 3 completes the **architecture-first** decomposition. It does not migrate 
 
 ## What changed
 
-- The 17 top-level systems are now represented by a recursive catalog.
+- Phase 3 originally established 17 top-level systems. Current Trial/Study convergence removes the redundant Scientific top-level authority, leaving 16 canonical top-level systems in the recursive catalog.
 - More than one hundred independent boundary nodes are declared.
 - Each node exposes the same `api / runtime / providers / composition` seam.
 - Each node declares exactly one primary authority and a `must_not_own` boundary.

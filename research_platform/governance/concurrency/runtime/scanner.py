@@ -9,9 +9,20 @@ from research_platform.governance.concurrency.api.ports import ConcurrencyLangua
 
 
 class ConcurrencyScanner:
-    def __init__(self, inventory: ConcurrencySourceInventoryPort, analyzers: tuple[ConcurrencyLanguageAnalyzerPort, ...]) -> None:
+    def __init__(
+        self,
+        inventory: ConcurrencySourceInventoryPort,
+        analyzers: tuple[ConcurrencyLanguageAnalyzerPort, ...],
+        *,
+        source_authority: str = "filesystem",
+        source_revision: str | None = None,
+        analyzer_implementation_digest: str = "",
+    ) -> None:
         self._inventory = inventory
         self._analyzers = {a.language: a for a in analyzers}
+        self._source_authority = source_authority
+        self._source_revision = source_revision
+        self._analyzer_implementation_digest = analyzer_implementation_digest
 
     def scan(self) -> ConcurrencySnapshot:
         hotspots=[]; files=Counter(); counts=Counter(); errors=Counter(); digest=hashlib.sha256(); revisions=[]
@@ -26,6 +37,9 @@ class ConcurrencyScanner:
             hotspots.extend(result.hotspots); counts[doc.language]+=len(result.hotspots); errors[doc.language]+=result.parse_errors
         coverage=tuple(ConcurrencyCoverage(lang,files[lang],counts[lang],errors[lang]) for lang in sorted(files,key=lambda x:x.value))
         return ConcurrencySnapshot(
-            "concurrency-snapshot.v1", "|".join(revisions), digest.hexdigest(),
+            "concurrency-snapshot.v2", "|".join(revisions), digest.hexdigest(),
             tuple(sorted(hotspots,key=lambda x:x.hotspot_id)), coverage, time.time_ns(),
+            source_authority=self._source_authority,
+            source_revision=self._source_revision,
+            analyzer_implementation_digest=self._analyzer_implementation_digest,
         )

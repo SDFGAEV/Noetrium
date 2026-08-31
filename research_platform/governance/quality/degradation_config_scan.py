@@ -6,17 +6,23 @@ import re
 import tomllib
 from typing import Any, Iterable
 
+from research_platform.governance.api import (
+    RepositorySourceFailure,
+    RepositorySourceFailureKind,
+    RepositorySourceIncompleteError,
+    RepositorySourceIndexPort,
+)
+
 from .degradation_contracts import (
     DegradationFinding,
     FORBIDDEN_ENABLED_CONFIG_KEYS,
     FORBIDDEN_NONEMPTY_CONFIG_KEYS,
 )
-from .degradation_paths import iter_audited_files
+from .degradation_paths import is_excluded_path, iter_audited_files
 
 _TRUE_TOKENS = {"true", "yes", "on", "1"}
 _EMPTY_TOKENS = {"", "null", "none", "[]", "{}", "''", '\"\"'}
 _YAML_KEY_RE = re.compile(r"^(?P<indent>\s*)(?P<key>[A-Za-z_][A-Za-z0-9_.-]*)\s*:\s*(?P<value>.*?)\s*(?:#.*)?$")
-
 _FORBIDDEN_CONFIG_KEY_RE = re.compile(
     "|".join(
         re.escape(key)
@@ -62,13 +68,9 @@ def _walk_config(value: Any, *, path: str, line: int = 1, prefix: str = "") -> I
             yield from _walk_config(child, path=path, line=line, prefix=f"{prefix}[{index}]")
 
 
-def _scan_yaml(path: Path, rel: Path) -> Iterable[DegradationFinding]:
-    try:
-        lines = path.read_text(encoding="utf-8").splitlines()
-    except UnicodeDecodeError:
-        return
-    for lineno, raw in enumerate(lines, start=1):
-        match = _YAML_KEY_RE.match(raw)
+def _scan_yaml_text(raw: str, rel: Path) -> Iterable[DegradationFinding]:
+    for lineno, line in enumerate(raw.splitlines(), start=1):
+        match = _YAML_KEY_RE.match(line)
         if not match:
             continue
         key = match.group("key").lower()
@@ -80,32 +82,69 @@ def _scan_yaml(path: Path, rel: Path) -> Iterable[DegradationFinding]:
             yield DegradationFinding(rel.as_posix(), lineno, key, "config_fallback_target")
 
 
-def scan_config_degradation(root: Path) -> Iterable[DegradationFinding]:
+def _scan_raw(raw: str, suffix: str, rel: Path) -> Iterable[DegradationFinding]:
+    if suffix in {".yaml", ".yml"}:
+        if _FORBIDDEN_CONFIG_KEY_RE.search(raw) is not None:
+            yield from _scan_yaml_text(raw, rel)
+        return
+    if suffix == ".json":
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise RepositorySourceIncompleteError((RepositorySourceFailure(
+                RepositorySourceFailureKind.CONFIG_PARSE,
+                rel.as_posix(),
+                f"json line {exc.lineno}",
+            ),)) from exc
+        if _FORBIDDEN_CONFIG_KEY_RE.search(raw) is not None:
+            yield from _walk_config(payload, path=rel.as_posix())
+        return
+    if suffix == ".toml":
+        try:
+            payload = tomllib.loads(raw)
+        except tomllib.TOMLDecodeError as exc:
+            raise RepositorySourceIncompleteError((RepositorySourceFailure(
+                RepositorySourceFailureKind.CONFIG_PARSE,
+                rel.as_posix(),
+                type(exc).__name__,
+            ),)) from exc
+        if _FORBIDDEN_CONFIG_KEY_RE.search(raw) is not None:
+            yield from _walk_config(payload, path=rel.as_posix())
+
+
+def scan_config_degradation(
+    root: Path,
+    *,
+    source_index: RepositorySourceIndexPort | None = None,
+) -> Iterable[DegradationFinding]:
     suffixes = frozenset({".yaml", ".yml", ".json", ".toml"})
+    if source_index is not None:
+        for source in source_index.documents(suffixes=suffixes):
+            rel = Path(source.relative_path)
+            if is_excluded_path(rel):
+                continue
+            yield from _scan_raw(source.text, source.suffix, rel)
+        return
+
     for path in iter_audited_files(root, suffixes=suffixes):
         rel = path.relative_to(root)
-        suffix = path.suffix.lower()
         try:
-            raw = path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
-            continue
-        if _FORBIDDEN_CONFIG_KEY_RE.search(raw) is None:
-            continue
-        if suffix in {".yaml", ".yml"}:
-            # Reuse the strict YAML line scanner only after the exact-safe prefilter.
-            yield from _scan_yaml(path, rel)
-        elif suffix == ".json":
-            try:
-                payload = json.loads(raw)
-            except json.JSONDecodeError:
-                continue
-            yield from _walk_config(payload, path=rel.as_posix())
-        elif suffix == ".toml":
-            try:
-                payload = tomllib.loads(raw)
-            except tomllib.TOMLDecodeError:
-                continue
-            yield from _walk_config(payload, path=rel.as_posix())
+            data = path.read_bytes()
+        except OSError as exc:
+            raise RepositorySourceIncompleteError((RepositorySourceFailure(
+                RepositorySourceFailureKind.FILE_READ,
+                rel.as_posix(),
+                type(exc).__name__,
+            ),)) from exc
+        try:
+            raw = data.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise RepositorySourceIncompleteError((RepositorySourceFailure(
+                RepositorySourceFailureKind.UTF8_DECODE,
+                rel.as_posix(),
+                "invalid utf-8",
+            ),)) from exc
+        yield from _scan_raw(raw, path.suffix.lower(), rel)
 
 
 __all__ = ["scan_config_degradation"]

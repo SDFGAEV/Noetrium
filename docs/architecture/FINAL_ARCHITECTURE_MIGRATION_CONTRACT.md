@@ -62,3 +62,11 @@ Delete the retired path only after no production consumer imports it, durable st
 Moving a downstream project out of the reusable platform follows the same contract. Preserve the downstream source/history first, remove downstream packages from upstream packaging/runtime/release inventories, prove the upstream works without them, then establish the downstream repository as a one-way consumer of the platform.
 
 See [`DOWNSTREAM_PROJECT_REPOSITORY_CONTRACT.md`](DOWNSTREAM_PROJECT_REPOSITORY_CONTRACT.md) for the repository-level rule.
+
+## Cross-role dependency declaration companion
+
+When a downstream-owned adapter introduces a real import from one top-level system into another, the canonical registry must declare that dependency at the owning top-level boundary instead of hiding it behind dynamic imports or a second locator. The dependency declaration is a governance projection of the real typed contract; it does not transfer runtime or durable-state authority.
+
+The run-control operator cutover is the concrete acceptance case: `operator` declares `execution` and `experimentation` because the ROLE06 operator adapter consumes the ROLE03 run-control contract. Those two declarations are charged to the ROLE01 governance migration, while the adapter import-edge delta remains charged to ROLE06.
+
+Changing canonical catalog complexity invalidates any exact-SHA external architecture approval bound to the prior ROLE01 source. The worker updates only migration request facts; ROLE00 must independently reissue the matching full-complexity approval for the new exact source. Stale approvals contribute zero headroom.

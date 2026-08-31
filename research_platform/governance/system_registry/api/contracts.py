@@ -15,7 +15,6 @@ class SystemLayer(StrEnum):
     EXPERIMENTATION = "experimentation"
     EXECUTION = "execution"
     PARTICIPANT = "participant"
-    SCIENTIFIC = "scientific"
     DATA = "data"
     RUNTIME = "runtime"
     ENVIRONMENT = "environment"

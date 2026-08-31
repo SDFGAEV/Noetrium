@@ -3,7 +3,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from research_platform.governance.repository_boundary import audit_repository_boundary
+from research_platform.governance.repository_boundary import (
+    DownstreamImportKind,
+    audit_downstream_project_imports,
+    audit_repository_boundary,
+)
 
 
 def _minimal_root(tmp_path: Path) -> Path:
@@ -80,3 +84,53 @@ def test_current_repository_boundary_passes() -> None:
     root = Path(__file__).resolve().parents[1]
     report = audit_repository_boundary(root, include_release_manifest=False)
     assert report.passed, report.violations
+
+def test_minimal_downstream_project_imports_public_contracts_without_becoming_platform_source(tmp_path: Path) -> None:
+    root = tmp_path / "downstream"
+    package = root / "src" / "example_project"
+    package.mkdir(parents=True)
+    (package / "app.py").write_text(
+        "from research_platform.portfolio.api import ProjectManifest\n"
+        "from research_platform.operator.api import ResearchApplicationPort\n",
+        encoding="utf-8",
+    )
+    (package / "provider.py").write_text(
+        "from research_platform.environment.catalog.api import EnvironmentSpec\n",
+        encoding="utf-8",
+    )
+    report = audit_downstream_project_imports(root)
+    assert report.passed, report.violations
+    observed = {(row.module, row.kind) for row in report.observations}
+    assert ("research_platform.portfolio.api", DownstreamImportKind.COMMON_PLATFORM_API) in observed
+    assert ("research_platform.operator.api", DownstreamImportKind.COMMON_PLATFORM_API) in observed
+    assert (
+        "research_platform.environment.catalog.api",
+        DownstreamImportKind.PROVIDER_DEVELOPMENT_API,
+    ) in observed
+    assert not (root / "research_platform").exists()
+
+
+def test_downstream_project_private_platform_import_and_vendoring_fail_closed(tmp_path: Path) -> None:
+    root = tmp_path / "downstream"
+    package = root / "src" / "example_project"
+    package.mkdir(parents=True)
+    (package / "bad.py").write_text(
+        "from research_platform.runtime.process.runtime import ProcessRuntime\n",
+        encoding="utf-8",
+    )
+    (root / "research_platform").mkdir()
+    report = audit_downstream_project_imports(root)
+    codes = {row.code for row in report.violations}
+    assert "DOWNSTREAM_PRIVATE_PLATFORM_IMPORT" in codes
+    assert "DOWNSTREAM_VENDORS_PLATFORM" in codes
+    private = next(row for row in report.observations if row.module.startswith("research_platform.runtime"))
+    assert private.kind is DownstreamImportKind.FORBIDDEN_PRIVATE_IMPLEMENTATION
+
+
+def test_downstream_project_source_parse_failure_is_blocking(tmp_path: Path) -> None:
+    root = tmp_path / "downstream"
+    root.mkdir()
+    (root / "broken.py").write_text("def broken(:\n", encoding="utf-8")
+    report = audit_downstream_project_imports(root)
+    assert not report.passed
+    assert {row.code for row in report.violations} == {"DOWNSTREAM_SOURCE_PARSE_FAILED"}

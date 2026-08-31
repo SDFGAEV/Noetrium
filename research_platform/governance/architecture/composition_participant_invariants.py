@@ -12,7 +12,7 @@ def audit_generic_participant_signatures(root: Path) -> list[SourceInvariantViol
     rows: list[SourceInvariantViolation] = []
     study = root / "research_platform" / "experimentation" / "experiment"
     checks = (
-        (study / "runtime" / "scientific_cycle.py", "ExperimentScientificCycleExecutor", "execute"),
+        (study / "runtime" / "trial_cycle.py", "ExperimentTrialCycleExecutor", "execute"),
         (study / "run_cycle.py", "RunCycleExecutor", "__init__"),
     )
     forbidden = {"method_session", "environment_session", "agent_session", "capability_sessions"}
