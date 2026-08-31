@@ -15,6 +15,7 @@ The first concrete typed families are:
 - policy inference through `PolicyInferenceInput` and `PolicyInferenceOutput`, which carries a typed normalized action distribution and optional selected action;
 - value-style inference through `ValueInferenceInput` and `ValueInferenceOutput`;
 - multimodal inference through `MultimodalInferenceInput` / `MultimodalInferenceOutput`, where media and derived outputs are immutable `ContentRef` values rather than inline large bytes or filesystem paths.
+- streaming through `ModelCapabilityStreamChunk` / `ModelCapabilityStreamTerminal` and the public streaming client/session/provider protocols; pull-based consumption provides the semantic backpressure boundary while chunk chaining and terminal disposition preserve ordered provenance.
 
 Embedding vectors, scores, ranking scores, policy probabilities, values, and auxiliary scalars are finite numeric tuples/values. NaN and infinities fail closed. Ranking order and policy normalization are semantic invariants rather than provider conventions.
 The typed capability path does not use `object`, `Any`, text fields, or a free-form plugin payload as scientific output authority.
@@ -34,5 +35,6 @@ Multimodal inference reuses the existing content-addressed request vocabulary. `
 It receives an exact `ProjectModelBinding` factory, validates requirement/binding/capability/schema identity, and executes a strongly typed handler.
 It cannot mint deployment generation, model qualification, runtime canary, or provider readiness facts.
 
-This keeps provider/deployment substitution below the project method while preserving exact request/output provenance.
-Future multimodal/streaming families should extend this semantic protocol and consume verified ROLE05 content references where large content identity is required; they must not create a second storage/content authority.
+Streaming is a semantic sequence contract, not a transport API. Each chunk binds request/binding identity, a contiguous sequence index, the previous chunk digest, schema identity and typed payload digest. A completed terminal binds the ordered chunk digest sequence plus the final typed response; cancelled/failed terminals cannot fabricate a final response and require an explicit reason. `next_chunk()` is intentionally pull-based so consumers control demand. HTTP/SSE/socket/async I/O, buffering and worker supervision remain below this ROLE04 contract.
+
+This keeps provider/deployment substitution below the project method while preserving exact request/output provenance. Multimodal and streaming providers may consume verified content references where large content identity is required, but must not create a second storage/content authority.

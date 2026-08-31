@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Generic, Protocol, TypeVar, runtime_checkable
 
 from research_platform.model.api.project import (
@@ -146,6 +147,130 @@ class ProjectModelCapabilityProviderPort(Protocol[InputT, OutputT]):
     def bind_capability(
         self, requirement: ModelCapabilityRequirement
     ) -> ProjectModelCapabilityClientPort[InputT, OutputT]: ...
+
+
+ChunkT = TypeVar("ChunkT", bound=ModelCapabilityOutput)
+
+
+@dataclass(frozen=True, slots=True)
+class ModelCapabilityStreamChunk(Generic[ChunkT]):
+    request_digest: str
+    binding_digest: str
+    sequence_index: int
+    chunk_schema_id: str
+    payload: ChunkT
+    previous_chunk_digest: str | None = None
+    chunk_digest: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        require_sha256(self.request_digest, "model stream chunk request_digest")
+        require_sha256(self.binding_digest, "model stream chunk binding_digest")
+        if type(self.sequence_index) is not int or self.sequence_index < 0:
+            raise ValueError("model stream chunk sequence_index must be non-negative")
+        if self.sequence_index == 0:
+            if self.previous_chunk_digest is not None:
+                raise ValueError("first model stream chunk must not declare previous chunk")
+        else:
+            if self.previous_chunk_digest is None:
+                raise ValueError("non-first model stream chunk requires previous chunk digest")
+            require_sha256(self.previous_chunk_digest, "model stream previous chunk digest")
+        _text(self.chunk_schema_id, "model stream chunk schema_id")
+        if not isinstance(self.payload, ModelCapabilityOutput):
+            raise TypeError("model stream chunk payload must implement ModelCapabilityOutput")
+        if self.payload.schema_id != self.chunk_schema_id:
+            raise ValueError("model stream chunk payload schema drift")
+        object.__setattr__(self, "chunk_digest", canonical_digest({
+            "request_digest": self.request_digest,
+            "binding_digest": self.binding_digest,
+            "sequence_index": self.sequence_index,
+            "previous_chunk_digest": self.previous_chunk_digest,
+            "chunk_schema_id": self.chunk_schema_id,
+            "payload_digest": self.payload.digest(),
+        }))
+
+
+class ModelCapabilityStreamDisposition(StrEnum):
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True, slots=True)
+class ModelCapabilityStreamTerminal(Generic[OutputT]):
+    request_digest: str
+    binding_digest: str
+    disposition: ModelCapabilityStreamDisposition
+    chunk_digests: tuple[str, ...]
+    final_response: ModelCapabilityResponse[OutputT] | None = None
+    reason: str | None = None
+    terminal_digest: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        require_sha256(self.request_digest, "model stream terminal request_digest")
+        require_sha256(self.binding_digest, "model stream terminal binding_digest")
+        if not isinstance(self.disposition, ModelCapabilityStreamDisposition):
+            raise TypeError("model stream terminal disposition must be typed")
+        if not isinstance(self.chunk_digests, tuple):
+            raise TypeError("model stream terminal chunk_digests must be a tuple")
+        for digest in self.chunk_digests:
+            require_sha256(digest, "model stream terminal chunk digest")
+        if len(set(self.chunk_digests)) != len(self.chunk_digests):
+            raise ValueError("model stream terminal chunk digests must be unique")
+        if self.disposition is ModelCapabilityStreamDisposition.COMPLETED:
+            if not isinstance(self.final_response, ModelCapabilityResponse):
+                raise ValueError("completed model stream requires final typed response")
+            if self.reason is not None:
+                raise ValueError("completed model stream must not carry failure/cancellation reason")
+            if self.final_response.request_digest != self.request_digest or self.final_response.binding_digest != self.binding_digest:
+                raise ValueError("model stream final response provenance drift")
+        else:
+            if self.final_response is not None:
+                raise ValueError("non-completed model stream must not carry final response")
+            _text(self.reason, "model stream terminal reason")
+        object.__setattr__(self, "terminal_digest", canonical_digest({
+            "request_digest": self.request_digest,
+            "binding_digest": self.binding_digest,
+            "disposition": self.disposition.value,
+            "chunk_digests": self.chunk_digests,
+            "final_response_digest": None if self.final_response is None else self.final_response.response_digest,
+            "reason": self.reason,
+        }))
+
+
+@runtime_checkable
+class ModelCapabilityStreamSession(Protocol[ChunkT, OutputT]):
+    @property
+    def request_digest(self) -> str: ...
+
+    @property
+    def binding_digest(self) -> str: ...
+
+    def next_chunk(self) -> ModelCapabilityStreamChunk[ChunkT] | None: ...
+    def terminal(self) -> ModelCapabilityStreamTerminal[OutputT] | None: ...
+    def cancel(self, reason: str) -> ModelCapabilityStreamTerminal[OutputT]: ...
+
+
+@runtime_checkable
+class ProjectModelStreamingCapabilityClientPort(Protocol[InputT, ChunkT, OutputT]):
+    @property
+    def binding(self) -> ProjectModelBinding: ...
+
+    @property
+    def requirement(self) -> ModelCapabilityRequirement: ...
+
+    def open_stream(
+        self, request: ModelCapabilityInvocation[InputT]
+    ) -> ModelCapabilityStreamSession[ChunkT, OutputT]: ...
+
+
+@runtime_checkable
+class ProjectModelStreamingCapabilityProviderPort(Protocol[InputT, ChunkT, OutputT]):
+    @property
+    def capability_id(self) -> str: ...
+
+    def bind_streaming_capability(
+        self, requirement: ModelCapabilityRequirement
+    ) -> ProjectModelStreamingCapabilityClientPort[InputT, ChunkT, OutputT]: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -481,6 +606,12 @@ __all__ = [
     "ModelCapabilityOutput",
     "ModelCapabilityResponse",
     "NamedScalar",
+    "ProjectModelStreamingCapabilityProviderPort",
+    "ProjectModelStreamingCapabilityClientPort",
+    "ModelCapabilityStreamTerminal",
+    "ModelCapabilityStreamSession",
+    "ModelCapabilityStreamDisposition",
+    "ModelCapabilityStreamChunk",
     "PolicyActionProbability",
     "PolicyInferenceInput",
     "PolicyInferenceOutput",

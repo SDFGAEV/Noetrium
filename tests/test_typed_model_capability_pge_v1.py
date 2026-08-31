@@ -11,6 +11,11 @@ from research_platform.model.api import (
     EmbeddingVector,
     ModelCapabilityInvocation,
     ModelCapabilityRequirement,
+    ModelCapabilityResponse,
+    ModelCapabilityStreamChunk,
+    ModelCapabilityStreamDisposition,
+    ModelCapabilityStreamSession,
+    ModelCapabilityStreamTerminal,
     ModelProviderProfile,
     MultimodalInferenceOutput,
     MultimodalInferenceInput,
@@ -18,6 +23,8 @@ from research_platform.model.api import (
     NamedScalar,
     ProjectModelBinding,
     ProjectModelCapabilityClientPort,
+    ProjectModelStreamingCapabilityClientPort,
+    ProjectModelStreamingCapabilityProviderPort,
     PolicyActionProbability,
     PolicyInferenceInput,
     PolicyInferenceOutput,
@@ -497,3 +504,209 @@ def test_multimodal_identity_changes_with_content_digest_and_empty_output_fails_
         MultimodalInferenceOutput(model_revision="multimodal-r4")
     with pytest.raises(TypeError, match="ContentRef"):
         MultimodalContent("image", b"raw-bytes")  # type: ignore[arg-type]
+
+
+class _PullEmbeddingStream:
+    def __init__(self, chunks, final_response):
+        self._chunks = tuple(chunks)
+        self._final_response = final_response
+        self._index = 0
+        self._terminal = None
+        self.next_calls = 0
+
+    @property
+    def request_digest(self):
+        return self._final_response.request_digest
+
+    @property
+    def binding_digest(self):
+        return self._final_response.binding_digest
+
+    def next_chunk(self):
+        self.next_calls += 1
+        if self._terminal is not None or self._index >= len(self._chunks):
+            return None
+        chunk = self._chunks[self._index]
+        expected_previous = None if self._index == 0 else self._chunks[self._index - 1].chunk_digest
+        if chunk.sequence_index != self._index or chunk.previous_chunk_digest != expected_previous:
+            self._terminal = ModelCapabilityStreamTerminal(
+                self.request_digest,
+                self.binding_digest,
+                ModelCapabilityStreamDisposition.FAILED,
+                tuple(item.chunk_digest for item in self._chunks[:self._index]),
+                reason='stream sequence provenance drift',
+            )
+            return None
+        self._index += 1
+        return chunk
+
+    def terminal(self):
+        if self._terminal is not None:
+            return self._terminal
+        if self._index != len(self._chunks):
+            return None
+        self._terminal = ModelCapabilityStreamTerminal(
+            self.request_digest,
+            self.binding_digest,
+            ModelCapabilityStreamDisposition.COMPLETED,
+            tuple(chunk.chunk_digest for chunk in self._chunks),
+            final_response=self._final_response,
+        )
+        return self._terminal
+
+    def cancel(self, reason):
+        self._terminal = ModelCapabilityStreamTerminal(
+            self.request_digest,
+            self.binding_digest,
+            ModelCapabilityStreamDisposition.CANCELLED,
+            tuple(chunk.chunk_digest for chunk in self._chunks[:self._index]),
+            reason=reason,
+        )
+        return self._terminal
+
+
+class _StreamingEmbeddingClient:
+    def __init__(self, requirement, binding, chunks, final_response):
+        self.requirement = requirement
+        self.binding = binding
+        self._chunks = chunks
+        self._final_response = final_response
+
+    def open_stream(self, request):
+        if request.requirement_digest != self.requirement.digest():
+            raise ValueError('stream request requirement provenance drift')
+        if request.capability_id != self.requirement.capability_id:
+            raise ValueError('stream request capability drift')
+        return _PullEmbeddingStream(self._chunks, self._final_response)
+
+
+class _StreamingEmbeddingProvider:
+    capability_id = 'embedding'
+
+    def __init__(self, client):
+        self._client = client
+
+    def bind_streaming_capability(self, requirement):
+        if requirement != self._client.requirement:
+            raise ValueError('stream provider requirement drift')
+        return self._client
+
+
+def _stream_fixture():
+    requirement = _requirement('embedding', 'model.embedding.input.v1', 'model.embedding.output.v1')
+    invocation = ModelCapabilityInvocation.from_requirement(requirement, 'stream-1', EmbeddingInput(('alpha',)))
+    binding = _binding(requirement)
+    binding_digest = binding.digest()
+    first = ModelCapabilityStreamChunk(
+        invocation.request_digest, binding_digest, 0, 'model.embedding.output.v1',
+        EmbeddingOutput((EmbeddingVector((1.0, 2.0)),), model_revision='rev-stream'),
+    )
+    second = ModelCapabilityStreamChunk(
+        invocation.request_digest, binding_digest, 1, 'model.embedding.output.v1',
+        EmbeddingOutput((EmbeddingVector((3.0, 4.0)),), model_revision='rev-stream'),
+        previous_chunk_digest=first.chunk_digest,
+    )
+    final = ModelCapabilityResponse(
+        invocation.request_digest, binding_digest, requirement.output_schema_id,
+        EmbeddingOutput((EmbeddingVector((2.0, 3.0)),), model_revision='rev-stream'),
+    )
+    return requirement, invocation, binding, first, second, final
+
+
+def test_streaming_contract_is_pull_based_and_preserves_ordered_provenance():
+    requirement, invocation, binding, first, second, final = _stream_fixture()
+    client = _StreamingEmbeddingClient(requirement, binding, (first, second), final)
+    provider = _StreamingEmbeddingProvider(client)
+    assert isinstance(client, ProjectModelStreamingCapabilityClientPort)
+    assert isinstance(provider, ProjectModelStreamingCapabilityProviderPort)
+    session = provider.bind_streaming_capability(requirement).open_stream(invocation)
+    assert isinstance(session, ModelCapabilityStreamSession)
+    assert session.next_calls == 0
+    assert session.terminal() is None
+    assert session.next_chunk() == first
+    assert session.next_calls == 1
+    assert session.terminal() is None
+    assert session.next_chunk() == second
+    terminal = session.terminal()
+    assert terminal is not None
+    assert terminal.disposition is ModelCapabilityStreamDisposition.COMPLETED
+    assert terminal.chunk_digests == (first.chunk_digest, second.chunk_digest)
+    assert terminal.final_response == final
+
+
+def test_stream_chunk_chain_and_terminal_fail_closed_on_drift():
+    requirement, invocation, binding, first, second, final = _stream_fixture()
+    with pytest.raises(ValueError, match='first model stream chunk'):
+        ModelCapabilityStreamChunk(
+            invocation.request_digest, binding.digest(), 0, first.chunk_schema_id,
+            first.payload, previous_chunk_digest='a' * 64,
+        )
+    with pytest.raises(ValueError, match='requires previous chunk digest'):
+        ModelCapabilityStreamChunk(
+            invocation.request_digest, binding.digest(), 1, second.chunk_schema_id, second.payload,
+        )
+    with pytest.raises(ValueError, match='provenance drift'):
+        ModelCapabilityStreamTerminal(
+            invocation.request_digest,
+            'f' * 64,
+            ModelCapabilityStreamDisposition.COMPLETED,
+            (first.chunk_digest, second.chunk_digest),
+            final_response=final,
+        )
+    with pytest.raises(ValueError, match='unique'):
+        ModelCapabilityStreamTerminal(
+            invocation.request_digest,
+            binding.digest(),
+            ModelCapabilityStreamDisposition.COMPLETED,
+            (first.chunk_digest, first.chunk_digest),
+            final_response=final,
+        )
+
+
+def test_stream_cancel_and_failure_are_terminal_without_fake_final_response():
+    requirement, invocation, binding, first, second, final = _stream_fixture()
+    session = _PullEmbeddingStream((first, second), final)
+    assert session.next_chunk() == first
+    terminal = session.cancel('user cancelled downstream consumption')
+    assert terminal.disposition is ModelCapabilityStreamDisposition.CANCELLED
+    assert terminal.chunk_digests == (first.chunk_digest,)
+    assert terminal.final_response is None
+    assert session.next_chunk() is None
+    with pytest.raises(ValueError, match='reason'):
+        ModelCapabilityStreamTerminal(
+            invocation.request_digest,
+            binding.digest(),
+            ModelCapabilityStreamDisposition.FAILED,
+            (first.chunk_digest,),
+        )
+    with pytest.raises(ValueError, match='must not carry final response'):
+        ModelCapabilityStreamTerminal(
+            invocation.request_digest,
+            binding.digest(),
+            ModelCapabilityStreamDisposition.FAILED,
+            (first.chunk_digest,),
+            final_response=final,
+            reason='provider failed',
+        )
+
+
+
+def test_stream_session_fails_closed_on_sequence_gap_even_with_valid_digest_chain():
+    requirement, invocation, binding, first, second, final = _stream_fixture()
+    gap = ModelCapabilityStreamChunk(
+        invocation.request_digest,
+        binding.digest(),
+        2,
+        second.chunk_schema_id,
+        second.payload,
+        previous_chunk_digest=first.chunk_digest,
+    )
+    session = _PullEmbeddingStream((first, gap), final)
+    assert session.next_chunk() == first
+    assert session.next_chunk() is None
+    terminal = session.terminal()
+    assert terminal is not None
+    assert terminal.disposition is ModelCapabilityStreamDisposition.FAILED
+    assert terminal.reason == 'stream sequence provenance drift'
+    assert terminal.chunk_digests == (first.chunk_digest,)
+    assert terminal.final_response is None
