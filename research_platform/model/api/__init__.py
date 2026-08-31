@@ -1,4 +1,22 @@
 from .authorities import ModelAuthorities
+from .capability import (
+    EmbeddingInput,
+    EmbeddingOutput,
+    EmbeddingVector,
+    ModelCapabilityInput,
+    ModelCapabilityInvocation,
+    ModelCapabilityOutput,
+    ModelCapabilityResponse,
+    NamedScalar,
+    ProjectModelCapabilityClientPort,
+    ProjectModelCapabilityProviderPort,
+    ScoredCandidate,
+    ScoringCandidate,
+    ScoringInput,
+    ScoringOutput,
+    ValueInferenceInput,
+    ValueInferenceOutput,
+)
 from .project import (
     ModelBindingDiagnostic,
     ModelBindingDiagnosticCode,
@@ -14,6 +32,22 @@ from .project import (
 )
 
 __all__ = [
+    "EmbeddingInput",
+    "EmbeddingOutput",
+    "EmbeddingVector",
+    "ModelCapabilityInput",
+    "ModelCapabilityInvocation",
+    "ModelCapabilityOutput",
+    "ModelCapabilityResponse",
+    "NamedScalar",
+    "ProjectModelCapabilityClientPort",
+    "ProjectModelCapabilityProviderPort",
+    "ScoredCandidate",
+    "ScoringCandidate",
+    "ScoringInput",
+    "ScoringOutput",
+    "ValueInferenceInput",
+    "ValueInferenceOutput",
     "ModelAuthorities",
     "ModelBindingDiagnostic",
     "ModelBindingDiagnosticCode",

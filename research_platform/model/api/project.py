@@ -39,21 +39,36 @@ def _tokens(values: object, field_name: str) -> tuple[str, ...]:
 
 @dataclass(frozen=True, slots=True)
 class ModelCapabilityRequirement:
-    """Project-owned model capability and exact model-visible request requirement."""
+    """Project-owned requirement for one semantic model capability.
+
+    Generation keeps exact prompt/tool provenance. Non-generation capabilities
+    bind their semantic input/output schemas instead of fabricating prompt ids.
+    """
 
     role: str
-    prompt_generation_id: str
-    prompt_id: str
-    prompt_digest: str
+    prompt_generation_id: str | None = None
+    prompt_id: str | None = None
+    prompt_digest: str | None = None
     required_capabilities: tuple[str, ...] = ()
     minimum_context_tokens: int = 1
     tool_schema_sha256: str | None = None
+    capability_id: str = "generation"
+    input_schema_id: str = "model.generation.request.v1"
+    output_schema_id: str = "model.generation.response.v1"
 
     def __post_init__(self) -> None:
         _text(self.role, "model requirement role")
-        _text(self.prompt_generation_id, "model requirement prompt_generation_id")
-        _text(self.prompt_id, "model requirement prompt_id")
-        _sha256(self.prompt_digest, "model requirement prompt_digest")
+        _text(self.capability_id, "model requirement capability_id")
+        _text(self.input_schema_id, "model requirement input_schema_id")
+        _text(self.output_schema_id, "model requirement output_schema_id")
+        generation = self.capability_id in {"generation", "structured-generation"}
+        prompt_fields = (self.prompt_generation_id, self.prompt_id, self.prompt_digest)
+        if generation:
+            _text(self.prompt_generation_id, "model requirement prompt_generation_id")
+            _text(self.prompt_id, "model requirement prompt_id")
+            _sha256(self.prompt_digest, "model requirement prompt_digest")
+        elif any(value is not None for value in prompt_fields):
+            raise ValueError("non-generation model requirements must not fabricate prompt identity")
         object.__setattr__(
             self,
             "required_capabilities",
@@ -62,7 +77,13 @@ class ModelCapabilityRequirement:
         if type(self.minimum_context_tokens) is not int or self.minimum_context_tokens <= 0:
             raise ValueError("model requirement minimum_context_tokens must be positive")
         if self.tool_schema_sha256 is not None:
+            if not generation:
+                raise ValueError("tool schema identity is only valid for generation capabilities")
             _sha256(self.tool_schema_sha256, "model requirement tool_schema_sha256")
+
+    @property
+    def is_generation(self) -> bool:
+        return self.capability_id in {"generation", "structured-generation"}
 
     def digest(self) -> str:
         return canonical_digest(self)
@@ -103,11 +124,14 @@ class ProjectModelBinding:
     qualification_certificate_digest: str
     runtime_qualification_digest: str
     host_identity_digest: str
-    prompt_generation_id: str
-    prompt_id: str
-    prompt_digest: str
+    prompt_generation_id: str | None
+    prompt_id: str | None
+    prompt_digest: str | None
     capabilities: tuple[str, ...]
     runtime_canary_evidence_digests: tuple[str, ...]
+    capability_id: str = "generation"
+    input_schema_id: str = "model.generation.request.v1"
+    output_schema_id: str = "model.generation.response.v1"
 
     def __post_init__(self) -> None:
         for field_name in (
@@ -118,17 +142,18 @@ class ProjectModelBinding:
             "qualification_certificate_digest",
             "runtime_qualification_digest",
             "host_identity_digest",
-            "prompt_digest",
         ):
             _sha256(getattr(self, field_name), f"project model binding {field_name}")
-        for field_name in (
-            "provider_id",
-            "role",
-            "deployment_id",
-            "prompt_generation_id",
-            "prompt_id",
-        ):
+        for field_name in ("provider_id", "role", "deployment_id", "capability_id", "input_schema_id", "output_schema_id"):
             _text(getattr(self, field_name), f"project model binding {field_name}")
+        generation = self.capability_id in {"generation", "structured-generation"}
+        prompt_fields = (self.prompt_generation_id, self.prompt_id, self.prompt_digest)
+        if generation:
+            _text(self.prompt_generation_id, "project model binding prompt_generation_id")
+            _text(self.prompt_id, "project model binding prompt_id")
+            _sha256(self.prompt_digest, "project model binding prompt_digest")
+        elif any(value is not None for value in prompt_fields):
+            raise ValueError("non-generation model binding must not carry prompt identity")
         if not isinstance(self.model, ImmutableModelIdentity):
             raise TypeError("project model binding model must be ImmutableModelIdentity")
         object.__setattr__(
@@ -211,6 +236,7 @@ class ModelBindingDiagnosticCode(StrEnum):
     QUALIFIED_BINDING_UNAVAILABLE = "MODEL_QUALIFIED_BINDING_UNAVAILABLE"
     CONTEXT_INSUFFICIENT = "MODEL_CONTEXT_INSUFFICIENT"
     BINDING_PROVENANCE_DRIFT = "MODEL_BINDING_PROVENANCE_DRIFT"
+    CAPABILITY_PROTOCOL_UNSUPPORTED = "MODEL_CAPABILITY_PROTOCOL_UNSUPPORTED"
 
 
 @dataclass(frozen=True, slots=True)

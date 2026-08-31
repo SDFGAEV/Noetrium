@@ -138,6 +138,15 @@ class QualifiedModelProjectProvider(ProjectModelProviderPort):
     ) -> tuple[QualifiedModelEndpointBinding | None, tuple[ModelBindingDiagnostic, ...]]:
         if not isinstance(requirement, ModelCapabilityRequirement):
             raise TypeError("project model requirement must be typed")
+        if not requirement.is_generation:
+            return None, (
+                _diagnostic(
+                    self._profile,
+                    requirement,
+                    ModelBindingDiagnosticCode.CAPABILITY_PROTOCOL_UNSUPPORTED,
+                    "qualified text-generation provider cannot bind non-generation capability protocol",
+                ),
+            )
         missing = tuple(
             capability
             for capability in requirement.required_capabilities
@@ -216,6 +225,9 @@ class QualifiedModelProjectProvider(ProjectModelProviderPort):
             prompt_digest=requirement.prompt_digest,
             capabilities=self._profile.capabilities,
             runtime_canary_evidence_digests=binding.runtime_canary_evidence_digests,
+            capability_id=requirement.capability_id,
+            input_schema_id=requirement.input_schema_id,
+            output_schema_id=requirement.output_schema_id,
         )
         try:
             endpoint = self._endpoint_factory(binding)
