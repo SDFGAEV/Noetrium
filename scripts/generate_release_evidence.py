@@ -4,8 +4,22 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+SCRIPT_DIR = Path(__file__).resolve().parent
+for entry in (str(SCRIPT_DIR), str(ROOT)):
+    if entry not in sys.path:
+        sys.path.insert(0, entry)
+
+from check_readme_i18n import validate_root as validate_readme_i18n
+
+
+if __name__ == "__main__":
+    _readme_errors = validate_readme_i18n(ROOT)
+    if _readme_errors:
+        print("RELEASE_EVIDENCE_FAIL: multilingual README gate failed")
+        for _error in _readme_errors:
+            print(f"README_I18N: {_error}")
+        raise SystemExit(1)
+    print("README_I18N_RELEASE_GATE_PASS")
 
 from research_platform.execution.admission.api import AdmissionBudget
 

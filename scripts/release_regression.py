@@ -287,6 +287,16 @@ def _decode_diagnostic_output(payload: bytes) -> str:
     return payload.decode("utf-8", errors="replace")
 
 
+def _write_diagnostic_output(output: str, *, stream=None) -> None:
+    """Write human diagnostics without letting a narrow console codec abort release work."""
+
+    target = sys.stdout if stream is None else stream
+    encoding = getattr(target, "encoding", None)
+    safe = output if not encoding else output.encode(encoding, errors="backslashreplace").decode(encoding)
+    target.write(safe)
+    target.flush()
+
+
 def _run_pytest(
     root: Path,
     args: list[str],
@@ -339,7 +349,7 @@ def _run_pytest(
                     process.wait(timeout=1.0)
                 except subprocess.TimeoutExpired:
                     leader_reaped = False
-            log.flush(); log.seek(0); output = _decode_diagnostic_output(log.read()); print(output, end="")
+            log.flush(); log.seek(0); output = _decode_diagnostic_output(log.read()); _write_diagnostic_output(output)
             suffix = "" if leader_reaped else f"; pytest leader pid={process.pid} remained unreaped after SIGKILL"
             raise ReleaseRegressionFailure(
                 f"pytest timed out after {timeout_seconds:g}s: {' '.join(args)}{suffix}"
@@ -350,10 +360,10 @@ def _run_pytest(
             _unregister_process_group(pgid)
         log.flush(); log.seek(0); output = _decode_diagnostic_output(log.read())
     if returncode != 0:
-        print(output, end="")
+        _write_diagnostic_output(output)
         raise ReleaseRegressionFailure(f"pytest failed with exit code {returncode}")
     if echo_success:
-        print(output, end="")
+        _write_diagnostic_output(output)
     return output
 
 
@@ -378,8 +388,15 @@ def _run_pytest_shard(
     timeout_seconds: float = 180.0,
 ) -> _PytestShardEvidence:
     with tempfile.TemporaryDirectory(prefix="release-pytest-result-") as td:
-        result_path = Path(td) / "result.json"
-        _run_pytest(root, args, timeout_seconds=timeout_seconds, result_path=result_path)
+        shard_temp_root = Path(td)
+        result_path = shard_temp_root / "result.json"
+        basetemp = shard_temp_root / "pytest"
+        _run_pytest(
+            root,
+            ["--basetemp", str(basetemp), *args],
+            timeout_seconds=timeout_seconds,
+            result_path=result_path,
+        )
         return _decode_pytest_shard_evidence(result_path)
 
 

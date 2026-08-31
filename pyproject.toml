@@ -1,11 +1,19 @@
 [build-system]
-requires = ["setuptools>=69"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "research-platform"
+name = "noetrium"
 version = "0.43.1"
+description = "Reproducible Research Infrastructure for AI Agents"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"]
 requires-python = ">=3.11"
+
+[project.urls]
+Homepage = "https://github.com/SDFGAEV/noetrium"
+Repository = "https://github.com/SDFGAEV/noetrium"
+Issues = "https://github.com/SDFGAEV/noetrium/issues"
 
 [project.optional-dependencies]
 test = ["pytest>=8,<10"]

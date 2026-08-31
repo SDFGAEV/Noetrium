@@ -10,7 +10,7 @@ REVISION = "b" * 40
 
 def test_repository_command_request_is_pinned_and_confined() -> None:
     request = ServerRepositoryCommandRequest(
-        "agent-research-platform-system",
+        "noetrium",
         REVISION.upper(),
         ("python", "-m", "compileall", "-q", "."),
         "components/example",
@@ -46,7 +46,7 @@ def test_repository_command_uses_exact_checkout_and_mutation_observation() -> No
     )
     receipt = runner.run(
         ServerRepositoryCommandRequest(
-            "agent-research-platform-system",
+            "noetrium",
             REVISION,
             ("python", "-m", "compileall", "-q", "."),
             "components/example",
@@ -58,9 +58,9 @@ def test_repository_command_uses_exact_checkout_and_mutation_observation() -> No
     assert str(effect) == "mutation"
     assert f"expected={REVISION}" in command
     assert "cd \"$cwd\"" in command
-    assert receipt.target_path == "/data/research-platform/agent-research-platform-system"
+    assert receipt.target_path == "/data/research-platform/noetrium"
     assert receipt.working_directory == (
-        "/data/research-platform/agent-research-platform-system/components/example"
+        "/data/research-platform/noetrium/components/example"
     )
     assert receipt.succeeded is True
     assert receipt.profile_digest == "p" * 64

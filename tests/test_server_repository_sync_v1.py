@@ -12,11 +12,11 @@ from research_platform.runtime.server.lifecycle.providers import SSHGitRepositor
 
 
 REVISION = "a" * 40
-URL = "https://github.com/SDFGAEV/agent-research-platform-system.git"
+URL = "https://github.com/SDFGAEV/noetrium.git"
 
 
 def test_repository_request_requires_exact_github_revision() -> None:
-    request = ServerRepositorySyncRequest(URL, "agent-research-platform-system", REVISION)
+    request = ServerRepositorySyncRequest(URL, "noetrium", REVISION)
     assert request.revision == REVISION
 
 
@@ -48,7 +48,7 @@ def test_repository_sync_uses_profile_owned_root_and_pinned_checkout() -> None:
         profile_digest="p" * 64,
     )
     receipt = synchronizer.sync(
-        ServerRepositorySyncRequest(URL, "agent-research-platform-system", REVISION),
+        ServerRepositorySyncRequest(URL, "noetrium", REVISION),
         interactive=True,
     )
     command, interactive, effect = captured[0]
@@ -66,7 +66,7 @@ def test_repository_sync_uses_profile_owned_root_and_pinned_checkout() -> None:
     assert "http.lowSpeedTime=60" in command
     assert "checkout --detach" in command
     assert REVISION in command
-    assert receipt.target_path == "/data/research-platform/agent-research-platform-system"
+    assert receipt.target_path == "/data/research-platform/noetrium"
     assert receipt.profile_digest == "p" * 64
 
 
@@ -94,7 +94,7 @@ def test_repository_status_reads_only_the_profile_owned_checkout() -> None:
     synchronizer = SSHGitRepositorySynchronizer(
         Connection(), repository_root="/data/research-platform"
     )
-    status = synchronizer.inspect("agent-research-platform-system", staging_revision=REVISION)
+    status = synchronizer.inspect("noetrium", staging_revision=REVISION)
     assert status.exists is True
     assert status.head == REVISION
     assert status.dirty is False
@@ -128,7 +128,7 @@ def test_repository_status_without_staging_revision_does_not_probe_target_as_sta
 
     status = SSHGitRepositorySynchronizer(
         Connection(), repository_root="/data/research-platform/repositories"
-    ).inspect("agent-research-platform-system")
+    ).inspect("noetrium")
     assert status.staging_exists is False
     assert status.staging_kind == "absent"
     assert "staging=$target" not in captured[0]
@@ -153,7 +153,7 @@ def test_repository_status_distinguishes_a_non_git_target_directory() -> None:
 
     status = SSHGitRepositorySynchronizer(
         Connection(), repository_root="/data/research-platform/repositories"
-    ).inspect("agent-research-platform-system", staging_revision=REVISION)
+    ).inspect("noetrium", staging_revision=REVISION)
     assert status.exists is False
     assert status.target_kind == "directory"
     assert status.target_children == ("envs", "models", "runs")

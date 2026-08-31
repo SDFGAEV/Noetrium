@@ -1,8 +1,8 @@
 # Third-Party Notices / 第三方许可说明
 
-**English:** Third-party components are not relicensed under the Agent Research Platform Apache-2.0 license. They remain governed by their own license terms.
+**English:** Third-party components are not relicensed under the Noetrium Apache-2.0 license. They remain governed by their own license terms.
 
-**中文：** 第三方组件不会因为被本项目使用而重新许可为 Agent Research Platform 的 Apache-2.0；它们继续受各自许可证约束。
+**中文：** 第三方组件不会因为被本项目使用而重新许可为 Noetrium 的 Apache-2.0；它们继续受各自许可证约束。
 
 This repository currently bundles an npm lockfile for the first-party Minecraft/Mineflayer bridge. The inventory below is generated from the license metadata recorded in that exact lockfile and is an attribution/index aid, not a replacement for upstream license texts.
 

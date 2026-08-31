@@ -1,6 +1,6 @@
 # Documentation Index
 
-This directory is the single documentation root for the reusable Agent Research Platform. Documents are grouped by platform ownership and lifecycle; downstream research repositories own their own methods, tasks, project-specific environment compositions, deployment inventories, and result documentation. Reusable first-party providers may remain upstream.
+This directory is the single documentation root for the reusable Noetrium. Documents are grouped by platform ownership and lifecycle; downstream research repositories own their own methods, tasks, project-specific environment compositions, deployment inventories, and result documentation. Reusable first-party providers may remain upstream.
 
 ## Authority order
 
@@ -19,6 +19,7 @@ A downstream repository may add project-local documentation, but it is not part 
 - [`governance/`](governance/README.md) — architecture gates, forensic evidence, debugging policy, no-degradation rules, and documentation policy.
 - [`status/`](status/README.md) — current platform baseline and generated governance reports.
 - [`history/`](history/README.md) — immutable platform engineering milestones.
+- [`readme/`](readme/README.md) — multilingual README registry, section schema, translation freshness, terminology, and release gate policy.
 
 ## Repository split contract
 

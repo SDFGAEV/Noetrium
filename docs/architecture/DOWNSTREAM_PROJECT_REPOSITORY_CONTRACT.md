@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Agent Research Platform is an upstream reusable platform. Research methods, benchmark suites, project-specific environment composition, model selections, host inventories, experiment matrices, and scientific results belong in downstream repositories. Reusable providers that serve multiple independent projects may be bundled upstream; Minecraft is one such provider.
+Noetrium is an upstream reusable platform. Research methods, benchmark suites, project-specific environment composition, model selections, host inventories, experiment matrices, and scientific results belong in downstream repositories. Reusable providers that serve multiple independent projects may be bundled upstream; Minecraft is one such provider.
 
 The supported relationship is intentionally one-way:
 

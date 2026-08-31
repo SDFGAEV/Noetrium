@@ -1,6 +1,6 @@
 # Minecraft Infrastructure
 
-Minecraft is a first-party bundled environment provider of Agent Research Platform. It is upstream because its contracts, lifecycle, world-state projection, server control, action ABI and bridge runtime are reusable across independent research projects.
+Minecraft is a first-party bundled environment provider of Noetrium. It is upstream because its contracts, lifecycle, world-state projection, server control, action ABI and bridge runtime are reusable across independent research projects.
 
 Project-specific task suites, benchmark manifests, scientific methods and experiment compositions remain downstream.
 

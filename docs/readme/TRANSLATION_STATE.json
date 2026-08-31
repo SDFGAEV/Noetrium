@@ -1,0 +1,47 @@
+{
+  "schema": "agent-research-platform.readme-translation-state.v1",
+  "source_locale": "en",
+  "source_semantic_sha256": "9dd7f68d71e7c6bfc9c059ec68315c5e86dc1ccac0a179645d1e0879c40c283f",
+  "translations": {
+    "en": {
+      "status": "source",
+      "source_semantic_sha256": "9dd7f68d71e7c6bfc9c059ec68315c5e86dc1ccac0a179645d1e0879c40c283f"
+    },
+    "zh-CN": {
+      "status": "current",
+      "source_semantic_sha256": "9dd7f68d71e7c6bfc9c059ec68315c5e86dc1ccac0a179645d1e0879c40c283f"
+    },
+    "zh-TW": {
+      "status": "current",
+      "source_semantic_sha256": "9dd7f68d71e7c6bfc9c059ec68315c5e86dc1ccac0a179645d1e0879c40c283f"
+    },
+    "ja": {
+      "status": "current",
+      "source_semantic_sha256": "9dd7f68d71e7c6bfc9c059ec68315c5e86dc1ccac0a179645d1e0879c40c283f"
+    },
+    "ko": {
+      "status": "current",
+      "source_semantic_sha256": "9dd7f68d71e7c6bfc9c059ec68315c5e86dc1ccac0a179645d1e0879c40c283f"
+    },
+    "es": {
+      "status": "current",
+      "source_semantic_sha256": "9dd7f68d71e7c6bfc9c059ec68315c5e86dc1ccac0a179645d1e0879c40c283f"
+    },
+    "pt-BR": {
+      "status": "current",
+      "source_semantic_sha256": "9dd7f68d71e7c6bfc9c059ec68315c5e86dc1ccac0a179645d1e0879c40c283f"
+    },
+    "fr": {
+      "status": "current",
+      "source_semantic_sha256": "9dd7f68d71e7c6bfc9c059ec68315c5e86dc1ccac0a179645d1e0879c40c283f"
+    },
+    "de": {
+      "status": "current",
+      "source_semantic_sha256": "9dd7f68d71e7c6bfc9c059ec68315c5e86dc1ccac0a179645d1e0879c40c283f"
+    },
+    "ru": {
+      "status": "current",
+      "source_semantic_sha256": "9dd7f68d71e7c6bfc9c059ec68315c5e86dc1ccac0a179645d1e0879c40c283f"
+    }
+  }
+}

@@ -4,7 +4,7 @@
 **Platform version:** 0.43.1
 **Repository role:** reusable upstream platform
 
-This document is the current development truth for the generic Agent Research Platform repository. Concrete research methods, benchmark tasks, project-specific environment composition, model selections, machine inventories, experiment matrices, and scientific results are downstream-owned. Reusable first-party environment providers may remain upstream; Minecraft is bundled.
+This document is the current development truth for the generic Noetrium repository. Concrete research methods, benchmark tasks, project-specific environment composition, model selections, machine inventories, experiment matrices, and scientific results are downstream-owned. Reusable first-party environment providers may remain upstream; Minecraft is bundled.
 
 ## Repository boundary
 
