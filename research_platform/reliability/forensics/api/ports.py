@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import AbstractContextManager
 from pathlib import Path
-from typing import Any, Callable, Iterator, Protocol, TypeVar
+from typing import Callable, Iterator, ParamSpec, Protocol, TypeVar
 
 from research_platform.observability.api import EventEnvelope
 from research_platform.platform.kernel import JsonDocument
@@ -14,6 +14,7 @@ from research_platform.reliability.diagnostics.api.records import (
 from .ledger import VerifiedLedgerCut, VerifiedLedgerSlice
 from .mutation import MutationRecord
 
+P = ParamSpec("P")
 T = TypeVar("T")
 
 
@@ -24,10 +25,10 @@ class ForensicWriteActorPort(Protocol):
     def call(
         self,
         operation: str,
-        fn: Callable[..., T],
+        fn: Callable[P, T],
         /,
-        *args: Any,
-        **kwargs: Any,
+        *args: P.args,
+        **kwargs: P.kwargs,
     ) -> T: ...
 
 

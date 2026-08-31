@@ -16,3 +16,9 @@ Authoritative forensic ledgers are append-only hash chains; SQLite projections a
 - After `fork()`, the child abandons the inherited inotify fd and process-local token registry before opening a new hub; parent and child must never drain each other's mutation events.
 - Multiple tokens for the same directory share the kernel watch descriptor but retain independent pending latches; acknowledging one consumer does not acknowledge another.
 - Exhausted Linux inotify watch capacity is a typed operating-system failure boundary: construction fails closed and must be surfaced by preflight/doctor rather than silently changing to a weaker mutation detector.
+
+## Typed forensic write actor
+
+- `ForensicWriteActorPort` is a serialization/execution seam, not a generic payload authority.
+- Its callable, positional arguments, keyword arguments, and return value remain related through `ParamSpec` + `TypeVar`; the public contract must not erase those relationships with `Any`.
+- The actor may order an authority-owned call but does not redefine the ledger/index schema or bypass the called authority's validation and transaction semantics.
