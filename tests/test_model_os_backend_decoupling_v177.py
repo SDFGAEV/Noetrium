@@ -42,7 +42,7 @@ class RecordingRecoveryExecutor:
     def __init__(self) -> None:
         self.calls: list[RecoveryStep] = []
 
-    def execute(self, step: RecoveryStep, plan: RecoveryPlan) -> tuple[str, ...]:
+    def run_step(self, step: RecoveryStep, plan: RecoveryPlan) -> tuple[str, ...]:
         self.calls.append(step)
         return (f"memory:{step.value}",)
 

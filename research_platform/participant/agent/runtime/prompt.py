@@ -4,6 +4,8 @@ from dataclasses import dataclass
 import json
 from typing import Iterable, Mapping
 
+from research_platform.platform.kernel import canonical_bytes
+
 from ..api.cognition import AgentGoal, AgentMemoryContext, AgentObservation, AgentSkillDescription, JsonValue
 
 
@@ -47,11 +49,11 @@ class AgentPromptAssembler:
     ) -> CompiledAgentPrompt:
         blocks = [
             PromptBlock("system", "Choose one typed skill and never claim completion without state evidence.", 100, True),
-            PromptBlock("goal", json.dumps({"goal_id": goal.goal_id, "objective": goal.objective, "context": dict(goal.context)}, sort_keys=True), 90, True),
-            PromptBlock("observation", json.dumps(dict(observation.state), ensure_ascii=False, sort_keys=True), 80, True),
+            PromptBlock("goal", json.dumps(json.loads(canonical_bytes({"goal_id": goal.goal_id, "objective": goal.objective, "context": goal.context})), sort_keys=True), 90, True),
+            PromptBlock("observation", json.dumps(json.loads(canonical_bytes(observation.state)), ensure_ascii=False, sort_keys=True), 80, True),
             PromptBlock("skills", json.dumps([{"skill_id": skill.skill_id, "category": skill.category, "description": skill.description, "arguments": skill.argument_contract} for skill in skills], ensure_ascii=False, sort_keys=True), 70, True),
             PromptBlock("memory", memory.context_text or "(no verified memory)", 50),
-            PromptBlock("prior_actions", json.dumps(list(prior_actions), ensure_ascii=False, sort_keys=True), 40),
+            PromptBlock("prior_actions", json.dumps(json.loads(canonical_bytes(tuple(prior_actions))), ensure_ascii=False, sort_keys=True), 40),
             *tuple(extra),
         ]
         selected: list[PromptBlock] = []

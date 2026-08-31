@@ -17,6 +17,7 @@ from research_platform.participant.agent.api import (
 )
 from research_platform.participant.agent.runtime import AgentCognitionLoop
 from research_platform.participant.agent.runtime.cognition_action import CognitionActionPhase
+from research_platform.participant.agent.runtime.cognition_observation import CognitionObservationPhase
 from research_platform.platform.kernel import ExecutionContext
 
 
@@ -66,10 +67,17 @@ class _Executor:
 
 def _phase(*, executor=None, observation=None, memory=None, evidence=None):
     failures = []
+    observation_port = observation or _Observation(({"x": 1},))
+    evidence_port = evidence or _Evidence()
+    observation_phase = CognitionObservationPhase(
+        observation=observation_port,
+        evidence=evidence_port,
+        event=lambda *args, **kwargs: None,
+        failure=lambda code, message, **kwargs: failures.append((code, message, kwargs)),
+    )
     return CognitionActionPhase(
         executor=executor or _Executor(),
-        observation=observation or _Observation(({"x": 1},)),
-        evidence=evidence or _Evidence(),
+        observation=observation_phase,
         memory=memory or _Memory(),
         event=lambda *args, **kwargs: None,
         failure=lambda code, message, **kwargs: failures.append((code, message, kwargs)),
@@ -168,3 +176,31 @@ def test_fallback_observation_progress_is_not_misclassified_as_stalled() -> None
     assert result.success is True
     assert result.steps == 2
     assert result.final_observation.state["x"] == 2
+
+
+def test_receipt_observation_evidence_failure_keeps_observation_phase_identity() -> None:
+    class _ReceiptExecutor:
+        def execute(self, step, context):
+            del context
+            return AgentStepReceipt(
+                step.action_id,
+                step.action_type,
+                step.skill_id,
+                step.sequence_id,
+                True,
+                True,
+                AgentObservation("obs:receipt", "world-v1", {"x": 2}),
+            )
+
+    class _FailingEvidence:
+        def ingest(self, observation, context):
+            del observation, context
+            raise OSError("evidence unavailable")
+
+    phase, failures = _phase(executor=_ReceiptExecutor(), evidence=_FailingEvidence())
+    step = AgentActionStep("a:receipt", "move", {}, "skill.move", "seq:receipt", 0)
+    with pytest.raises(AgentCognitionError) as error:
+        phase.execute(step, _CONTEXT, completed_step=1)
+    assert error.value.phase == "post_action_receipt_observe"
+    assert error.value.code == "AGENT_OBSERVATION_FAILED"
+    assert failures[-1][0] == "AGENT_OBSERVATION_FAILED"

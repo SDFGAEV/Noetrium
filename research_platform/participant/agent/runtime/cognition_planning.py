@@ -8,24 +8,19 @@ from research_platform.platform.kernel import ExecutionContext
 
 from ..api.cognition import (
     AgentActionSequence,
-    AgentActionSummary,
     AgentCognitionError,
     AgentGoal,
-    AgentMemoryContext,
     AgentModeDecision,
     AgentModeDisposition,
     AgentObservation,
-    AgentPlanningRequest,
     AgentSafetyDecision,
     AgentSafetyDisposition,
-    AgentSkillRecord,
+    AgentSkillDescription,
     AgentSkillSelection,
     AgentStepReceipt,
 )
 from ..api.cognition_ports import (
     AgentCompletionPort,
-    AgentMemoryPort,
-    AgentPlannerPort,
     AgentReactiveModePort,
     AgentSafetySupervisorPort,
     AgentSkillCatalogPort,
@@ -52,13 +47,11 @@ class CognitionPlanningResult:
 
 
 class CognitionPlanningPhase:
-    """Own memory retrieval, planning, safety and reactive-mode arbitration."""
+    """Own skill expansion, safety/mode arbitration and completion grounding."""
 
     def __init__(
         self,
         *,
-        memory: AgentMemoryPort,
-        planner: AgentPlannerPort,
         skills: AgentSkillCatalogPort,
         safety: AgentSafetySupervisorPort,
         completion: AgentCompletionPort,
@@ -67,8 +60,6 @@ class CognitionPlanningPhase:
         event: Callable[..., None],
         failure: Callable[..., None],
     ) -> None:
-        self._memory = memory
-        self._planner = planner
         self._skills = skills
         self._safety = safety
         self._completion = completion
@@ -79,46 +70,28 @@ class CognitionPlanningPhase:
         descriptions = self._skills.describe()
         if not descriptions:
             raise ValueError("agent cognition loop requires a non-empty skill catalog")
+        if any(not isinstance(item, AgentSkillDescription) for item in descriptions):
+            raise TypeError("agent cognition skill catalog returned an invalid description")
         ids = tuple(description.skill_id for description in descriptions)
         if len(ids) != len(set(ids)):
             raise ValueError("agent cognition skill ids must be unique")
+        self._available_skills = descriptions
+
+    @property
+    def available_skills(self) -> tuple[AgentSkillDescription, ...]:
+        return self._available_skills
 
     def plan(
         self,
         *,
+        selection: AgentSkillSelection,
         goal: AgentGoal,
         observation: AgentObservation,
         plan_context: ExecutionContext,
-        step: int,
         plan_call: int,
-        prior_actions: tuple[AgentActionSummary, ...],
         last_receipt: AgentStepReceipt | None,
     ) -> CognitionPlanningResult:
         try:
-            memory = self._memory.recall(goal, observation, plan_context)
-            if not isinstance(memory, AgentMemoryContext):
-                raise TypeError("agent memory port returned an invalid context")
-            retrieved_skills: tuple[AgentSkillRecord, ...] = ()
-            if self._skill_library is not None:
-                retrieved_skills = self._skill_library.search(
-                    goal, observation, limit=8, context=plan_context
-                )
-                if not isinstance(retrieved_skills, tuple):
-                    raise TypeError("agent skill library returned a non-tuple result")
-            request = AgentPlanningRequest(
-                goal=goal,
-                observation=observation,
-                memory=memory,
-                step=step,
-                plan_call=plan_call,
-                prior_actions=prior_actions,
-                context=plan_context,
-                available_skills=self._skills.describe(),
-                retrieved_skills=retrieved_skills,
-            )
-            selection = self._planner.plan(request)
-            if not isinstance(selection, AgentSkillSelection):
-                raise TypeError("agent planner returned an invalid skill selection")
             sequence = self._skills.expand(
                 selection,
                 observation=observation,

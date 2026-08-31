@@ -26,6 +26,8 @@ Stable Role Spec
 
 Output schemas are centrally registered and content-digested. Request evidence binds both schema ID and schema digest so an edited schema cannot masquerade as the same prompt generation.
 
+Schema JSON is structurally frozen at `OutputSchemaSpec` construction. Prompt-generation payloads and reconstructed/model-visible request bodies use non-bypassable `Mapping`/tuple values rather than subclasses of mutable `dict`/`list`; even base-class mutators cannot alter a digest-bound cut. Canonical bytes are produced through the platform canonical encoder, and a mutable dict/list is materialized only at the final HTTP transport boundary. The request-build transaction freezes immediately after the body builder returns and the model-request recorder repeats the freeze at its durable authority boundary. Its public ABI accepts only `Mapping[str, JsonInput]` request bodies and `JsonInput` tool schemas, while reconstruction returns immutable JSON authority rather than a mutable `dict`; unsupported Python objects fail closed before publication. Contracts, content-addressed bytes and transport-visible content therefore derive from one immutable JSON cut.
+
 ### Durable publication
 
 `DurablePromptRegistry` publishes one write-once generation and atomically replaces one `ACTIVE` pointer. The generation binds prompt text, decoding, role block policies and output schema digests. Loading recomputes both the outer generation hash and each bundle hash.

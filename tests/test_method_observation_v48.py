@@ -23,4 +23,16 @@ class MethodObservationV48Tests(unittest.TestCase):
             self.assertEqual(second.sequence,receipt.sequence)
             self.assertEqual(len(Path(receipt.segment_path).read_text().splitlines()),1)
 
+
+    def test_method_observation_freezes_payload_before_identity_binding(self):
+        ctx=ExecutionContext('run','trace','span')
+        payload={'items':[{'value':1}]}
+        obs=MethodObservation.build(ctx,'method-x','session-x','event',payload)
+        original_id=obs.observation_id
+        payload['items'][0]['value']=2
+        self.assertEqual(obs.payload['items'], ({'value':1},))
+        self.assertEqual(obs.observation_id, original_id)
+        with self.assertRaises(TypeError):
+            obs.payload['items'][0]['value']=3
+
 if __name__=='__main__': unittest.main()

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
-from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity
+from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity, JsonObject, freeze_json
 from research_platform.model.request.api import ModelRequestEnvelope, ModelRequestRecorderPort
 
 from .blocks import PromptBlock, PromptBlockPolicy
@@ -24,7 +24,7 @@ RequestBodyBuilder = Callable[[PromptResolution, PromptCompilationReceipt], dict
 class PromptBoundRequest:
     resolution: PromptResolution
     compilation: PromptCompilationReceipt
-    request_body: dict[str, object]
+    request_body: JsonObject
     request_contract: PromptRequestContract
     execution_contract: PromptExecutionContract
     model_request: ModelRequestEnvelope
@@ -86,6 +86,7 @@ class PromptRequestBuildTransaction:
         body = body_builder(resolution, compilation)
         if not isinstance(body, dict):
             raise TypeError("prompt request body builder must return a dict")
+        body = freeze_json(body)
 
         request_contract = build_prompt_request_contract(
             request_id=request_id,
@@ -115,7 +116,7 @@ class PromptRequestBuildTransaction:
             source_state_refs=source_state_refs,
         )
         model_requests.verify_visible_request(model_request, body)
-        durable_body = model_requests.reconstruct_request_body(model_request)
+        durable_body = freeze_json(model_requests.reconstruct_request_body(model_request))
         return PromptBoundRequest(
             resolution=resolution,
             compilation=compilation,

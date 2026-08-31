@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import asyncio
-from types import SimpleNamespace
 import threading
 import time
 from uuid import uuid4
 
 import pytest
 
+from research_platform.model.request.api import ContentRef, ModelRequestEnvelope
 from research_platform.model.serving.api import ResourceEnvelope
 from research_platform.model.serving.endpoint import (
     JsonHttpResponse,
@@ -24,14 +24,22 @@ from research_platform.model.serving.runtime import (
     ModelAdmissionRegistry,
 )
 from research_platform.platform.concurrency.composition import build_concurrency_runtime
-from research_platform.platform.kernel import ImmutableModelIdentity
+from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity
+
+
+def _envelope(request_id: str = "request") -> ModelRequestEnvelope:
+    return ModelRequestEnvelope(
+        schema_version="model-request.v1", request_id=request_id,
+        context=ExecutionContext("run", "trace", "span"), role="planner",
+        model=ImmutableModelIdentity("planner", "qwen", "rev", "sglang", "1", "bfloat16", None, 8192),
+        prompt_generation_id="prompt-gen", prompt_id="planner.prompt", prompt_digest="d" * 64,
+        request_body=ContentRef("f" * 64, 2, "application/json"),
+    )
 
 
 def _request(request_id: str = "request") -> ModelEndpointRequest:
     return ModelEndpointRequest(
-        request=SimpleNamespace(request_id=request_id, envelope_digest="e" * 64),
-        deployment_id="deployment",
-        deployment_generation="a" * 64,
+        request=_envelope(request_id), deployment_id="deployment", deployment_generation="a" * 64,
         body={"model": "qwen", "messages": []},
     )
 

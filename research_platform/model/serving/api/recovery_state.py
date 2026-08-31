@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from enum import StrEnum
+import math
 
 from research_platform.platform.kernel import canonical_digest
 
@@ -27,6 +28,15 @@ class DurableRecoveryAttempt:
     current_effect_certainty: str | None
     evidence_refs: tuple[str, ...]
     updated_at: float
+
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.updated_at, bool)
+            or not isinstance(self.updated_at, (int, float))
+            or not math.isfinite(float(self.updated_at))
+            or self.updated_at < 0
+        ):
+            raise ValueError("durable recovery updated_at must be finite and non-negative")
 
 
 @dataclass(frozen=True, slots=True)

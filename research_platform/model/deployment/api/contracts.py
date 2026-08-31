@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+import math
 from pathlib import Path
 
 from research_platform.scope.api import ScopeIdentity
@@ -49,6 +50,17 @@ class ModelDeploymentSpec:
     desired_state: ModelDesiredState = ModelDesiredState.STOPPED
     tags: tuple[str, ...] = ()
 
+    def __post_init__(self) -> None:
+        for field in ("readiness_timeout_s", "stop_timeout_s", "heartbeat_interval_s"):
+            value = getattr(self, field)
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+                or value <= 0
+            ):
+                raise ValueError(f"model deployment {field} must be finite and positive")
+
 
 @dataclass(frozen=True, slots=True)
 class ModelDeploymentSelector:
@@ -86,6 +98,15 @@ class ModelControllerState:
     cycle_count: int
     last_cycle: ModelReconcileCycle | None = None
     detail: str = ""
+
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.interval_seconds, bool)
+            or not isinstance(self.interval_seconds, (int, float))
+            or not math.isfinite(float(self.interval_seconds))
+            or self.interval_seconds <= 0
+        ):
+            raise ValueError("model controller interval_seconds must be finite and positive")
 
 
 @dataclass(frozen=True, slots=True)

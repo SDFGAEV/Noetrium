@@ -1,11 +1,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
+import re
 from typing import Mapping
 from urllib.parse import urlparse
 
 from research_platform.model.request.api import ModelRequestEnvelope
-from research_platform.platform.kernel import canonical_digest, JsonInput, JsonValue
+from research_platform.platform.kernel import canonical_digest, freeze_json, JsonInput, JsonValue
+
+
+_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+
+
+def _require_sha256(value: object, field: str) -> str:
+    if not isinstance(value, str) or _SHA256.fullmatch(value) is None:
+        raise ValueError(f"{field} must be lowercase SHA-256")
+    return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,12 +29,16 @@ class ModelEndpointRequest:
     body: Mapping[str, JsonInput]
 
     def __post_init__(self) -> None:
-        if not self.deployment_id.strip():
+        if not isinstance(self.request, ModelRequestEnvelope):
+            raise TypeError("model endpoint request must carry a ModelRequestEnvelope")
+        if not isinstance(self.deployment_id, str) or not self.deployment_id.strip():
             raise ValueError("model endpoint deployment_id is required")
-        if len(self.deployment_generation) != 64:
-            raise ValueError("model endpoint deployment_generation must be SHA-256")
+        _require_sha256(self.deployment_generation, "model endpoint deployment_generation")
         if not isinstance(self.body, Mapping):
             raise TypeError("model endpoint request body must be a mapping")
+        object.__setattr__(
+            self, "body", freeze_json(self.body)
+        )
 
     def digest(self) -> str:
         return canonical_digest({
@@ -45,15 +60,24 @@ class ModelEndpointRoute:
     timeout_s: float = 120.0
 
     def __post_init__(self) -> None:
-        if not self.deployment_id.strip() or len(self.deployment_generation) != 64:
+        if not isinstance(self.deployment_id, str) or not self.deployment_id.strip():
             raise ValueError("model endpoint route requires exact deployment identity")
+        try:
+            _require_sha256(self.deployment_generation, "model endpoint route deployment_generation")
+        except ValueError as exc:
+            raise ValueError("model endpoint route requires exact deployment identity") from exc
         parsed = urlparse(self.base_url)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise ValueError("model endpoint route base_url must be an absolute HTTP(S) URL")
         if not self.completion_path.startswith("/"):
             raise ValueError("model endpoint completion_path must be absolute")
-        if self.timeout_s <= 0:
-            raise ValueError("model endpoint timeout_s must be positive")
+        if (
+            isinstance(self.timeout_s, bool)
+            or not isinstance(self.timeout_s, (int, float))
+            or not math.isfinite(float(self.timeout_s))
+            or self.timeout_s <= 0
+        ):
+            raise ValueError("model endpoint timeout_s must be finite and positive")
 
     @property
     def completion_url(self) -> str:
@@ -66,8 +90,11 @@ class JsonHttpResponse:
     body: JsonValue
 
     def __post_init__(self) -> None:
-        if self.status_code < 100:
+        if type(self.status_code) is not int or not 100 <= self.status_code <= 599:
             raise ValueError("HTTP status code is invalid")
+        object.__setattr__(
+            self, "body", freeze_json(self.body)
+        )
 
 
 @dataclass(frozen=True, slots=True)

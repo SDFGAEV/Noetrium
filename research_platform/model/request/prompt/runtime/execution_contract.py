@@ -3,8 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 import json
+from collections.abc import Mapping
 
-from research_platform.platform.kernel import ImmutableModelIdentity
+from research_platform.platform.kernel import ImmutableModelIdentity, JsonInput, canonical_bytes
 from .compile_pipeline import PromptCompilationReceipt
 from .runtime_contracts import PromptResolution
 
@@ -30,7 +31,7 @@ def build_execution_contract(
     compilation: PromptCompilationReceipt,
     resolution: PromptResolution,
     model: ImmutableModelIdentity,
-    request_body: dict[str,object],
+    request_body: Mapping[str, JsonInput],
 ) -> PromptExecutionContract:
     if compilation.generation_id != resolution.generation_id:
         raise ValueError("prompt execution generation drift")
@@ -40,12 +41,7 @@ def build_execution_contract(
         raise ValueError("prompt execution bundle digest drift")
 
     compiled = compilation.compiled
-    body = json.dumps(
-        request_body,
-        sort_keys=True,
-        ensure_ascii=False,
-        separators=(",", ":"),
-    ).encode()
+    body = canonical_bytes(request_body)
     stats = json.dumps(
         [
             {

@@ -45,7 +45,7 @@ class ParticipantRuntimeEndpoint(Protocol):
 @dataclass(frozen=True, slots=True)
 class ParticipantRuntimeHandle:
     binding: ParticipantRuntimeBinding
-    endpoint: object
+    endpoint: ParticipantRuntimeEndpoint
 
 
 class ParticipantResolverPort(Protocol):

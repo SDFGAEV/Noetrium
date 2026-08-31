@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from typing import Protocol
 
 from research_platform.platform.kernel import ImmutableModelIdentity
@@ -36,14 +37,24 @@ class QualifiedModelEndpointBinding:
     timeout_s: float = 120.0
 
     def __post_init__(self) -> None:
+        """Validate the complete canary evidence set and fixed deployment identities.
+
+        Algorithm-Complexity: O(N)
+        Algorithm-Rationale: N is the number of runtime canary evidence digests; each digest must be validated and duplicate evidence rejected before the binding can be trusted.
+        """
         if not self.role.strip() or not self.deployment_id.strip():
             raise ValueError("qualified model binding identity is required")
         if not self.base_url.strip() or not self.prompt_generation.strip():
             raise ValueError("qualified model binding route/prompt identity is required")
         if not self.completion_path.startswith("/"):
             raise ValueError("qualified model binding completion_path must be absolute")
-        if self.timeout_s <= 0:
-            raise ValueError("qualified model binding timeout_s must be positive")
+        if (
+            isinstance(self.timeout_s, bool)
+            or not isinstance(self.timeout_s, (int, float))
+            or not math.isfinite(float(self.timeout_s))
+            or self.timeout_s <= 0
+        ):
+            raise ValueError("qualified model binding timeout_s must be finite and positive")
         if type(self.max_admitted_concurrency) is not int or self.max_admitted_concurrency <= 0:
             raise ValueError("qualified model binding concurrency must be positive")
         if type(self.runtime_canary_evidence_digests) is not tuple or not self.runtime_canary_evidence_digests:

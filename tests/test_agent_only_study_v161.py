@@ -62,7 +62,7 @@ class GenericAgentSession:
 
 
 class GenericAgent:
-    identity = AgentIdentity("generic-agent", "1", "1", "1", "agent-cfg")
+    identity = AgentIdentity("generic-agent", "1", "1", "1", "a" * 64)
     def open_session(self, *, session_id: str, services: object): return GenericAgentSession(session_id)
 
 
@@ -73,7 +73,7 @@ def _spec():
         project_id="default-project",
         participants=(
             participant("capability_provider", "echo", "echo-provider", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="provider-cfg"),
-            participant("agent", "agent", "generic-agent", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="agent-cfg", depends_on_roles=("echo",)),
+            participant("agent", "agent", "generic-agent", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="a" * 64, depends_on_roles=("echo",)),
         ),
         model_stack_digest="model", prompt_generation="prompt", workload_digest="work",
         seed_digest="seed", repetitions=1, trial_protocol_id="agent_turn.v1",

@@ -46,7 +46,7 @@ class _RecordingExecutor:
         self.calls: list[RecoveryStep] = []
         self.cancellation = cancellation
 
-    def execute(self, step: RecoveryStep, plan: RecoveryPlan) -> tuple[str, ...]:
+    def run_step(self, step: RecoveryStep, plan: RecoveryPlan) -> tuple[str, ...]:
         del plan
         self.calls.append(step)
         if self.cancellation is not None and len(self.calls) == 1:
@@ -102,7 +102,7 @@ class _BlockingExecutor:
         self.started = threading.Event()
         self.release = threading.Event()
 
-    def execute(self, step: RecoveryStep, plan: RecoveryPlan) -> tuple[str, ...]:
+    def run_step(self, step: RecoveryStep, plan: RecoveryPlan) -> tuple[str, ...]:
         del plan
         self.calls.append(step)
         self.started.set()

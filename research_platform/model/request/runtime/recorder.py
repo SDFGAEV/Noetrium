@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 
-from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity
+from research_platform.platform.kernel import (
+    ExecutionContext, ImmutableModelIdentity, JsonInput, JsonObject, canonical_bytes, freeze_json,
+)
 from research_platform.model.request.api import (
     ContentAddressedStorePort,
     ModelRequestEnvelope,
@@ -12,7 +15,7 @@ from research_platform.model.request.api import (
 
 
 def _canonical_json(value: object) -> bytes:
-    return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    return canonical_bytes(value)
 
 
 class ReconstructableModelRequestRecorder:
@@ -32,18 +35,22 @@ class ReconstructableModelRequestRecorder:
         prompt_generation_id: str,
         prompt_id: str,
         prompt_digest: str,
-        request_body: dict[str, object],
+        request_body: Mapping[str, JsonInput],
         compiled_prompt_text: str | None = None,
-        tool_schema_bundle: object | None = None,
+        tool_schema_bundle: JsonInput | None = None,
         source_artifact_refs: tuple[str, ...] = (),
         source_state_refs: tuple[str, ...] = (),
     ) -> ModelRequestEnvelope:
-        body_ref = self._content.put(_canonical_json(request_body), media_type="application/json")
+        if not isinstance(request_body, Mapping):
+            raise TypeError("model-visible request body must be a mapping")
+        frozen_body = freeze_json(request_body)
+        frozen_tools = None if tool_schema_bundle is None else freeze_json(tool_schema_bundle)
+        body_ref = self._content.put(_canonical_json(frozen_body), media_type="application/json")
         prompt_ref = None if compiled_prompt_text is None else self._content.put(
             compiled_prompt_text.encode("utf-8"), media_type="text/plain; charset=utf-8"
         )
-        tool_ref = None if tool_schema_bundle is None else self._content.put(
-            _canonical_json(tool_schema_bundle), media_type="application/json"
+        tool_ref = None if frozen_tools is None else self._content.put(
+            _canonical_json(frozen_tools), media_type="application/json"
         )
         envelope = ModelRequestEnvelope(
             schema_version="model-request.v1",
@@ -76,10 +83,12 @@ class ReconstructableModelRequestRecorder:
             tools = json.loads(self._content.get(envelope.tool_schema_bundle))
         return ReconstructedModelRequest(body, compiled, tools)
 
-    def reconstruct_request_body(self, envelope: ModelRequestEnvelope) -> dict[str, object]:
+    def reconstruct_request_body(self, envelope: ModelRequestEnvelope) -> JsonObject:
         return self.reconstruct(envelope).request_body
 
-    def verify_visible_request(self, envelope: ModelRequestEnvelope, actual_body: dict[str, object]) -> None:
+    def verify_visible_request(
+        self, envelope: ModelRequestEnvelope, actual_body: Mapping[str, JsonInput]
+    ) -> None:
         if _canonical_json(actual_body) != self._content.get(envelope.request_body):
             raise RuntimeError("model-visible request drift: actual bytes are not durably referenced")
 

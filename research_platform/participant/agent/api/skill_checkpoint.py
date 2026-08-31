@@ -53,7 +53,7 @@ def _json_value(value: Any, *, field: str) -> JsonValue:
         if not math.isfinite(value):
             raise ValueError(f"{field} contains a non-finite float")
         return value
-    if isinstance(value, list):
+    if isinstance(value, (list, tuple)):
         return [_json_value(item, field=field) for item in value]
     if isinstance(value, Mapping):
         copied: dict[str, JsonValue] = {}

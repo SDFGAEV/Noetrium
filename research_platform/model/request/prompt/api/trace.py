@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+import math
 from typing import Protocol
 
 
@@ -36,6 +37,15 @@ class PromptTracePoint:
     timestamp: float
     details: tuple[tuple[str, object], ...]
 
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.timestamp, bool)
+            or not isinstance(self.timestamp, (int, float))
+            or not math.isfinite(float(self.timestamp))
+            or self.timestamp < 0
+        ):
+            raise ValueError("prompt trace timestamp must be finite and non-negative")
+
 
 @dataclass(frozen=True, slots=True)
 class PromptTraceSummary:
@@ -53,6 +63,19 @@ class PromptTraceSummary:
     parse_seconds: float | None
     schema_seconds: float | None
     failed_stage: str | None
+
+    def __post_init__(self) -> None:
+        for field in ("total_seconds", "compile_seconds", "queue_seconds", "headers_seconds", "first_byte_seconds", "ttft_seconds", "parse_seconds", "schema_seconds"):
+            value = getattr(self, field)
+            if value is None:
+                continue
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+                or value < 0
+            ):
+                raise ValueError(f"prompt trace {field} must be finite and non-negative")
 
 
 class PromptTraceObserverPort(Protocol):
