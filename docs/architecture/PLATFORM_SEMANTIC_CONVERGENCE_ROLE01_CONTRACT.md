@@ -84,3 +84,7 @@ Generic-leaf conformance tests intentionally validate every retained `SystemLeaf
 ROLE01 convergence tests no longer import `research_platform.artifact._canonical` or other foreign private helpers as permanent equivalence authorities. Once a domain owner deletes a proven duplicate, restoring that private module for test compatibility would violate the migration state machine.
 
 `test_typed_canonicalization_v2.py` therefore freezes the kernel's own strict byte/digest contract and separately proves ROLE01-owned ProjectManifest code consumes `strict_finite_json_bytes`, `strict_finite_json_digest`, and `strict_json_loads` rather than reimplementing them. Artifact/Data equivalence is producer-cutover evidence owned by ROLE05 while those duplicate implementations exist; after deletion, integrated tests consume only the surviving public/kernel authority.
+
+### Parent-level shared-kernel dependency declaration
+
+Artifact and Data are producer-owned domain systems, but their surviving implementations consume Platform kernel primitives. The canonical system catalog therefore declares `artifact -> platform` and `data -> platform` once at the truthful parent-system level; child subsystems inherit that dependency for source-invariant governance. This declaration does not move Artifact/Data domain authority into Platform and must not be replaced by duplicate private canonical helpers.
