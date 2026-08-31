@@ -85,8 +85,11 @@ class RecoverableEnvironmentSession:
         pass
 
 
+ENV_ARTIFACT = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+METHOD_ARTIFACT = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
 class RecoverableEnvironment:
-    identity = EnvironmentIdentity("e", "1", "1", "1")
+    identity = EnvironmentIdentity("e", "1", "1", "1", ENV_ARTIFACT)
     def open_session(self, *, session_id, services):
         return RecoverableEnvironmentSession()
 
@@ -99,13 +102,13 @@ class NonIdempotentMethodSession:
 
 
 class NonIdempotentMethod:
-    identity = MethodIdentity("m", "1", "1", "1")
+    identity = MethodIdentity("m", "1", "1", "1", METHOD_ARTIFACT)
     def open_session(self, *, session_id, services):
         return NonIdempotentMethodSession()
 
 
 def _spec() -> ExperimentSpec:
-    return context_action_spec(study_id="study", method_id="m", environment_id="e", model_stack_digest="model", prompt_generation="prompt", workload_digest="work", seed_digest="seed", repetitions=1)
+    return context_action_spec(study_id="study", method_id="m", environment_id="e", model_stack_digest="model", prompt_generation="prompt", workload_digest="work", seed_digest="seed", repetitions=1, method_artifact_digest=METHOD_ARTIFACT, environment_artifact_digest=ENV_ARTIFACT)
 
 
 def test_crash_durable_action_refuses_non_idempotent_method_before_trial_protocol_or_act():
@@ -155,7 +158,7 @@ class IdempotentMethodSession:
 
 
 class IdempotentMethod:
-    identity = MethodIdentity("m", "1", "1", "1")
+    identity = MethodIdentity("m", "1", "1", "1", METHOD_ARTIFACT)
     def open_session(self, *, session_id, services):
         return IdempotentMethodSession()
 
