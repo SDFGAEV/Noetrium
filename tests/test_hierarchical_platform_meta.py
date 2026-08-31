@@ -1,3 +1,4 @@
+from dataclasses import replace
 import pytest
 
 from research_platform.experimentation.catalog.runtime import InMemoryExperimentationCatalog
@@ -11,6 +12,7 @@ from research_platform.portfolio.api import (
     ProjectIdentity,
     ProjectManifest,
     ProjectManifestDecodeError,
+    ProjectManifestFacet,
     ProjectMethodRequirement,
     ProjectProviderBinding,
     ProjectSpec,
@@ -18,6 +20,7 @@ from research_platform.portfolio.api import (
     WorkspaceSpec,
     decode_project_manifest_bytes,
     decode_project_manifest_document,
+    diff_project_manifest_facets,
     encode_project_manifest,
     project_manifest_document,
 )
@@ -286,3 +289,66 @@ def test_project_manifest_bytes_require_exact_canonical_encoding() -> None:
     assert decode_project_manifest_bytes(raw) == _project_manifest_fixture()
     with pytest.raises(ProjectManifestDecodeError, match="bytes are not canonical JSON"):
         decode_project_manifest_bytes(b" " + raw)
+
+def test_project_manifest_identity_facets_expose_total_closure_without_claiming_scientific_equivalence() -> None:
+    manifest = _project_manifest_fixture()
+    facets = manifest.identity_facets
+    assert manifest.semantic_digest == facets.total_closure_digest
+    assert project_manifest_document(manifest)["semantic_digest"] == facets.total_closure_digest
+    assert len({
+        facets.project_spec_digest,
+        facets.author_requirements_digest,
+        facets.provider_bindings_digest,
+        facets.scaffold_platform_provenance_digest,
+        facets.total_closure_digest,
+    }) == 5
+
+
+def test_project_manifest_facet_diff_localizes_provider_binding_change() -> None:
+    manifest = _project_manifest_fixture()
+    binding = manifest.provider_bindings[0]
+    changed = replace(
+        manifest,
+        provider_bindings=(replace(binding, configuration_digest="4" * 64),),
+    )
+    diff = diff_project_manifest_facets(manifest, changed)
+    assert diff.changed_facets == (
+        ProjectManifestFacet.PROVIDER_BINDINGS,
+        ProjectManifestFacet.TOTAL_CLOSURE,
+    )
+    left, right = manifest.identity_facets, changed.identity_facets
+    assert left.project_spec_digest == right.project_spec_digest
+    assert left.author_requirements_digest == right.author_requirements_digest
+    assert left.scaffold_platform_provenance_digest == right.scaffold_platform_provenance_digest
+
+
+def test_project_manifest_facet_diff_localizes_author_provenance_and_project_changes() -> None:
+    manifest = _project_manifest_fixture()
+
+    author_changed = replace(
+        manifest,
+        configuration_refs=(
+            replace(manifest.configuration_refs[0], content_sha256="4" * 64),
+        ),
+    )
+    assert diff_project_manifest_facets(manifest, author_changed).changed_facets == (
+        ProjectManifestFacet.AUTHOR_REQUIREMENTS,
+        ProjectManifestFacet.TOTAL_CLOSURE,
+    )
+
+    provenance_changed = replace(
+        manifest,
+        provenance=ProjectToolProvenance("research", "1.0.0", "b" * 64),
+    )
+    assert diff_project_manifest_facets(manifest, provenance_changed).changed_facets == (
+        ProjectManifestFacet.SCAFFOLD_PLATFORM_PROVENANCE,
+        ProjectManifestFacet.TOTAL_CLOSURE,
+    )
+
+    project_changed = replace(manifest, project=replace(manifest.project, name="Renamed Project"))
+    assert diff_project_manifest_facets(manifest, project_changed).changed_facets == (
+        ProjectManifestFacet.PROJECT_SPEC,
+        ProjectManifestFacet.TOTAL_CLOSURE,
+    )
+
+    assert diff_project_manifest_facets(manifest, manifest).changes == ()

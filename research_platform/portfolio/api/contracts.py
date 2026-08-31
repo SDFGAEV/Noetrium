@@ -124,6 +124,88 @@ class ProjectRequirementCardinality(StrEnum):
     ONE_OR_MORE = "one_or_more"
 
 
+class ProjectManifestFacet(StrEnum):
+    """Explicit ProjectManifest identity/equality dimensions; none is Run/scientific validity."""
+
+    PROJECT_SPEC = "project_spec"
+    AUTHOR_REQUIREMENTS = "author_requirements"
+    PROVIDER_BINDINGS = "provider_bindings"
+    SCAFFOLD_PLATFORM_PROVENANCE = "scaffold_platform_provenance"
+    TOTAL_CLOSURE = "total_closure"
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectManifestIdentityFacets:
+    project_spec_digest: str
+    author_requirements_digest: str
+    provider_bindings_digest: str
+    scaffold_platform_provenance_digest: str
+    total_closure_digest: str
+
+    def __post_init__(self) -> None:
+        for field, value in (
+            ("project_spec_digest", self.project_spec_digest),
+            ("author_requirements_digest", self.author_requirements_digest),
+            ("provider_bindings_digest", self.provider_bindings_digest),
+            ("scaffold_platform_provenance_digest", self.scaffold_platform_provenance_digest),
+            ("total_closure_digest", self.total_closure_digest),
+        ):
+            require_sha256(value, field)
+
+    def digest_for(self, facet: ProjectManifestFacet) -> str:
+        if facet is ProjectManifestFacet.PROJECT_SPEC:
+            return self.project_spec_digest
+        if facet is ProjectManifestFacet.AUTHOR_REQUIREMENTS:
+            return self.author_requirements_digest
+        if facet is ProjectManifestFacet.PROVIDER_BINDINGS:
+            return self.provider_bindings_digest
+        if facet is ProjectManifestFacet.SCAFFOLD_PLATFORM_PROVENANCE:
+            return self.scaffold_platform_provenance_digest
+        if facet is ProjectManifestFacet.TOTAL_CLOSURE:
+            return self.total_closure_digest
+        raise ValueError(f"unsupported ProjectManifest facet: {facet!r}")
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectManifestFacetChange:
+    facet: ProjectManifestFacet
+    before_digest: str
+    after_digest: str
+
+    def __post_init__(self) -> None:
+        require_sha256(self.before_digest, "before_digest")
+        require_sha256(self.after_digest, "after_digest")
+        if self.before_digest == self.after_digest:
+            raise ValueError("facet change requires distinct digests")
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectManifestFacetDiff:
+    before_total_closure_digest: str
+    after_total_closure_digest: str
+    changes: tuple[ProjectManifestFacetChange, ...]
+
+    def __post_init__(self) -> None:
+        require_sha256(self.before_total_closure_digest, "before_total_closure_digest")
+        require_sha256(self.after_total_closure_digest, "after_total_closure_digest")
+        facets = tuple(change.facet for change in self.changes)
+        if len(facets) != len(set(facets)):
+            raise ValueError("ProjectManifest facet diff contains duplicate facets")
+        expected = tuple(facet for facet in ProjectManifestFacet if facet in set(facets))
+        if facets != expected:
+            raise ValueError("ProjectManifest facet changes must be in canonical facet order")
+        closure_changed = self.before_total_closure_digest != self.after_total_closure_digest
+        closure_reported = ProjectManifestFacet.TOTAL_CLOSURE in facets
+        if closure_changed != closure_reported:
+            raise ValueError("ProjectManifest total-closure change must match the TOTAL_CLOSURE facet")
+        if not closure_changed and facets:
+            raise ValueError("ProjectManifest local facet changes require a changed total closure")
+
+    @property
+    def changed_facets(self) -> tuple[ProjectManifestFacet, ...]:
+        return tuple(change.facet for change in self.changes)
+
+
 @dataclass(frozen=True, slots=True, order=True)
 class ProjectCapabilityRequirement:
     """Platform capability binding input declared by a project, not a provider choice."""
@@ -268,50 +350,35 @@ class ProjectManifest:
         return self.capability_requirements
 
     @property
+    def identity_facets(self) -> "ProjectManifestIdentityFacets":
+        return project_manifest_identity_facets(self)
+
+    @property
     def semantic_digest(self) -> str:
-        return strict_finite_json_digest(_project_manifest_payload(self))
+        """Complete manifest closure digest; not a Study/Run/scientific-equivalence identity."""
+        return self.identity_facets.total_closure_digest
 
 
-def _project_manifest_payload(manifest: ProjectManifest) -> dict[str, JsonInput]:
+def _project_spec_payload(manifest: ProjectManifest) -> dict[str, JsonInput]:
     project = manifest.project
     return {
-        "template_revision": manifest.template_revision,
-        "provenance": {
-            "tool_id": manifest.provenance.tool_id,
-            "tool_version": manifest.provenance.tool_version,
-            "platform_artifact_sha256": manifest.provenance.platform_artifact_sha256,
-        },
-        "project": {
-            "identity": {
-                "project_id": project.identity.project_id,
-                "version": project.identity.version,
-            },
-            "program_id": project.program_id,
-            "name": project.name,
-            "description": project.description,
-            "tags": project.tags,
-        },
+        "identity": {"project_id": project.identity.project_id, "version": project.identity.version},
+        "program_id": project.program_id,
+        "name": project.name,
+        "description": project.description,
+        "tags": project.tags,
+    }
+
+
+def _author_requirements_payload(manifest: ProjectManifest) -> dict[str, JsonInput]:
+    return {
         "capability_requirements": tuple(
             {
-                "requirement_id": row.requirement_id,
-                "namespace": row.namespace,
-                "name": row.name,
-                "major_version": row.major_version,
-                "interface_digest": row.interface_digest,
-                "cardinality": row.cardinality.value,
-                "optional": row.optional,
+                "requirement_id": row.requirement_id, "namespace": row.namespace, "name": row.name,
+                "major_version": row.major_version, "interface_digest": row.interface_digest,
+                "cardinality": row.cardinality.value, "optional": row.optional,
             }
             for row in manifest.capability_requirements
-        ),
-        "provider_bindings": tuple(
-            {
-                "binding_id": row.binding_id,
-                "requirement_id": row.requirement_id,
-                "provider_identity": row.provider_identity,
-                "provider_version": row.provider_version,
-                "configuration_digest": row.configuration_digest,
-            }
-            for row in manifest.provider_bindings
         ),
         "method_requirements": tuple(
             {"method_id": row.method_id, "treatment_id": row.treatment_id}
@@ -319,14 +386,71 @@ def _project_manifest_payload(manifest: ProjectManifest) -> dict[str, JsonInput]
         ),
         "configuration_refs": tuple(
             {
-                "configuration_id": row.configuration_id,
-                "artifact_ref": row.artifact_ref,
+                "configuration_id": row.configuration_id, "artifact_ref": row.artifact_ref,
                 "content_sha256": row.content_sha256,
             }
             for row in manifest.configuration_refs
         ),
         "study_ids": manifest.study_ids,
     }
+
+
+def _provider_bindings_payload(manifest: ProjectManifest) -> dict[str, JsonInput]:
+    return {
+        "provider_bindings": tuple(
+            {
+                "binding_id": row.binding_id, "requirement_id": row.requirement_id,
+                "provider_identity": row.provider_identity, "provider_version": row.provider_version,
+                "configuration_digest": row.configuration_digest,
+            }
+            for row in manifest.provider_bindings
+        )
+    }
+
+
+def _scaffold_platform_provenance_payload(manifest: ProjectManifest) -> dict[str, JsonInput]:
+    return {
+        "template_revision": manifest.template_revision,
+        "provenance": {
+            "tool_id": manifest.provenance.tool_id,
+            "tool_version": manifest.provenance.tool_version,
+            "platform_artifact_sha256": manifest.provenance.platform_artifact_sha256,
+        },
+    }
+
+
+def _project_manifest_payload(manifest: ProjectManifest) -> dict[str, JsonInput]:
+    return {
+        **_scaffold_platform_provenance_payload(manifest),
+        "project": _project_spec_payload(manifest),
+        **_author_requirements_payload(manifest),
+        **_provider_bindings_payload(manifest),
+    }
+
+
+def project_manifest_identity_facets(manifest: ProjectManifest) -> ProjectManifestIdentityFacets:
+    return ProjectManifestIdentityFacets(
+        project_spec_digest=strict_finite_json_digest(_project_spec_payload(manifest)),
+        author_requirements_digest=strict_finite_json_digest(_author_requirements_payload(manifest)),
+        provider_bindings_digest=strict_finite_json_digest(_provider_bindings_payload(manifest)),
+        scaffold_platform_provenance_digest=strict_finite_json_digest(
+            _scaffold_platform_provenance_payload(manifest)
+        ),
+        total_closure_digest=strict_finite_json_digest(_project_manifest_payload(manifest)),
+    )
+
+
+def diff_project_manifest_facets(
+    before: ProjectManifest, after: ProjectManifest
+) -> ProjectManifestFacetDiff:
+    left = project_manifest_identity_facets(before)
+    right = project_manifest_identity_facets(after)
+    changes = tuple(
+        ProjectManifestFacetChange(facet, left.digest_for(facet), right.digest_for(facet))
+        for facet in ProjectManifestFacet
+        if left.digest_for(facet) != right.digest_for(facet)
+    )
+    return ProjectManifestFacetDiff(left.total_closure_digest, right.total_closure_digest, changes)
 
 
 def project_manifest_document(manifest: ProjectManifest) -> JsonDocument:
@@ -535,6 +659,10 @@ __all__ = [
     "ProjectIdentity",
     "ProjectManifest",
     "ProjectManifestDecodeError",
+    "ProjectManifestFacet",
+    "ProjectManifestFacetChange",
+    "ProjectManifestFacetDiff",
+    "ProjectManifestIdentityFacets",
     "ProjectProviderBinding",
     "ProjectMethodRequirement",
     "ProjectRequirementCardinality",
@@ -543,6 +671,8 @@ __all__ = [
     "WorkspaceSpec",
     "decode_project_manifest_bytes",
     "decode_project_manifest_document",
+    "diff_project_manifest_facets",
     "encode_project_manifest",
     "project_manifest_document",
+    "project_manifest_identity_facets",
 ]

@@ -43,3 +43,11 @@ ROLE01 itself consumes the narrow authority: ProjectManifest encoding/digest/dec
 This is not a universal value framework. The kernel primitive owns representation/integrity mechanics only. Artifact identity, Dataset identity, scientific Measurement semantics, Model/Participant values, Run evidence, persistence policy, and provider behavior remain with their domain owners.
 
 Foreign duplicate implementations are removed only by their owning roles after equivalence and consumer tests. ROLE01 issues CSRs for those cutovers and does not edit Artifact/Data/Experimentation production paths directly.
+
+## Section 42 ProjectManifest identity stratification
+
+`ProjectManifest.identity_facets` is a rebuildable projection over the single canonical manifest authority. It exposes `PROJECT_SPEC`, `AUTHOR_REQUIREMENTS`, `PROVIDER_BINDINGS`, `SCAFFOLD_PLATFORM_PROVENANCE`, and `TOTAL_CLOSURE` digest dimensions. No facet is written back as a second manifest truth.
+
+The serialized `semantic_digest` field and `ProjectManifest.semantic_digest` property mean **complete manifest semantic closure** and equal the `TOTAL_CLOSURE` facet. They are not Study, Run, Measurement, Analysis, or scientific-design equivalence identities. Consumers asking whether two projects differ must name the relevant facet or use `diff_project_manifest_facets()`; a provider-only change must not be reported as a changed author-requirements identity.
+
+Portfolio owns these author/onboarding identity projections only. ROLE03 remains the owner of compiled scientific/Run identities, ROLE04/05 own their typed binding/domain identities, and ROLE06 may render facet-aware differences without redefining equality.

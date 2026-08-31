@@ -11,6 +11,10 @@ from research_platform.portfolio.api import (
     ProjectIdentity,
     ProjectManifest,
     ProjectManifestDecodeError,
+    ProjectManifestFacet,
+    ProjectManifestFacetChange,
+    ProjectManifestFacetDiff,
+    ProjectManifestIdentityFacets,
     ProjectProviderBinding,
     ProjectMethodRequirement,
     ProjectRequirementCardinality,
@@ -18,8 +22,10 @@ from research_platform.portfolio.api import (
     ProjectToolProvenance,
     decode_project_manifest_bytes,
     decode_project_manifest_document,
+    diff_project_manifest_facets,
     encode_project_manifest,
     project_manifest_document,
+    project_manifest_identity_facets,
 )
 
 __all__ = [
@@ -29,6 +35,10 @@ __all__ = [
     "ProjectIdentity",
     "ProjectManifest",
     "ProjectManifestDecodeError",
+    "ProjectManifestFacet",
+    "ProjectManifestFacetChange",
+    "ProjectManifestFacetDiff",
+    "ProjectManifestIdentityFacets",
     "ProjectProviderBinding",
     "ProjectMethodRequirement",
     "ProjectRequirementCardinality",
@@ -36,6 +46,8 @@ __all__ = [
     "ProjectToolProvenance",
     "decode_project_manifest_bytes",
     "decode_project_manifest_document",
+    "diff_project_manifest_facets",
     "encode_project_manifest",
     "project_manifest_document",
+    "project_manifest_identity_facets",
 ]

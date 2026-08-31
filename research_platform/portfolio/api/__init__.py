@@ -6,6 +6,10 @@ from .contracts import (
     ProjectIdentity,
     ProjectManifest,
     ProjectManifestDecodeError,
+    ProjectManifestFacet,
+    ProjectManifestFacetChange,
+    ProjectManifestFacetDiff,
+    ProjectManifestIdentityFacets,
     ProjectProviderBinding,
     ProjectMethodRequirement,
     ProjectRequirementCardinality,
@@ -14,8 +18,10 @@ from .contracts import (
     WorkspaceSpec,
     decode_project_manifest_bytes,
     decode_project_manifest_document,
+    diff_project_manifest_facets,
     encode_project_manifest,
     project_manifest_document,
+    project_manifest_identity_facets,
 )
 from .ports import PortfolioCatalogPort
 
@@ -28,6 +34,10 @@ __all__ = [
     "ProjectIdentity",
     "ProjectManifest",
     "ProjectManifestDecodeError",
+    "ProjectManifestFacet",
+    "ProjectManifestFacetChange",
+    "ProjectManifestFacetDiff",
+    "ProjectManifestIdentityFacets",
     "ProjectProviderBinding",
     "ProjectMethodRequirement",
     "ProjectRequirementCardinality",
@@ -36,6 +46,8 @@ __all__ = [
     "WorkspaceSpec",
     "decode_project_manifest_bytes",
     "decode_project_manifest_document",
+    "diff_project_manifest_facets",
     "encode_project_manifest",
     "project_manifest_document",
+    "project_manifest_identity_facets",
 ]
