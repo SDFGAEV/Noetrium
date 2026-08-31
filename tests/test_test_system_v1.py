@@ -35,7 +35,11 @@ class TestSystemV1Tests(unittest.TestCase):
         self.assertEqual(checkpoint.rule_id, "durability")
         self.assertEqual(checkpoint.family, "durability-recovery")
         self.assertEqual(checkpoint.level, "L4")
-        for name in ("test_trial_identity_freeze_v115.py", "test_trial_protocol_identity_v1.py"):
+        for name in (
+            "test_trial_identity_freeze_v115.py",
+            "test_trial_protocol_identity_v1.py",
+            "test_section42_identity_facets_v1.py",
+        ):
             row = classify(ROOT / "tests" / name, catalog)
             self.assertEqual(row.rule_id, "contracts")
             self.assertEqual(row.family, "typed-contracts")
