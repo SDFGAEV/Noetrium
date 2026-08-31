@@ -21,36 +21,60 @@
 
 <!-- readme-locale:es -->
 
-<!-- readme-source-sha256:9dd7f68d71e7c6bfc9c059ec68315c5e86dc1ccac0a179645d1e0879c40c283f -->
+<!-- readme-source-sha256:d83d3e923924e7962cb571320055a02c3ee3ec8c0ee80fc238aa48ecdb4b6a41 -->
 
+<p align="center">
+  <strong>Construye agentes. Ejecuta experimentos. Verifica resultados.</strong><br>
+  Infraestructura rigurosa para investigación reproducible y basada en evidencia con agentes de IA.
+</p>
 
+<p align="center">
+  <a href="#quick-start">Inicio rápido</a> ·
+  <a href="examples/README.md">Ejemplo</a> ·
+  <a href="docs/architecture/PLATFORM_ARCHITECTURE.md">Arquitectura</a> ·
+  <a href="docs/INDEX.md">Docs</a> ·
+  <a href="#verification">Verificación</a>
+</p>
 
-**Infraestructura basada en contratos para investigación reproducible con agentes de IA.**
-
-
-
-[![Python](https://img.shields.io/badge/Python-%3E%3D3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-0.43.1-blue)](pyproject.toml)
-[![Architecture](https://img.shields.io/badge/architecture-contract--driven-6f42c1)](docs/architecture/PLATFORM_ARCHITECTURE.md)
-[![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
-
-
+<p align="center">
+  <a href="https://www.python.org/"><img alt="Python >=3.11" src="https://img.shields.io/badge/Python-%3E%3D3.11-3776AB?logo=python&logoColor=white"></a>
+  <a href="pyproject.toml"><img alt="Version 0.43.1" src="https://img.shields.io/badge/version-0.43.1-blue"></a>
+  <a href="docs/architecture/PLATFORM_ARCHITECTURE.md"><img alt="Contract-driven architecture" src="https://img.shields.io/badge/architecture-contract--driven-6f42c1"></a>
+  <a href="LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-green"></a>
+</p>
 
 <!-- readme-section:overview -->
 
 ## Descripción general
 
-Noetrium es una plataforma independiente del proyecto para construir, ejecutar, recuperar, observar, optimizar y auditar sistemas de agentes de IA de larga duración y cargas de investigación.
+Noetrium es infraestructura de investigación para experimentos de larga duración con agentes de IA en los que ejecutar no basta: necesitas saber exactamente qué se ejecutó, con qué bindings, qué sobrevivió a un fallo y qué evidencia respalda el resultado.
 
-La infraestructura reutilizable permanece en la plataforma; la semántica científica de cada artículo, los benchmarks, las matrices experimentales y la política de despliegue permanecen en los proyectos downstream.
+Abarca agentes, modelos, entornos, experimentos, Artifacts, recuperación, observabilidad y gobernanza sin imponer semántica científica específica de un proyecto dentro de la plataforma.
+
+**Usa Noetrium cuando necesites:**
+
+- identidad experimental reproducible entre variantes, seeds, modelos y entornos;
+- recuperación que conserve effect certainty en vez de adivinar tras un crash;
+- evidence y lineage vinculados a identidades exactas de source/runtime;
+- governance gates capaces de fallar de forma cerrada antes de publicar o liberar.
 
 <!-- readme-section:why -->
 
-## ¿Por qué esta plataforma?
+## ¿Por qué Noetrium?
 
-Los sistemas de agentes de larga duración fallan de más formas que un script normal: procesos que terminan, efectos externos inciertos, deriva del entorno, cambios de despliegue de modelos, checkpoints incompatibles y logs parciales que pueden confundirse con evidencia válida.
+La mayoría de frameworks de agentes se centran en cómo actúan o colaboran los agentes. Noetrium se centra en que las ejecuciones de investigación sigan siendo atribuibles, recuperables, reproducibles y ligadas a evidence. Puede colocarse debajo o junto a frameworks de orquestación en lugar de sustituirlos.
 
-La plataforma modela estos problemas como sistemas explícitos con typed contracts, ownership estable, identidades durables, efectos con evidencia y recuperación fail-closed.
+### Dónde encaja Noetrium
+
+| Project | Enfoque principal | Lo que añade Noetrium |
+| --- | --- | --- |
+| [LangGraph](https://github.com/langchain-ai/langgraph) | Orquestación stateful de agentes de larga duración | Research identity, evidence, recovery y governance alrededor de la ejecución |
+| [AutoGen](https://github.com/microsoft/autogen) | Aplicaciones multi-agent | Experiment protocol, reproducibility y release evidence |
+| [CrewAI](https://github.com/crewAIInc/crewAI) | Equipos de agentes y event flows | Scientific run identity, lineage y recuperación fail-closed |
+| [OpenHands](https://github.com/All-Hands-AI/OpenHands) | Desarrollo de software impulsado por IA | Infraestructura general de investigación para agentes, modelos y entornos |
+| **Noetrium** | Infraestructura reproducible para investigación con agentes de IA | La propia capa de research systems |
+
+Noetrium es deliberadamente más amplio que una biblioteca de agent workflows: diseño experimental, identidad de modelo/entorno, runtime effects, checkpoints, evidence y release authority se tratan como un único problema de research systems.
 
 <!-- readme-section:capabilities -->
 
@@ -71,22 +95,24 @@ La plataforma modela estos problemas como sistemas explícitos con typed contrac
 
 ## Arquitectura
 
-Composition, Execution y Observation son planos de autoridad separados.
+El modelo mental más corto es una canalización de investigación que preserva evidence:
 
-```text
-system topology / contracts
-          │
-          ▼
-composition root ── freezes provider identities and bindings
-          │
-          ▼
-runtime execution ── uses only injected narrow ports
-          │
-          ▼
-observation plane ── logs, metrics, traces, diagnostics, evidence
+```mermaid
+flowchart LR
+    A["Research intent"] --> B["Define"]
+    B --> C["Bind"]
+    C --> D["Compile"]
+    D --> E["Run"]
+    E --> F["Recover"]
+    E --> G["Measure"]
+    F --> G
+    G --> H["Evidence"]
+    H --> I["Verify"]
 ```
 
-El runtime no descubre providers mediante un service locator global. Observability no es un segundo command bus. Cada durable state tiene un solo owner y los efectos externos permanecen UNKNOWN hasta que reconciliation demuestre lo contrario.
+Cada transición debe conservar identity o producir evidence que explique por qué cambió. Composition, Execution y Observation permanecen como authority planes separados; el runtime recibe ports estrechos inyectados en vez de descubrir providers globalmente.
+
+Cada durable state tiene un único owner y los efectos externos inciertos permanecen `UNKNOWN` hasta que reconciliation demuestre lo contrario.
 
 `research_platform/governance/system_registry/catalog.json`
 
@@ -114,19 +140,16 @@ El código downstream consume contratos públicos de la plataforma y aporta impl
 
 <!-- readme-section:quick-start -->
 
+<a id="quick-start"></a>
+
 ## Inicio rápido
 
-### Requisitos
+El primer ejemplo es determinista y no requiere API key, model endpoint ni servicio externo.
 
-- Python 3.11 o superior
-- Git
-- Docker / Docker Compose para flujos de contenedores
-- Runtimes externos opcionales solo para Providers que los requieran explícitamente
-
-### Instalación para desarrollo
+### 1. Clonar e instalar
 
 ```bash
-git clone git@github.com:SDFGAEV/noetrium.git
+git clone https://github.com/SDFGAEV/noetrium.git
 cd noetrium
 python -m venv .venv
 source .venv/bin/activate
@@ -135,15 +158,31 @@ python -m pip install --upgrade pip
 python -m pip install -e ".[test]"
 ```
 
-### Inspeccionar la plataforma
+### 2. Compilar tu primer experiment plan reproducible
+
+```bash
+python examples/quickstart_experiment_plan.py
+```
+
+El ejemplo congela un scientific protocol, enlaza identidades explícitas de provider, compila un immutable plan y verifica su digest.
+
+```text
+study=noetrium-quickstart
+variants=control,treatment
+repetitions=3
+protocol_digest=<sha256>
+plan_digest=<sha256>
+plan_consistent=true
+```
+
+### 3. Verificar el checkout
 
 ```bash
 research-platform-architecture-gate
-research-platform-algorithm --help
-research-platform-concurrency --help
-research-platform-performance --help
-research-platform-manage --help
+python scripts/check_readme_i18n.py
 ```
+
+El metadata de la distribución Python se llama `noetrium`; el import namespace actual sigue siendo `research_platform` mientras product identity y runtime contracts evolucionan de forma independiente.
 
 <!-- readme-section:containers -->
 
@@ -189,6 +228,8 @@ docker compose -f deploy/compose.yaml -f deploy/compose.minecraft.yaml run --rm 
 `research_platform/` is the reusable package boundary; project-specific code stays downstream.
 
 <!-- readme-section:testing -->
+
+<a id="verification"></a>
 
 ## Pruebas y verificación
 
@@ -246,6 +287,7 @@ Empieza por el índice de documentación.
 ### Referencias clave
 
 - [Documentation index](docs/INDEX.md)
+- [Examples](examples/README.md)
 - [Platform architecture](docs/architecture/PLATFORM_ARCHITECTURE.md)
 - [Detailed system map](docs/architecture/VNEXT_DETAILED_SYSTEM_MAP.md)
 - [Architecture migration contract](docs/architecture/FINAL_ARCHITECTURE_MIGRATION_CONTRACT.md)

@@ -21,36 +21,60 @@
 
 <!-- readme-locale:ko -->
 
-<!-- readme-source-sha256:9dd7f68d71e7c6bfc9c059ec68315c5e86dc1ccac0a179645d1e0879c40c283f -->
+<!-- readme-source-sha256:d83d3e923924e7962cb571320055a02c3ee3ec8c0ee80fc238aa48ecdb4b6a41 -->
 
+<p align="center">
+  <strong>Agent를 구축하고, 실험하고, 결과를 검증하세요.</strong><br>
+  재현 가능하고 증거 중심적인 AI 에이전트 연구를 위한 엄격한 시스템 인프라.
+</p>
 
+<p align="center">
+  <a href="#quick-start">빠른 시작</a> ·
+  <a href="examples/README.md">예제</a> ·
+  <a href="docs/architecture/PLATFORM_ARCHITECTURE.md">아키텍처</a> ·
+  <a href="docs/INDEX.md">문서</a> ·
+  <a href="#verification">검증</a>
+</p>
 
-**재현 가능한 AI 에이전트 연구를 위한 계약 중심 인프라.**
-
-
-
-[![Python](https://img.shields.io/badge/Python-%3E%3D3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-0.43.1-blue)](pyproject.toml)
-[![Architecture](https://img.shields.io/badge/architecture-contract--driven-6f42c1)](docs/architecture/PLATFORM_ARCHITECTURE.md)
-[![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
-
-
+<p align="center">
+  <a href="https://www.python.org/"><img alt="Python >=3.11" src="https://img.shields.io/badge/Python-%3E%3D3.11-3776AB?logo=python&logoColor=white"></a>
+  <a href="pyproject.toml"><img alt="Version 0.43.1" src="https://img.shields.io/badge/version-0.43.1-blue"></a>
+  <a href="docs/architecture/PLATFORM_ARCHITECTURE.md"><img alt="Contract-driven architecture" src="https://img.shields.io/badge/architecture-contract--driven-6f42c1"></a>
+  <a href="LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-green"></a>
+</p>
 
 <!-- readme-section:overview -->
 
 ## 개요
 
-Noetrium은 장시간 실행되는 AI 에이전트 시스템과 연구 워크로드를 구축, 실행, 복구, 관측, 최적화, 감사하기 위한 프로젝트 독립형 플랫폼입니다.
+Noetrium은 장시간 실행되는 AI 에이전트 실험을 위한 연구 인프라입니다. 단순히 실행되는 것만으로는 충분하지 않습니다. 무엇이 실행됐는지, 어떤 binding이 사용됐는지, 장애 후 무엇이 보존됐는지, 어떤 evidence가 결과를 뒷받침하는지 알아야 합니다.
 
-재사용 가능한 인프라는 플랫폼에 두고, 논문별 과학적 의미, benchmark 선택, 실험 행렬, 배포 정책은 downstream 프로젝트에 둡니다.
+Agent, model, environment, experiment, Artifact, recovery, observability, governance를 하나의 기반에서 다루되 프로젝트별 과학적 의미를 플랫폼에 강제하지 않습니다.
+
+**다음이 필요할 때 Noetrium이 특히 유용합니다:**
+
+- variant, seed, model, environment 전반의 재현 가능한 experiment identity;
+- crash 이후 추측 대신 effect certainty를 보존하는 recovery;
+- exact source/runtime identity까지 연결되는 evidence와 lineage;
+- publication/release 전에 fail-closed할 수 있는 governance gate.
 
 <!-- readme-section:why -->
 
-## 왜 이 플랫폼인가?
+## 왜 Noetrium인가?
 
-장시간 실행되는 Agent 시스템은 일반 스크립트보다 더 많은 실패 모드를 가집니다. 프로세스 중단, 외부 effect의 불확실성, 환경 drift, 모델 배포 변경, checkpoint 불일치, 불완전한 로그의 오판 등이 있습니다.
+대부분의 Agent 프레임워크는 Agent가 어떻게 행동하거나 협력하는지에 집중합니다. Noetrium은 연구 실행이 attribution, recovery, reproducibility, evidence binding을 유지하는지에 집중합니다. Orchestration framework를 대체하기보다 그 아래나 옆에서 함께 사용할 수 있습니다.
 
-플랫폼은 이를 명시적 시스템으로 모델링하고 typed contract, 안정적인 ownership, 영속 identity, 증거를 가진 effect, fail-closed 복구 의미론을 사용합니다.
+### 생태계에서의 위치
+
+| Project | 주요 초점 | Noetrium이 더하는 것 |
+| --- | --- | --- |
+| [LangGraph](https://github.com/langchain-ai/langgraph) | 장기 실행 stateful Agent orchestration | 실행 주위의 research identity, evidence, recovery, governance |
+| [AutoGen](https://github.com/microsoft/autogen) | Multi-agent application | Experiment protocol, reproducibility, release evidence |
+| [CrewAI](https://github.com/crewAIInc/crewAI) | Agent team과 event flow | Scientific run identity, lineage, fail-closed recovery |
+| [OpenHands](https://github.com/All-Hands-AI/OpenHands) | AI 기반 소프트웨어 개발 | Agent, model, environment 전반의 범용 연구 인프라 |
+| **Noetrium** | 재현 가능한 AI Agent 연구 인프라 | Research systems layer 자체 |
+
+Noetrium은 의도적으로 Agent workflow library보다 범위가 넓습니다. Experiment design, model/environment identity, runtime effect, checkpoint, evidence, release authority를 하나의 research-systems 문제로 취급합니다.
 
 <!-- readme-section:capabilities -->
 
@@ -71,22 +95,24 @@ Noetrium은 장시간 실행되는 AI 에이전트 시스템과 연구 워크로
 
 ## 아키텍처
 
-Composition, Execution, Observation은 서로 분리된 authority plane입니다.
+가장 짧은 mental model은 evidence를 보존하는 연구 파이프라인입니다:
 
-```text
-system topology / contracts
-          │
-          ▼
-composition root ── freezes provider identities and bindings
-          │
-          ▼
-runtime execution ── uses only injected narrow ports
-          │
-          ▼
-observation plane ── logs, metrics, traces, diagnostics, evidence
+```mermaid
+flowchart LR
+    A["Research intent"] --> B["Define"]
+    B --> C["Bind"]
+    C --> D["Compile"]
+    D --> E["Run"]
+    E --> F["Recover"]
+    E --> G["Measure"]
+    F --> G
+    G --> H["Evidence"]
+    H --> I["Verify"]
 ```
 
-Runtime은 global service locator에서 provider를 찾지 않습니다. Observability도 두 번째 command bus가 아닙니다. durable state에는 하나의 owner만 있으며, 외부 effect는 reconciliation으로 증명되기 전까지 UNKNOWN입니다.
+각 전이는 identity를 보존하거나 identity가 왜 바뀌었는지 설명하는 evidence를 만들어야 합니다. Composition, Execution, Observation은 서로 분리된 authority plane으로 유지되며 runtime은 provider를 전역 탐색하지 않고 주입된 좁은 port만 사용합니다.
+
+각 durable state에는 하나의 owner만 있고, 불확실한 외부 effect는 reconciliation으로 증명되기 전까지 `UNKNOWN`으로 남습니다.
 
 `research_platform/governance/system_registry/catalog.json`
 
@@ -114,19 +140,16 @@ Downstream 코드는 public platform contract를 사용하고 프로젝트 소�
 
 <!-- readme-section:quick-start -->
 
+<a id="quick-start"></a>
+
 ## 빠른 시작
 
-### 요구 사항
+첫 예제는 deterministic하며 API key, model endpoint, 외부 서비스가 필요하지 않습니다.
 
-- Python 3.11 이상
-- Git
-- 컨테이너 워크플로용 Docker / Docker Compose
-- 명시적으로 요구하는 Provider에만 추가 외부 runtime 필요
-
-### 개발 설치
+### 1. Clone 및 설치
 
 ```bash
-git clone git@github.com:SDFGAEV/noetrium.git
+git clone https://github.com/SDFGAEV/noetrium.git
 cd noetrium
 python -m venv .venv
 source .venv/bin/activate
@@ -135,15 +158,31 @@ python -m pip install --upgrade pip
 python -m pip install -e ".[test]"
 ```
 
-### 플랫폼 확인
+### 2. 첫 재현 가능한 experiment plan 컴파일
+
+```bash
+python examples/quickstart_experiment_plan.py
+```
+
+예제는 scientific protocol을 고정하고 명시적 provider identity를 binding한 뒤 immutable plan을 compile하고 digest를 검증합니다.
+
+```text
+study=noetrium-quickstart
+variants=control,treatment
+repetitions=3
+protocol_digest=<sha256>
+plan_digest=<sha256>
+plan_consistent=true
+```
+
+### 3. Checkout 검증
 
 ```bash
 research-platform-architecture-gate
-research-platform-algorithm --help
-research-platform-concurrency --help
-research-platform-performance --help
-research-platform-manage --help
+python scripts/check_readme_i18n.py
 ```
+
+Python distribution metadata 이름은 `noetrium`이며 현재 import namespace는 `research_platform`입니다. Product identity와 runtime contract는 독립적으로 진화합니다.
 
 <!-- readme-section:containers -->
 
@@ -189,6 +228,8 @@ docker compose -f deploy/compose.yaml -f deploy/compose.minecraft.yaml run --rm 
 `research_platform/` is the reusable package boundary; project-specific code stays downstream.
 
 <!-- readme-section:testing -->
+
+<a id="verification"></a>
 
 ## 테스트와 검증
 
@@ -246,6 +287,7 @@ documentation index에서 시작하십시오.
 ### 핵심 문서
 
 - [Documentation index](docs/INDEX.md)
+- [Examples](examples/README.md)
 - [Platform architecture](docs/architecture/PLATFORM_ARCHITECTURE.md)
 - [Detailed system map](docs/architecture/VNEXT_DETAILED_SYSTEM_MAP.md)
 - [Architecture migration contract](docs/architecture/FINAL_ARCHITECTURE_MIGRATION_CONTRACT.md)

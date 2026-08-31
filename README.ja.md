@@ -21,36 +21,60 @@
 
 <!-- readme-locale:ja -->
 
-<!-- readme-source-sha256:9dd7f68d71e7c6bfc9c059ec68315c5e86dc1ccac0a179645d1e0879c40c283f -->
+<!-- readme-source-sha256:d83d3e923924e7962cb571320055a02c3ee3ec8c0ee80fc238aa48ecdb4b6a41 -->
 
+<p align="center">
+  <strong>Agent を構築する。実験を走らせる。結果を検証する。</strong><br>
+  再現可能で証拠駆動の AI エージェント研究のための厳密なシステム基盤。
+</p>
 
+<p align="center">
+  <a href="#quick-start">クイックスタート</a> ·
+  <a href="examples/README.md">例</a> ·
+  <a href="docs/architecture/PLATFORM_ARCHITECTURE.md">アーキテクチャ</a> ·
+  <a href="docs/INDEX.md">ドキュメント</a> ·
+  <a href="#verification">検証</a>
+</p>
 
-**再現可能な AI エージェント研究のための契約駆動インフラストラクチャ。**
-
-
-
-[![Python](https://img.shields.io/badge/Python-%3E%3D3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-0.43.1-blue)](pyproject.toml)
-[![Architecture](https://img.shields.io/badge/architecture-contract--driven-6f42c1)](docs/architecture/PLATFORM_ARCHITECTURE.md)
-[![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
-
-
+<p align="center">
+  <a href="https://www.python.org/"><img alt="Python >=3.11" src="https://img.shields.io/badge/Python-%3E%3D3.11-3776AB?logo=python&logoColor=white"></a>
+  <a href="pyproject.toml"><img alt="Version 0.43.1" src="https://img.shields.io/badge/version-0.43.1-blue"></a>
+  <a href="docs/architecture/PLATFORM_ARCHITECTURE.md"><img alt="Contract-driven architecture" src="https://img.shields.io/badge/architecture-contract--driven-6f42c1"></a>
+  <a href="LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-green"></a>
+</p>
 
 <!-- readme-section:overview -->
 
 ## 概要
 
-Noetrium は、長時間稼働する AI エージェントシステムと研究ワークロードを構築・実行・復旧・観測・最適化・監査するための、プロジェクト非依存プラットフォームです。
+Noetrium は、長時間稼働する AI エージェント実験のための研究基盤です。この種の実験では、単に実行できるだけでは不十分です。何が実行され、どの binding が使われ、障害後に何が残り、どの evidence が結果を支えるのかを追跡できる必要があります。
 
-再利用可能な基盤はプラットフォーム側に置き、論文固有の科学的意味、benchmark、実験行列、配備ポリシーは下流プロジェクトに置きます。
+Agent、model、environment、experiment、Artifact、recovery、observability、governance を一つの基盤で扱いながら、プロジェクト固有の科学的意味をプラットフォームへ押し込みません。
+
+**次の要件があるとき Noetrium が有効です：**
+
+- variant、seed、model、environment をまたぐ再現可能な experiment identity；
+- crash 後に推測せず effect certainty を保持する recovery；
+- exact source/runtime identity まで追跡できる evidence と lineage；
+- publication/release 前に fail-closed できる governance gate。
 
 <!-- readme-section:why -->
 
-## なぜこのプラットフォームが必要か
+## なぜ Noetrium なのか
 
-長時間稼働する Agent システムには通常のスクリプトより多くの障害形態があります。プロセス停止、外部 effect の不確実性、環境 drift、モデル配備の変更、checkpoint 不整合、不完全なログの誤認などです。
+多くの Agent フレームワークは「Agent がどう行動・協調するか」に重点を置きます。Noetrium は研究実行が attribution、recovery、reproducibility、evidence binding を維持できるかに重点を置きます。Orchestration framework の代替ではなく、その下層または横に配置できます。
 
-本プラットフォームはこれらを明示的なシステムとしてモデル化し、typed contract、安定した ownership、永続 identity、証拠を伴う effect、fail-closed な復旧セマンティクスを使用します。
+### エコシステムでの位置付け
+
+| Project | 主な焦点 | Noetrium が追加するもの |
+| --- | --- | --- |
+| [LangGraph](https://github.com/langchain-ai/langgraph) | 長時間・stateful な Agent orchestration | 実行を囲む research identity、evidence、recovery、governance |
+| [AutoGen](https://github.com/microsoft/autogen) | Multi-agent application | Experiment protocol、reproducibility、release evidence |
+| [CrewAI](https://github.com/crewAIInc/crewAI) | Agent team と event flow | Scientific run identity、lineage、fail-closed recovery |
+| [OpenHands](https://github.com/All-Hands-AI/OpenHands) | AI 駆動ソフトウェア開発 | Agent・model・environment をまたぐ汎用研究基盤 |
+| **Noetrium** | 再現可能な AI Agent 研究基盤 | Research systems layer そのもの |
+
+Noetrium は意図的に Agent workflow library より広く、experiment design、model/environment identity、runtime effect、checkpoint、evidence、release authority を一つの research-systems 問題として扱います。
 
 <!-- readme-section:capabilities -->
 
@@ -71,22 +95,24 @@ Noetrium は、長時間稼働する AI エージェントシステムと研究�
 
 ## アーキテクチャ
 
-Composition、Execution、Observation は別々の authority plane として扱います。
+最短のメンタルモデルは evidence を保持する研究パイプラインです：
 
-```text
-system topology / contracts
-          │
-          ▼
-composition root ── freezes provider identities and bindings
-          │
-          ▼
-runtime execution ── uses only injected narrow ports
-          │
-          ▼
-observation plane ── logs, metrics, traces, diagnostics, evidence
+```mermaid
+flowchart LR
+    A["Research intent"] --> B["Define"]
+    B --> C["Bind"]
+    C --> D["Compile"]
+    D --> E["Run"]
+    E --> F["Recover"]
+    E --> G["Measure"]
+    F --> G
+    G --> H["Evidence"]
+    H --> I["Verify"]
 ```
 
-Runtime はグローバル service locator から provider を探索しません。Observability も第二の command bus にはなりません。durable state には単一 owner があり、外部 effect は reconciliation で証明されるまで UNKNOWN のままです。
+各遷移は identity を保持するか、なぜ identity が変わったのかを説明する evidence を生成します。Composition、Execution、Observation は独立した authority plane のままで、runtime は provider をグローバル探索せず、注入された狭い port のみを利用します。
+
+durable state には一つの owner があり、不確実な外部 effect は reconciliation で証明されるまで `UNKNOWN` のままです。
 
 `research_platform/governance/system_registry/catalog.json`
 
@@ -114,19 +140,16 @@ noetrium
 
 <!-- readme-section:quick-start -->
 
+<a id="quick-start"></a>
+
 ## クイックスタート
 
-### 要件
+最初の例は deterministic で、API key、model endpoint、外部サービスは不要です。
 
-- Python 3.11 以降
-- Git
-- コンテナワークフロー用 Docker / Docker Compose
-- 明示的に必要とする Provider のみ追加 runtime が必要
-
-### 開発用インストール
+### 1. Clone とインストール
 
 ```bash
-git clone git@github.com:SDFGAEV/noetrium.git
+git clone https://github.com/SDFGAEV/noetrium.git
 cd noetrium
 python -m venv .venv
 source .venv/bin/activate
@@ -135,15 +158,31 @@ python -m pip install --upgrade pip
 python -m pip install -e ".[test]"
 ```
 
-### プラットフォームの確認
+### 2. 最初の再現可能な experiment plan をコンパイル
+
+```bash
+python examples/quickstart_experiment_plan.py
+```
+
+例では scientific protocol を固定し、明示的な provider identity を binding し、immutable plan を compile して digest を検証します。
+
+```text
+study=noetrium-quickstart
+variants=control,treatment
+repetitions=3
+protocol_digest=<sha256>
+plan_digest=<sha256>
+plan_consistent=true
+```
+
+### 3. Checkout を検証
 
 ```bash
 research-platform-architecture-gate
-research-platform-algorithm --help
-research-platform-concurrency --help
-research-platform-performance --help
-research-platform-manage --help
+python scripts/check_readme_i18n.py
 ```
+
+Python distribution metadata の名前は `noetrium` です。現在の import namespace は `research_platform` のままで、product identity と runtime contract は独立して進化します。
 
 <!-- readme-section:containers -->
 
@@ -189,6 +228,8 @@ docker compose -f deploy/compose.yaml -f deploy/compose.minecraft.yaml run --rm 
 `research_platform/` is the reusable package boundary; project-specific code stays downstream.
 
 <!-- readme-section:testing -->
+
+<a id="verification"></a>
 
 ## テストと検証
 
@@ -246,6 +287,7 @@ documentation index から開始してください。
 ### 主要リファレンス
 
 - [Documentation index](docs/INDEX.md)
+- [Examples](examples/README.md)
 - [Platform architecture](docs/architecture/PLATFORM_ARCHITECTURE.md)
 - [Detailed system map](docs/architecture/VNEXT_DETAILED_SYSTEM_MAP.md)
 - [Architecture migration contract](docs/architecture/FINAL_ARCHITECTURE_MIGRATION_CONTRACT.md)

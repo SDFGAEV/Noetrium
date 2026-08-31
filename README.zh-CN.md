@@ -21,36 +21,60 @@
 
 <!-- readme-locale:zh-CN -->
 
-<!-- readme-source-sha256:9dd7f68d71e7c6bfc9c059ec68315c5e86dc1ccac0a179645d1e0879c40c283f -->
+<!-- readme-source-sha256:d83d3e923924e7962cb571320055a02c3ee3ec8c0ee80fc238aa48ecdb4b6a41 -->
 
+<p align="center">
+  <strong>构建 Agent。运行实验。验证结果。</strong><br>
+  面向可复现、证据驱动 AI Agent 研究的严谨系统基础设施。
+</p>
 
+<p align="center">
+  <a href="#quick-start">快速开始</a> ·
+  <a href="examples/README.md">示例</a> ·
+  <a href="docs/architecture/PLATFORM_ARCHITECTURE.md">架构</a> ·
+  <a href="docs/INDEX.md">文档</a> ·
+  <a href="#verification">验证</a>
+</p>
 
-**面向可复现 AI Agent 研究的契约驱动基础设施。**
-
-
-
-[![Python](https://img.shields.io/badge/Python-%3E%3D3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-0.43.1-blue)](pyproject.toml)
-[![Architecture](https://img.shields.io/badge/architecture-contract--driven-6f42c1)](docs/architecture/PLATFORM_ARCHITECTURE.md)
-[![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
-
-
+<p align="center">
+  <a href="https://www.python.org/"><img alt="Python >=3.11" src="https://img.shields.io/badge/Python-%3E%3D3.11-3776AB?logo=python&logoColor=white"></a>
+  <a href="pyproject.toml"><img alt="Version 0.43.1" src="https://img.shields.io/badge/version-0.43.1-blue"></a>
+  <a href="docs/architecture/PLATFORM_ARCHITECTURE.md"><img alt="Contract-driven architecture" src="https://img.shields.io/badge/architecture-contract--driven-6f42c1"></a>
+  <a href="LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-green"></a>
+</p>
 
 <!-- readme-section:overview -->
 
 ## 项目概览
 
-Noetrium 是一个与具体项目解耦的平台，用于构建、运行、恢复、观测、优化和审计长时运行的 AI Agent 系统与研究工作负载。
+Noetrium 是面向长时运行 AI Agent 实验的研究基础设施。对这类实验来说，仅仅“跑起来”并不够：你还需要知道究竟运行了什么、使用了哪些 binding、故障后保留了什么，以及结果由哪些 evidence 支撑。
 
-可复用基础设施留在平台层；论文特定的科学语义、benchmark 选择、实验矩阵和部署策略留在下游项目。
+它覆盖 Agent、模型、环境、实验、Artifact、恢复、可观测性和治理，同时不把项目特定的科学语义强塞进平台。
+
+**当你需要以下能力时，Noetrium 最有价值：**
+
+- 跨 variant、seed、模型和环境保持可复现的实验 identity；
+- 崩溃后保留 effect certainty，而不是靠猜测决定“是否执行成功”；
+- 把 evidence 与 lineage 追溯到精确 source/runtime identity；
+- 在发表或发布前由 governance gate fail-closed。
 
 <!-- readme-section:why -->
 
-## 为什么需要这个平台？
+## 为什么选择 Noetrium？
 
-长时运行的 Agent 系统比普通脚本有更多失效方式：进程可能崩溃，外部 effect 可能处于不确定状态，环境会漂移，模型部署会变化，checkpoint 可能失配，不完整日志也可能被误当作有效证据。
+多数 Agent 框架主要解决“Agent 如何行动或协作”。Noetrium 关注的是研究执行能否保持可归因、可恢复、可复现并与 evidence 绑定。它可以位于 orchestration framework 的下层或侧面，而不是把自己包装成它们的替代品。
 
-平台把这些问题建模为显式系统，并使用 typed contract、稳定 ownership、持久 identity、带证据的 effect 与 fail-closed 恢复语义。
+### Noetrium 在生态中的位置
+
+| Project | 主要关注点 | Noetrium 补充的能力 |
+| --- | --- | --- |
+| [LangGraph](https://github.com/langchain-ai/langgraph) | 长时、有状态 Agent orchestration | 围绕执行补上研究 identity、evidence、recovery 与 governance |
+| [AutoGen](https://github.com/microsoft/autogen) | 多 Agent 应用 | 实验 protocol、reproducibility 与 release evidence |
+| [CrewAI](https://github.com/crewAIInc/crewAI) | Agent team 与 event flow | 科学 run identity、lineage 与 fail-closed recovery |
+| [OpenHands](https://github.com/All-Hands-AI/OpenHands) | AI 驱动的软件开发 | 跨 Agent、模型与环境的通用研究基础设施 |
+| **Noetrium** | 可复现 AI Agent 研究基础设施 | Research systems layer 本身 |
+
+Noetrium 刻意比 Agent workflow library 更宽：实验设计、模型/环境 identity、runtime effect、checkpoint、evidence 与 release authority 被视为同一个 research-systems 问题。
 
 <!-- readme-section:capabilities -->
 
@@ -71,22 +95,24 @@ Noetrium 是一个与具体项目解耦的平台，用于构建、运行、恢�
 
 ## 架构
 
-Composition、Execution 与 Observation 是彼此分离的 authority plane。
+最短的心智模型是一条保持 evidence 的研究流水线：
 
-```text
-system topology / contracts
-          │
-          ▼
-composition root ── freezes provider identities and bindings
-          │
-          ▼
-runtime execution ── uses only injected narrow ports
-          │
-          ▼
-observation plane ── logs, metrics, traces, diagnostics, evidence
+```mermaid
+flowchart LR
+    A["Research intent"] --> B["Define"]
+    B --> C["Bind"]
+    C --> D["Compile"]
+    D --> E["Run"]
+    E --> F["Recover"]
+    E --> G["Measure"]
+    F --> G
+    G --> H["Evidence"]
+    H --> I["Verify"]
 ```
 
-Runtime 不通过全局 service locator 发现 provider；Observability 也不是第二条命令总线。每份 durable state 只有一个 owner；外部 effect 在 reconciliation 证明之前保持 UNKNOWN。
+每个转换都必须保留 identity，或者产生能够解释 identity 为什么变化的 evidence。Composition、Execution 与 Observation 保持为彼此独立的 authority plane；runtime 只接收窄的 injected port，而不是通过全局查找发现 provider。
+
+每份 durable state 只有一个 owner；不确定的外部 effect 在 reconciliation 证明之前保持 `UNKNOWN`。
 
 `research_platform/governance/system_registry/catalog.json`
 
@@ -114,19 +140,16 @@ noetrium
 
 <!-- readme-section:quick-start -->
 
+<a id="quick-start"></a>
+
 ## 快速开始
 
-### 环境要求
+第一个示例是 deterministic 的，不需要 API key、模型 endpoint 或任何外部服务。
 
-- Python 3.11 或更高版本
-- Git
-- 容器工作流需要 Docker / Docker Compose
-- 只有明确要求的 Provider 才需要额外外部运行时
-
-### 开发安装
+### 1. Clone 并安装
 
 ```bash
-git clone git@github.com:SDFGAEV/noetrium.git
+git clone https://github.com/SDFGAEV/noetrium.git
 cd noetrium
 python -m venv .venv
 source .venv/bin/activate
@@ -135,15 +158,31 @@ python -m pip install --upgrade pip
 python -m pip install -e ".[test]"
 ```
 
-### 检查平台
+### 2. 编译第一个可复现实验计划
+
+```bash
+python examples/quickstart_experiment_plan.py
+```
+
+示例会冻结 scientific protocol，绑定显式 provider identity，编译 immutable plan，并验证其 digest。
+
+```text
+study=noetrium-quickstart
+variants=control,treatment
+repetitions=3
+protocol_digest=<sha256>
+plan_digest=<sha256>
+plan_consistent=true
+```
+
+### 3. 验证当前 checkout
 
 ```bash
 research-platform-architecture-gate
-research-platform-algorithm --help
-research-platform-concurrency --help
-research-platform-performance --help
-research-platform-manage --help
+python scripts/check_readme_i18n.py
 ```
+
+Python distribution metadata 名为 `noetrium`；当前 import namespace 仍为 `research_platform`，产品 identity 与 runtime contract 独立演进。
 
 <!-- readme-section:containers -->
 
@@ -189,6 +228,8 @@ docker compose -f deploy/compose.yaml -f deploy/compose.minecraft.yaml run --rm 
 `research_platform/` is the reusable package boundary; project-specific code stays downstream.
 
 <!-- readme-section:testing -->
+
+<a id="verification"></a>
 
 ## 测试与验证
 
@@ -246,6 +287,7 @@ python scripts/check_readme_i18n.py
 ### 关键参考文档
 
 - [Documentation index](docs/INDEX.md)
+- [Examples](examples/README.md)
 - [Platform architecture](docs/architecture/PLATFORM_ARCHITECTURE.md)
 - [Detailed system map](docs/architecture/VNEXT_DETAILED_SYSTEM_MAP.md)
 - [Architecture migration contract](docs/architecture/FINAL_ARCHITECTURE_MIGRATION_CONTRACT.md)

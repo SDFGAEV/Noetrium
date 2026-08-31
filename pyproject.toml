@@ -6,6 +6,8 @@ build-backend = "setuptools.build_meta"
 name = "noetrium"
 version = "0.43.1"
 description = "Reproducible Research Infrastructure for AI Agents"
+readme = "README.md"
+keywords = ["ai-agents", "agent-research", "research-infrastructure", "reproducibility", "experiment-management", "multi-agent-systems", "agent-evaluation", "ai-infrastructure", "evidence", "scientific-computing"]
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"]
 requires-python = ">=3.11"
@@ -13,6 +15,8 @@ requires-python = ">=3.11"
 [project.urls]
 Homepage = "https://github.com/SDFGAEV/noetrium"
 Repository = "https://github.com/SDFGAEV/noetrium"
+Documentation = "https://github.com/SDFGAEV/noetrium/tree/master/docs"
+Examples = "https://github.com/SDFGAEV/noetrium/tree/master/examples"
 Issues = "https://github.com/SDFGAEV/noetrium/issues"
 
 [project.optional-dependencies]
