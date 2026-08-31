@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from research_platform.platform.kernel import canonical_digest
+from research_platform.platform.kernel import canonical_digest, require_sha256
 
 from .contracts import (
     StudyAssignment,
@@ -44,8 +44,7 @@ class VariantBinding:
             )
         ):
             raise ValueError("variant binding identity is incomplete")
-        if len(self.intervention_digest) != 64:
-            raise ValueError("variant binding intervention_digest must be SHA-256")
+        require_sha256(self.intervention_digest, "variant binding intervention_digest")
         object.__setattr__(
             self,
             "binding_digest",
@@ -70,8 +69,7 @@ class VariantExecutionRequest:
     assignment: StudyAssignment
     binding: VariantBinding
     def __post_init__(self) -> None:
-        if len(self.plan_digest) != 64:
-            raise ValueError("variant execution request requires a plan digest")
+        require_sha256(self.plan_digest, "variant execution request plan_digest")
         if self.assignment not in self.unit.assignments:
             raise ValueError("variant execution request assignment is outside its unit")
         if self.assignment.variant_id != self.binding.variant.variant_id:

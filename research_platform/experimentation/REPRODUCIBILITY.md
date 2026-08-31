@@ -83,6 +83,8 @@ Identity is intentionally stratified. Scientific design, participant design, bin
 
 `BenchmarkTaskSet` separates immutable task content and split membership from `TaskGraph` dependency/retry semantics and `TrialBudget`. `MeasurementProtocol` is the paper-general raw-output schema with scalar, boolean, categorical, structured, sequence, distribution, matrix, text-judgement, and typed content-reference values. `MeasurementRecord` binds the exact scientific Measurement contract plus project/study/run/assignment/producer/intervention/revision and typed Artifact lineage.
 
+Digest-bearing research fields are strict canonical identities: material `*_digest` values are lowercase SHA-256 and are validated through the shared Platform kernel primitive rather than permissive non-empty strings or local validators. `BenchmarkTaskSet` split membership is also execution-significant: the declared `TaskSetSplit.task_ids` order is the exact task order used by the compiler when expanding assignments, so two differently ordered split cuts cannot collapse to the same execution projection.
+
 
 `MeasurementCut` can pin raw Measurement records, portable ROLE05 `DatasetVersion.content_sha256` identities, and COMPLETE Evidence manifests without importing physical dataset location into scientific identity. `AnalysisDefinition` separately freezes projector/version/implementation/configuration/filter/grouping/comparison semantics over an immutable cut; `AnalysisResult` binds that definition and input cut to derived output content. Changing analysis or storage placement therefore does not imply a rerun of raw trials.
 

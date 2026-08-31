@@ -4,10 +4,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 import math
 
-from research_platform.platform.kernel import canonical_digest
-
-
-_HEX = frozenset("0123456789abcdef")
+from research_platform.platform.kernel import canonical_digest, require_sha256
 
 
 def _require_non_empty_string(value: object, field: str) -> str:
@@ -58,10 +55,9 @@ def _require_string_tuple(
 
 
 def _require_sha256(value: object, field: str) -> str:
-    text = _require_non_empty_string(value, field)
-    if len(text) != 64 or any(character not in _HEX for character in text.lower()):
-        raise ValueError(f"{field} must be SHA-256")
-    return text
+    if type(value) is not str:
+        raise TypeError(f"{field} must be a string")
+    return require_sha256(value, field)
 
 
 class VariantKind(StrEnum):
@@ -85,9 +81,7 @@ class StudyVariantSpec:
         if not isinstance(self.kind, VariantKind):
             raise TypeError("study variant kind must be VariantKind")
         _require_non_empty_string(self.implementation_id, "study variant implementation_id")
-        _require_non_empty_string(
-            self.configuration_digest, "study variant configuration_digest"
-        )
+        _require_sha256(self.configuration_digest, "study variant configuration_digest")
         _require_non_empty_string(self.budget_tier, "study variant budget_tier")
         _require_string_tuple(
             self.ablates, "study variant ablates", non_empty=False, unique=True
@@ -183,16 +177,12 @@ class StudyProtocol:
         _require_non_empty_string(self.workload_id, "study protocol workload_id")
         variants = _require_variants(self.variants)
         _require_positive_int(self.repetitions, "study protocol repetitions")
-        _require_non_empty_string(
-            self.seed_schedule_digest, "study protocol seed_schedule_digest"
-        )
+        _require_sha256(self.seed_schedule_digest, "study protocol seed_schedule_digest")
         metric_names = _require_string_tuple(
             self.metric_names, "study protocol metric_names", non_empty=False, unique=True
         )
         del metric_names
-        _require_non_empty_string(
-            self.task_manifest_digest, "study protocol task_manifest_digest"
-        )
+        _require_sha256(self.task_manifest_digest, "study protocol task_manifest_digest")
         budget_tiers = _require_string_tuple(
             self.budget_tiers, "study protocol budget_tiers", non_empty=True, unique=True
         )

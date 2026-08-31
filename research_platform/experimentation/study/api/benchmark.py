@@ -218,8 +218,8 @@ class BenchmarkTaskSet:
         matches = tuple(row for row in self.splits if row.split_id == split_id)
         if len(matches) != 1:
             raise KeyError(f"benchmark has no unique split {split_id!r}")
-        selected = set(matches[0].task_ids)
-        return tuple(row for row in self.tasks if row.task_id in selected)
+        by_id = {row.task_id: row for row in self.tasks}
+        return tuple(by_id[task_id] for task_id in matches[0].task_ids)
 
 
 __all__ = [

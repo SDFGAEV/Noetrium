@@ -17,7 +17,7 @@ from research_platform.experimentation.experiment.api import (
 from research_platform.experimentation.study.api import (
     BenchmarkTaskSet, FactorLevelSpec, MeasurementDefinition,
     MeasurementProtocol, MeasurementValueKind, ResearchRevision,
-    ResearchStudyDefinition, StudyFactorSpec, TaskDefinition, TrialBudget,
+    ResearchStudyDefinition, StudyFactorSpec, TaskDefinition, TaskSetSplit, TrialBudget,
 )
 from research_platform.participant.core.api.contracts import (
     ParticipantImplementationIdentity, ParticipantSessionRuntimeIdentity,
@@ -154,7 +154,7 @@ def _compile(definition: ResearchStudyDefinition, *, provider_id: str = "provide
         resolution.resolution_digest,
         provider_id,
         participants,
-        "model-stack-v1",
+        "e" * 64,
         "prompt-v1",
         resolution.capability_requirement_ids,
         resolution.method_requirements,
@@ -236,7 +236,7 @@ def test_requirement_resolution_and_binding_drift_fail_closed() -> None:
     )
     binding = ResearchBindingContribution(
         resolution.resolution_digest, "provider-v1", participants,
-        "model-stack-v1", "prompt-v1",
+        "e" * 64, "prompt-v1",
         resolution.capability_requirement_ids,
         resolution.method_requirements,
         resolution.configuration_ref_ids,
@@ -259,3 +259,16 @@ def test_compiler_is_deterministic_for_identical_author_definition_and_binding()
     assert left.research_plan_digest == right.research_plan_digest
     assert left.experiment_plan.plan_digest == right.experiment_plan.plan_digest
     assert left.research_semantics == right.research_semantics
+
+
+def test_benchmark_split_order_is_execution_order_and_changes_assignment_projection() -> None:
+    tasks = (
+        TaskDefinition("task-a", "1", "generic", "task.v1", "1" * 64),
+        TaskDefinition("task-b", "1", "generic", "task.v1", "2" * 64),
+    )
+    forward = BenchmarkTaskSet("benchmark", "1", "3" * 64, "task.v1", tasks, splits=(TaskSetSplit("train", ("task-a", "task-b")),))
+    reverse = BenchmarkTaskSet("benchmark", "1", "3" * 64, "task.v1", tasks, splits=(TaskSetSplit("train", ("task-b", "task-a")),))
+    left = _compile(replace(_definition(benchmark=forward), benchmark_split_id="train"))
+    right = _compile(replace(_definition(benchmark=reverse), benchmark_split_id="train"))
+    assert [row.task_id for row in left.experiment_plan.assignments[:2]] != [row.task_id for row in right.experiment_plan.assignments[:2]]
+    assert left.experiment_plan.assignment_digest != right.experiment_plan.assignment_digest

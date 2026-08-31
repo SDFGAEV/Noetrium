@@ -28,7 +28,7 @@ class _OfflineTrialProtocol:
 def _spec() -> ExperimentSpec:
     return ExperimentSpec(
         "experiment-1", "study-1", "project-1", (),
-        "model", "prompt", "workload", "seed", 1,
+        "1" * 64, "prompt", "2" * 64, "3" * 64, 1,
         "offline-score.v1", "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
     )
 

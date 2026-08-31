@@ -60,6 +60,8 @@ class ExperimentSpec:
             raise ValueError("study_id must be non-empty")
         if not self.project_id.strip():
             raise ValueError("project_id must be non-empty")
+        for name, value in (("model_stack_digest", self.model_stack_digest), ("workload_digest", self.workload_digest), ("seed_digest", self.seed_digest)):
+            require_sha256(value, name)
         if self.repetitions <= 0:
             raise ValueError("repetitions must be positive")
         if not self.trial_protocol_id.strip():

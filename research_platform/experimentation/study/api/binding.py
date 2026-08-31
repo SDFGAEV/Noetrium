@@ -5,9 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from research_platform.experimentation.experiment.api import ExperimentParticipantSpec
-from research_platform.platform.kernel import canonical_digest
-
-_HEX = frozenset("0123456789abcdef")
+from research_platform.platform.kernel import canonical_digest, require_sha256
 
 
 def _text(value: object, field_name: str) -> str:
@@ -17,11 +15,9 @@ def _text(value: object, field_name: str) -> str:
 
 
 def _sha(value: object, field_name: str) -> str:
-    text = _text(value, field_name)
-    if len(text) != 64 or any(ch not in _HEX for ch in text):
-        raise ValueError(f"{field_name} must be lowercase SHA-256")
-    return text
-
+    if type(value) is not str:
+        raise TypeError(f"{field_name} must be a string")
+    return require_sha256(value, field_name)
 
 def _unique_strings(value: object, field_name: str) -> tuple[str, ...]:
     if type(value) is not tuple:
@@ -139,7 +135,7 @@ class ResearchBindingContribution:
     def __post_init__(self) -> None:
         _sha(self.requirement_resolution_digest, "binding contribution resolution digest")
         _text(self.provider_id, "binding contribution provider_id")
-        _text(self.model_stack_digest, "binding contribution model_stack_digest")
+        _sha(self.model_stack_digest, "binding contribution model_stack_digest")
         _text(self.prompt_generation, "binding contribution prompt_generation")
         if type(self.participants) is not tuple or any(
             type(row) is not ExperimentParticipantSpec for row in self.participants

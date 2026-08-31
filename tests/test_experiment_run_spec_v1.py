@@ -32,12 +32,12 @@ class ExperimentRunSpecTests(unittest.TestCase):
             experiment_id="experiment-1",
             study_id="study-1",
             execution_profile="baseline",
-            task_manifest_digest="tasks",
-            seed_schedule_digest="seeds",
+            task_manifest_digest="1" * 64,
+            seed_schedule_digest="2" * 64,
             repetitions=2,
             artifact_root="runs/project-1/run-1",
-            environment_identity_digest="environment",
-            model_binding_digest="model-binding",
+            environment_identity_digest="3" * 64,
+            model_binding_digest="4" * 64,
             prompt_generation="prompt-v1",
         )
 
@@ -49,8 +49,8 @@ class ExperimentRunSpecTests(unittest.TestCase):
         seed = "e" * 64
         tasks = "f" * 64
         experiment = ExperimentSpec(
-            "experiment-1", "study-1", "project-1", (), "model", "prompt",
-            "workload", seed, 2, "workflow.v1", "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "experiment-1", "study-1", "project-1", (), "a" * 64, "prompt",
+            "b" * 64, seed, 2, "workflow.v1", "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
         )
         study = StudyProtocol(
             "study-1", "workload-1",
@@ -59,7 +59,7 @@ class ExperimentRunSpecTests(unittest.TestCase):
         )
         run = ExperimentRunSpec(
             "run-1", "project-1", "experiment-1", "study-1", "baseline",
-            tasks, seed, 2, "runs/run-1", "environment",
+            tasks, seed, 2, "runs/run-1", "7" * 64,
         )
         identity = RunIdentity("run-1", "session-1", "trace-1")
         project_manifest = _ProjectManifest(_ProjectIdentity("project-1"), "9" * 64, ("study-1",))
@@ -126,8 +126,8 @@ class ExperimentRunSpecTests(unittest.TestCase):
                 experiment_id="experiment-1",
                 study_id="study-1",
                 execution_profile="baseline",
-                task_manifest_digest="tasks",
-                seed_schedule_digest="seeds",
+                task_manifest_digest="1" * 64,
+                seed_schedule_digest="2" * 64,
                 repetitions=1,
                 artifact_root="runs/project-1/run-1",
                 environment_identity_digest="",

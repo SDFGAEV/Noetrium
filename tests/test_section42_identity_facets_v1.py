@@ -38,12 +38,12 @@ def _run(artifact_root: str) -> ExperimentRunSpec:
         experiment_id="experiment-1",
         study_id="study-1",
         execution_profile="standard",
-        task_manifest_digest="tasks-v1",
-        seed_schedule_digest="seeds-v1",
+        task_manifest_digest="1" * 64,
+        seed_schedule_digest="2" * 64,
         repetitions=2,
         artifact_root=artifact_root,
-        environment_identity_digest="env-v1",
-        model_binding_digest="model-v1",
+        environment_identity_digest="3" * 64,
+        model_binding_digest="4" * 64,
         prompt_generation="prompt-v1",
     )
 

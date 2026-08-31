@@ -116,7 +116,7 @@ def _plan(protocol_identity, participants, revision):
         resolution.resolution_digest,
         "provider-v1",
         participants,
-        "model-none",
+        "e" * 64,
         "prompt-none",
         resolution.capability_requirement_ids,
         resolution.method_requirements,

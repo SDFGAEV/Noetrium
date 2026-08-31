@@ -105,3 +105,12 @@ def test_variant_execution_receipt_validates_provider_output_immediately() -> No
         VariantExecutionReceipt(assignment, [("score", 1.0)])
     with pytest.raises(ValueError, match="unique metrics"):
         VariantExecutionReceipt(assignment, (("score", 1.0), ("score", 2.0)))
+
+
+def test_study_digest_fields_require_canonical_sha256() -> None:
+    with pytest.raises(ValueError):
+        StudyVariantSpec("control", VariantKind.CONTROL, "fixed", "bogus")
+    with pytest.raises(ValueError):
+        StudyProtocol("study", "workload", (StudyVariantSpec("control", VariantKind.CONTROL, "fixed", "a" * 64),), 1, "bogus", (), "b" * 64)
+    with pytest.raises(ValueError):
+        StudyProtocol("study", "workload", (StudyVariantSpec("control", VariantKind.CONTROL, "fixed", "a" * 64),), 1, "b" * 64, (), "bogus")
