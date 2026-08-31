@@ -581,55 +581,80 @@ def test_role03_historical_and_npe_architecture_allowances_are_preserved() -> No
     assert current.import_projection_sha256=="e69dbebfd7126e1c55c3c42c79073428f86ba547febc20630e0497a763aed87c"
 
 
-def test_semantic_boundary_inventory_distinguishes_generic_shells_from_domain_authority() -> None:
+
+def _semantic_boundary_fixture(tmp_path: Path) -> Path:
+    catalog = {
+        "demo": {
+            "package_prefix": "research_platform.demo",
+            "requires": [], "provides": ["demo.aggregate"], "components": [],
+        },
+        "demo/declarative": {
+            "package_prefix": "research_platform.demo.declarative",
+            "requires": [], "provides": ["demo.read"], "components": [],
+        },
+        "demo/generic": {
+            "package_prefix": "research_platform.demo.generic",
+            "requires": [], "provides": [], "components": [],
+        },
+        "demo/implemented": {
+            "package_prefix": "research_platform.demo.implemented",
+            "requires": [], "provides": [], "components": [],
+        },
+    }
+    catalog_path = tmp_path / "research_platform/governance/system_registry/catalog.json"
+    catalog_path.parent.mkdir(parents=True, exist_ok=True)
+    catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
+    generic = tmp_path / "research_platform/demo/generic/runtime/owner.py"
+    generic.parent.mkdir(parents=True, exist_ok=True)
+    generic.write_text(
+        "from research_platform.platform.kernel.leaf_contract import BoundSystemLeafRuntime, FileLeafStateStore\n"
+        "def runtime(handler, state_path=None) -> BoundSystemLeafRuntime:\n    return handler(state_path)\n",
+        encoding="utf-8",
+    )
+    declarative = tmp_path / "research_platform/demo/declarative/api/boundary.py"
+    declarative.parent.mkdir(parents=True, exist_ok=True)
+    declarative.write_text("# declarative catalog facet only\n", encoding="utf-8")
+    implemented = tmp_path / "research_platform/demo/implemented/providers/sqlite.py"
+    implemented.parent.mkdir(parents=True, exist_ok=True)
+    implemented.write_text("class SQLiteDemoStore:\n    pass\n", encoding="utf-8")
+    return tmp_path
+
+
+def test_semantic_boundary_inventory_distinguishes_synthetic_shells_from_domain_authority(tmp_path: Path) -> None:
     from research_platform.governance.architecture import classify_semantic_boundaries
     from research_platform.governance.architecture.api import SemanticBoundaryClassification
 
-    root = Path(__file__).resolve().parents[1]
-    rows = {row.node: row for row in classify_semantic_boundaries(root)}
-    assert rows["scientific"].classification is SemanticBoundaryClassification.DECLARATIVE_ONLY
-    for node in (
-        "scientific/implementation", "scientific/measurement", "scientific/method",
-        "scientific/prompt", "scientific/protocol",
-    ):
-        assert rows[node].classification is SemanticBoundaryClassification.DELETE_CANDIDATE
-        assert rows[node].generic_leaf_runtime
-        assert rows[node].generic_state_capable
-        assert rows[node].semantic_source_files == ()
-    operation = rows["execution/operation"]
-    assert operation.classification is SemanticBoundaryClassification.IMPLEMENTED_SEMANTIC_BOUNDARY
-    assert "providers/sqlite.py" in operation.semantic_source_files
+    rows = {row.node: row for row in classify_semantic_boundaries(_semantic_boundary_fixture(tmp_path))}
+    assert rows["demo"].classification is SemanticBoundaryClassification.DECLARATIVE_ONLY
+    assert rows["demo/declarative"].classification is SemanticBoundaryClassification.DECLARATIVE_ONLY
+    generic = rows["demo/generic"]
+    assert generic.classification is SemanticBoundaryClassification.DELETE_CANDIDATE
+    assert generic.generic_leaf_runtime and generic.generic_state_capable
+    assert generic.semantic_source_files == ()
+    implemented = rows["demo/implemented"]
+    assert implemented.classification is SemanticBoundaryClassification.IMPLEMENTED_SEMANTIC_BOUNDARY
+    assert implemented.semantic_source_files == ("providers/sqlite.py",)
 
 
-def test_semantic_boundary_inventory_does_not_promote_declarative_aggregators() -> None:
-    from research_platform.governance.architecture import classify_semantic_boundaries
-    from research_platform.governance.architecture.api import SemanticBoundaryClassification
-
-    root = Path(__file__).resolve().parents[1]
-    rows = {row.node: row for row in classify_semantic_boundaries(root)}
-    assert rows["experimentation/run/control"].classification is SemanticBoundaryClassification.DECLARATIVE_ONLY
-    assert rows["experimentation/run/control"].provides == ("run.control",)
-
-
-def test_generic_leaf_shell_cannot_claim_implemented_semantic_boundary() -> None:
+def test_generic_leaf_shell_cannot_claim_implemented_semantic_boundary(tmp_path: Path) -> None:
     from research_platform.governance.architecture import classify_semantic_boundary
     from research_platform.governance.architecture.api import (
         SemanticBoundaryClaim, SemanticBoundaryClaimError, validate_semantic_boundary_claim,
     )
 
-    evidence = classify_semantic_boundary(Path(__file__).resolve().parents[1], "scientific/measurement")
+    evidence = classify_semantic_boundary(_semantic_boundary_fixture(tmp_path), "demo/generic")
     with pytest.raises(SemanticBoundaryClaimError, match="cannot claim implemented"):
         validate_semantic_boundary_claim(evidence, SemanticBoundaryClaim(evidence.node, implemented=True))
 
 
-def test_generic_leaf_state_cannot_be_claimed_as_domain_durable_authority() -> None:
+def test_generic_leaf_state_cannot_be_claimed_as_domain_durable_authority(tmp_path: Path) -> None:
     from research_platform.governance.architecture import classify_semantic_boundary
     from research_platform.governance.architecture.api import (
         SemanticBoundaryClaim, SemanticBoundaryClaimError, SemanticStateAuthorityKind,
         validate_semantic_boundary_claim,
     )
 
-    evidence = classify_semantic_boundary(Path(__file__).resolve().parents[1], "execution/operation")
+    evidence = classify_semantic_boundary(_semantic_boundary_fixture(tmp_path), "demo/implemented")
     with pytest.raises(SemanticBoundaryClaimError, match="generic leaf state"):
         validate_semantic_boundary_claim(
             evidence,
@@ -640,13 +665,13 @@ def test_generic_leaf_state_cannot_be_claimed_as_domain_durable_authority() -> N
         )
 
 
-def test_typed_domain_authority_claim_is_accepted_for_real_boundary() -> None:
+def test_typed_domain_authority_claim_is_accepted_for_real_boundary(tmp_path: Path) -> None:
     from research_platform.governance.architecture import classify_semantic_boundary
     from research_platform.governance.architecture.api import (
         SemanticBoundaryClaim, SemanticStateAuthorityKind, validate_semantic_boundary_claim,
     )
 
-    evidence = classify_semantic_boundary(Path(__file__).resolve().parents[1], "execution/operation")
+    evidence = classify_semantic_boundary(_semantic_boundary_fixture(tmp_path), "demo/implemented")
     validate_semantic_boundary_claim(
         evidence,
         SemanticBoundaryClaim(
@@ -656,10 +681,10 @@ def test_typed_domain_authority_claim_is_accepted_for_real_boundary() -> None:
     )
 
 
-def test_semantic_boundary_inventory_is_deterministic_and_digest_bound() -> None:
+def test_semantic_boundary_inventory_is_deterministic_and_digest_bound(tmp_path: Path) -> None:
     from research_platform.governance.architecture import classify_semantic_boundaries
 
-    root = Path(__file__).resolve().parents[1]
+    root = _semantic_boundary_fixture(tmp_path)
     first = classify_semantic_boundaries(root)
     second = classify_semantic_boundaries(root)
     assert tuple(row.node for row in first) == tuple(row.node for row in second)

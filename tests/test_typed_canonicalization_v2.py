@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import Enum, IntEnum, StrEnum
 from pathlib import Path
 
 import pytest
@@ -121,10 +121,10 @@ def test_sha256_digest_requires_canonical_lowercase_text() -> None:
             require_sha256(invalid, "content_sha256")
 
 
-def test_kernel_canonical_bytes_match_existing_artifact_and_data_overlap() -> None:
-    from research_platform.artifact._canonical import canonical_bytes as artifact_bytes
-    from research_platform.data._canonical import canonical_bytes as data_bytes
-    from research_platform.platform.kernel import canonical_bytes
+def test_strict_finite_json_bytes_and_digest_match_existing_artifact_and_data_overlap() -> None:
+    from research_platform.artifact._canonical import canonical_bytes as artifact_bytes, canonical_digest as artifact_digest
+    from research_platform.data._canonical import canonical_bytes as data_bytes, canonical_digest as data_digest
+    from research_platform.platform.kernel import strict_finite_json_bytes, strict_finite_json_digest
 
     values = (
         None,
@@ -136,9 +136,58 @@ def test_kernel_canonical_bytes_match_existing_artifact_and_data_overlap() -> No
         ("tuple", {"x": 1}),
     )
     for value in values:
-        expected = canonical_bytes(value)
+        expected = strict_finite_json_bytes(value)
+        digest = strict_finite_json_digest(value)
         assert artifact_bytes(value) == expected
         assert data_bytes(value) == expected
+        assert artifact_digest(value) == digest
+        assert data_digest(value) == digest
+
+
+def test_strict_finite_json_encoder_rejects_wider_canonical_domain() -> None:
+    from research_platform.platform.kernel import (
+        CanonicalEncodingError, strict_finite_json_bytes, strict_finite_json_digest,
+    )
+
+    class StringKind(StrEnum):
+        A = "a"
+
+    class NumberKind(IntEnum):
+        A = 1
+
+    invalid = (
+        b"bytes", Path("root/child"), {1, 2}, frozenset({1}), Payload("x"),
+        Kind.A, StringKind.A, NumberKind.A, {1: "x"}, float("nan"), float("inf"),
+    )
+    for encoder in (strict_finite_json_bytes, strict_finite_json_digest):
+        for value in invalid:
+            with pytest.raises(CanonicalEncodingError):
+                encoder(value)
+
+        cycle: list[object] = []
+        cycle.append(cycle)
+        with pytest.raises(CanonicalEncodingError, match="cyclic"):
+            encoder(cycle)
+
+        deep: object = "leaf"
+        for _ in range(8):
+            deep = [deep]
+        with pytest.raises(CanonicalEncodingError, match="maximum depth"):
+            encoder(deep, max_depth=4)
+
+
+def test_freeze_json_rejects_enum_subclasses_even_when_they_are_json_scalars() -> None:
+    from research_platform.platform.kernel import CanonicalEncodingError, freeze_json
+
+    class StringKind(StrEnum):
+        A = "a"
+
+    class NumberKind(IntEnum):
+        A = 1
+
+    for value in (Kind.A, StringKind.A, NumberKind.A):
+        with pytest.raises(CanonicalEncodingError, match="Enum"):
+            freeze_json(value)  # type: ignore[arg-type]
 
 def test_strict_json_decode_rejects_values_outside_canonical_domain() -> None:
     from research_platform.platform.kernel import CanonicalDecodingError, strict_json_loads

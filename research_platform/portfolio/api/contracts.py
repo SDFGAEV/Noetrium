@@ -10,9 +10,9 @@ from research_platform.platform.kernel import (
     CanonicalEncodingError,
     JsonDocument,
     JsonInput,
-    canonical_bytes,
-    canonical_digest,
     require_sha256,
+    strict_finite_json_bytes,
+    strict_finite_json_digest,
     strict_json_loads,
 )
 from research_platform.scope.api import ScopeIdentity, ScopeKind
@@ -269,7 +269,7 @@ class ProjectManifest:
 
     @property
     def semantic_digest(self) -> str:
-        return canonical_digest(_project_manifest_payload(self))
+        return strict_finite_json_digest(_project_manifest_payload(self))
 
 
 def _project_manifest_payload(manifest: ProjectManifest) -> dict[str, JsonInput]:
@@ -333,14 +333,14 @@ def project_manifest_document(manifest: ProjectManifest) -> JsonDocument:
     payload = _project_manifest_payload(manifest)
     return {
         "schema": PROJECT_MANIFEST_SCHEMA,
-        "semantic_digest": canonical_digest(payload),
+        "semantic_digest": strict_finite_json_digest(payload),
         **payload,
     }
 
 
 def encode_project_manifest(manifest: ProjectManifest) -> bytes:
     """Encode canonical finite JSON bytes including a semantic digest binding."""
-    return canonical_bytes(project_manifest_document(manifest))
+    return strict_finite_json_bytes(project_manifest_document(manifest))
 
 
 def decode_project_manifest_bytes(raw: bytes) -> ProjectManifest:
@@ -355,7 +355,7 @@ def decode_project_manifest_bytes(raw: bytes) -> ProjectManifest:
         raise ProjectManifestDecodeError("project manifest root must be an object")
     document = cast(JsonDocument, value)
     try:
-        if raw != canonical_bytes(document):
+        if raw != strict_finite_json_bytes(document):
             raise ProjectManifestDecodeError("project manifest bytes are not canonical JSON")
     except CanonicalEncodingError as exc:
         raise ProjectManifestDecodeError(str(exc)) from exc
@@ -400,7 +400,7 @@ def _exact_fields(value: dict[str, JsonInput], expected: frozenset[str], field: 
 def _decode_project_manifest_document(document: JsonDocument) -> ProjectManifest:
     """Decode an already parsed manifest while preserving finite/canonical semantics."""
     try:
-        canonical_bytes(document)
+        strict_finite_json_bytes(document)
     except CanonicalEncodingError as exc:
         raise ProjectManifestDecodeError(str(exc)) from exc
     if not isinstance(document, dict):

@@ -133,7 +133,7 @@ def strict_json_loads(raw: str | bytes) -> JsonMutableValue:
     except (json.JSONDecodeError, UnicodeDecodeError, RecursionError) as exc:
         raise CanonicalDecodingError("canonical JSON cannot be decoded") from exc
     try:
-        canonical_bytes(value)
+        strict_finite_json_bytes(value)
     except (CanonicalEncodingError, UnicodeEncodeError) as exc:
         raise CanonicalDecodingError(str(exc)) from exc
     return value
@@ -194,6 +194,8 @@ class Sha256Digest:
 def _freeze_json(value: JsonInput, *, active: set[int], depth: int, max_depth: int) -> JsonValue:
     if depth > max_depth:
         raise CanonicalEncodingError(f"frozen JSON exceeds maximum depth {max_depth}")
+    if isinstance(value, Enum):
+        raise CanonicalEncodingError("strict finite JSON forbids Enum values")
     if value is None or isinstance(value, (str, int, bool)):
         return value
     if isinstance(value, float):
@@ -236,8 +238,30 @@ def thaw_json(value: JsonValue) -> JsonMutableValue:
     return value
 
 
+def strict_finite_json_bytes(value: object, *, max_depth: int = _DEFAULT_MAX_DEPTH) -> bytes:
+    """Encode only the narrow finite JSON domain used at scientific/public seams."""
+    frozen = freeze_json(cast(JsonInput, value), max_depth=max_depth)
+    mutable = thaw_json(frozen)
+    return json.dumps(
+        mutable,
+        sort_keys=True,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+def strict_finite_json_text(value: object, *, max_depth: int = _DEFAULT_MAX_DEPTH) -> str:
+    return strict_finite_json_bytes(value, max_depth=max_depth).decode("utf-8")
+
+
+def strict_finite_json_digest(value: object, *, max_depth: int = _DEFAULT_MAX_DEPTH) -> str:
+    return hashlib.sha256(strict_finite_json_bytes(value, max_depth=max_depth)).hexdigest()
+
+
 __all__ = [
     "CanonicalDecodingError", "CanonicalEncodingError", "DigestValidationError",
     "Sha256Digest", "canonical_bytes", "canonical_digest", "canonical_text",
-    "freeze_json", "require_sha256", "strict_json_loads", "thaw_json",
+    "freeze_json", "require_sha256", "strict_finite_json_bytes",
+    "strict_finite_json_digest", "strict_finite_json_text", "strict_json_loads", "thaw_json",
 ]
