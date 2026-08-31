@@ -80,7 +80,8 @@ class PromptOSV10Tests(unittest.TestCase):
         with self.assertRaises(TypeError): list.append(spec.schema["required"],"bypassed")
         recursive={}
         recursive["self"]=recursive
-        with self.assertRaisesRegex(ValueError,"recursive"):
+        from research_platform.platform.kernel import CanonicalEncodingError
+        with self.assertRaisesRegex(CanonicalEncodingError,"cyclic"):
             OutputSchemaSpec("recursive","1",recursive)
 
     def test_encoded_generation_payload_cannot_drift_from_payload_hash(self):

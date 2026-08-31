@@ -4,8 +4,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Mapping
 
-from research_platform.platform.kernel import canonical_digest
-from research_platform.participant._immutable_json import freeze_json_input_object
+from research_platform.platform.kernel import canonical_digest, freeze_json
 
 from ..api.coordination_checkpoint import (
     AgentConversationCheckpoint,
@@ -58,7 +57,7 @@ class ConversationMessage:
         ):
             raise TypeError("conversation metadata must be a string mapping")
         object.__setattr__(
-            self, "metadata", freeze_json_input_object(self.metadata, field="conversation metadata")
+            self, "metadata", freeze_json(self.metadata)
         )
 
 

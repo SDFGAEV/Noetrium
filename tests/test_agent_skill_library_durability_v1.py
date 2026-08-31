@@ -64,7 +64,8 @@ def test_skill_restore_rejects_capacity_mismatch_without_mutation() -> None:
 
 
 def test_skill_record_rejects_non_finite_recipe_values_before_checkpoint() -> None:
-    with pytest.raises(ValueError, match="non-finite"):
+    from research_platform.platform.kernel import CanonicalEncodingError
+    with pytest.raises(CanonicalEncodingError, match="non-finite"):
         AgentSkillRecord(
             skill_id="skill.bad",
             version="1",

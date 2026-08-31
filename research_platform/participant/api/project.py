@@ -11,7 +11,7 @@ from research_platform.participant.core.api.contracts import (
     ParticipantRuntimeBinding,
     ParticipantSessionRuntimeIdentity,
 )
-from research_platform.platform.kernel import canonical_digest
+from research_platform.platform.kernel import canonical_digest, require_sha256
 
 
 def _text(value: object, field_name: str) -> str:
@@ -25,11 +25,7 @@ def _optional_sha256(value: object, field_name: str) -> str | None:
         return None
     if not isinstance(value, str):
         raise TypeError(f"{field_name} must be text or None")
-    if (
-        len(value) != 64 or any(char not in "0123456789abcdef" for char in value)
-    ):
-        raise ValueError(f"{field_name} must be a lowercase SHA-256 digest when provided")
-    return value
+    return require_sha256(value, field_name)
 
 
 def _tokens(values: object, field_name: str) -> tuple[str, ...]:
@@ -156,10 +152,7 @@ class ParticipantRequirementContribution:
     requirement: ParticipantRequirement
 
     def __post_init__(self) -> None:
-        if len(self.author_definition_digest) != 64 or any(
-            char not in "0123456789abcdef" for char in self.author_definition_digest
-        ):
-            raise ValueError("participant contribution author digest must be lowercase SHA-256")
+        require_sha256(self.author_definition_digest, "participant contribution author_definition_digest")
         if not isinstance(self.requirement, ParticipantRequirement):
             raise TypeError("participant contribution requirement must be typed")
 
@@ -201,15 +194,9 @@ class ProjectParticipantBinding:
     binding: ParticipantRuntimeBinding
 
     def __post_init__(self) -> None:
-        if len(self.requirement_digest) != 64 or any(
-            char not in "0123456789abcdef" for char in self.requirement_digest
-        ):
-            raise ValueError("project participant requirement_digest must be lowercase SHA-256")
+        require_sha256(self.requirement_digest, "project participant requirement_digest")
         _text(self.provider_id, "project participant provider_id")
-        if len(self.provider_profile_digest) != 64 or any(
-            char not in "0123456789abcdef" for char in self.provider_profile_digest
-        ):
-            raise ValueError("project participant provider_profile_digest must be lowercase SHA-256")
+        require_sha256(self.provider_profile_digest, "project participant provider_profile_digest")
         if not isinstance(self.binding, ParticipantRuntimeBinding):
             raise TypeError("project participant binding must carry ParticipantRuntimeBinding")
 
@@ -260,10 +247,7 @@ class ParticipantBindingDiagnostic:
         if not isinstance(self.severity, ParticipantBindingDiagnosticSeverity):
             raise TypeError("participant diagnostic severity must be typed")
         _text(self.message, "participant diagnostic message")
-        if len(self.requirement_digest) != 64 or any(
-            char not in "0123456789abcdef" for char in self.requirement_digest
-        ):
-            raise ValueError("participant diagnostic requirement_digest must be lowercase SHA-256")
+        require_sha256(self.requirement_digest, "participant diagnostic requirement_digest")
         _text(self.provider_id, "participant diagnostic provider_id")
         if not isinstance(self.evidence_refs, tuple) or any(
             not isinstance(ref, str) or not ref.strip() for ref in self.evidence_refs

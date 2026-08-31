@@ -5,12 +5,8 @@ from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
 from research_platform.participant.capability.api import CapabilityPort
-from research_platform.platform.kernel import ExecutionContext, JsonInput, JsonValue
-
-from research_platform.participant._immutable_json import (
-    freeze_json_input,
-    freeze_json_value,
-    freeze_json_value_object,
+from research_platform.platform.kernel import (
+    ExecutionContext, JsonInput, JsonValue, freeze_json, require_sha256,
 )
 
 
@@ -25,12 +21,8 @@ class AgentIdentity:
     def __post_init__(self) -> None:
         if any(not isinstance(value, str) or not value.strip() for value in (self.agent_id, self.implementation_version, self.abi_version, self.schema_version)):
             raise ValueError("agent identity fields must be non-empty text")
-        if self.artifact_digest is not None and (
-            not isinstance(self.artifact_digest, str)
-            or len(self.artifact_digest) != 64
-            or any(char not in "0123456789abcdef" for char in self.artifact_digest)
-        ):
-            raise ValueError("agent artifact_digest must be a lowercase SHA-256 digest when provided")
+        if self.artifact_digest is not None:
+            require_sha256(self.artifact_digest, "agent artifact_digest")
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,10 +44,10 @@ class AgentTurnRequest:
     def __post_init__(self) -> None:
         if not isinstance(self.context, ExecutionContext):
             raise TypeError("agent turn context must be an ExecutionContext")
-        object.__setattr__(self, "task", freeze_json_input(self.task, field="agent turn task"))
+        object.__setattr__(self, "task", freeze_json(self.task))
         if self.input_payload is not None:
             object.__setattr__(
-                self, "input_payload", freeze_json_input(self.input_payload, field="agent turn input_payload")
+                self, "input_payload", freeze_json(self.input_payload)
             )
 
 
@@ -67,7 +59,7 @@ class AgentTurnResult:
     diagnostics: Mapping[str, JsonValue] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "output", freeze_json_value(self.output, field="agent turn output"))
+        object.__setattr__(self, "output", freeze_json(self.output))
         if self.agent_generation is not None and (
             not isinstance(self.agent_generation, str) or not self.agent_generation.strip()
         ):
@@ -76,9 +68,9 @@ class AgentTurnResult:
             not isinstance(item, str) or not item.strip() for item in self.artifacts
         ):
             raise TypeError("agent turn artifacts must be a tuple of non-empty strings")
-        frozen_diagnostics = freeze_json_value_object(
-            self.diagnostics, field="agent turn diagnostics"
-        )
+        if not isinstance(self.diagnostics, Mapping):
+            raise TypeError("agent turn diagnostics must be a mapping")
+        frozen_diagnostics = freeze_json(self.diagnostics)
         object.__setattr__(self, "diagnostics", frozen_diagnostics)
 
 

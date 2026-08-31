@@ -57,3 +57,12 @@ explicitly within the existing SQLite transaction rather than issuing database
 calls from a loop. The fixed statement count is authority-schema work, not an
 input-sized algorithm, and avoiding `executescript` preserves the surrounding
 crash-atomic transaction semantics.
+
+## Shared strict JSON authority
+
+The durable Participant revision provider consumes Platform Kernel
+`strict_json_loads` and `strict_finite_json_bytes` directly. Participant owns
+its revision/transition field sets and compatibility rules, but not a second
+JSON duplicate-key, non-finite, Unicode/domain, or depth policy. Corrupt durable
+payloads therefore fail through the same typed canonical decode authority used
+by the rest of the converged Platform boundary before Participant reconstruction.

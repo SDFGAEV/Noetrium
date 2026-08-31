@@ -6,7 +6,7 @@ import math
 from typing import Protocol, runtime_checkable
 
 from research_platform.platform.kernel.context import ExecutionContext
-from research_platform.platform.kernel import JsonValue
+from research_platform.platform.kernel import JsonValue, require_sha256
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,12 +20,8 @@ class MethodIdentity:
     def __post_init__(self) -> None:
         if any(not isinstance(value, str) or not value.strip() for value in (self.method_id, self.implementation_version, self.abi_version, self.schema_version)):
             raise ValueError("method identity fields must be non-empty text")
-        if self.artifact_digest is not None and (
-            not isinstance(self.artifact_digest, str)
-            or len(self.artifact_digest) != 64
-            or any(char not in "0123456789abcdef" for char in self.artifact_digest)
-        ):
-            raise ValueError("method artifact_digest must be a lowercase SHA-256 digest when provided")
+        if self.artifact_digest is not None:
+            require_sha256(self.artifact_digest, "method artifact_digest")
 
 
 @dataclass(frozen=True, slots=True)

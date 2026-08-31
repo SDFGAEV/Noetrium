@@ -5,8 +5,7 @@ import math
 from typing import Callable, Mapping, Protocol
 
 from research_platform.model.request.api import ModelRequestEnvelope
-from research_platform.model.request._immutable_json import freeze_json_object
-from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity, JsonObject
+from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity, JsonObject, freeze_json
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,7 +55,9 @@ class PromptBoundRequest:
     prompt_digest: str
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "body", freeze_json_object(self.body, field="prompt-bound request body"))
+        if not isinstance(self.body, Mapping):
+            raise TypeError("prompt-bound request body must be a mapping")
+        object.__setattr__(self, "body", freeze_json(self.body))
 
 
 class PromptRequestBindingPort(Protocol):

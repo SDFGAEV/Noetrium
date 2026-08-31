@@ -27,6 +27,7 @@ from research_platform.participant.api import (
     TopologyChangeKind,
 )
 from research_platform.participant.providers import SQLiteParticipantRevisionAuthority
+from research_platform.platform.kernel import CanonicalDecodingError, CanonicalDecodingFailureKind
 
 
 def _proposal(predecessor_digest: str, proposal_id: str = "proposal-1") -> ParticipantRevisionProposal:
@@ -312,3 +313,28 @@ def test_corrupt_or_schema_drift_database_fails_closed(tmp_path: Path) -> None:
         connection.close()
     with pytest.raises(ParticipantRevisionIntegrityError, match="table set"):
         SQLiteParticipantRevisionAuthority(path)
+
+
+@pytest.mark.parametrize(
+    ("payload", "kind"),
+    (
+        (b'{"x":1,"x":2}', CanonicalDecodingFailureKind.DUPLICATE_KEY),
+        (b'{"x":NaN}', CanonicalDecodingFailureKind.NON_FINITE),
+        (b'\xef\xbb\xbf{"x":1}', CanonicalDecodingFailureKind.BOM),
+        (b'{"x":"\\ud800"}', CanonicalDecodingFailureKind.DOMAIN),
+        (b'{"x":' + b'[' * 130 + b'0' + b']' * 130 + b'}', CanonicalDecodingFailureKind.DOMAIN),
+    ),
+)
+def test_participant_revision_payload_uses_shared_strict_json_decoder(
+    tmp_path: Path, payload: bytes, kind: CanonicalDecodingFailureKind
+) -> None:
+    _, authority, initial = _authority(tmp_path)
+    connection = authority._connect()  # adversarial durable-payload corruption fixture
+    try:
+        connection.execute("UPDATE revisions SET payload=? WHERE digest=?", (payload, initial.digest()))
+    finally:
+        connection.close()
+    with pytest.raises(ParticipantRevisionIntegrityError) as caught:
+        authority.snapshot()
+    assert isinstance(caught.value.__cause__, CanonicalDecodingError)
+    assert caught.value.__cause__.kind is kind

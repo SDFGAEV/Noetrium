@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-import json
 from pathlib import Path
 import sqlite3
 from typing import Iterator
 
-from research_platform.platform.kernel import ImmutableModelIdentity, canonical_digest
+from research_platform.platform.kernel import (
+    CanonicalDecodingError, CanonicalEncodingError, ImmutableModelIdentity, canonical_digest,
+    strict_finite_json_bytes, strict_json_loads,
+)
 from research_platform.model.catalog.revision.api.contracts import (
     ModelPromotionDecision,
     ModelPromotionReceipt,
@@ -34,32 +36,24 @@ _TABLES = frozenset({"authority_meta", "revisions", "proposals", "prepared", "co
 JsonNode = str | int | None | list["JsonNode"] | tuple["JsonNode", ...] | dict[str, "JsonNode"]
 
 
-def _pairs(pairs: list[tuple[str, JsonNode]]) -> dict[str, JsonNode]:
-    result: dict[str, JsonNode] = {}
-    for key, value in pairs:
-        if key in result:
-            raise ModelRevisionIntegrityError("revision payload contains duplicate JSON keys")
-        result[key] = value
-    return result
-
 
 def _loads(raw: bytes, *, field: str) -> dict[str, JsonNode]:
     try:
-        value = json.loads(raw.decode("utf-8"), object_pairs_hook=_pairs)
-    except (UnicodeDecodeError, json.JSONDecodeError, ModelRevisionIntegrityError) as exc:
-        if isinstance(exc, ModelRevisionIntegrityError):
-            raise
-        raise ModelRevisionIntegrityError(f"{field} is not canonical JSON") from exc
+        value = strict_json_loads(raw)
+    except CanonicalDecodingError as exc:
+        raise ModelRevisionIntegrityError(f"{field} is not strict finite JSON") from exc
     if not isinstance(value, dict):
         raise ModelRevisionIntegrityError(f"{field} must decode to an object")
     return value
 
 
+
 def _bytes(value: dict[str, JsonNode]) -> bytes:
     try:
-        return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode("utf-8")
-    except (TypeError, ValueError) as exc:
-        raise ModelRevisionIntegrityError("revision payload cannot be canonically encoded") from exc
+        return strict_finite_json_bytes(value)
+    except (CanonicalEncodingError, UnicodeEncodeError) as exc:
+        raise ModelRevisionIntegrityError("revision payload cannot be encoded as strict finite JSON") from exc
+
 
 
 def _expect(raw: dict[str, JsonNode], fields: frozenset[str], *, field: str) -> None:

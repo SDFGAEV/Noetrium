@@ -4,8 +4,7 @@ from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from typing import Mapping
 
-from research_platform.platform.kernel import canonical_digest
-from research_platform.participant._immutable_json import freeze_json_input_object
+from research_platform.platform.kernel import canonical_digest, freeze_json
 
 from ..api.cognition import AgentGoal, JsonValue
 
@@ -36,7 +35,7 @@ class AgentSubgoal:
         if not isinstance(self.context, Mapping):
             raise TypeError("agent subgoal context must be a mapping")
         object.__setattr__(
-            self, "context", freeze_json_input_object(self.context, field="agent subgoal context")
+            self, "context", freeze_json(self.context)
         )
 
     def as_goal(self, *, max_steps: int = 32, max_seconds: float = 300.0) -> AgentGoal:

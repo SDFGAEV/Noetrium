@@ -14,8 +14,8 @@ lightweight Participant authority is introduced.
 
 Each definition can emit a `ParticipantRequirementContribution` containing the
 exact author-definition digest and the canonical typed requirement. The payload
-is deliberately ROLE04-typed; the cross-system neutral contribution envelope is
-a separate ROLE01 PSC-03 dependency.
+remains deliberately ROLE04-typed; cross-system compilation may wrap it, but
+cannot replace or reinterpret the producer-owned requirement identity.
 ## Model authoring
 
 The canonical Model path is:
@@ -50,14 +50,20 @@ Participant/Model requirements directly.
 
 `ParticipantRequirementContribution` and `ModelRequirementContribution` remain
 producer-typed ROLE04 payloads. ROLE04 does not define the cross-system compiler
-envelope and does not import ROLE03 compiler internals. When the ROLE01 PSC-03
-neutral contribution/diagnostic contract is available in the authorized
-integration dependency chain, composition can wrap these payloads without
-changing their domain identity.
+envelope and does not import ROLE03 compiler internals.
 
-The separate strict-finite-JSON convergence CSR is also still external to this
-slice. This Level-0 authoring contract neither copies that primitive nor weakens
-the existing Model/Participant canonicalization boundaries.
+When the accepted ROLE01 PSC-03 producer is present, ROLE04 composition adapters
+project successful `ProjectModelBinding` / `ProjectParticipantBinding` values and
+producer-owned binding diagnostics into the neutral typed `BindingResolution`
+envelope. Domain requirement types, diagnostic enums, provider qualification and
+binding authority remain ROLE04-owned. Owner and project subject identities are
+explicit composition inputs rather than ambient registry lookups.
+
+ROLE04 also consumes Platform Kernel `freeze_json`, `strict_json_loads`,
+`strict_finite_json_bytes`, and `require_sha256` instead of private
+Model/Participant JSON or digest acceptance helpers. Formal dependency integration
+into the authoritative branch remains a ROLE00/DAG decision rather than a
+worker-side merge.
 
 ## Artifact and configuration digest identity
 
@@ -67,4 +73,6 @@ labels such as `artifact-v1` or `config-v1` are rejected before a canonical
 `ParticipantRequirement` can be emitted. Absence is typed explicitly as `None`;
 an empty string is rejected and is never overloaded as a digest sentinel. The
 Agent/Method identity -> ParticipantRequirement projection preserves `None` or the
-exact lowercase SHA-256 value without inventing a replacement identity.
+exact lowercase SHA-256 value without inventing a replacement identity. In the
+ROLE01-integrated consumer cut, validation delegates to kernel `require_sha256` so
+ROLE04 does not own a second generic digest acceptance authority.

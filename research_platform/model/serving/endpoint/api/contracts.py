@@ -7,8 +7,7 @@ from typing import Mapping
 from urllib.parse import urlparse
 
 from research_platform.model.request.api import ModelRequestEnvelope
-from research_platform.model.request._immutable_json import freeze_json_object, freeze_json_value
-from research_platform.platform.kernel import canonical_digest, JsonInput, JsonValue
+from research_platform.platform.kernel import canonical_digest, freeze_json, JsonInput, JsonValue
 
 
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
@@ -38,7 +37,7 @@ class ModelEndpointRequest:
         if not isinstance(self.body, Mapping):
             raise TypeError("model endpoint request body must be a mapping")
         object.__setattr__(
-            self, "body", freeze_json_object(self.body, field="model endpoint request body")
+            self, "body", freeze_json(self.body)
         )
 
     def digest(self) -> str:
@@ -94,7 +93,7 @@ class JsonHttpResponse:
         if type(self.status_code) is not int or not 100 <= self.status_code <= 599:
             raise ValueError("HTTP status code is invalid")
         object.__setattr__(
-            self, "body", freeze_json_value(self.body, field="JSON HTTP response body")
+            self, "body", freeze_json(self.body)
         )
 
 

@@ -74,10 +74,13 @@ The SQLite schema is `model-revision-authority.sqlite.v2`. There is deliberately
 no v1 compatibility decoder: an old authority database fails schema validation
 rather than being reinterpreted under the stronger candidate-provenance contract.
 
-The generic JSON byte/decode mechanism in this provider is still scheduled for
-the separate ROLE01 strict-finite-JSON producer cutover. That convergence changes
-the shared serialization acceptance mechanism, not these Model-owned field-set,
-lineage, plan, build-receipt, CAS, promotion, or rollback semantics.
+The durable provider consumes ROLE01 Platform Kernel `strict_json_loads` and
+`strict_finite_json_bytes` directly. Model owns only its exact field sets,
+lineage, plan, build-receipt, CAS, promotion, and rollback semantics; it no
+longer owns a second duplicate-key/non-finite/depth JSON acceptance policy.
+Malformed BOM, duplicate-key, non-finite, Unicode/domain, and excessive-depth
+payloads fail through the shared typed canonical decode authority before Model
+domain reconstruction.
 
 ## Algorithm-governance constraints
 

@@ -109,14 +109,15 @@ def test_agent_turn_json_boundary_is_deeply_immutable():
 
 def test_agent_turn_json_boundary_rejects_non_json_authority_values():
     import pytest
+    from research_platform.platform.kernel import CanonicalEncodingError
     ctx = ExecutionContext("run", "trace", "span")
-    with pytest.raises(ValueError, match="non-finite"):
+    with pytest.raises(CanonicalEncodingError, match="non-finite"):
         AgentTurnRequest({"score": float("nan")}, ctx)
-    with pytest.raises(ValueError, match="non-finite"):
+    with pytest.raises(CanonicalEncodingError, match="non-finite"):
         AgentTurnResult({"score": float("inf")})
     recursive = {}
     recursive["self"] = recursive
-    with pytest.raises(ValueError, match="recursive"):
+    with pytest.raises(CanonicalEncodingError, match="cyclic"):
         AgentTurnRequest(recursive, ctx)
     with pytest.raises(TypeError, match="tuple of non-empty strings"):
         AgentTurnResult({"ok": True}, artifacts=["artifact:1"])

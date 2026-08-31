@@ -22,7 +22,9 @@ from research_platform.model.api import (
     PreparedModelRevision,
 )
 from research_platform.model.catalog.revision.providers import SQLiteModelRevisionAuthority
-from research_platform.platform.kernel import ImmutableModelIdentity
+from research_platform.platform.kernel import (
+    CanonicalDecodingError, CanonicalDecodingFailureKind, ImmutableModelIdentity,
+)
 
 
 def _model(revision: str) -> ImmutableModelIdentity:
@@ -344,3 +346,28 @@ def test_rollback_missing_parent_fails_closed(tmp_path: Path) -> None:
             promoted.active_revision_digest, initial.digest(), trigger,
             recovery_anchor_digest="1" * 64, expected_generation=4,
         )
+
+
+@pytest.mark.parametrize(
+    ("payload", "kind"),
+    (
+        (b'{"x":1,"x":2}', CanonicalDecodingFailureKind.DUPLICATE_KEY),
+        (b'{"x":NaN}', CanonicalDecodingFailureKind.NON_FINITE),
+        (b'\xef\xbb\xbf{"x":1}', CanonicalDecodingFailureKind.BOM),
+        (b'{"x":"\\ud800"}', CanonicalDecodingFailureKind.DOMAIN),
+        (b'{"x":' + b'[' * 130 + b'0' + b']' * 130 + b'}', CanonicalDecodingFailureKind.DOMAIN),
+    ),
+)
+def test_model_revision_payload_uses_shared_strict_json_decoder(
+    tmp_path: Path, payload: bytes, kind: CanonicalDecodingFailureKind
+) -> None:
+    _, authority, initial = _authority(tmp_path)
+    connection = authority._connect()  # adversarial durable-payload corruption fixture
+    try:
+        connection.execute("UPDATE revisions SET payload=? WHERE digest=?", (payload, initial.digest()))
+    finally:
+        connection.close()
+    with pytest.raises(ModelRevisionIntegrityError) as caught:
+        authority.snapshot()
+    assert isinstance(caught.value.__cause__, CanonicalDecodingError)
+    assert caught.value.__cause__.kind is kind

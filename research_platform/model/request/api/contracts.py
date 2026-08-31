@@ -5,9 +5,8 @@ from dataclasses import asdict, dataclass
 from typing import Protocol, runtime_checkable
 
 from research_platform.platform.kernel import (
-    ExecutionContext, ImmutableModelIdentity, JsonInput, JsonObject, JsonValue, canonical_digest,
+    ExecutionContext, ImmutableModelIdentity, JsonInput, JsonObject, JsonValue, canonical_digest, freeze_json,
 )
-from research_platform.model.request._immutable_json import freeze_json_object, freeze_json_value
 
 
 _MODEL_REQUEST_SCHEMAS = frozenset({"model-request.v1", "runtime-canary-request.v1"})
@@ -117,9 +116,11 @@ class ReconstructedModelRequest:
     tool_schema_bundle: JsonValue | None
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "request_body", freeze_json_object(self.request_body, field="reconstructed request body"))
+        if not isinstance(self.request_body, Mapping):
+            raise TypeError("reconstructed request body must be a mapping")
+        object.__setattr__(self, "request_body", freeze_json(self.request_body))
         if self.tool_schema_bundle is not None:
-            object.__setattr__(self, "tool_schema_bundle", freeze_json_value(self.tool_schema_bundle, field="reconstructed tool schema bundle"))
+            object.__setattr__(self, "tool_schema_bundle", freeze_json(self.tool_schema_bundle))
 
 
 @runtime_checkable

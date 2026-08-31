@@ -5,8 +5,7 @@ import hashlib
 from threading import RLock
 from typing import Mapping, Protocol, runtime_checkable
 
-from research_platform.platform.kernel import ExecutionContext, JsonValue, canonical_bytes
-from research_platform.participant._immutable_json import freeze_json_value_object
+from research_platform.platform.kernel import ExecutionContext, JsonValue, canonical_bytes, freeze_json
 
 
 def _method_observation_id(
@@ -40,7 +39,9 @@ class MethodObservation:
             for value in (self.method_id, self.session_id, self.kind)
         ):
             raise ValueError("method observation identity fields are required")
-        frozen = freeze_json_value_object(self.payload, field="method observation payload")
+        if not isinstance(self.payload, Mapping):
+            raise TypeError("method observation payload must be a mapping")
+        frozen = freeze_json(self.payload)
         object.__setattr__(self, "payload", frozen)
         expected = _method_observation_id(
             self.context, self.method_id, self.session_id, self.kind, frozen
@@ -50,7 +51,9 @@ class MethodObservation:
 
     @classmethod
     def build(cls, context: ExecutionContext, method_id: str, session_id: str, kind: str, payload: Mapping[str, JsonValue]) -> "MethodObservation":
-        frozen = freeze_json_value_object(payload, field="method observation payload")
+        if not isinstance(payload, Mapping):
+            raise TypeError("method observation payload must be a mapping")
+        frozen = freeze_json(payload)
         return cls(
             _method_observation_id(context, method_id, session_id, kind, frozen),
             context, method_id, session_id, kind, frozen,

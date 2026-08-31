@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
-from research_platform.model.request._immutable_json import freeze_json_object
 from research_platform.model.request.api import ModelRequestEnvelope
 from research_platform.model.request.prompt.api import PromptSelectionPort
 from research_platform.platform.kernel import (
@@ -13,6 +12,8 @@ from research_platform.platform.kernel import (
     JsonInput,
     JsonValue,
     canonical_digest,
+    freeze_json,
+    require_sha256,
 )
 
 
@@ -24,9 +25,7 @@ def _text(value: object, field_name: str) -> str:
 
 def _sha256(value: object, field_name: str) -> str:
     digest = _text(value, field_name)
-    if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
-        raise ValueError(f"{field_name} must be a lowercase SHA-256 digest")
-    return digest
+    return require_sha256(digest, field_name)
 
 
 def _tokens(values: object, field_name: str) -> tuple[str, ...]:
@@ -285,7 +284,7 @@ class ProjectModelRequest:
             raise TypeError("project model request envelope must be ModelRequestEnvelope")
         if not isinstance(self.body, Mapping):
             raise TypeError("project model request body must be a mapping")
-        frozen_body = freeze_json_object(self.body, field="project model request body")
+        frozen_body = freeze_json(self.body)
         object.__setattr__(self, "body", frozen_body)
         object.__setattr__(
             self,

@@ -503,3 +503,105 @@ def test_model_response_provenance_drift_fails_closed() -> None:
     request = ProjectModelRequest(requirement.digest(), _envelope(client.binding.model, body=body), body)
     with pytest.raises(ValueError, match="response provenance drift"):
         client.complete(request)
+
+
+def _psc_subjects(system_id: str):
+    from research_platform.governance.architecture.api import CompositionSubject
+    from research_platform.governance.system_registry.api import SystemIdentity
+
+    return (
+        CompositionSubject.system_subject(SystemIdentity(system_id)),
+        CompositionSubject.project_subject("synthetic-paper", "1"),
+    )
+
+
+def test_model_binding_projects_success_into_neutral_psc03_resolution() -> None:
+    from research_platform.governance.architecture.api import BindingResolutionState
+    from research_platform.model.composition import ModelBindingResolutionAdapter
+
+    requirement = _requirement()
+    provider = _provider(_qualified_binding())
+    owner, subject = _psc_subjects("model")
+    resolution = ModelBindingResolutionAdapter(
+        provider, owner=owner, subject=subject, requirement_id="model.primary"
+    ).resolve(requirement)
+
+    assert resolution.state is BindingResolutionState.BOUND
+    assert resolution.binding is not None
+    assert resolution.binding.requirement_digest == requirement.digest()
+    assert resolution.proof is not None
+    assert resolution.proof.owner == owner
+    assert resolution.proof.subject == subject
+    assert resolution.proof.provider_identity == provider.profile.provider_id
+    assert resolution.proof.provider_profile_digest.value == provider.profile.digest()
+    assert resolution.proof.binding_generation.startswith("model-")
+
+
+def test_model_binding_projects_domain_failure_into_neutral_psc03_diagnostic() -> None:
+    from research_platform.governance.architecture.api import BindingResolutionState
+    from research_platform.model.composition import ModelBindingResolutionAdapter
+
+    requirement = _requirement()
+    provider = QualifiedModelProjectProvider(
+        ModelProviderProfile("small", ("chat",)),
+        _BindingPort(_qualified_binding()),
+        _endpoint_factory,
+        _RequestVerifier(),  # type: ignore[arg-type]
+    )
+    owner, subject = _psc_subjects("model")
+    resolution = ModelBindingResolutionAdapter(
+        provider, owner=owner, subject=subject, requirement_id="model.primary"
+    ).resolve(requirement)
+
+    assert resolution.state is BindingResolutionState.DIAGNOSTIC
+    diagnostic = resolution.diagnostics[0]
+    assert diagnostic.code.value == "model.capability_missing"
+    assert diagnostic.requirement_digest.value == requirement.digest()
+    assert diagnostic.provider_profile_digest is not None
+    assert diagnostic.provider_profile_digest.value == provider.profile.digest()
+
+
+def test_participant_binding_projects_success_into_neutral_psc03_resolution() -> None:
+    from research_platform.governance.architecture.api import BindingResolutionState
+    from research_platform.participant.composition import ParticipantBindingResolutionAdapter
+
+    requirement = _participant_requirement()
+    provider = _participant_provider()
+    owner, subject = _psc_subjects("participant")
+    resolution = ParticipantBindingResolutionAdapter(
+        provider, owner=owner, subject=subject, requirement_id="participant.primary"
+    ).resolve(requirement)
+
+    assert resolution.state is BindingResolutionState.BOUND
+    assert resolution.binding is not None
+    assert resolution.binding.requirement_digest == requirement.digest()
+    assert resolution.proof is not None
+    assert resolution.proof.owner == owner
+    assert resolution.proof.subject == subject
+    assert resolution.proof.provider_identity == provider.profile.provider_id
+    assert resolution.proof.provider_profile_digest.value == provider.profile.digest()
+    assert resolution.proof.binding_generation.startswith("participant-")
+
+
+def test_participant_binding_projects_domain_failure_into_neutral_psc03_diagnostic() -> None:
+    from research_platform.governance.architecture.api import BindingResolutionState
+    from research_platform.participant.composition import ParticipantBindingResolutionAdapter
+
+    requirement = _participant_requirement()
+    provider = RuntimeParticipantProjectProvider(
+        ParticipantProviderProfile("participant-small", ("agent",), ("observe",)),
+        _ParticipantResolver(),
+        lambda req: _runtime(),
+    )
+    owner, subject = _psc_subjects("participant")
+    resolution = ParticipantBindingResolutionAdapter(
+        provider, owner=owner, subject=subject, requirement_id="participant.primary"
+    ).resolve(requirement)
+
+    assert resolution.state is BindingResolutionState.DIAGNOSTIC
+    diagnostic = resolution.diagnostics[0]
+    assert diagnostic.code.value == "participant.capability_missing"
+    assert diagnostic.requirement_digest.value == requirement.digest()
+    assert diagnostic.provider_identity == provider.profile.provider_id
+    assert diagnostic.provider_profile_digest is not None
+    assert diagnostic.provider_profile_digest.value == provider.profile.digest()

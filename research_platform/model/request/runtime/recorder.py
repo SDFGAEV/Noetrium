@@ -4,9 +4,8 @@ import json
 from collections.abc import Mapping
 
 from research_platform.platform.kernel import (
-    ExecutionContext, ImmutableModelIdentity, JsonInput, JsonObject, canonical_bytes,
+    ExecutionContext, ImmutableModelIdentity, JsonInput, JsonObject, canonical_bytes, freeze_json,
 )
-from research_platform.model.request._immutable_json import freeze_json_object, freeze_json_value
 from research_platform.model.request.api import (
     ContentAddressedStorePort,
     ModelRequestEnvelope,
@@ -42,10 +41,10 @@ class ReconstructableModelRequestRecorder:
         source_artifact_refs: tuple[str, ...] = (),
         source_state_refs: tuple[str, ...] = (),
     ) -> ModelRequestEnvelope:
-        frozen_body = freeze_json_object(request_body, field="model-visible request body")
-        frozen_tools = None if tool_schema_bundle is None else freeze_json_value(
-            tool_schema_bundle, field="model-visible tool schema bundle"
-        )
+        if not isinstance(request_body, Mapping):
+            raise TypeError("model-visible request body must be a mapping")
+        frozen_body = freeze_json(request_body)
+        frozen_tools = None if tool_schema_bundle is None else freeze_json(tool_schema_bundle)
         body_ref = self._content.put(_canonical_json(frozen_body), media_type="application/json")
         prompt_ref = None if compiled_prompt_text is None else self._content.put(
             compiled_prompt_text.encode("utf-8"), media_type="text/plain; charset=utf-8"

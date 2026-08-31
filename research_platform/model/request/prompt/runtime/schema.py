@@ -1,20 +1,22 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 import hashlib
 
-from research_platform.model.request._immutable_json import FrozenJsonObject, freeze_json_object
-from research_platform.platform.kernel import canonical_bytes
+from research_platform.platform.kernel import JsonObject, canonical_bytes, freeze_json
 
 
 @dataclass(frozen=True, slots=True)
 class OutputSchemaSpec:
     schema_id: str
     version: str
-    schema: FrozenJsonObject
+    schema: JsonObject
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "schema", freeze_json_object(self.schema, field="output schema"))
+        if not isinstance(self.schema, Mapping):
+            raise TypeError("output schema must be a mapping")
+        object.__setattr__(self, "schema", freeze_json(self.schema))
 
     def digest(self) -> str:
         raw=canonical_bytes({"schema_id":self.schema_id,"version":self.version,"schema":self.schema})

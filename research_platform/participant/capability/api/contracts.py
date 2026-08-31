@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
 from research_platform.reliability.effect.api import EffectReconciliationDisposition, PreparedEffectHandle
-from research_platform.platform.kernel import EffectClass, EffectReceipt, ExecutionContext, JsonObject, JsonValue, canonical_digest
+from research_platform.platform.kernel import EffectClass, EffectReceipt, ExecutionContext, JsonObject, JsonValue, canonical_digest, freeze_json
 
-from research_platform.participant._immutable_json import freeze_json_value, freeze_json_value_object
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,7 +74,7 @@ class CapabilityRequest:
         ):
             raise ValueError("capability request idempotency_key must be non-empty when provided")
         object.__setattr__(
-            self, "payload", freeze_json_value(self.payload, field="capability request payload")
+            self, "payload", freeze_json(self.payload)
         )
 
 
@@ -128,10 +128,12 @@ class CapabilityResult:
         ):
             raise TypeError("capability result artifacts must be a tuple of non-empty strings")
         object.__setattr__(
-            self, "payload", freeze_json_value(self.payload, field="capability result payload")
+            self, "payload", freeze_json(self.payload)
         )
+        if not isinstance(self.diagnostics, Mapping):
+            raise TypeError("capability result diagnostics must be a mapping")
         object.__setattr__(
-            self, "diagnostics", freeze_json_value_object(self.diagnostics, field="capability result diagnostics")
+            self, "diagnostics", freeze_json(self.diagnostics)
         )
         if self.provider_identity is not None and not isinstance(
             self.provider_identity, CapabilityProviderIdentity
@@ -169,9 +171,11 @@ class CapabilityEffectReconciliationResult:
             raise ValueError("capability reconciliation identity is required")
         if self.result is not None and not isinstance(self.result, CapabilityResult):
             raise TypeError("capability reconciliation result must be CapabilityResult")
+        if not isinstance(self.diagnostics, Mapping):
+            raise TypeError("capability reconciliation diagnostics must be a mapping")
         object.__setattr__(
             self, "diagnostics",
-            freeze_json_value_object(self.diagnostics, field="capability reconciliation diagnostics"),
+            freeze_json(self.diagnostics),
         )
 
 
