@@ -38,7 +38,7 @@ class RemoteSessionProxy:
 
 class RemoteRobotProxy:
     implementation_identity = ParticipantImplementationIdentity(
-        "robot", "remote-arm", "7", "robot-abi", "robot-schema", "remote-image-sha256"
+        "robot", "remote-arm", "7", "robot-abi", "robot-schema", "d" * 64
     )
     runtime_identity = runtime_identity_for_test("robot")
 
@@ -109,7 +109,7 @@ def test_study_can_run_remote_endpoint_without_local_implementation_catalog():
 
 
 def test_formal_launch_manifests_reject_unfrozen_implementation_artifacts():
-    implementation = ParticipantImplementationIdentity("robot", "arm", "1", "abi", "schema", "")
+    implementation = ParticipantImplementationIdentity("robot", "arm", "1", "abi", "schema", None)
     binding = ParticipantRuntimeBinding("arm", implementation, runtime_identity_for_test("robot"), "cfg")
 
     with pytest.raises(ValueError, match="artifact digests"):

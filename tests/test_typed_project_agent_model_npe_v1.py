@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+
 import ast
 from dataclasses import dataclass
 
@@ -342,7 +344,7 @@ def _runtime(runtime_id: str = "local-agent-runtime") -> ParticipantSessionRunti
         runtime_id=runtime_id,
         runtime_version="1",
         abi_version="1",
-        artifact_digest=f"artifact-{runtime_id}",
+        artifact_digest=hashlib.sha256(f"artifact-{runtime_id}".encode()).hexdigest(),
     )
 
 

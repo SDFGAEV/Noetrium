@@ -76,3 +76,10 @@ Agent/Method identity -> ParticipantRequirement projection preserves `None` or t
 exact lowercase SHA-256 value without inventing a replacement identity. In the
 ROLE01-integrated consumer cut, validation delegates to kernel `require_sha256` so
 ROLE04 does not own a second generic digest acceptance authority.
+
+Core Participant artifact identity is enforced at the canonical identity types,
+not only at Level-0 wrappers. `ParticipantImplementationIdentity` accepts either
+typed absence (`None`) or a canonical lowercase SHA-256 artifact identity, while
+`ParticipantSessionRuntimeIdentity` requires a canonical lowercase SHA-256
+runtime artifact identity. Direct construction therefore cannot bypass the same
+shared kernel acceptance authority used by higher-level authoring projections.

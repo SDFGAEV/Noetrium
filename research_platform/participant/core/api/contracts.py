@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
-from research_platform.platform.kernel import canonical_digest
+from research_platform.platform.kernel import canonical_digest, require_sha256
 
 
 def _digest(value: object) -> str:
@@ -26,6 +26,8 @@ class ParticipantImplementationIdentity:
             raise ValueError("participant implementation kind/id must be non-empty")
         if not self.implementation_version.strip() or not self.abi_version.strip() or not self.schema_version.strip():
             raise ValueError("participant implementation version/ABI/schema must be non-empty")
+        if self.artifact_digest is not None:
+            require_sha256(self.artifact_digest, "participant implementation artifact_digest")
 
     def digest(self) -> str:
         return _digest((
@@ -52,6 +54,7 @@ class ParticipantSessionRuntimeIdentity:
     def __post_init__(self) -> None:
         if any(not value.strip() for value in (self.runtime_id, self.runtime_version, self.abi_version, self.artifact_digest)):
             raise ValueError("participant runtime identity fields must be non-empty")
+        require_sha256(self.artifact_digest, "participant session runtime artifact_digest")
 
     def digest(self) -> str:
         return _digest((self.runtime_id, self.runtime_version, self.abi_version, self.artifact_digest))

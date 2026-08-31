@@ -54,7 +54,7 @@ class Adapter:
 def binding(*, role="method", config="cfg") -> ParticipantRuntimeBinding:
     return ParticipantRuntimeBinding(
         role,
-        ParticipantImplementationIdentity("test", "impl", "1", "1", "1", "artifact"),
+        ParticipantImplementationIdentity("test", "impl", "1", "1", "1", "a" * 64),
         runtime_identity_for_test("test"),
         config,
     )

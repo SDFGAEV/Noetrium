@@ -1,4 +1,5 @@
 from pathlib import Path
+import hashlib
 import tempfile
 
 import pytest
@@ -18,7 +19,7 @@ from tests_support import runtime_identity_for_test
 
 def participant_payload(role: str, payload: bytes, *, generation: str) -> RunParticipantPayload:
     implementation = ParticipantImplementationIdentity(
-        "test", role, "1", "1", "1", f"{role}-artifact"
+        "test", role, "1", "1", "1", hashlib.sha256(f"{role}-artifact".encode()).hexdigest()
     )
     binding = ParticipantRuntimeBinding(role, implementation, runtime_identity_for_test("test"), f"{role}-config")
     component = ComponentIdentity(

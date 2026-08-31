@@ -193,13 +193,12 @@ def test_level0_rejects_non_sha_artifact_and_configuration_digests() -> None:
         )
 
 
-def test_direct_participant_requirement_cannot_bypass_digest_validation() -> None:
-    implementation = ParticipantImplementationIdentity(
-        kind="agent", participant_id="agent", implementation_version="1",
-        abi_version="1", schema_version="1", artifact_digest="not-a-digest",
-    )
+def test_direct_participant_implementation_identity_cannot_bypass_digest_validation() -> None:
     with pytest.raises(ValueError, match="SHA-256"):
-        ParticipantRequirement(role="worker", implementation=implementation)
+        ParticipantImplementationIdentity(
+            kind="agent", participant_id="agent", implementation_version="1",
+            abi_version="1", schema_version="1", artifact_digest="not-a-digest",
+        )
 
 
 def test_level0_digest_absence_is_none_and_empty_string_is_rejected() -> None:
