@@ -43,3 +43,9 @@ The host does not reconstruct method identity in Experimentation. ROLE04 project
 Whole-method escape does not replace the built-in Agent archetype. Component-level research can continue to use the public `research_platform.participant.agent` facade together with public `participant.agent.api` ports. The facade internally owns the runtime import; downstream paper code does not import `participant.agent.runtime`.
 
 The conformance test `test_typed_role04_agent_component_extension_v1.py` replaces the Planner with a synthetic `PaperOnlyPlanner` whose name/algorithm is absent from Platform source, executes the public `AgentCognitionLoop`, and uses only public Agent/kernel imports. This proves a paper can change one reusable component without reimplementing the whole Agent or editing Platform source.
+
+## Process neutrality
+
+`ResearchMethodProgram` is transport-neutral. The conformance suite runs the same project-defined program locally and in a spawned process, reconstructs only project task/input/context values at the process boundary, and proves identical `MethodProgramIdentity` plus typed result semantics.
+
+That test is evidence about the contract, not a new process provider. ROLE04 does not own subprocess, IPC, worker supervision, or remote lifecycle authority; production out-of-process hosting must consume the platform process/runtime authorities and preserve the same Method contract.
