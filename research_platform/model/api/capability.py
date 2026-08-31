@@ -8,7 +8,7 @@ from research_platform.model.api.project import (
     ModelCapabilityRequirement,
     ProjectModelBinding,
 )
-from research_platform.platform.kernel import canonical_digest, require_sha256
+from research_platform.platform.kernel import JsonValue, canonical_digest, freeze_json, require_sha256
 
 
 def _text(value: object, field_name: str) -> str:
@@ -309,6 +309,31 @@ class ValueInferenceOutput:
 
 
 @dataclass(frozen=True, slots=True)
+class StructuredGenerationOutput:
+    document: JsonValue
+    output_schema_sha256: str
+    model_revision: str
+    source_response_digest: str
+    schema_id: str = field(init=False, default="model.structured-generation.output.v1")
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "document", freeze_json(self.document))
+        require_sha256(self.output_schema_sha256, "structured generation output_schema_sha256")
+        _text(self.model_revision, "structured generation model_revision")
+        require_sha256(self.source_response_digest, "structured generation source_response_digest")
+
+    def digest(self) -> str:
+        return canonical_digest(self)
+
+
+@runtime_checkable
+class StructuredGenerationDecoderPort(Protocol):
+    """Decode and validate one completion against the exact requested output schema."""
+
+    def decode_and_validate(self, text: str, *, schema_sha256: str) -> JsonValue: ...
+
+
+@dataclass(frozen=True, slots=True)
 class RankingCandidate:
     candidate_id: str
     text: str
@@ -469,6 +494,8 @@ __all__ = [
     "ScoringCandidate",
     "ScoringInput",
     "ScoringOutput",
+    "StructuredGenerationOutput",
+    "StructuredGenerationDecoderPort",
     "ValueInferenceInput",
     "ValueInferenceOutput",
 ]

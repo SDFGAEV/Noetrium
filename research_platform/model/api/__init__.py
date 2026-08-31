@@ -21,6 +21,8 @@ from .capability import (
     ScoringCandidate,
     ScoringInput,
     ScoringOutput,
+    StructuredGenerationOutput,
+    StructuredGenerationDecoderPort,
     ValueInferenceInput,
     ValueInferenceOutput,
 )
@@ -38,6 +40,7 @@ from .project import (
     ProjectModelProviderPort,
     ProjectModelRequest,
     ProjectModelResponse,
+    StructuredGenerationInput,
 )
 
 from research_platform.model.catalog.revision.api import (
@@ -71,6 +74,9 @@ __all__ = [
     "ScoringCandidate",
     "ScoringInput",
     "ScoringOutput",
+    "StructuredGenerationOutput",
+    "StructuredGenerationInput",
+    "StructuredGenerationDecoderPort",
     "ValueInferenceInput",
     "ValueInferenceOutput",
     "ModelPromotionDecision",

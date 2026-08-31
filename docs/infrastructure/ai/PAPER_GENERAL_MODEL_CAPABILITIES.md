@@ -7,7 +7,8 @@ Non-generation requirements must not invent prompt identity merely to fit the ge
 
 The first concrete typed families are:
 
-- generation / structured generation through the existing small `ProjectModelClientPort.complete()` path;
+- generation through the existing small `ProjectModelClientPort.complete()` path;
+- structured generation through `StructuredGenerationInput` / `StructuredGenerationOutput` plus `QualifiedStructuredGenerationCapabilityProvider`, which reuses the same qualified completion client and adds an injected schema decoder/validator rather than a second Prompt or endpoint authority;
 - embedding through `EmbeddingInput` and `EmbeddingOutput`;
 - scoring through `ScoringInput` and `ScoringOutput`;
 - ranking through `RankingInput` and `RankingOutput`, which preserves explicit ordered rank identity instead of treating ranking as an incidental sort of scores;
@@ -23,6 +24,8 @@ Prompt identity is mandatory only for generation capabilities and forbidden for 
 The existing `QualifiedModelProjectProvider` remains explicitly generation-only and returns a typed unsupported-protocol diagnostic for other capability families instead of routing them through `complete()`.
 
 Ranking and policy inference use the same `ModelCapabilityInvocation` / `ModelCapabilityResponse` provenance envelope as embedding, scoring, and value inference. They bind semantic schema ids directly and must not carry fabricated Prompt identity or be routed through the generation-only `complete()` client.
+
+Structured generation intentionally keeps generation Prompt provenance. Its typed input binds the existing `ModelRequestEnvelope`, frozen visible body, and exact requested output-schema SHA-256. The adapter delegates the visible request to the already-qualified generation client, then invokes a `StructuredGenerationDecoderPort`; the typed output binds the validated document, exact schema digest, model revision, and underlying completion response digest.
 
 `FunctionalModelCapabilityProvider` is a provider-author reference implementation, not a new qualification authority.
 It receives an exact `ProjectModelBinding` factory, validates requirement/binding/capability/schema identity, and executes a strongly typed handler.

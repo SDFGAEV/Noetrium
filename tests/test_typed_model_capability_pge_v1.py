@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import math
 
 import pytest
@@ -22,15 +23,21 @@ from research_platform.model.api import (
     RankingInput,
     RankingOutput,
     ProjectModelCapabilityProviderPort,
+    ProjectModelResponse,
     ScoredCandidate,
     ScoringCandidate,
     ScoringInput,
     ScoringOutput,
+    StructuredGenerationOutput,
+    StructuredGenerationInput,
     ValueInferenceInput,
     ValueInferenceOutput,
 )
-from research_platform.model.providers import FunctionalModelCapabilityProvider
-from research_platform.platform.kernel import ImmutableModelIdentity
+from research_platform.model.providers import (
+    FunctionalModelCapabilityProvider, QualifiedStructuredGenerationCapabilityProvider,
+)
+from research_platform.model.request.api import ContentRef, ModelRequestEnvelope
+from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity
 
 
 D = {name: char * 64 for name, char in {
@@ -336,4 +343,110 @@ def test_policy_inference_capability_returns_typed_normalized_action_distributio
             (PolicyActionProbability("advance", 1.0),),
             model_revision="policy-r3",
             selected_action_id="wait",
+        )
+
+
+
+class _StructuredTextClient:
+    def __init__(self, binding: ProjectModelBinding) -> None:
+        self.binding = binding
+        self.last_request = None
+
+    def complete(self, request):
+        self.last_request = request
+        return ProjectModelResponse(
+            request_digest=request.request_digest,
+            binding_digest=self.binding.digest(),
+            response_digest="f" * 64,
+            text='{"answer": 42, "ok": true}',
+            finish_reason="stop",
+        )
+
+
+class _StructuredTextProvider:
+    def __init__(self, client: _StructuredTextClient) -> None:
+        self.client = client
+
+    def bind(self, requirement):
+        assert requirement.capability_id == "structured-generation"
+        return self.client
+
+
+class _JsonSchemaDecoder:
+    def __init__(self) -> None:
+        self.schemas = []
+
+    def decode_and_validate(self, text: str, *, schema_sha256: str):
+        self.schemas.append(schema_sha256)
+        assert schema_sha256 == "9" * 64
+        document = json.loads(text)
+        assert set(document) == {"answer", "ok"}
+        return document
+
+
+def _structured_requirement() -> ModelCapabilityRequirement:
+    return ModelCapabilityRequirement(
+        role="scientist",
+        prompt_generation_id="prompt-generation-7",
+        prompt_id="structured-answer",
+        prompt_digest="8" * 64,
+        capability_id="structured-generation",
+        input_schema_id="model.structured-generation.input.v1",
+        output_schema_id="model.structured-generation.output.v1",
+    )
+
+
+def _structured_binding(requirement: ModelCapabilityRequirement) -> ProjectModelBinding:
+    profile = ModelProviderProfile("qualified-text", ("structured-generation",))
+    return ProjectModelBinding(
+        requirement_digest=requirement.digest(), provider_id=profile.provider_id,
+        provider_profile_digest=profile.digest(), role=requirement.role, model=_model(),
+        deployment_id="deployment-a", deployment_generation=D["generation"],
+        model_stack_digest=D["stack"], qualification_certificate_digest=D["certificate"],
+        runtime_qualification_digest=D["runtime"], host_identity_digest=D["host"],
+        prompt_generation_id=requirement.prompt_generation_id, prompt_id=requirement.prompt_id,
+        prompt_digest=requirement.prompt_digest, capabilities=profile.capabilities,
+        runtime_canary_evidence_digests=(D["canary"],), capability_id=requirement.capability_id,
+        input_schema_id=requirement.input_schema_id, output_schema_id=requirement.output_schema_id,
+    )
+
+
+def test_structured_generation_adapts_qualified_text_generation_without_new_prompt_or_endpoint_authority() -> None:
+    requirement = _structured_requirement()
+    binding = _structured_binding(requirement)
+    text_client = _StructuredTextClient(binding)
+    decoder = _JsonSchemaDecoder()
+    provider = QualifiedStructuredGenerationCapabilityProvider(_StructuredTextProvider(text_client), decoder)
+    envelope = ModelRequestEnvelope(
+        "model-request.v1", "structured-request-1",
+        ExecutionContext("run-s", "trace-s", "span-s"), requirement.role, _model(),
+        requirement.prompt_generation_id, requirement.prompt_id, requirement.prompt_digest,
+        ContentRef("7" * 64, 2, "application/json"),
+    )
+    payload = StructuredGenerationInput(
+        envelope, {"messages": ({"role": "user", "content": "return json"},)}, "9" * 64
+    )
+    invocation = ModelCapabilityInvocation.from_requirement(requirement, "structured-1", payload)
+    response = provider.bind_capability(requirement).invoke(invocation)
+    assert response.output.document["answer"] == 42
+    assert response.output.output_schema_sha256 == "9" * 64
+    assert response.output.source_response_digest == "f" * 64
+    assert response.output.model_revision == _model().revision
+    assert decoder.schemas == ["9" * 64]
+    assert text_client.last_request.envelope is envelope
+    assert text_client.last_request.requirement_digest == requirement.digest()
+
+
+def test_structured_generation_rejects_noncanonical_output_schema_before_text_provider() -> None:
+    requirement = _structured_requirement()
+    with pytest.raises(ValueError, match="output_schema_sha256"):
+        StructuredGenerationInput(
+            ModelRequestEnvelope(
+                "model-request.v1", "structured-request-bad",
+                ExecutionContext("run-s", "trace-s", "span-s"), requirement.role, _model(),
+                requirement.prompt_generation_id, requirement.prompt_id, requirement.prompt_digest,
+                ContentRef("7" * 64, 2, "application/json"),
+            ),
+            {"messages": ()},
+            "not-a-digest",
         )

@@ -90,6 +90,31 @@ class ModelCapabilityRequirement:
 
 
 @dataclass(frozen=True, slots=True)
+class StructuredGenerationInput:
+    envelope: ModelRequestEnvelope
+    body: Mapping[str, JsonInput]
+    output_schema_sha256: str
+    schema_id: str = field(init=False, default="model.structured-generation.input.v1")
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.envelope, ModelRequestEnvelope):
+            raise TypeError("structured generation envelope must be ModelRequestEnvelope")
+        if not isinstance(self.body, Mapping):
+            raise TypeError("structured generation body must be a mapping")
+        object.__setattr__(self, "body", freeze_json(self.body))
+        require_sha256(self.output_schema_sha256, "structured generation output_schema_sha256")
+
+    def digest(self) -> str:
+        return canonical_digest({
+            "envelope_digest": self.envelope.envelope_digest,
+            "body": dict(self.body),
+            "output_schema_sha256": self.output_schema_sha256,
+        })
+
+
+
+
+@dataclass(frozen=True, slots=True)
 class ModelProjectDefinition:
     """Level-0 model declaration independent of provider and active prompt generation."""
 
@@ -401,4 +426,5 @@ __all__ = [
     "ProjectModelProviderPort",
     "ProjectModelRequest",
     "ProjectModelResponse",
+    "StructuredGenerationInput",
 ]
