@@ -38,3 +38,13 @@ Resource binding CAS and Runtime service generation.
 `tests/test_effect_journal_integrity_v1.py` contains adversarial proofs for both
 failure modes. This preserves distinct Environment, Method/Agent, Resource and
 Runtime generations rather than inventing a universal generation counter.
+
+## Shared large-value carrier fencing
+
+PGE does not require transport-specific Resource enums. Existing `ResourceKind.STORAGE` / `CACHE` represent file or shared-memory carrier allocation, while `NETWORK_ENDPOINT` represents socket transport; `ResourceOwnership.SHARED` records that the carrier itself is shared/external to one consumer generation.
+
+`ResourceLease` owns only resource usage authority: holder scope/generation, fencing token, state and optional TTL. It deliberately has no artifact/content/evidence payload or digest field, so a mutable carrier lease cannot itself become durable scientific evidence.
+
+`tests/test_resource_shared_carrier_fencing_v1.py` exercises file, shared-memory and socket-shaped resources. After generation 1 expires and generation 2 acquires the same carrier, the fencing token advances; a stale token cannot renew generation 2, releasing the expired generation-1 lease cannot disturb generation 2, and a stale generation cannot reacquire while generation 2 is active.
+
+Immutable content/evidence identity remains outside Resource authority. ROLE02 fences reuse of mutable transport; Artifact/Evidence owners attest immutable bytes separately. This satisfies §39.12 without introducing a transport-specific truth store or allowing shared-buffer reuse to rewrite already-attested content.
