@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 
+from research_platform.platform.kernel.canonical import CanonicalEncodingError
 from research_platform.platform.kernel.durability.document_integrity import DocumentIntegrityError
 from research_platform.platform.kernel.durability.checksummed_document import (
     ChecksummedDocumentError,
@@ -35,6 +36,10 @@ class RecoveryLeaseCodec:
         except ChecksummedDocumentError as exc:
             raise RecoveryLeaseIntegrityError.from_checksummed_document(
                 exc, message="recovery lease document integrity failure"
+            ) from exc
+        except CanonicalEncodingError as exc:
+            raise RecoveryLeaseIntegrityError(
+                "recovery lease document contains non-canonical values"
             ) from exc
         except (KeyError, TypeError, ValueError) as exc:
             raise RecoveryLeaseIntegrityError("recovery lease violates the lease contract") from exc

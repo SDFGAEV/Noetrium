@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 
 from research_platform.platform.kernel import canonical_digest
 from research_platform.scope.path.api import is_absolute_target_path
@@ -29,8 +30,11 @@ class ServiceLaunchContract:
             raise ValueError("argv[0] must equal frozen executable")
         if not is_absolute_target_path(self.cwd):
             raise ValueError("service cwd must be an absolute path")
-        if min(self.readiness_timeout_s, self.stop_timeout_s, self.heartbeat_interval_s) <= 0:
-            raise ValueError("service timeouts/heartbeat must be positive")
+        if any(
+            not math.isfinite(float(value)) or value <= 0
+            for value in (self.readiness_timeout_s, self.stop_timeout_s, self.heartbeat_interval_s)
+        ):
+            raise ValueError("service timeouts/heartbeat must be finite and positive")
         for digest in (self.environment_digest, self.artifact_digest, self.runtime_identity_digest):
             if len(digest) != 64:
                 raise ValueError("service contract digests must be SHA-256 hex")

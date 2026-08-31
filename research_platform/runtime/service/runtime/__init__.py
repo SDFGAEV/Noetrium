@@ -1,4 +1,4 @@
-from .contracts import ServiceExitClass, ServicePhase, ServiceReadyEvidence
+from .contracts import ServiceExitClass, ServicePhase, ServiceReadyEvidence, ServiceReadinessProofMismatch
 from .restart import ExactRestartPolicy, RestartDecision, RestartHistory
 from .service_state_contracts import ServiceSupervisorState
 from .state_ports import ServiceStateStorePort
@@ -6,7 +6,7 @@ from .service_state_codec import ServiceStateIntegrityError, ServiceSupervisorSt
 from .supervisor import ExactServiceSupervisor
 from .supervision_contracts import ServiceProcessAdapter, ServiceStartReport
 from .systemd import SystemdRenderer, SystemdUnitSpec
-__all__=["ServiceExitClass","ServicePhase","ServiceReadyEvidence","ExactRestartPolicy","RestartDecision","RestartHistory","ServiceStateStorePort","ServiceSupervisorState","ServiceStateIntegrityError","ServiceSupervisorStateCodec","ExactServiceSupervisor","ServiceProcessAdapter","ServiceStartReport","SystemdRenderer","SystemdUnitSpec"]
+__all__=["ServiceExitClass","ServicePhase","ServiceReadyEvidence","ServiceReadinessProofMismatch","ExactRestartPolicy","RestartDecision","RestartHistory","ServiceStateStorePort","ServiceSupervisorState","ServiceStateIntegrityError","ServiceSupervisorStateCodec","ExactServiceSupervisor","ServiceProcessAdapter","ServiceStartReport","SystemdRenderer","SystemdUnitSpec"]
 
 from .crash_capture import CaptureTailRef, CrashCaptureEvidence, ServiceCrashEvidenceAdapter, ServiceCrashReport, freeze_crash_evidence, service_exit_class
 __all__ += ("CaptureTailRef","CrashCaptureEvidence","ServiceCrashEvidenceAdapter","ServiceCrashReport","freeze_crash_evidence","service_exit_class")

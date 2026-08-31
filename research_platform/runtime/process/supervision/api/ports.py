@@ -22,7 +22,7 @@ class ProcessCommandRunnerPort(Protocol):
         self,
         argv: tuple[str, ...],
         *,
-        timeout_seconds: float | None,
+        timeout_seconds: float,
         environment: dict[str, str] | None = None,
         cwd: str | None = None,
         inherit_stdin: bool = False,
@@ -37,7 +37,7 @@ class ProcessSupervisorPort(Protocol):
         supervision_id: str,
         process: SupervisedProcessPort,
         *,
-        deadline: Deadline | None = None,
+        deadline: Deadline,
     ) -> TaskHandlePort[ProcessExitReceipt]: ...
 
     def terminate(
@@ -45,7 +45,7 @@ class ProcessSupervisorPort(Protocol):
         supervision_id: str,
         process: SupervisedProcessPort,
         *,
-        deadline: Deadline | None = None,
+        deadline: Deadline,
         policy: ProcessTerminationPolicy | None = None,
     ) -> TaskHandlePort[ProcessExitReceipt]: ...
 

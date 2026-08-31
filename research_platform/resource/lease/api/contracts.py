@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+import math
 
 from research_platform.scope.api import ScopeIdentity
 
@@ -69,10 +70,14 @@ class ResourceLease:
             raise ValueError("lease holder generation must be >= 1")
         if self.fencing_token < 1:
             raise ValueError("lease fencing token must be >= 1")
-        if self.expires_at_epoch_s is not None and self.expires_at_epoch_s <= 0:
-            raise ValueError("lease expiry must be a positive epoch timestamp")
+        if self.expires_at_epoch_s is not None and (
+            not math.isfinite(float(self.expires_at_epoch_s)) or self.expires_at_epoch_s <= 0
+        ):
+            raise ValueError("lease expiry must be a finite positive epoch timestamp")
 
     def expired_at(self, now_epoch_s: float) -> bool:
+        if not math.isfinite(float(now_epoch_s)):
+            raise ValueError("lease expiry observation time must be finite")
         return (
             self.state is LeaseState.ACTIVE
             and self.expires_at_epoch_s is not None

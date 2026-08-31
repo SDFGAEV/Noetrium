@@ -3,7 +3,7 @@ from tests._concurrency_support import process_capture
 
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
 from research_platform.runtime.service.api import ServiceLaunchContract, ServiceProcessIdentity
-from service_os_test_support import make_service_supervisor
+from service_os_test_support import make_service_supervisor, ready_evidence
 
 from pathlib import Path
 import tempfile
@@ -31,7 +31,7 @@ def contract():
 class Proc:
     def reconcile(self,s,c): return None,("reconcile",)
     def start(self,c): return ServiceProcessIdentity(7,"pid:7:start:1",7),("start",)
-    def wait_ready(self,p,c): return "ready","out","err"
+    def wait_ready(self,p,c): return ready_evidence(p,c,"ready","out","err")
     def stop(self,p,c): return ()
 
 class Crash:

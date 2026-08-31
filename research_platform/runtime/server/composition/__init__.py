@@ -71,6 +71,7 @@ def compose_environment_server(
                 "control_path": str(connection.profile.control_path) if connection.profile.control_path else None,
                 "control_persist_seconds": connection.profile.control_persist_seconds,
                 "command_timeout_seconds": connection.profile.command_timeout_seconds,
+                "interactive_timeout_seconds": connection.profile.interactive_timeout_seconds,
                 "transfer_timeout_seconds": connection.profile.transfer_timeout_seconds,
                 "repository_timeout_seconds": connection.profile.repository_timeout_seconds,
                 "git_transport_timeout_seconds": connection.profile.git_transport_timeout_seconds,

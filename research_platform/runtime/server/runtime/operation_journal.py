@@ -1,16 +1,20 @@
 from __future__ import annotations
 
-from dataclasses import asdict
 import hashlib
-import json
 import os
 from pathlib import Path
-import re
 from contextlib import AbstractContextManager
 
+from research_platform.platform.kernel.durability import fsync_directory
 from research_platform.platform.kernel.durability.file_lock import InterprocessFileLock
 from research_platform.platform.kernel.durability.file_lock import InterprocessLockBusy
 from research_platform.platform.concurrency.api import SerialActorPort
+from .operation_journal_codec import (
+    MAX_SERVER_OPERATION_RECORD_BYTES,
+    SERVER_OPERATION_JOURNAL_GENESIS_CHECKSUM,
+    ServerOperationJournalCodec,
+    ServerOperationJournalIntegrityError,
+)
 from research_platform.runtime.server.api import (
     ServerOperationEffect,
     ServerOperationFinished,
@@ -25,10 +29,6 @@ from research_platform.runtime.server.api import (
     ServerMutationBusy,
     ServerTransportBusy,
 )
-
-
-class ServerOperationJournalIntegrityError(RuntimeError):
-    """The durable server-operation ledger cannot be safely replayed."""
 
 
 class _NonBlockingServerLock(AbstractContextManager[object]):
@@ -85,6 +85,7 @@ class JsonlServerOperationJournal(ServerOperationJournalPort):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._guard_path = self.path.with_name(self.path.name + ".guard.lock")
         self._writer_actor = writer_actor
+        self._codec = ServerOperationJournalCodec()
 
     def _operation_transition_lock(
         self, operation_id: str
@@ -97,98 +98,62 @@ class JsonlServerOperationJournal(ServerOperationJournalPort):
             operation_id=operation_id,
         )
 
-    def _append(self, event_type: str, event: object) -> None:
-        """Append and fsync one operation event in ledger order.
+    def _tail_checksum_locked(self) -> str:
+        if not self.path.exists() or self.path.stat().st_size == 0:
+            return SERVER_OPERATION_JOURNAL_GENESIS_CHECKSUM
+        with self.path.open("rb") as stream:
+            stream.seek(0, os.SEEK_END)
+            end = stream.tell()
+            stream.seek(end - 1)
+            if stream.read(1) != b"\n":
+                raise ServerOperationJournalIntegrityError(
+                    "server operation ledger has a partial durable tail"
+                )
+            cursor = end - 1
+            chunks: list[bytes] = []
+            scanned = 0
+            while cursor > 0:
+                block_start = max(0, cursor - 4096)
+                stream.seek(block_start)
+                block = stream.read(cursor - block_start)
+                split = block.rfind(b"\n")
+                if split >= 0:
+                    chunks.insert(0, block[split + 1 :])
+                    break
+                chunks.insert(0, block)
+                scanned += len(block)
+                if scanned > MAX_SERVER_OPERATION_RECORD_BYTES:
+                    raise ServerOperationJournalIntegrityError(
+                        "server operation ledger tail record is oversized"
+                    )
+                cursor = block_start
+            raw = b"".join(chunks)
+            decoded = self._codec.decode(raw, expected_previous_checksum=None)
+            return decoded.record_checksum
 
-        Process-local ordering is owned by the injected serial actor; the
-        interprocess guard preserves one durable cross-process append order.
-        """
-        payload = asdict(event)
-        for key, value in tuple(payload.items()):
-            if hasattr(value, "value"):
-                payload[key] = value.value
-        record = {"event": event_type, **payload}
-        encoded = (json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
+    def _append(
+        self,
+        event_type: str,
+        event: ServerOperationStarted | ServerOperationFinished | ServerOperationResolved,
+    ) -> None:
+        """Append one typed hash-chained event under the short writer authority."""
         def append_owned() -> None:
             with InterprocessFileLock(self._guard_path):
+                previous_checksum = self._tail_checksum_locked()
+                encoded = self._codec.encode(
+                    event_type,
+                    event,
+                    previous_checksum=previous_checksum,
+                )
+                created = not self.path.exists()
                 with self.path.open("ab") as stream:
                     stream.write(encoded)
                     stream.flush()
                     os.fsync(stream.fileno())
+                if created:
+                    fsync_directory(self.path.parent)
 
         self._writer_actor.call(f"append:{event_type}", append_owned)
-
-    @staticmethod
-    def _started(payload: dict[str, object]) -> ServerOperationStarted:
-        try:
-            return ServerOperationStarted(
-                str(payload["operation_id"]),
-                str(payload["server_id"]),
-                ServerOperationKind(str(payload["kind"])),
-                str(payload["request_digest"]),
-                float(payload["started_at"]),
-                bool(payload["interactive"]),
-                str(payload.get("profile_digest", "")),
-                ServerOperationEffect(str(payload.get("effect", ServerOperationEffect.UNKNOWN.value))),
-            )
-        except (KeyError, TypeError, ValueError) as exc:
-            raise ServerOperationJournalIntegrityError(
-                "server operation started record is malformed"
-            ) from exc
-
-    @staticmethod
-    def _finished(payload: dict[str, object]) -> ServerOperationFinished:
-        try:
-            return ServerOperationFinished(
-                str(payload["operation_id"]),
-                str(payload["server_id"]),
-                ServerOperationKind(str(payload["kind"])),
-                str(payload["request_digest"]),
-                ServerOperationState(str(payload["state"])),
-                float(payload["finished_at"]),
-                float(payload["duration_seconds"]),
-                None if payload.get("return_code") is None else int(payload["return_code"]),
-                str(payload["failure_kind"]),
-                int(payload["stdout_bytes"]),
-                int(payload["stderr_bytes"]),
-                None if payload.get("error_type") is None else str(payload["error_type"]),
-                None if payload.get("error_digest") is None else str(payload["error_digest"]),
-                str(payload.get("profile_digest", "")),
-                str(payload.get("stdout_digest", "")),
-                str(payload.get("stderr_digest", "")),
-                ServerOperationEffect(str(payload.get("effect", ServerOperationEffect.UNKNOWN.value))),
-                str(payload.get("stdout_preview", "")),
-                str(payload.get("stderr_preview", "")),
-            )
-        except (KeyError, TypeError, ValueError) as exc:
-            raise ServerOperationJournalIntegrityError(
-                "server operation finished record is malformed"
-            ) from exc
-
-    @staticmethod
-    def _resolved(payload: dict[str, object]) -> ServerOperationResolved:
-        try:
-            evidence_ref = str(payload["evidence_ref"])
-            evidence_digest = str(payload["evidence_digest"])
-            if re.fullmatch(r"[A-Za-z0-9_.:/-]{1,256}", evidence_ref) is None:
-                raise ValueError("resolution evidence reference is unsafe")
-            if re.fullmatch(r"[0-9a-fA-F]{64}", evidence_digest) is None:
-                raise ValueError("resolution evidence digest is not SHA-256")
-            return ServerOperationResolved(
-                str(payload["operation_id"]),
-                str(payload["server_id"]),
-                ServerOperationKind(str(payload["kind"])),
-                str(payload["request_digest"]),
-                ServerOperationResolution(str(payload["disposition"])),
-                float(payload["resolved_at"]),
-                evidence_ref,
-                evidence_digest,
-                str(payload.get("profile_digest", "")),
-            )
-        except (KeyError, TypeError, ValueError) as exc:
-            raise ServerOperationJournalIntegrityError(
-                "server operation resolution record is malformed"
-            ) from exc
 
     def _read_records(self) -> tuple[ServerOperationRecord, ...]:
         """Read one rotation-free and append-free journal snapshot.
@@ -208,6 +173,7 @@ class JsonlServerOperationJournal(ServerOperationJournalPort):
                 return self.path.stat().st_size
 
         snapshot_size = self._writer_actor.call("freeze-read-prefix", freeze_owned)
+        expected_previous_checksum = SERVER_OPERATION_JOURNAL_GENESIS_CHECKSUM
         with self.path.open("rb") as stream:
             remaining = snapshot_size
             line_number = 0
@@ -217,21 +183,23 @@ class JsonlServerOperationJournal(ServerOperationJournalPort):
                     break
                 remaining -= len(raw)
                 line_number += 1
-                if not raw.strip():
-                    continue
                 try:
-                    payload = json.loads(raw.decode("utf-8"))
-                    if not isinstance(payload, dict):
-                        raise TypeError("event is not an object")
-                    event_type = payload.pop("event")
-                    if event_type == "started":
-                        event = self._started(payload)
+                    if not raw.endswith(b"\n"):
+                        raise ServerOperationJournalIntegrityError(
+                            "server operation ledger has a partial durable tail"
+                        )
+                    decoded = self._codec.decode(
+                        raw[:-1],
+                        expected_previous_checksum=expected_previous_checksum,
+                    )
+                    expected_previous_checksum = decoded.record_checksum
+                    event = decoded.event
+                    if isinstance(event, ServerOperationStarted):
                         if event.operation_id in records:
                             raise ValueError("duplicate operation start")
                         records[event.operation_id] = ServerOperationRecord(event)
                         order.append(event.operation_id)
-                    elif event_type == "finished":
-                        event = self._finished(payload)
+                    elif isinstance(event, ServerOperationFinished):
                         record = records.get(event.operation_id)
                         if (
                             record is None
@@ -252,8 +220,7 @@ class JsonlServerOperationJournal(ServerOperationJournalPort):
                         records[event.operation_id] = ServerOperationRecord(
                             record.started, event, record.resolution
                         )
-                    elif event_type == "resolved":
-                        event = self._resolved(payload)
+                    elif isinstance(event, ServerOperationResolved):
                         record = records.get(event.operation_id)
                         if record is None or record.resolution is not None:
                             raise ValueError("resolution has no unique open operation")
@@ -270,14 +237,14 @@ class JsonlServerOperationJournal(ServerOperationJournalPort):
                             record.started, record.finished, event
                         )
                     else:
-                        raise ValueError(f"unknown event type {event_type!r}")
+                        raise TypeError("decoded server operation event type is unsupported")
                 except ServerOperationJournalIntegrityError as exc:
                     raise ServerOperationJournalIntegrityError(
-                        f"server operation ledger is corrupt at line {line_number}"
+                        f"server operation ledger is corrupt at line {line_number}: {exc}"
                     ) from exc
-                except (UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError, KeyError) as exc:
+                except (TypeError, ValueError, KeyError) as exc:
                     raise ServerOperationJournalIntegrityError(
-                        f"server operation ledger is corrupt at line {line_number}"
+                        f"server operation ledger is corrupt at line {line_number}: {exc}"
                     ) from exc
         return tuple(records[operation_id] for operation_id in order)
 

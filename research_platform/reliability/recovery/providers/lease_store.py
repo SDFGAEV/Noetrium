@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from pathlib import Path
 import time
 
@@ -35,9 +36,11 @@ class RecoveryLeaseStore:
         ttl_seconds: float = 300.0,
         now: float | None = None,
     ) -> RecoveryLease:
-        if ttl_seconds <= 0:
-            raise ValueError("ttl_seconds must be positive")
-        t = time.time() if now is None else now
+        if not math.isfinite(float(ttl_seconds)) or ttl_seconds <= 0:
+            raise ValueError("ttl_seconds must be finite and positive")
+        t = time.time() if now is None else float(now)
+        if not math.isfinite(t):
+            raise ValueError("recovery lease observation time must be finite")
         with self._guard:
             current = self.read()
             if current and current.expires_at > t:
@@ -57,9 +60,11 @@ class RecoveryLeaseStore:
         ttl_seconds: float = 300.0,
         now: float | None = None,
     ) -> RecoveryLease:
-        if ttl_seconds <= 0:
-            raise ValueError("ttl_seconds must be positive")
-        t = time.time() if now is None else now
+        if not math.isfinite(float(ttl_seconds)) or ttl_seconds <= 0:
+            raise ValueError("ttl_seconds must be finite and positive")
+        t = time.time() if now is None else float(now)
+        if not math.isfinite(t):
+            raise ValueError("recovery lease observation time must be finite")
         with self._guard:
             current = self.read()
             if (
@@ -80,7 +85,9 @@ class RecoveryLeaseStore:
         *,
         now: float | None = None,
     ) -> RecoveryLease:
-        t = time.time() if now is None else now
+        t = time.time() if now is None else float(now)
+        if not math.isfinite(t):
+            raise ValueError("recovery lease observation time must be finite")
         with self._guard:
             lease = self.read()
             if (

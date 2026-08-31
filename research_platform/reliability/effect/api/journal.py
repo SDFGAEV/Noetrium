@@ -122,6 +122,10 @@ class EffectIntentConflict(RuntimeError):
     pass
 
 
+class EffectJournalIntegrityError(ValueError):
+    """Persistent effect WAL content disagrees with its identity/index metadata."""
+
+
 class EffectRecoveryRequired(RuntimeError):
     """A durable external effect cannot safely progress without authoritative reconciliation."""
 
@@ -172,6 +176,7 @@ __all__ = [
     "EffectIntent",
     "EffectIntentConflict",
     "EffectIntentJournal",
+    "EffectJournalIntegrityError",
     "EffectRecoveryRequired",
     "EffectAlreadyConsumed",
     "PendingEffectRecoveryRequired",

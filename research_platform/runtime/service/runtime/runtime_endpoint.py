@@ -18,12 +18,18 @@ class ExactServiceRuntimeEndpoint:
     def start_exact(self, contract: ServiceLaunchContract) -> ServiceStartOutcome:
         report = self._supervisor.start_exact(contract)
         state = report.state
-        if state.phase is not ServicePhase.RUNNING or state.process is None or not state.ready_evidence_ref:
+        if (
+            state.phase is not ServicePhase.RUNNING
+            or state.process is None
+            or not state.ready_evidence_ref
+            or state.ready_at is None
+        ):
             raise RuntimeError("service start completed without exact READY state")
         return ServiceStartOutcome(
             contract_digest=state.contract_digest,
             process=state.process,
             ready_evidence_ref=state.ready_evidence_ref,
+            ready_at=state.ready_at,
             evidence_refs=tuple(report.evidence_refs),
         )
 
@@ -31,7 +37,12 @@ class ExactServiceRuntimeEndpoint:
         state = self._supervisor.observe_state(contract)
         if state is None:
             raise RuntimeError("service has no supervisor state")
-        if state.phase is not ServicePhase.RUNNING or state.process is None or not state.ready_evidence_ref:
+        if (
+            state.phase is not ServicePhase.RUNNING
+            or state.process is None
+            or not state.ready_evidence_ref
+            or state.ready_at is None
+        ):
             raise RuntimeError("service is not exactly ready")
         reconciled = self._supervisor.reconcile_exact(contract)
         if reconciled.process is None or reconciled.process != state.process:
@@ -40,6 +51,7 @@ class ExactServiceRuntimeEndpoint:
             contract_digest=state.contract_digest,
             process=state.process,
             ready_evidence_ref=state.ready_evidence_ref,
+            ready_at=state.ready_at,
             evidence_refs=tuple(reconciled.evidence_refs),
         )
 
