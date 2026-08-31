@@ -8,8 +8,12 @@ import pytest
 from research_platform.platform.concurrency.api import (
     ConcurrencyBudget,
     Deadline,
+    ExecutionLaneKind,
+    ExecutionSpec,
     TaskCancelled,
+    TaskDeadlineExceeded,
     TaskFailurePolicy,
+    TaskFailureScope,
 )
 from research_platform.platform.concurrency.composition import build_concurrency_runtime
 from research_platform.runtime.process.supervision.api import ProcessTerminationPolicy
@@ -62,7 +66,11 @@ def test_async_process_supervisor_watches_many_processes_on_one_async_owner_thre
     owned_ident: int | None = None
     try:
         handles = [
-            supervisor.await_exit(f"proc-{index}", _FakeProcess(1000 + index, exit_after=0.02))
+            supervisor.await_exit(
+                f"proc-{index}",
+                _FakeProcess(1000 + index, exit_after=0.02),
+                deadline=Deadline.after(1.0),
+            )
             for index in range(32)
         ]
         receipts = [handle.result(1) for handle in handles]
@@ -89,8 +97,12 @@ def test_process_supervisors_have_distinct_task_identity_namespaces_in_one_group
     first = build_process_supervisor(group, policy=ProcessTerminationPolicy(poll_interval_seconds=0.005))
     second = build_process_supervisor(group, policy=ProcessTerminationPolicy(poll_interval_seconds=0.005))
     try:
-        left = first.await_exit("same-process-role", _FakeProcess(2001, exit_after=0.01))
-        right = second.await_exit("same-process-role", _FakeProcess(2002, exit_after=0.01))
+        left = first.await_exit(
+            "same-process-role", _FakeProcess(2001, exit_after=0.01), deadline=Deadline.after(1.0)
+        )
+        right = second.await_exit(
+            "same-process-role", _FakeProcess(2002, exit_after=0.01), deadline=Deadline.after(1.0)
+        )
         assert left.task_id != right.task_id
         assert left.result(1).exit_code == 0
         assert right.result(1).exit_code == 0
@@ -125,6 +137,75 @@ def test_async_process_supervisor_escalates_terminate_to_kill_without_blocking_w
         group.close()
         runtime.close()
 
+
+
+def test_process_command_admission_deadline_prevents_late_spawn(tmp_path) -> None:
+    import asyncio
+    import sys
+    from research_platform.runtime.process.supervision.runtime import AsyncProcessCommandRunner
+
+    runtime = build_concurrency_runtime(
+        budget=ConcurrencyBudget(
+            max_blocking_io_workers=1,
+            max_cpu_workers=1,
+            max_async_io_in_flight=1,
+            default_queue_capacity=1,
+        )
+    )
+    group = runtime.open_task_group(
+        "process-command-admission-deadline",
+        failure_policy=TaskFailurePolicy.COLLECT_ALL,
+    )
+
+    async def occupy_async_lane(context):
+        context.checkpoint()
+        await asyncio.sleep(30)
+
+    blocker = group.submit(
+        ExecutionSpec(
+            task_id="process-command-admission-blocker",
+            lane_kind=ExecutionLaneKind.ASYNC_IO,
+            failure_scope=TaskFailureScope.CALLER,
+        ),
+        occupy_async_lane,
+    )
+    marker = tmp_path / "late-spawn.txt"
+    runner = AsyncProcessCommandRunner(
+        group,
+        cleanup_timeout_seconds=0.02,
+    )
+    started = time.monotonic()
+    try:
+        with pytest.raises(TaskDeadlineExceeded):
+            runner.execute(
+                (sys.executable, "-c", f"from pathlib import Path; Path({str(marker)!r}).write_text('spawned')"),
+                timeout_seconds=0.05,
+            )
+        assert time.monotonic() - started < 0.75
+        time.sleep(0.1)
+        assert not marker.exists(), "deadline-expired command spawned after caller failure"
+    finally:
+        blocker.cancel()
+        group.close(cancel_pending=True)
+        runtime.close()
+
+
+def test_process_command_rejects_non_finite_or_unbounded_timeouts() -> None:
+    from research_platform.runtime.process.supervision.runtime import AsyncProcessCommandRunner
+
+    runtime = _runtime()
+    group = runtime.open_task_group(
+        "process-command-finite-timeout",
+        failure_policy=TaskFailurePolicy.COLLECT_ALL,
+    )
+    runner = AsyncProcessCommandRunner(group)
+    try:
+        for timeout in (None, float("inf"), float("nan"), 0.0, -1.0):
+            with pytest.raises(ValueError, match="finite and positive"):
+                runner.execute(("not-spawned",), timeout_seconds=timeout)  # type: ignore[arg-type]
+    finally:
+        group.close()
+        runtime.close()
 
 def test_async_process_command_runner_executes_and_captures_without_blocking_worker() -> None:
     import sys
@@ -234,7 +315,7 @@ def test_process_command_cancellation_reaps_descendant_tree(tmp_path) -> None:
         f"pathlib.Path({str(pid_file)!r}).write_text(str(p.pid)); "
         "time.sleep(30)"
     )
-    handle = runner.execute((sys.executable, "-c", child_code), timeout_seconds=None)
+    handle = runner.execute((sys.executable, "-c", child_code), timeout_seconds=30.0)
     try:
         deadline = time.monotonic() + 3.0
         while not pid_file.exists() and time.monotonic() < deadline:

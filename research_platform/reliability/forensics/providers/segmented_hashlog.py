@@ -3,14 +3,23 @@ from __future__ import annotations
 from pathlib import Path
 from threading import RLock
 
-from research_platform.reliability.forensics.api import VerifiedLedgerSlice
+from research_platform.reliability.forensics.api import VerifiedLedgerCut, VerifiedLedgerSlice
 from research_platform.reliability.forensics.providers.hashchain_core import stat_signature
 from research_platform.reliability.forensics.providers.hashlog import HashChainError
 from research_platform.reliability.forensics.providers.directory_change_signal import DirectoryChangeSignal
-from research_platform.reliability.forensics.providers.segment_verifier import scan_segment_chain, scan_segment_chain_payloads, segment_files
+from research_platform.reliability.forensics.providers.segment_verifier import (
+    iter_segment_chain_payload_batches,
+    scan_segment_chain,
+    scan_segment_chain_cut,
+    scan_segment_chain_payloads,
+    segment_files,
+)
 from research_platform.reliability.forensics.providers.segmented_manifest import SegmentManifestStore, SegmentSummary
 from research_platform.reliability.forensics.providers.segmented_state import SegmentStateCell, SegmentWriterState
 from research_platform.reliability.forensics.providers.segmented_writer import SegmentedLedgerWriter
+
+
+_OWNED_SEGMENT_NOTIFICATION_WAIT_SECONDS = 0.25
 
 
 class SegmentedHashChainedJSONL:
@@ -109,6 +118,24 @@ class SegmentedHashChainedJSONL:
                 raise HashChainError("verified segment cut disagrees with adopted scan")
             return verified
 
+    def verified_cut_after(self, row_count: int) -> VerifiedLedgerCut:
+        """Verify one segmented cut without retaining its suffix payloads."""
+        with self._lock:
+            result, cut = scan_segment_chain_cut(self.root, start_after=row_count)
+            total, tail = self._adopt_scan(result)
+            if total != cut.total_rows or tail != cut.tail_hash:
+                raise HashChainError("verified segment cut disagrees with adopted scan")
+            return cut
+
+    def iter_verified_payload_batches(
+        self, cut: VerifiedLedgerCut, *, batch_size: int = 512
+    ):
+        """Re-verify one fixed segmented cut while yielding bounded batches."""
+        with self._lock:
+            yield from iter_segment_chain_payload_batches(
+                self.root, cut=cut, batch_size=batch_size
+            )
+
     def _ensure_owned(self)->None:
         state=self._state.value
         if not state.initialized:
@@ -121,13 +148,40 @@ class SegmentedHashChainedJSONL:
             self.verify()
             raise HashChainError("segmented ledger changed outside owning writer")
 
+    def _assert_owned_directory_namespace(self) -> None:
+        state = self._state.value
+        expected = {f"{index:08d}.jsonl" for index in range(state.active_index + 1)}
+        if self.manifest_path.exists():
+            expected.add(self.manifest_path.name)
+        actual = {entry.name for entry in self.root.iterdir()}
+        if actual != expected:
+            extras = sorted(actual - expected)
+            missing = sorted(expected - actual)
+            raise HashChainError(
+                f"segmented ledger directory namespace drift extras={extras} missing={missing}"
+            )
+
     def append(self,payload:dict[str,object])->str:
         if self.read_only:
             raise PermissionError("read-only segmented ledger cannot append")
         with self._lock:
             self._ensure_owned()
-            row_hash=self._writer.append(payload)
-            self._directory_signal.acknowledge()
+            before=self._state.value
+            receipt=self._writer.append(payload)
+            changed=self._directory_signal.changed_since(before.directory_signature)
+            if receipt.created_segment:
+                if not changed:
+                    changed = self._directory_signal.wait_changed_since(
+                        before.directory_signature,
+                        timeout_seconds=_OWNED_SEGMENT_NOTIFICATION_WAIT_SECONDS,
+                    )
+                if not changed:
+                    raise HashChainError("owned segment creation was not observed by directory authority")
+                self._assert_owned_directory_namespace()
+                self._directory_signal.acknowledge()
+            elif changed:
+                raise HashChainError("segmented ledger directory changed during owning writer append")
+            row_hash=receipt.row_hash
             state=self._state.value
             current_directory_signature=stat_signature(self.root)
             if current_directory_signature!=state.directory_signature:

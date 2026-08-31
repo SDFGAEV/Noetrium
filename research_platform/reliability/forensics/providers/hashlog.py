@@ -3,10 +3,16 @@ from __future__ import annotations
 from pathlib import Path
 from threading import RLock
 
-from research_platform.reliability.forensics.api import VerifiedLedgerSlice
+from research_platform.reliability.forensics.api import VerifiedLedgerCut, VerifiedLedgerSlice
 from research_platform.reliability.forensics.providers.hashchain_core import hash_payload, stat_signature
 from research_platform.reliability.forensics.providers.hashlog_lookup import find_payload_in_hashlog
-from research_platform.reliability.forensics.providers.hashlog_scanner import HashChainError, scan_hash_chain, scan_hash_chain_payloads
+from research_platform.reliability.forensics.providers.hashlog_scanner import (
+    HashChainError,
+    iter_hash_chain_payload_batches,
+    scan_hash_chain,
+    scan_hash_chain_cut,
+    scan_hash_chain_payloads,
+)
 from research_platform.reliability.forensics.providers.hashlog_state import HashTailStateCell
 from research_platform.reliability.forensics.providers.hashlog_writer import HashLedgerWriter
 
@@ -70,6 +76,22 @@ class HashChainedJSONL:
                 verified.total_rows, verified.tail_hash, stat_signature(self.path)
             )
             return verified
+
+    def verified_cut_after(self, row_count: int) -> VerifiedLedgerCut:
+        """Verify an authoritative cut without materializing its suffix."""
+        with self._lock:
+            cut = scan_hash_chain_cut(self.path, start_after=row_count)
+            self._state.verified(cut.total_rows, cut.tail_hash, stat_signature(self.path))
+            return cut
+
+    def iter_verified_payload_batches(
+        self, cut: VerifiedLedgerCut, *, batch_size: int = 512
+    ):
+        """Re-verify one fixed cut while yielding only bounded payload batches."""
+        with self._lock:
+            yield from iter_hash_chain_payload_batches(
+                self.path, cut=cut, batch_size=batch_size
+            )
 
     def find_payload(
         self,

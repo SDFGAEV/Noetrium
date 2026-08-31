@@ -112,7 +112,7 @@ class FakeRuntime:
 
     def start_exact(self, contract):
         self.live = True
-        return ServiceStartOutcome(contract.digest(), ServiceProcessIdentity(1234, "start"), "ready:test")
+        return ServiceStartOutcome(contract.digest(), ServiceProcessIdentity(1234, "start"), "ready:test", 1234.5)
 
     def verify_ready_exact(self, contract):
         raise NotImplementedError

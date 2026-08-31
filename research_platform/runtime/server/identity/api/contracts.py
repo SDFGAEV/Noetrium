@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 from enum import StrEnum
+import math
 import re
 from types import MappingProxyType
 from collections.abc import Mapping
@@ -52,6 +53,7 @@ class ServerConnectionProfile:
     control_path: Path | None = None
     control_persist_seconds: int = 600
     command_timeout_seconds: float = 120.0
+    interactive_timeout_seconds: float = 8 * 60 * 60.0
     transfer_timeout_seconds: float = 1800.0
     repository_timeout_seconds: float = 1800.0
     git_transport_timeout_seconds: float = 120.0
@@ -68,8 +70,8 @@ class ServerConnectionProfile:
             raise ServerIdentityConfigurationError("server username must be non-empty and contain no whitespace")
         if not self.ssh_executable:
             raise ServerIdentityConfigurationError("ssh executable must be non-empty")
-        if self.connect_timeout_seconds <= 0:
-            raise ServerIdentityConfigurationError("SSH connect timeout must be positive")
+        if not math.isfinite(float(self.connect_timeout_seconds)) or self.connect_timeout_seconds <= 0:
+            raise ServerIdentityConfigurationError("SSH connect timeout must be finite and positive")
         if self.control_path is not None:
             if not self.control_path.is_absolute():
                 raise ServerIdentityConfigurationError("SSH control path must be absolute")
@@ -93,16 +95,18 @@ class ServerConnectionProfile:
                 raise ServerIdentityConfigurationError(
                     "SSH control path template expands to 108 or more bytes; use a shorter local path"
                 )
-        if self.control_persist_seconds <= 0:
-            raise ServerIdentityConfigurationError("SSH control persist seconds must be positive")
-        if self.command_timeout_seconds <= 0:
-            raise ServerIdentityConfigurationError("SSH command timeout must be positive")
-        if self.transfer_timeout_seconds <= 0:
-            raise ServerIdentityConfigurationError("SCP transfer timeout must be positive")
-        if self.repository_timeout_seconds <= 0:
-            raise ServerIdentityConfigurationError("repository command timeout must be positive")
-        if self.git_transport_timeout_seconds <= 0:
-            raise ServerIdentityConfigurationError("Git transport timeout must be positive")
+        if not math.isfinite(float(self.control_persist_seconds)) or self.control_persist_seconds <= 0:
+            raise ServerIdentityConfigurationError("SSH control persist seconds must be finite and positive")
+        if not math.isfinite(float(self.command_timeout_seconds)) or self.command_timeout_seconds <= 0:
+            raise ServerIdentityConfigurationError("SSH command timeout must be finite and positive")
+        if not math.isfinite(float(self.interactive_timeout_seconds)) or self.interactive_timeout_seconds <= 0:
+            raise ServerIdentityConfigurationError("SSH interactive timeout must be finite and positive")
+        if not math.isfinite(float(self.transfer_timeout_seconds)) or self.transfer_timeout_seconds <= 0:
+            raise ServerIdentityConfigurationError("SCP transfer timeout must be finite and positive")
+        if not math.isfinite(float(self.repository_timeout_seconds)) or self.repository_timeout_seconds <= 0:
+            raise ServerIdentityConfigurationError("repository command timeout must be finite and positive")
+        if not math.isfinite(float(self.git_transport_timeout_seconds)) or self.git_transport_timeout_seconds <= 0:
+            raise ServerIdentityConfigurationError("Git transport timeout must be finite and positive")
         if self.git_transport_timeout_seconds > self.repository_timeout_seconds:
             raise ServerIdentityConfigurationError(
                 "Git transport timeout must not exceed repository command timeout"

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import AbstractContextManager, contextmanager
+import math
 from pathlib import Path
 import sqlite3
 
@@ -90,7 +91,9 @@ class SQLiteEffectJournalBackend(EffectJournalPersistenceBackend):
     def __init__(self, path: Path, *, timeout_seconds: float = 30.0) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.timeout_seconds = timeout_seconds
+        if not math.isfinite(float(timeout_seconds)) or timeout_seconds <= 0:
+            raise ValueError("effect journal timeout_seconds must be finite and positive")
+        self.timeout_seconds = float(timeout_seconds)
         self._initialize()
 
     def connect(self) -> sqlite3.Connection:

@@ -4,6 +4,7 @@ from research_platform.runtime.service.api import ServiceLaunchContract, Service
 from dataclasses import dataclass
 from typing import Protocol
 
+from .contracts import ServiceReadyEvidence
 from .service_state_contracts import ServiceSupervisorState
 
 
@@ -23,7 +24,7 @@ class ServiceProcessAdapter(Protocol):
         self,
         process: ServiceProcessIdentity,
         contract: ServiceLaunchContract,
-    ) -> tuple[str, str, str]: ...
+    ) -> ServiceReadyEvidence: ...
 
     def stop(
         self,

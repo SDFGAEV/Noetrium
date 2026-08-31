@@ -63,6 +63,7 @@ class JoinedRuntimeStatusV78Tests(unittest.TestCase):
             None,
             None,
             time.time(),
+            time.time(),
         ))
         lease=RecoveryLeaseStore(root/"recovery_lease.json")
         forensics=ForensicStore(root/"forensics")

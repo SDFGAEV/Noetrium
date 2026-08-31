@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from research_platform.runtime.service.api import ServiceLaunchContract, ServiceProcessIdentity
-from service_os_test_support import make_service_supervisor
+from service_os_test_support import make_service_supervisor, ready_evidence
 
 import hashlib
 from pathlib import Path
@@ -64,7 +64,7 @@ class DurableAdapter:
         raise AssertionError("crash-durable adapter must not use legacy start")
 
     def wait_ready(self, process, launch):
-        return "ready:provider", "stdout:provider", "stderr:provider"
+        return ready_evidence(process, launch, "ready:provider", "stdout:provider", "stderr:provider")
 
     def stop(self, process, launch):
         self.provider_state.pop("process", None)
@@ -118,7 +118,7 @@ class LegacyCrashAdapter:
         raise SimulatedCrashAfterStart("legacy start outcome unknown")
 
     def wait_ready(self, process, launch):
-        return "ready", "stdout", "stderr"
+        return ready_evidence(process, launch)
 
     def stop(self, process, launch):
         return ()

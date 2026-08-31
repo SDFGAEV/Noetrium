@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import shutil
 
 from research_platform.platform.kernel.process import LocalCommandRunnerPort, LocalCommandStartError, LocalCommandTimeoutError
@@ -25,8 +26,8 @@ class NvidiaSmiGpuRuntimeObserver:
         executable: str = "nvidia-smi",
         command_timeout_seconds: float = 5.0,
     ) -> None:
-        if command_timeout_seconds <= 0:
-            raise ValueError("nvidia-smi command timeout must be positive")
+        if not math.isfinite(float(command_timeout_seconds)) or command_timeout_seconds <= 0:
+            raise ValueError("nvidia-smi command timeout must be finite and positive")
         self._command_runner = command_runner
         self._executable = executable
         self._command_timeout_seconds = float(command_timeout_seconds)

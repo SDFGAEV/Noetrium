@@ -2,7 +2,7 @@ from __future__ import annotations
 from tests._concurrency_support import process_capture
 
 from research_platform.runtime.service.api import ServiceContractDrift, ServiceLaunchContract, ServiceProcessIdentity
-from service_os_test_support import make_service_supervisor
+from service_os_test_support import make_service_supervisor, ready_evidence
 
 from pathlib import Path
 import hashlib
@@ -49,7 +49,7 @@ class ProcessAdapter:
         return ServiceProcessIdentity(123, "pid:123:start:7", 123), ("start",)
 
     def wait_ready(self, process, contract):
-        return "ready.json", "stdout.active", "stderr.active"
+        return ready_evidence(process, contract, "ready.json", "stdout.active", "stderr.active")
 
     def stop(self, process, contract):
         return ("stopped",)

@@ -3,7 +3,7 @@ from __future__ import annotations
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
 from research_platform.runtime.service.api import ServiceLaunchContract, ServiceProcessIdentity
 from runtime_manager_test_support import make_runtime_control_store
-from service_os_test_support import make_service_supervisor
+from service_os_test_support import make_service_supervisor, ready_evidence
 
 import hashlib
 from pathlib import Path
@@ -41,7 +41,7 @@ class Durable:
     start_recovery_durability='crash_durable'
     def reconcile(self,state,launch): return (None,())
     def start(self,launch): raise AssertionError
-    def wait_ready(self,process,launch): return ('ready','out','err')
+    def wait_ready(self,process,launch): return ready_evidence(process,launch,"ready","out","err")
     def stop(self,process,launch): return ()
     def prepare_start_recovery(self,launch,*,intent_id,attempt):
         return ServiceStartRecoveryHandle.from_payload('provider.v1',b'secret-provider-token')

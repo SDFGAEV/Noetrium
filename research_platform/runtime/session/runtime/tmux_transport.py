@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 from research_platform.scope.path.api import is_absolute_target_path
 from research_platform.runtime.process.supervision.api import ProcessCommandRunnerPort
 
@@ -39,8 +41,8 @@ class TmuxPersistentSessionControl:
         process_runner: ProcessCommandRunnerPort | None = None,
         transport_identity: TmuxTransportIdentity | None = None,
     ) -> None:
-        if command_timeout_s <= 0:
-            raise ValueError("tmux command timeout must be positive")
+        if not math.isfinite(float(command_timeout_s)) or command_timeout_s <= 0:
+            raise ValueError("tmux command timeout must be finite and positive")
         if not is_absolute_target_path(socket_directory):
             raise ValueError("tmux socket directory must be absolute")
         self.commands = TmuxCommandCodec(

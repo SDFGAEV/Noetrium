@@ -75,7 +75,7 @@ class AsyncProcessSupervisor(ProcessSupervisorPort):
         supervision_id: str,
         process: SupervisedProcessPort,
         *,
-        deadline: Deadline | None = None,
+        deadline: Deadline,
     ):
         task_id = self._task_id(supervision_id, "await-exit")
         return self._task_group.submit(
@@ -146,7 +146,7 @@ class AsyncProcessSupervisor(ProcessSupervisorPort):
         supervision_id: str,
         process: SupervisedProcessPort,
         *,
-        deadline: Deadline | None = None,
+        deadline: Deadline,
         policy: ProcessTerminationPolicy | None = None,
     ):
         task_id = self._task_id(supervision_id, "terminate")

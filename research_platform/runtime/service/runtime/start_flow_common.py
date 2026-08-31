@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from research_platform.runtime.service.api import ServiceLaunchContract
-import time
 
-from .contracts import ServicePhase, ServiceReadyEvidence
+from .contracts import ServicePhase, ServiceReadinessProofMismatch
 from .service_state_contracts import ServiceSupervisorState
 from .start_intent_contracts import ServiceStartIntent
 from .state_transition import ServiceStateTransitionWriter
@@ -35,15 +34,18 @@ class ServiceReadinessCommitter:
         state: ServiceSupervisorState,
         process,
     ) -> tuple[ServiceSupervisorState, tuple[str, str, str]]:
-        ready_ref, stdout_ref, stderr_ref = self._adapter.wait_ready(process, contract)
-        ready = ServiceReadyEvidence(
-            contract.digest(), process, ready_ref, stdout_ref, stderr_ref, time.time()
-        )
+        ready = self._adapter.wait_ready(process, contract)
+        if ready.contract_digest != contract.digest() or ready.process != process:
+            raise ServiceReadinessProofMismatch("service readiness proof identity mismatch")
+        ready_ref = ready.readiness_ref
+        stdout_ref = ready.stdout_capture_ref
+        stderr_ref = ready.stderr_capture_ref
         state = self._transitions.persist(
             state,
             ServicePhase.RUNNING,
             process=process,
             ready_evidence_ref=ready_ref,
+            ready_at=ready.ready_at,
             stdout_capture_ref=stdout_ref,
             stderr_capture_ref=stderr_ref,
             last_heartbeat_at=ready.ready_at,

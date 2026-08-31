@@ -67,7 +67,7 @@ class SSHServerFileTransfer(ServerFileTransferPort):
             timeout_seconds=self._profile.transfer_timeout_seconds,
             inherit_stdin=interactive,
             output_limit_bytes=self._profile.output_limit_bytes,
-        ).result(timeout=self._profile.transfer_timeout_seconds + 4.0)
+        ).result()
         stdout, stdout_bytes = bounded_output_text(
             completed.stdout, limit=self._profile.output_limit_bytes,
             total_bytes=completed.stdout_bytes, truncated=completed.stdout_truncated,

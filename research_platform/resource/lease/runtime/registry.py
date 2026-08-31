@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import heapq
+import math
 from dataclasses import replace
 from threading import RLock
 from time import time
@@ -86,8 +87,12 @@ class InMemoryResourceLeaseRegistry:
         now: float | None = None,
     ) -> ResourceLease:
         now_epoch_s = time() if now is None else float(now)
-        if ttl_seconds is not None and ttl_seconds <= 0:
-            raise ValueError("lease ttl_seconds must be > 0")
+        if not math.isfinite(now_epoch_s):
+            raise ValueError("lease observation time must be finite")
+        if ttl_seconds is not None and (
+            not math.isfinite(float(ttl_seconds)) or ttl_seconds <= 0
+        ):
+            raise ValueError("lease ttl_seconds must be finite and > 0")
         with self._lock:
             if lease.resource not in self._owners:
                 raise KeyError(lease.resource.key)
@@ -127,9 +132,11 @@ class InMemoryResourceLeaseRegistry:
         ttl_seconds: float,
         now: float | None = None,
     ) -> ResourceLease:
-        if ttl_seconds <= 0:
-            raise ValueError("lease ttl_seconds must be > 0")
+        if not math.isfinite(float(ttl_seconds)) or ttl_seconds <= 0:
+            raise ValueError("lease ttl_seconds must be finite and > 0")
         now_epoch_s = time() if now is None else float(now)
+        if not math.isfinite(now_epoch_s):
+            raise ValueError("lease observation time must be finite")
         with self._lock:
             current = self._expire_lease_if_needed(lease_id, now_epoch_s)
             if current is None:
@@ -173,6 +180,8 @@ class InMemoryResourceLeaseRegistry:
 
     def reconcile_expired(self, *, now: float | None = None) -> tuple[ResourceLease, ...]:
         now_epoch_s = time() if now is None else float(now)
+        if not math.isfinite(now_epoch_s):
+            raise ValueError("lease observation time must be finite")
         expired: list[ResourceLease] = []
         with self._lock:
             while self._expiry_heap and self._expiry_heap[0][0] <= now_epoch_s:
