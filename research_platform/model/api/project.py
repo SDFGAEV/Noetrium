@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
-from research_platform.model.request.api import ModelRequestEnvelope
+from research_platform.model.request.api import ContentRef, ModelRequestEnvelope
 from research_platform.model.request.prompt.api import PromptSelectionPort
 from research_platform.platform.kernel import (
     ImmutableModelIdentity,
@@ -84,6 +84,57 @@ class ModelCapabilityRequirement:
     @property
     def is_generation(self) -> bool:
         return self.capability_id in {"generation", "structured-generation"}
+
+    def digest(self) -> str:
+        return canonical_digest(self)
+
+
+@dataclass(frozen=True, slots=True)
+class MultimodalContent:
+    role: str
+    content: ContentRef
+
+    def __post_init__(self) -> None:
+        _text(self.role, "multimodal content role")
+        if not isinstance(self.content, ContentRef):
+            raise TypeError("multimodal content must carry ContentRef")
+
+
+@dataclass(frozen=True, slots=True)
+class MultimodalInferenceInput:
+    content: tuple[MultimodalContent, ...]
+    instruction: str | None = None
+    schema_id: str = field(init=False, default="model.multimodal.input.v1")
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.content, tuple) or not self.content:
+            raise TypeError("multimodal input content must be a non-empty tuple")
+        if any(not isinstance(item, MultimodalContent) for item in self.content):
+            raise TypeError("multimodal input must contain typed MultimodalContent values")
+        if self.instruction is not None:
+            _text(self.instruction, "multimodal instruction")
+
+    def digest(self) -> str:
+        return canonical_digest(self)
+
+
+@dataclass(frozen=True, slots=True)
+class MultimodalInferenceOutput:
+    model_revision: str
+    text: str | None = None
+    content: tuple[MultimodalContent, ...] = ()
+    schema_id: str = field(init=False, default="model.multimodal.output.v1")
+
+    def __post_init__(self) -> None:
+        _text(self.model_revision, "multimodal output model_revision")
+        if self.text is not None:
+            _text(self.text, "multimodal output text")
+        if not isinstance(self.content, tuple) or any(
+            not isinstance(item, MultimodalContent) for item in self.content
+        ):
+            raise TypeError("multimodal output content must be typed MultimodalContent values")
+        if self.text is None and not self.content:
+            raise ValueError("multimodal output must contain text or content references")
 
     def digest(self) -> str:
         return canonical_digest(self)
@@ -419,6 +470,9 @@ __all__ = [
     "ModelCapabilityRequirement",
     "ModelProjectBindingError",
     "ModelProjectDefinition",
+    "MultimodalInferenceOutput",
+    "MultimodalInferenceInput",
+    "MultimodalContent",
     "ModelRequirementContribution",
     "ModelProviderProfile",
     "ProjectModelBinding",

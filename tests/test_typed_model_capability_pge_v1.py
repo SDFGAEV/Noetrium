@@ -12,6 +12,9 @@ from research_platform.model.api import (
     ModelCapabilityInvocation,
     ModelCapabilityRequirement,
     ModelProviderProfile,
+    MultimodalInferenceOutput,
+    MultimodalInferenceInput,
+    MultimodalContent,
     NamedScalar,
     ProjectModelBinding,
     ProjectModelCapabilityClientPort,
@@ -450,3 +453,47 @@ def test_structured_generation_rejects_noncanonical_output_schema_before_text_pr
             {"messages": ()},
             "not-a-digest",
         )
+
+
+
+def test_multimodal_inference_uses_content_addressed_refs_not_inline_media_or_paths() -> None:
+    requirement = _requirement(
+        "multimodal-inference", "model.multimodal.input.v1", "model.multimodal.output.v1"
+    )
+    image = ContentRef("a" * 64, 4096, "image/png")
+    audio = ContentRef("b" * 64, 8192, "audio/wav")
+    request = MultimodalInferenceInput(
+        (MultimodalContent("observation-image", image), MultimodalContent("observation-audio", audio)),
+        instruction="identify the event",
+    )
+    evidence = ContentRef("c" * 64, 1024, "application/json")
+    output = MultimodalInferenceOutput(
+        model_revision="multimodal-r4",
+        text="event detected",
+        content=(MultimodalContent("derived-evidence", evidence),),
+    )
+    invocation = ModelCapabilityInvocation.from_requirement(requirement, "multimodal-1", request)
+    response = FunctionalModelCapabilityProvider(
+        "multimodal-inference", _binding, lambda payload: output
+    ).bind_capability(requirement).invoke(invocation)
+    assert response.output.text == "event detected"
+    assert response.output.content[0].content.sha256 == "c" * 64
+    assert request.content[0].content.media_type == "image/png"
+    assert request.content[1].content.media_type == "audio/wav"
+    assert requirement.prompt_id is None
+
+
+def test_multimodal_identity_changes_with_content_digest_and_empty_output_fails_closed() -> None:
+    left = MultimodalInferenceInput(
+        (MultimodalContent("image", ContentRef("d" * 64, 5, "image/png")),),
+        instruction="inspect",
+    )
+    right = MultimodalInferenceInput(
+        (MultimodalContent("image", ContentRef("e" * 64, 5, "image/png")),),
+        instruction="inspect",
+    )
+    assert left.digest() != right.digest()
+    with pytest.raises(ValueError, match="text or content"):
+        MultimodalInferenceOutput(model_revision="multimodal-r4")
+    with pytest.raises(TypeError, match="ContentRef"):
+        MultimodalContent("image", b"raw-bytes")  # type: ignore[arg-type]
