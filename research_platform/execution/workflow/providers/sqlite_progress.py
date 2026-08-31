@@ -8,7 +8,7 @@ from pathlib import Path
 from threading import Lock
 import time
 
-from research_platform.execution.operation.api import OperationId
+from research_platform.execution.operation.api import EffectId, OperationId
 from research_platform.execution.workflow.api.progress import (
     WorkflowOperationBinding,
     WorkflowProgress,
@@ -89,9 +89,20 @@ class SQLiteWorkflowProgressStore:
         rows = cls._json_list(value, field=field)
         bindings: list[WorkflowOperationBinding] = []
         for row in rows:
-            if not isinstance(row, list) or len(row) != 2 or not all(isinstance(item, str) for item in row):
-                raise WorkflowProgressCorruption(f"workflow {field} binding must be [step_id, operation_id]")
-            bindings.append(WorkflowOperationBinding(row[0], OperationId(row[1])))
+            if not isinstance(row, list) or len(row) != 5:
+                raise WorkflowProgressCorruption(
+                    f"workflow {field} binding must be [step_id, operation_id, effect_id, request_id, request_digest]"
+                )
+            if not isinstance(row[0], str) or not isinstance(row[1], str):
+                raise WorkflowProgressCorruption(f"workflow {field} step/operation identity must be text")
+            effect_values = row[2:5]
+            if not (all(value is None for value in effect_values) or all(isinstance(value, str) for value in effect_values)):
+                raise WorkflowProgressCorruption(f"workflow {field} effect identity must be all-text or all-null")
+            bindings.append(WorkflowOperationBinding(
+                row[0], OperationId(row[1]),
+                None if row[2] is None else EffectId(row[2]),
+                row[3], row[4],
+            ))
         return tuple(bindings)
 
     @classmethod
@@ -101,15 +112,15 @@ class SQLiteWorkflowProgressStore:
         rows = cls._json_list(value, field="failed_json")
         if len(rows) != 1:
             raise WorkflowProgressCorruption("workflow failed_json must contain exactly one binding")
-        row = rows[0]
-        if not isinstance(row, list) or len(row) != 2 or not all(isinstance(item, str) for item in row):
-            raise WorkflowProgressCorruption("workflow failed_json binding must be [step_id, operation_id]")
-        return WorkflowOperationBinding(row[0], OperationId(row[1]))
+        encoded = json.dumps(rows, separators=(",", ":"))
+        return cls._bindings(encoded, field="failed_json")[0]
 
     @staticmethod
     def _binding_json(bindings: tuple[WorkflowOperationBinding, ...]) -> str:
         return json.dumps(
-            [[item.step_id, item.operation_id.value] for item in bindings],
+            [[item.step_id, item.operation_id.value,
+              None if item.effect_id is None else item.effect_id.value,
+              item.effect_request_id, item.effect_request_digest] for item in bindings],
             separators=(",", ":"),
         )
 

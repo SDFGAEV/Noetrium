@@ -8,6 +8,8 @@ from research_platform.execution.operation.api import (
 )
 from research_platform.execution.operation.providers import SQLiteOperationStore
 from research_platform.execution.operation.runtime import OperationOwner
+from research_platform.platform.kernel.operation import EffectCertainty, EffectClass, EffectReceipt
+from research_platform.reliability.effect.api import EffectReconciliationDisposition, EffectReconciliationProof
 
 
 def _command_id(value: str = "cmd-1") -> CommandId:
@@ -53,11 +55,22 @@ def _effectful_owner(tmp_path: Path, suffix: str):
         operation_id=OperationId(f"op-{suffix}"),
         effect_profile=OperationEffectProfile.RECONCILABLE,
         effect_id=EffectId(f"effect-{suffix}"),
+        effect_request_id=f"request-{suffix}",
+        effect_request_digest="d" * 64,
         now_unix=10.0,
     )
     owner.admit(operation.operation_id, now_unix=11.0)
     owner.begin_execution(operation.operation_id)
     return owner, operation.operation_id
+
+
+def _proof(owner: OperationOwner, operation_id: OperationId, disposition, certainty):
+    operation = owner.require(operation_id)
+    effect = None if certainty is None else EffectReceipt(
+        operation.effect_id.value, operation.effect_request_digest,
+        EffectClass.RECONCILABLE, certainty,
+    )
+    return EffectReconciliationProof(operation.effect_request_id, disposition, effect)
 
 
 def test_uncertain_effect_cannot_blindly_enter_recovery(tmp_path: Path):
@@ -76,7 +89,7 @@ def test_uncertain_effect_cannot_blindly_enter_recovery(tmp_path: Path):
 def test_reconciliation_not_executed_allows_safe_retry(tmp_path: Path):
     owner, operation_id = _effectful_owner(tmp_path, "retry")
     owner.mark_effect_unknown(operation_id)
-    recovered = owner.reconcile_effect(operation_id, OperationEffectCertainty.NOT_EXECUTED)
+    recovered = owner.reconcile_effect(operation_id, _proof(owner, operation_id, EffectReconciliationDisposition.NOT_APPLIED, EffectCertainty.NO_EFFECT))
     assert recovered.state is OperationState.RECOVERING
     assert recovered.effect_certainty is OperationEffectCertainty.NOT_EXECUTED
     assert owner.begin_execution(operation_id).state is OperationState.RUNNING
@@ -85,7 +98,7 @@ def test_reconciliation_not_executed_allows_safe_retry(tmp_path: Path):
 def test_reconciliation_executed_blocks_reexecution_and_can_complete(tmp_path: Path):
     owner, operation_id = _effectful_owner(tmp_path, "executed")
     owner.mark_effect_unknown(operation_id)
-    recovered = owner.reconcile_effect(operation_id, OperationEffectCertainty.EXECUTED)
+    recovered = owner.reconcile_effect(operation_id, _proof(owner, operation_id, EffectReconciliationDisposition.APPLIED, EffectCertainty.EFFECT_CONFIRMED))
     assert recovered.state is OperationState.RECOVERING
     try:
         owner.begin_execution(operation_id)
@@ -127,7 +140,7 @@ def test_cancelled_uncertain_effect_reconciles_not_executed_to_cancelled(tmp_pat
     restarted = OperationOwner(SQLiteOperationStore(tmp_path / "cancel-not-executed.sqlite3"))
     persisted = restarted.require(operation_id)
     assert persisted.cancellation_requested
-    cancelled = restarted.reconcile_effect(operation_id, OperationEffectCertainty.NOT_EXECUTED)
+    cancelled = restarted.reconcile_effect(operation_id, _proof(restarted, operation_id, EffectReconciliationDisposition.NOT_APPLIED, EffectCertainty.NO_EFFECT))
     assert cancelled.state is OperationState.CANCELLED
     assert cancelled.cancellation_reason == "user cancelled"
 
@@ -136,7 +149,7 @@ def test_cancelled_uncertain_effect_confirmed_executed_never_reexecutes(tmp_path
     owner, operation_id = _effectful_owner(tmp_path, "cancel-executed")
     owner.request_cancel(operation_id, "user cancelled")
     owner.recover_interrupted(operation_id)
-    recovered = owner.reconcile_effect(operation_id, OperationEffectCertainty.EXECUTED)
+    recovered = owner.reconcile_effect(operation_id, _proof(owner, operation_id, EffectReconciliationDisposition.APPLIED, EffectCertainty.EFFECT_CONFIRMED))
     assert recovered.state is OperationState.RECOVERING
     assert recovered.cancellation_requested
     try:

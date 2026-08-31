@@ -3,6 +3,7 @@
 from .contracts import CompositionPlanReference, RunLaunchManifest
 from .evidence import (
     DerivedEvidenceArtifact,
+    EVIDENCE_BUNDLE_SCHEMA_VERSION,
     EvidenceBundleManifest,
     EvidenceBundleReceipt,
     EvidenceBundleStatus,
@@ -13,6 +14,7 @@ from .evidence_ports import EvidenceBundlePublisherPort
 __all__ = [
     "CompositionPlanReference",
     "DerivedEvidenceArtifact",
+    "EVIDENCE_BUNDLE_SCHEMA_VERSION",
     "EvidenceBundleManifest",
     "EvidenceBundlePublisherPort",
     "EvidenceBundleReceipt",

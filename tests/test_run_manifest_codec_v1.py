@@ -28,6 +28,19 @@ def test_run_launch_manifest_codec_rejects_unknown_or_missing_fields() -> None:
     with pytest.raises(RunLaunchManifestDecodeError):
         decode_run_launch_manifest(json.dumps(raw).encode())
 
+    raw = json.loads(encode_run_launch_manifest(frozen_runtime_manifest()))
+    del raw["manifest"]["seed_identity"]
+    with pytest.raises(RunLaunchManifestDecodeError):
+        decode_run_launch_manifest(json.dumps(raw).encode())
+
+
+def test_run_launch_manifest_codec_rejects_unsupported_or_untyped_wire_version() -> None:
+    for version in ("2", 1, True, None):
+        raw = json.loads(encode_run_launch_manifest(frozen_runtime_manifest()))
+        raw["schema_version"] = version
+        with pytest.raises(RunLaunchManifestDecodeError):
+            decode_run_launch_manifest(json.dumps(raw).encode())
+
 
 @pytest.mark.parametrize(
     "field",
@@ -41,13 +54,13 @@ def test_run_launch_manifest_codec_rejects_unknown_or_missing_fields() -> None:
 )
 def test_run_launch_manifest_codec_rejects_scalar_string_coercion(field) -> None:
     raw = json.loads(encode_run_launch_manifest(frozen_runtime_manifest()))
-    raw[field] = 7
+    raw["manifest"][field] = 7
     with pytest.raises(RunLaunchManifestDecodeError):
         decode_run_launch_manifest(json.dumps(raw).encode())
 
 
 def test_run_launch_manifest_codec_rejects_malformed_nested_identity() -> None:
     raw = json.loads(encode_run_launch_manifest(frozen_runtime_manifest()))
-    raw["composition_plans"][0]["owner_key"] = False
+    raw["manifest"]["composition_plans"][0]["owner_key"] = False
     with pytest.raises(RunLaunchManifestDecodeError):
         decode_run_launch_manifest(json.dumps(raw).encode())
