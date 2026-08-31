@@ -74,10 +74,16 @@ class ParticipantTopology:
     def digest(self) -> str:
         return canonical_digest(self)
 
-    def require_resume_compatible(self, checkpoint_topology_digest: str) -> None:
-        _sha256(checkpoint_topology_digest, "checkpoint topology digest")
-        if checkpoint_topology_digest != self.digest():
-            raise ValueError("participant topology is incompatible with checkpoint identity")
+    def checkpoint_compatibility_digest(self) -> str:
+        return canonical_digest({
+            "topology_id": self.topology_id,
+            "members": tuple((member.participant_id, member.role) for member in self.members),
+        })
+
+    def require_resume_compatible(self, checkpoint_compatibility_digest: str) -> None:
+        _sha256(checkpoint_compatibility_digest, "checkpoint topology compatibility digest")
+        if checkpoint_compatibility_digest != self.checkpoint_compatibility_digest():
+            raise ValueError("participant topology structure is incompatible with checkpoint")
 
 
 class TopologyChangeKind(StrEnum):
@@ -263,10 +269,18 @@ class ParticipantArchitectureRevision:
     def digest(self) -> str:
         return canonical_digest(self)
 
-    def require_resume_compatible(self, checkpoint_revision_digest: str) -> None:
-        _sha256(checkpoint_revision_digest, "checkpoint architecture revision digest")
-        if checkpoint_revision_digest != self.digest():
-            raise ValueError("participant architecture revision is incompatible with checkpoint identity")
+    def checkpoint_compatibility_digest(self) -> str:
+        return canonical_digest({
+            "participant_id": self.participant_id,
+            "components": tuple(
+                (component.component_id, component.state_schema_id) for component in self.components
+            ),
+        })
+
+    def require_resume_compatible(self, checkpoint_compatibility_digest: str) -> None:
+        _sha256(checkpoint_compatibility_digest, "checkpoint architecture compatibility digest")
+        if checkpoint_compatibility_digest != self.checkpoint_compatibility_digest():
+            raise ValueError("participant architecture state schema is incompatible with checkpoint")
 
 
 class ArchitectureChangeKind(StrEnum):

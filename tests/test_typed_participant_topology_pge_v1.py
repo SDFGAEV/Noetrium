@@ -172,14 +172,14 @@ def test_architecture_revision_and_transition_are_explicit() -> None:
     assert transition.to_revision_digest == after.digest()
 
 
-def test_resume_requires_exact_topology_and_architecture_revision() -> None:
+def test_resume_uses_explicit_topology_and_architecture_compatibility_facets() -> None:
     topology = _topology()
     revision = _revision("planner", "8")
-    topology.require_resume_compatible(topology.digest())
-    revision.require_resume_compatible(revision.digest())
-    with pytest.raises(ValueError, match="topology"):
+    topology.require_resume_compatible(topology.checkpoint_compatibility_digest())
+    revision.require_resume_compatible(revision.checkpoint_compatibility_digest())
+    with pytest.raises(ValueError, match="topology structure"):
         topology.require_resume_compatible(_d("f"))
-    with pytest.raises(ValueError, match="architecture revision"):
+    with pytest.raises(ValueError, match="state schema"):
         revision.require_resume_compatible(_d("e"))
 
 
