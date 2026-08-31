@@ -1,54 +1,56 @@
-from __future__ import annotations
-
-from dataclasses import dataclass
-
 import pytest
 
 from research_platform.artifact.reference.api import ArtifactReference
 from research_platform.experimentation.api import (
-    ResearchBindingContribution, ResearchBindingRequirements,
-    ResearchParticipantRequirement, resolve_research_requirements,
+    ResearchBindingContribution,
+    ResearchBindingRequirements,
+    ResearchCapabilityBinding,
+    ResearchParticipantBinding,
+    ResearchParticipantRequirement,
+    compile_research_plan,
+    resolve_research_requirements,
 )
 from research_platform.experimentation.experiment.api import (
-    ExperimentParticipantSpec, ExperimentTrialProtocolIdentity,
+    ExperimentParticipantSpec,
+    ExperimentTrialProtocolIdentity,
 )
 from research_platform.experimentation.study.api import (
-    BenchmarkTaskSet, FactorLevelSpec, MeasurementDefinition,
-    MeasurementProtocol, MeasurementRecord, MeasurementValue,
-    MeasurementValueKind, ResearchRevision, ResearchStudyDefinition,
-    StudyFactorSpec, TaskDefinition, TrialExecutionReceipt, compile_research_plan,
+    BenchmarkTaskSet,
+    FactorLevelSpec,
+    MeasurementDefinition,
+    MeasurementProtocol,
+    MeasurementRecord,
+    MeasurementValue,
+    MeasurementValueKind,
+    ResearchRevision,
+    ResearchStudyDefinition,
+    StudyFactorSpec,
+    TaskDefinition,
+    TrialExecutionReceipt,
 )
-from research_platform.experimentation.study.api import compile_research_plan
 from research_platform.experimentation.study.runtime import TrialMatrixExecutor
+from research_platform.governance.architecture.api import BindingProof, CompositionSubject
+from research_platform.governance.system_registry.api import SystemIdentity
+from research_platform.participant.api.project import (
+    ParticipantProviderProfile,
+    ParticipantRequirement,
+    ProjectParticipantBinding,
+)
 from research_platform.participant.core.api.contracts import (
-    ParticipantImplementationIdentity, ParticipantSessionRuntimeIdentity,
+    ParticipantImplementationIdentity,
+    ParticipantSessionRuntimeIdentity,
+)
+from research_platform.platform.kernel import Sha256Digest, canonical_digest
+from research_platform.portfolio.api import (
+    ProjectCapabilityRequirement,
+    ProjectIdentity,
+    ProjectManifest,
+    ProjectMethodRequirement,
+    ProjectProviderBinding,
+    ProjectSpec,
+    ProjectToolProvenance,
 )
 from research_platform.scope.api import ScopeIdentity, ScopeKind
-
-
-@dataclass(frozen=True)
-class _Identity:
-    project_id: str
-
-
-@dataclass(frozen=True)
-class _Capability:
-    requirement_id: str
-
-
-@dataclass(frozen=True)
-class _Method:
-    method_id: str
-    treatment_id: str
-
-
-@dataclass(frozen=True)
-class _Manifest:
-    identity: _Identity
-    semantic_digest: str
-    capability_requirements: tuple[_Capability, ...]
-    method_requirements: tuple[_Method, ...]
-    configuration_refs: tuple[object, ...] = ()
 
 
 AGENT_CFG = "1" * 64
@@ -57,9 +59,10 @@ CUSTOM_CFG = "3" * 64
 
 
 def _participant(role: str, kind: str, *, depends_on_roles: tuple[str, ...] = ()) -> ExperimentParticipantSpec:
+    participant_id = role if kind == "method" else f"{kind}-impl"
     return ExperimentParticipantSpec(
         role,
-        ParticipantImplementationIdentity(kind, f"{kind}-impl", "1", "1", "1", "a" * 64),
+        ParticipantImplementationIdentity(kind, participant_id, "1", "1", "1", "a" * 64),
         ParticipantSessionRuntimeIdentity(f"runtime.{kind}", "1", "1", "b" * 64),
         "d" * 64,
         depends_on_roles,
@@ -79,6 +82,69 @@ def _measurements() -> MeasurementProtocol:
             MeasurementDefinition("trace", "trace-v1", MeasurementValueKind.STRUCTURED),
         ),
     )
+
+
+def _manifest(protocol_identity, participants) -> ProjectManifest:
+    requirement = ProjectCapabilityRequirement(
+        "trial-provider", "experimentation", "trial", 1, "4" * 64
+    )
+    provider_id = f"{protocol_identity.protocol_id}.provider"
+    return ProjectManifest(
+        ProjectSpec(ProjectIdentity("project", "1"), "program", "Project"),
+        "template-1",
+        ProjectToolProvenance("tool", "1", "5" * 64),
+        capability_requirements=(requirement,),
+        provider_bindings=(
+            ProjectProviderBinding(
+                "trial-binding", "trial-provider", provider_id, "1", "6" * 64
+            ),
+        ),
+        method_requirements=tuple(
+            ProjectMethodRequirement("method", row.role) for row in participants
+        ),
+        study_ids=("study",),
+    )
+
+
+def _subject(manifest: ProjectManifest) -> CompositionSubject:
+    return CompositionSubject.project_subject(
+        manifest.identity.project_id, manifest.identity.version
+    )
+
+
+def _trial_capability_binding(manifest, resolution) -> ResearchCapabilityBinding:
+    requirement = resolution.capability_requirement("trial-provider")
+    provider = manifest.provider_bindings[0]
+    proof = BindingProof(
+        owner=CompositionSubject.system_subject(SystemIdentity("experimentation")),
+        subject=_subject(manifest),
+        requirement_digest=Sha256Digest(canonical_digest(requirement)),
+        provider_identity=provider.provider_identity,
+        provider_profile_digest=Sha256Digest("7" * 64),
+        binding_generation="generation-1",
+    )
+    return ResearchCapabilityBinding("trial-provider", proof)
+
+
+def _participant_proof_binding(manifest, row) -> ResearchParticipantBinding:
+    requirement = ParticipantRequirement(
+        row.role, row.implementation, row.configuration_digest
+    )
+    profile = ParticipantProviderProfile(
+        f"participant.{row.role}", (row.implementation.kind,)
+    )
+    domain = ProjectParticipantBinding.from_runtime(
+        requirement, profile, row.runtime_binding()
+    )
+    proof = BindingProof(
+        owner=CompositionSubject.system_subject(SystemIdentity("participant")),
+        subject=_subject(manifest),
+        requirement_digest=Sha256Digest(domain.requirement_digest),
+        provider_identity=profile.provider_id,
+        provider_profile_digest=Sha256Digest(profile.digest()),
+        binding_generation=f"participant-{row.runtime.digest()}",
+    )
+    return ResearchParticipantBinding(row.role, domain, proof)
 
 
 def _plan(protocol_identity, participants, revision):
@@ -106,24 +172,14 @@ def _plan(protocol_identity, participants, revision):
         ("seed-1",), 1, _measurements(), _benchmark(), None,
         requirements, protocol_identity, revision,
     )
-    manifest = _Manifest(
-        _Identity("project"), "9" * 64,
-        (_Capability("trial-provider"),),
-        tuple(_Method("method", row.role) for row in participants),
-    )
+    manifest = _manifest(protocol_identity, participants)
     resolution = resolve_research_requirements(definition, manifest)
     binding = ResearchBindingContribution(
         resolution.resolution_digest,
-        "provider-v1",
-        participants,
-        "e" * 64,
-        "prompt-none",
-        resolution.capability_requirement_ids,
-        resolution.method_requirements,
-        resolution.configuration_ref_ids,
+        (_trial_capability_binding(manifest, resolution),),
+        tuple(_participant_proof_binding(manifest, row) for row in participants),
     )
     return compile_research_plan(definition, resolution, binding)
-
 
 def _record(request, measurement_id: str, value: MeasurementValue, *, producer: str) -> MeasurementRecord:
     definition = request.measurement_protocol.definition(measurement_id)
