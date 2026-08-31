@@ -87,11 +87,11 @@ ROLE01 convergence tests no longer import `research_platform.artifact._canonical
 
 ### Parent-level shared-kernel dependency declaration
 
-Artifact and Data are producer-owned domain systems, but their surviving implementations consume Platform kernel primitives. The canonical system catalog therefore declares `artifact -> platform` and `data -> platform` once at the truthful parent-system level; child subsystems inherit that dependency for source-invariant governance. This declaration does not move Artifact/Data domain authority into Platform and must not be replaced by duplicate private canonical helpers.
+Artifact and Data are producer-owned domain systems, but their surviving implementations consume Platform kernel primitives. The canonical system catalog therefore declares `artifact -> platform` and `data -> platform` once at the truthful parent-system level. Data cross-query composition also consumes Artifact catalog/content identity, so the parent Data descriptor declares `data -> artifact` rather than repeating that dependency across query leaves. Child subsystems inherit these dependencies for source-invariant governance; the declarations do not move Data/Artifact domain authority into Platform or each other.
 
 ### Downstream architecture migration supersession
 
-An active migration proposal is unique per overlapping owner scope. When an exact downstream source supersedes an older proposal, ROLE01 replaces the active allowance instead of stacking deltas. For ROLE06 Product/Assurance, current pushed source `cd664e22c4c7a9864df9c78315ad26098c1677aa` supersedes the stale `+20` proposal with the exact `+55` Operator/API proposal and projection `3f367d5717fd4fbca273b3fb4d13af5c54d262afeb2a1e663898338adc713e77`. The historical ROLE00 approval remains external evidence but contributes zero headroom until ROLE00 independently approves the successor facts.
+An active migration proposal is unique per overlapping owner scope. Historical rows remain immutable evidence, but a newer exact source contributes no stacked headroom: only a source/projection/delta-matching ROLE00 approval can become applicable. Current successors are ROLE03 `80eff508` at `+50` Execution/Experimentation imports, ROLE05 `0e573f98ce8a...` at `+61` Environment/Data/Artifact/Observability imports, and ROLE06 `cd664e2` at `+55` Operator/API imports. Older approvals remain historical evidence and contribute zero headroom to these successor source cuts until ROLE00 independently approves the exact new facts.
 
 ### Platform Trial runtime consumer cutover
 

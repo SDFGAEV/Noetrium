@@ -485,9 +485,11 @@ def test_current_role01_has_no_self_granted_headroom() -> None:
     pairs=tuple((e.source_module,e.target_module) for e in profile.import_edges)
     _current,budget,violations=audit_architecture_complexity_budget(
         root,import_edges=len(profile.import_edges),import_edge_pairs=pairs,source_index=index,verify_provenance=False)
-    assert budget is not None and budget.limits.import_edges == 4749
+    assert budget is not None
+    assert budget.limits == budget.baseline.complexity
     assert budget.applicable_migration_ids == ()
-    assert any(v.dimension == "import_edges" and v.limit == 4749 for v in violations)
+    assert violations
+    assert all("migration=none" in v.detail or "complexity budget exceeded" in v.detail for v in violations)
 
 
 def _test_git_executable() -> str:
@@ -617,18 +619,21 @@ def test_role04_historical_and_npe_architecture_allowances_are_preserved() -> No
     assert current.module_prefixes == ("research_platform.participant", "research_platform.model")
     assert current.import_projection_sha256 == "258324fc514e5aa069f069d5d9282f0433c35a20bbbdd3da8782530cef40b643"
 
-def test_role05_historical_and_final_quality_architecture_allowances_are_preserved() -> None:
+def test_role05_historical_and_research_data_architecture_allowances_are_preserved() -> None:
     root = Path(__file__).resolve().parents[1]
     rows = {row.migration_id: row for row in load_architecture_complexity_budget(root).migrations}
     historical = rows["role05-environment-evidence-v1"]
-    current = rows["role05-final-quality-environment-evidence-2e20464"]
+    final_quality = rows["role05-final-quality-environment-evidence-2e20464"]
+    current = rows["role05-research-data-semantic-convergence-0e573f98"]
     prefixes = ("research_platform.environment", "research_platform.data", "research_platform.artifact", "research_platform.observability")
     assert historical.delta.import_edges == 2
     assert historical.module_prefixes == prefixes
     assert historical.import_projection_sha256 == "6f9fdf4f5d64703e1be10d2707b49109e365bb7343cd5118a05e73a6e3a5e62b"
-    assert current.delta.import_edges == 19
+    assert final_quality.delta.import_edges == 19
+    assert final_quality.import_projection_sha256 == "cee2b53c07b2465a13fc40599e27dd22fa950989fa55eb0fccad98881904d7c2"
+    assert current.delta.import_edges == 61
     assert current.module_prefixes == prefixes
-    assert current.import_projection_sha256 == "cee2b53c07b2465a13fc40599e27dd22fa950989fa55eb0fccad98881904d7c2"
+    assert current.import_projection_sha256 == "a4d2cd2c05c69c572ae034d76b13cdc3bcf550963e69e06e76f3719939cca311"
 
 
 def test_current_downstream_proposals_have_exact_applicability_without_self_approval() -> None:
@@ -636,6 +641,8 @@ def test_current_downstream_proposals_have_exact_applicability_without_self_appr
     budget = load_architecture_complexity_budget(root)
     expected = {
         "ROLE02": (8, ("research_platform.runtime", "research_platform.resource", "research_platform.reliability"), "e48da451b73527f4e5283fdbf3424c171e9c15d8f48eeaa47b6ec5dbf886e5c8"),
+        "ROLE03": (50, ("research_platform.execution", "research_platform.experimentation", "research_platform.scientific"), "2db9d82255181f39e5a3ffc28e64d688380a5bdb9c739ddd84600b814d93f80f"),
+        "ROLE05": (61, ("research_platform.environment", "research_platform.data", "research_platform.artifact", "research_platform.observability"), "a4d2cd2c05c69c572ae034d76b13cdc3bcf550963e69e06e76f3719939cca311"),
         "ROLE06": (55, ("research_platform.operator", "research_platform.api"), "3f367d5717fd4fbca273b3fb4d13af5c54d262afeb2a1e663898338adc713e77"),
     }
     for role, (delta, prefixes, projection) in expected.items():
@@ -702,19 +709,22 @@ def test_role01_historical_and_current_architecture_allowances_are_preserved() -
     assert (current.delta.subsystems,current.delta.contract_declarations,current.delta.authorities,current.delta.import_edges)==(1,13,1,59)
     assert current.module_prefixes==("research_platform.platform","research_platform.governance","research_platform.scope","research_platform.portfolio")
     assert current.import_projection_sha256=="fd225e4d33b57a9f4b52495941b69d89f33cb333ddcc031ab87a983b8c1f6c98"
-    assert (contraction.delta.top_level_systems,contraction.delta.subsystems,contraction.delta.contract_declarations,contraction.delta.authorities,contraction.delta.import_edges)==(-1,-31,12,-32,39)
+    assert (contraction.delta.top_level_systems,contraction.delta.subsystems,contraction.delta.contract_declarations,contraction.delta.authorities,contraction.delta.import_edges)==(-1,-31,13,-32,39)
     assert contraction.module_prefixes==current.module_prefixes
     assert contraction.import_projection_sha256=="59de5bba61ab0b83d094b2aab97e952b79be8ece954e3fa1ef89a33267d64a48"
 
-def test_role03_historical_and_npe_architecture_allowances_are_preserved() -> None:
+def test_role03_historical_and_section42_architecture_allowances_are_preserved() -> None:
     rows={row.migration_id:row for row in load_architecture_complexity_budget(Path(__file__).resolve().parents[1]).migrations}
     historical=rows["role03-run-control-693c4814d590"]
-    current=rows["role03-npe-run-control-2722fe1"]
+    npe=rows["role03-npe-run-control-2722fe1"]
+    current=rows["role03-section42-research-semantics-80eff508"]
     assert historical.delta.import_edges==38
     assert historical.import_projection_sha256=="aec91782b6e3cac009ea998614aa86594ed0fb2cfc917c8c49f7b81dedad8aa3"
-    assert current.delta.import_edges==52
+    assert npe.delta.import_edges==52
+    assert npe.import_projection_sha256=="e69dbebfd7126e1c55c3c42c79073428f86ba547febc20630e0497a763aed87c"
+    assert current.delta.import_edges==50
     assert current.module_prefixes==("research_platform.execution","research_platform.experimentation","research_platform.scientific")
-    assert current.import_projection_sha256=="e69dbebfd7126e1c55c3c42c79073428f86ba547febc20630e0497a763aed87c"
+    assert current.import_projection_sha256=="2db9d82255181f39e5a3ffc28e64d688380a5bdb9c739ddd84600b814d93f80f"
 
 
 

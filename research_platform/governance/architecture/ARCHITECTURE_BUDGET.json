@@ -102,11 +102,11 @@
       "delta": {
         "top_level_systems": -1,
         "subsystems": -31,
-        "contract_declarations": 12,
+        "contract_declarations": 13,
         "authorities": -32,
         "import_edges": 39
       },
-      "justification": "ROLE01 semantic catalog contraction is full-baseline-relative: retire the Scientific top-level shell plus five Scientific child shells and twenty-five ROLE02-proven scaffold-only Runtime/Resource/Reliability nodes, while preserving truthful shared-kernel and Study-to-Artifact dependencies; no overlapping migration headroom is stacked.",
+      "justification": "Breaking-clean semantic convergence retires Scientific plus twenty-five scaffold-only catalog authorities, keeps truthful Study-to-Artifact and Data-to-Artifact dependencies, and retains shared-kernel declarations; the signed delta is full frozen-baseline-relative and grants zero headroom without independent ROLE00 approval.",
       "applicability": {
         "module_prefixes": [
           "research_platform.platform",
@@ -175,6 +175,26 @@
           "research_platform.scientific"
         ],
         "import_projection_sha256": "e69dbebfd7126e1c55c3c42c79073428f86ba547febc20630e0497a763aed87c"
+      }
+    },
+    {
+      "migration_id": "role03-section42-research-semantics-80eff508",
+      "owner_role": "ROLE03",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 50
+      },
+      "justification": "Exact ROLE03 80eff508 Section 38-42 successor adds fifty measured Execution/Experimentation research-semantics import edges versus the frozen baseline while merge-deleting Scientific scaffolding; it supersedes the current +52 proposal for exact applicability without rewriting historical evidence.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.execution",
+          "research_platform.experimentation",
+          "research_platform.scientific"
+        ],
+        "import_projection_sha256": "2db9d82255181f39e5a3ffc28e64d688380a5bdb9c739ddd84600b814d93f80f"
       }
     },
     {
@@ -255,6 +275,27 @@
           "research_platform.observability"
         ],
         "import_projection_sha256": "cee2b53c07b2465a13fc40599e27dd22fa950989fa55eb0fccad98881904d7c2"
+      }
+    },
+    {
+      "migration_id": "role05-research-data-semantic-convergence-0e573f98",
+      "owner_role": "ROLE05",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 61
+      },
+      "justification": "Exact clean/pushed ROLE05 0e573f98ce8a35d0c0e99ced9f45168ef05103e4 increases the frozen-baseline Environment/Data/Artifact/Observability scope from 872 to 933 import edges (+61); it supersedes older +2/+19 proposals for exact applicability and grants zero headroom absent independent ROLE00 approval.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.environment",
+          "research_platform.data",
+          "research_platform.artifact",
+          "research_platform.observability"
+        ],
+        "import_projection_sha256": "a4d2cd2c05c69c572ae034d76b13cdc3bcf550963e69e06e76f3719939cca311"
       }
     },
     {

@@ -55,7 +55,7 @@ def test_catalog_covers_all_top_level_systems():
 def test_shared_kernel_consumers_declare_platform_dependency_at_parent_system():
     by_key = {row.identity.key: row for row in system_catalog()}
     assert by_key["artifact"].requires == ("platform", "scope")
-    assert by_key["data"].requires == ("platform", "scope")
+    assert by_key["data"].requires == ("artifact", "platform", "scope")
 
 
 def test_trial_study_convergence_retires_scientific_system_authority():

@@ -129,6 +129,7 @@
       "composition"
     ],
     "requires": [
+      "artifact",
       "platform",
       "scope"
     ],

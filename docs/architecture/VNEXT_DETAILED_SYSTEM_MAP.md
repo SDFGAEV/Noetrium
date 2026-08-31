@@ -22,6 +22,8 @@ The target architecture is intentionally fine-grained. A node exists only where 
 
 ## Data System
 
+Data parent dependency contract: `data -> artifact, platform, scope`. Cross-query composition may consume immutable Artifact identity/catalog facts, while Artifact remains the producer authority for immutable content identity.
+
 - **dataset** — `dataset_authority` — owns: dataset identity, schema references and lifecycle; must not own: dataset physical storage implementation.
 - **fact** — `fact_authority` — owns: durable fact envelopes and authoritative fact writes; must not own: business-specific state transitions.
 - **projection** — `projection_authority` — owns: derived read models and projection lifecycle; must not own: source-of-truth mutation.
