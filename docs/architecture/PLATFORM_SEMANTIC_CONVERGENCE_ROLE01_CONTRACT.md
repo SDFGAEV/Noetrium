@@ -91,7 +91,7 @@ Artifact and Data are producer-owned domain systems, but their surviving impleme
 
 ### Downstream architecture migration supersession
 
-An active migration proposal is unique per overlapping owner scope. Historical rows remain immutable evidence, but a newer exact source contributes no stacked headroom: only a source/projection/delta-matching ROLE00 approval can become applicable. Current successors are ROLE03 `80eff508` at `+50` Execution/Experimentation imports, ROLE05 `7c401246d39e...` at `+63` Environment/Data/Artifact/Observability imports, and ROLE06 `cd664e2` at `+55` Operator/API imports. Older approvals remain historical evidence and contribute zero headroom to these successor source cuts until ROLE00 independently approves the exact new facts.
+An active migration proposal is unique per overlapping owner scope. Historical rows remain immutable evidence, but a newer exact source contributes no stacked headroom: only a source/projection/delta-matching ROLE00 approval can become applicable. Current successors are ROLE03 `80eff508` at `+50` Execution/Experimentation imports, ROLE04 `866751f8` at `+101` Participant/Model imports, ROLE05 `7c401246d39e...` at `+63` Environment/Data/Artifact/Observability imports, and ROLE06 `cd664e2` at `+55` Operator/API imports. Older approvals remain historical evidence and contribute zero headroom to these successor source cuts until ROLE00 independently approves the exact new facts.
 
 ### Platform Trial runtime consumer cutover
 
@@ -101,3 +101,7 @@ Platform composition consumes the Experimentation-owned neutral Trial contract, 
 ROLE02 proved that twenty-five Runtime/Resource/Reliability catalog nodes are generated/declarative shells with no substantive Python implementation and no external Python consumers. ROLE01 therefore retires those descriptors rather than preserving empty authorities. Their semantics remain facets of retained parent Runtime, Resource, Failure, Diagnostics, Recovery, and Reliability authorities; ROLE02 owns the physical 222-file deletion and ROLE06 owns release-manifest regeneration.
 
 Catalog/source completeness is bidirectional for package authorities. A concrete standard-shaped package without a catalog owner is `unregistered_standard_system`; a catalog descriptor whose declared Python package is absent is `stale_catalog_package`. Non-package facets/projections must be represented explicitly outside this package-authority descriptor contract rather than by a descriptor pointing at missing source. This keeps scaffold deletion fail-closed without turning filesystem discovery into topology authority.
+
+### PSC-08 Runtime read-only Resource topology
+
+Runtime declares the top-level `resource` dependency because standard preflight composition consumes ROLE02's read-only `ComputeCandidatePort`; allocation, lease mutation and resource lifecycle remain Resource authority. The edge is acyclic: Resource has no dependency path back to Runtime. The historical ROLE02 `+8` migration remains evidence only after the 795b2d53 scaffold contraction; the contracted scope is below its frozen import baseline and needs no new growth allowance.

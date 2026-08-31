@@ -607,17 +607,20 @@ def test_source_invariant_paths_use_canonical_posix_identity(tmp_path: Path) -> 
     row = violation(tmp_path, source, "test", 1, "detail")
     assert row.path == "research_platform/execution/admission/api/boundary.py"
 
-def test_role04_historical_and_npe_architecture_allowances_are_preserved() -> None:
+def test_role04_historical_and_current_architecture_allowances_are_preserved() -> None:
     root = Path(__file__).resolve().parents[1]
     rows = {row.migration_id: row for row in load_architecture_complexity_budget(root).migrations}
     historical = rows["role04-participant-model-v1"]
-    current = rows["role04-npe-participant-model-248d67c"]
+    npe = rows["role04-npe-participant-model-248d67c"]
+    current = rows["role04-agent-model-convergence-866751f8"]
     assert historical.delta.import_edges == 41
     assert historical.module_prefixes == ("research_platform.participant", "research_platform.model")
     assert historical.import_projection_sha256 == "dcd7c1e5a32e7a57e466c8f0a1a1b866bde249f7f6cc57d1af1362fff38ae25e"
-    assert current.delta.import_edges == 60
+    assert npe.delta.import_edges == 60
+    assert npe.import_projection_sha256 == "258324fc514e5aa069f069d5d9282f0433c35a20bbbdd3da8782530cef40b643"
+    assert current.delta.import_edges == 101
     assert current.module_prefixes == ("research_platform.participant", "research_platform.model")
-    assert current.import_projection_sha256 == "258324fc514e5aa069f069d5d9282f0433c35a20bbbdd3da8782530cef40b643"
+    assert current.import_projection_sha256 == "4f47fd94552daff488eb31b112a5bbdff6a63ad2e1cf967c2af812aa2644df8a"
 
 def test_role05_historical_and_research_data_architecture_allowances_are_preserved() -> None:
     root = Path(__file__).resolve().parents[1]
@@ -639,12 +642,23 @@ def test_role05_historical_and_research_data_architecture_allowances_are_preserv
     assert current.import_projection_sha256 == "db3db137f16df309dd5de20b3d01c25822cc6b2e03b6c601c5ed160479a39d80"
 
 
+
+
+def test_role02_scaffold_contraction_retires_growth_headroom_without_rewriting_history() -> None:
+    root = Path(__file__).resolve().parents[1]
+    rows = [row for row in load_architecture_complexity_budget(root).migrations if row.owner_role == "ROLE02"]
+    assert len(rows) == 1
+    assert rows[0].migration_id == "role02-runtime-reliability-v1"
+    assert rows[0].delta.import_edges == 8
+    # The +8 row is historical evidence. Current 795b2d53 scaffold contraction is below
+    # the frozen scope baseline and therefore requires no new growth allowance.
+
 def test_current_downstream_proposals_have_exact_applicability_without_self_approval() -> None:
     root = Path(__file__).resolve().parents[1]
     budget = load_architecture_complexity_budget(root)
     expected = {
-        "ROLE02": (8, ("research_platform.runtime", "research_platform.resource", "research_platform.reliability"), "e48da451b73527f4e5283fdbf3424c171e9c15d8f48eeaa47b6ec5dbf886e5c8"),
         "ROLE03": (50, ("research_platform.execution", "research_platform.experimentation", "research_platform.scientific"), "2db9d82255181f39e5a3ffc28e64d688380a5bdb9c739ddd84600b814d93f80f"),
+        "ROLE04": (101, ("research_platform.participant", "research_platform.model"), "4f47fd94552daff488eb31b112a5bbdff6a63ad2e1cf967c2af812aa2644df8a"),
         "ROLE05": (63, ("research_platform.environment", "research_platform.data", "research_platform.artifact", "research_platform.observability"), "db3db137f16df309dd5de20b3d01c25822cc6b2e03b6c601c5ed160479a39d80"),
         "ROLE06": (55, ("research_platform.operator", "research_platform.api"), "3f367d5717fd4fbca273b3fb4d13af5c54d262afeb2a1e663898338adc713e77"),
     }
@@ -712,7 +726,7 @@ def test_role01_historical_and_current_architecture_allowances_are_preserved() -
     assert (current.delta.subsystems,current.delta.contract_declarations,current.delta.authorities,current.delta.import_edges)==(1,13,1,59)
     assert current.module_prefixes==("research_platform.platform","research_platform.governance","research_platform.scope","research_platform.portfolio")
     assert current.import_projection_sha256=="fd225e4d33b57a9f4b52495941b69d89f33cb333ddcc031ab87a983b8c1f6c98"
-    assert (contraction.delta.top_level_systems,contraction.delta.subsystems,contraction.delta.contract_declarations,contraction.delta.authorities,contraction.delta.import_edges)==(-1,-31,13,-32,39)
+    assert (contraction.delta.top_level_systems,contraction.delta.subsystems,contraction.delta.contract_declarations,contraction.delta.authorities,contraction.delta.import_edges)==(-1,-31,14,-32,39)
     assert contraction.module_prefixes==current.module_prefixes
     assert contraction.import_projection_sha256=="59de5bba61ab0b83d094b2aab97e952b79be8ece954e3fa1ef89a33267d64a48"
 

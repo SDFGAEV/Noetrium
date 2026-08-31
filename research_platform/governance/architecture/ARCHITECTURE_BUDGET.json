@@ -102,11 +102,11 @@
       "delta": {
         "top_level_systems": -1,
         "subsystems": -31,
-        "contract_declarations": 13,
+        "contract_declarations": 14,
         "authorities": -32,
         "import_edges": 39
       },
-      "justification": "Breaking-clean semantic convergence retires Scientific plus twenty-five scaffold-only catalog authorities, keeps truthful Study-to-Artifact and Data-to-Artifact dependencies, and retains shared-kernel declarations; the signed delta is full frozen-baseline-relative and grants zero headroom without independent ROLE00 approval.",
+      "justification": "Breaking-clean semantic convergence retires Scientific plus twenty-five scaffold-only catalog authorities, keeps truthful Study-to-Artifact, Data-to-Artifact, shared-kernel, and Runtime-to-Resource dependencies, and preserves typed topology; the signed delta is full frozen-baseline-relative and grants zero headroom without independent ROLE00 approval.",
       "applicability": {
         "module_prefixes": [
           "research_platform.platform",
@@ -233,6 +233,25 @@
           "research_platform.model"
         ],
         "import_projection_sha256": "258324fc514e5aa069f069d5d9282f0433c35a20bbbdd3da8782530cef40b643"
+      }
+    },
+    {
+      "migration_id": "role04-agent-model-convergence-866751f8",
+      "owner_role": "ROLE04",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 101
+      },
+      "justification": "Exact pushed ROLE04 Agent/Model successor 866751f8 closes shared canonical JSON/digest and PSC-03 producer convergence while increasing the frozen-baseline Participant/Model scope from 690 to 791 import edges (+101); historical +41/+60 proposals remain evidence and grant no stacked headroom.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.participant",
+          "research_platform.model"
+        ],
+        "import_projection_sha256": "4f47fd94552daff488eb31b112a5bbdff6a63ad2e1cf967c2af812aa2644df8a"
       }
     },
     {

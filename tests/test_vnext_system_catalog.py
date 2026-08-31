@@ -58,6 +58,11 @@ def test_shared_kernel_consumers_declare_platform_dependency_at_parent_system():
     assert by_key["data"].requires == ("artifact", "platform", "scope")
 
 
+def test_runtime_declares_read_only_resource_dependency_for_preflight_composition():
+    by_key = {row.identity.key: row for row in system_catalog()}
+    assert by_key["runtime"].requires == ("governance", "observability", "platform", "reliability", "resource", "scope")
+
+
 def test_trial_study_convergence_retires_scientific_system_authority():
     by_key = {row.identity.key: row for row in system_catalog()}
     assert "scientific" not in by_key
