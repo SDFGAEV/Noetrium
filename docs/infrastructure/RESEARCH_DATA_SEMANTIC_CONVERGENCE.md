@@ -32,11 +32,11 @@ Relocation verifies the destination and may recover from a corrupted old source 
 
 `ArtifactContentIdentity(artifact_id, content_sha256)` is the portable claim-grade content identity produced by Artifact. It intentionally excludes mutable `reference_id`/generation and physical provider/location state.
 
-`verify_artifact_content_identity(...)` composes `ArtifactRegistryPort`, `ArtifactStorageBindingPort`, and an explicit provider-owned `ArtifactStoragePlacementVerifierPort` without creating another store. A binding row is never sufficient proof by itself: the verifier must re-prove the current physical bytes for the binding provider/location. Exact artifact identity, immutable catalog digest, binding digest, provider identity, canonical location, and placement proof must agree; missing authorities, digest drift, unverified placement, and foreign-identity impostors fail closed with typed verification codes. Storage relocation may change provider/location/generation while the content identity remains unchanged.
+`compose_artifact_content_identity_resolver(...)` binds Artifact catalog, reference, verified-storage, and provider-owned placement proof behind one `ArtifactContentIdentityResolverPort`. Consumers receive one read-only typed surface: `verify(...)`, `load(...)`, and `snapshot_reference(...)`. A binding row is never sufficient proof by itself: the resolver re-proves current physical bytes for the binding provider/location, and exact artifact identity, immutable catalog digest, binding digest, provider identity, canonical location, and placement proof must agree. Missing authorities, digest drift, unverified placement, foreign facts, and runtime alias impostors fail closed. Storage relocation may change provider/location/generation while the immutable content identity remains unchanged.
 
-`load_verified_artifact_content_identity(...)` produces the immutable value directly from Artifact authority. `resolve_artifact_reference_content_identity(...)` is the migration seam for mutable aliases: it verifies an exact `ArtifactReference`, resolves its current artifact, and returns only the verified immutable content snapshot. Later reference retargets/generation changes create a new snapshot and cannot mutate the previously captured scientific identity. Runtime reference impostors fail closed.
+`snapshot_reference(...)` is the migration seam for mutable aliases: it verifies the exact `ArtifactReference`, resolves the current artifact, and returns only the immutable verified content snapshot. Later reference retargets/generation changes create a new snapshot and cannot mutate a previously captured scientific identity. The former function-style public entrypoints were deleted rather than retained as compatibility aliases.
 
-Data and ROLE03 may consume this producer-owned value only after the governance dependency cut is declared; they must not replace it with a mutable `ArtifactReference` alias or a second content authority.
+Data and ROLE03 must consume this producer-owned value through the published dependency once the clean upstream producer union is consumable; they must not replace it with a mutable `ArtifactReference` alias or a second content authority.
 
 ## Typed research-result query federation
 
@@ -63,7 +63,7 @@ Resolved in the consumed ROLE01 producer:
 
 Open producer/governance dependencies are recorded outside the repository under `outputs/reports/role05/`:
 
-- `CSR-ROLE05-ROLE01-PSC05-DATA-ARTIFACT-CONTENT-REFERENCE-20260831`: Artifact now publishes `ArtifactContentIdentity`; ROLE01 still must declare the typed Data -> Artifact dependency before Dataset can persist the producer-owned value without bypassing the catalog DAG.
+- `CSR-ROLE05-ROLE01-PSC05-DATA-ARTIFACT-CONTENT-REFERENCE-20260831`: ROLE01 `2a22a6e7` now declares the typed Data -> Artifact dependency; official ROLE05 ancestry consumption is sequencing-blocked only by the still-unpushed ROLE03 producer union. Artifact already publishes the immutable identity and resolver.
 - `CSR-ROLE05-ROLE03-UNIFIED-RESEARCH-RESULT-READ-PROJECTION-20260831`: publish stable ROLE03 Run/Trial/Task/Measurement/Evidence read authority so ROLE05 can adapt it into the unified read-only federation.
 
 Until those producer decisions land, `run`, `task`, `action`, `observation`, `measurement`, and `evidence` result kinds remain explicitly representable but unsupported sources return typed `NO_SOURCE_CAPABILITY` gaps. ROLE05 does not create a private Run/Measurement registry or restore generic leaf authority.

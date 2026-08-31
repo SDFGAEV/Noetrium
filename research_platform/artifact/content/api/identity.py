@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Protocol, runtime_checkable
+
+from research_platform.scope.api import ScopeIdentity
 
 
 _HEX = frozenset("0123456789abcdef")
@@ -23,7 +26,6 @@ class ArtifactContentIdentity:
         ):
             raise ValueError("artifact content identity content_sha256 must be lowercase SHA-256")
 
-
 class ArtifactContentIdentityVerificationError(RuntimeError):
     """A claimed immutable content identity cannot be verified against Artifact authority."""
 
@@ -34,7 +36,23 @@ class ArtifactContentIdentityVerificationError(RuntimeError):
         super().__init__(f"artifact content identity verification failed [{code}]: {message}")
 
 
+@runtime_checkable
+class ArtifactContentIdentityResolverPort(Protocol):
+    """Read-only Artifact authority for verified immutable content identities."""
+
+    def verify(self, identity: ArtifactContentIdentity) -> ArtifactContentIdentity: ...
+
+    def load(self, artifact_id: str) -> ArtifactContentIdentity: ...
+
+    def snapshot_reference(
+        self,
+        reference_id: str,
+        scope: ScopeIdentity,
+    ) -> ArtifactContentIdentity: ...
+
+
 __all__ = [
     "ArtifactContentIdentity",
+    "ArtifactContentIdentityResolverPort",
     "ArtifactContentIdentityVerificationError",
 ]

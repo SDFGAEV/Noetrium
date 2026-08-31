@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from research_platform.artifact.catalog.api import ArtifactNotFound, ArtifactRegistryPort
 from research_platform.artifact.reference.api import (
     ArtifactReference,
@@ -10,6 +12,7 @@ from research_platform.scope.api import ScopeIdentity
 
 from research_platform.artifact.content.api import (
     ArtifactContentIdentity,
+    ArtifactContentIdentityResolverPort,
     ArtifactContentIdentityVerificationError,
     ArtifactStorageBindingNotFound,
     ArtifactStorageBindingPort,
@@ -18,24 +21,22 @@ from research_platform.artifact.content.api import (
 )
 
 
-def verify_artifact_content_identity(
+def _verify_content_identity(
     identity: ArtifactContentIdentity,
     *,
     artifacts: ArtifactRegistryPort,
     storage: ArtifactStorageBindingPort,
     placement_verifier: ArtifactStoragePlacementVerifierPort,
 ) -> ArtifactContentIdentity:
-    """Verify immutable catalog identity and current provider-owned bytes."""
-
     if type(identity) is not ArtifactContentIdentity:
         raise TypeError("identity must be ArtifactContentIdentity")
     try:
         record = artifacts.get(identity.artifact_id)
     except ArtifactNotFound as exc:
         raise ArtifactContentIdentityVerificationError(
-            "ARTIFACT_NOT_FOUND", f"artifact {identity.artifact_id!r} is not registered"
+            "ARTIFACT_NOT_FOUND",
+            f"artifact {identity.artifact_id!r} is not registered",
         ) from exc
-
     if record.artifact_id != identity.artifact_id:
         raise ArtifactContentIdentityVerificationError(
             "CATALOG_IDENTITY_MISMATCH",
@@ -63,7 +64,6 @@ def verify_artifact_content_identity(
             "STORAGE_DIGEST_MISMATCH",
             f"artifact {identity.artifact_id!r} storage digest does not match claimed content",
         )
-
     try:
         placement = placement_verifier.verify(
             artifact_id=identity.artifact_id,
@@ -88,37 +88,35 @@ def verify_artifact_content_identity(
         )
     return identity
 
-
-def load_verified_artifact_content_identity(
+def _load_content_identity(
     artifact_id: str,
     *,
     artifacts: ArtifactRegistryPort,
     storage: ArtifactStorageBindingPort,
     placement_verifier: ArtifactStoragePlacementVerifierPort,
 ) -> ArtifactContentIdentity:
-    """Load a portable content identity from Artifact authority and prove its bytes."""
-
+    if type(artifact_id) is not str or not artifact_id.strip():
+        raise ValueError("artifact_id must be non-empty")
     try:
         record = artifacts.get(artifact_id)
     except ArtifactNotFound as exc:
         raise ArtifactContentIdentityVerificationError(
-            "ARTIFACT_NOT_FOUND", f"artifact {artifact_id!r} is not registered"
+            "ARTIFACT_NOT_FOUND",
+            f"artifact {artifact_id!r} is not registered",
         ) from exc
     if record.artifact_id != artifact_id:
         raise ArtifactContentIdentityVerificationError(
             "CATALOG_IDENTITY_MISMATCH",
             f"catalog returned foreign artifact identity for {artifact_id!r}",
         )
-    identity = ArtifactContentIdentity(record.artifact_id, record.digest)
-    return verify_artifact_content_identity(
-        identity,
+    return _verify_content_identity(
+        ArtifactContentIdentity(record.artifact_id, record.digest),
         artifacts=artifacts,
         storage=storage,
         placement_verifier=placement_verifier,
     )
 
-
-def resolve_artifact_reference_content_identity(
+def _snapshot_reference_identity(
     reference_id: str,
     scope: ScopeIdentity,
     *,
@@ -127,8 +125,10 @@ def resolve_artifact_reference_content_identity(
     storage: ArtifactStorageBindingPort,
     placement_verifier: ArtifactStoragePlacementVerifierPort,
 ) -> ArtifactContentIdentity:
-    """Snapshot a mutable Artifact reference into a verified immutable content identity."""
-
+    if type(reference_id) is not str or not reference_id.strip():
+        raise ValueError("reference_id must be non-empty")
+    if type(scope) is not ScopeIdentity:
+        raise TypeError("scope must be ScopeIdentity")
     try:
         reference = references.resolve(reference_id, scope)
     except ArtifactReferenceNotFound as exc:
@@ -146,7 +146,7 @@ def resolve_artifact_reference_content_identity(
             "ARTIFACT_REFERENCE_IDENTITY_MISMATCH",
             f"artifact reference {reference_id!r} resolved to foreign reference facts",
         )
-    return load_verified_artifact_content_identity(
+    return _load_content_identity(
         reference.artifact_id,
         artifacts=artifacts,
         storage=storage,
@@ -154,8 +154,58 @@ def resolve_artifact_reference_content_identity(
     )
 
 
-__all__ = [
-    "load_verified_artifact_content_identity",
-    "resolve_artifact_reference_content_identity",
-    "verify_artifact_content_identity",
-]
+@dataclass(frozen=True, slots=True)
+class _ComposedArtifactContentIdentityResolver:
+    artifacts: ArtifactRegistryPort
+    storage: ArtifactStorageBindingPort
+    placement_verifier: ArtifactStoragePlacementVerifierPort
+    references: ArtifactReferencePort
+
+    def verify(self, identity: ArtifactContentIdentity) -> ArtifactContentIdentity:
+        return _verify_content_identity(
+            identity,
+            artifacts=self.artifacts,
+            storage=self.storage,
+            placement_verifier=self.placement_verifier,
+        )
+
+    def load(self, artifact_id: str) -> ArtifactContentIdentity:
+        return _load_content_identity(
+            artifact_id,
+            artifacts=self.artifacts,
+            storage=self.storage,
+            placement_verifier=self.placement_verifier,
+        )
+    def snapshot_reference(
+        self,
+        reference_id: str,
+        scope: ScopeIdentity,
+    ) -> ArtifactContentIdentity:
+        return _snapshot_reference_identity(
+            reference_id,
+            scope,
+            references=self.references,
+            artifacts=self.artifacts,
+            storage=self.storage,
+            placement_verifier=self.placement_verifier,
+        )
+
+
+def compose_artifact_content_identity_resolver(
+    *,
+    artifacts: ArtifactRegistryPort,
+    storage: ArtifactStorageBindingPort,
+    placement_verifier: ArtifactStoragePlacementVerifierPort,
+    references: ArtifactReferencePort,
+) -> ArtifactContentIdentityResolverPort:
+    """Bind Artifact authorities behind one read-only immutable-content resolver."""
+
+    return _ComposedArtifactContentIdentityResolver(
+        artifacts=artifacts,
+        storage=storage,
+        placement_verifier=placement_verifier,
+        references=references,
+    )
+
+
+__all__ = ["compose_artifact_content_identity_resolver"]

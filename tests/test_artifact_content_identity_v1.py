@@ -13,11 +13,8 @@ from research_platform.artifact.content.api import (
     ArtifactStorageVerificationError,
     VerifiedArtifactStoragePlacement,
 )
-from research_platform.artifact.content.composition import (
-    load_verified_artifact_content_identity,
-    resolve_artifact_reference_content_identity,
-    verify_artifact_content_identity,
-)
+from research_platform.artifact.content.api import ArtifactContentIdentityResolverPort
+from research_platform.artifact.content.composition import compose_artifact_content_identity_resolver
 from research_platform.artifact.reference.api import ArtifactReference, ArtifactReferenceNotFound
 from research_platform.scope.api import ScopeIdentity, ScopeKind
 
@@ -66,6 +63,21 @@ class _Storage:
 
 
 
+def _resolver(*, artifacts, storage, placement_verifier=None, references=None):
+    return compose_artifact_content_identity_resolver(
+        artifacts=artifacts,
+        storage=storage,
+        placement_verifier=placement_verifier or _PlacementVerifier(),
+        references=references or _References(None),
+    )
+
+
+def verify_artifact_content_identity(identity, *, artifacts, storage, placement_verifier=None):
+    return _resolver(
+        artifacts=artifacts, storage=storage, placement_verifier=placement_verifier
+    ).verify(identity)
+
+
 class _PlacementVerifier:
     def __init__(self, *, error_code: str | None = None, foreign: bool = False) -> None:
         self.error_code = error_code
@@ -83,6 +95,23 @@ class _PlacementVerifier:
             location=location,
             size_bytes=1,
         )
+
+
+def load_verified_artifact_content_identity(artifact_id, *, artifacts, storage, placement_verifier=None):
+    return _resolver(
+        artifacts=artifacts, storage=storage, placement_verifier=placement_verifier
+    ).load(artifact_id)
+
+
+def resolve_artifact_reference_content_identity(
+    reference_id, scope, *, references, artifacts, storage, placement_verifier=None
+):
+    return _resolver(
+        artifacts=artifacts,
+        storage=storage,
+        placement_verifier=placement_verifier,
+        references=references,
+    ).snapshot_reference(reference_id, scope)
 
 
 def _verify(identity, *, artifacts, storage, placement_verifier=None):
@@ -312,3 +341,36 @@ def test_reference_snapshot_rejects_runtime_reference_impostor() -> None:
             placement_verifier=_PlacementVerifier(),
         )
     assert error.value.code == "ARTIFACT_REFERENCE_TYPE_MISMATCH"
+
+
+def test_composed_resolver_exposes_one_typed_fail_closed_surface() -> None:
+    scope = ScopeIdentity(ScopeKind.PROJECT, "project-1")
+    resolver = _resolver(
+        artifacts=_Artifacts(DIGEST),
+        storage=_Storage(_binding()),
+        references=_References(ArtifactReference("latest", scope, "artifact-1", 1)),
+    )
+    assert isinstance(resolver, ArtifactContentIdentityResolverPort)
+    assert resolver.verify(ArtifactContentIdentity("artifact-1", DIGEST)) == ArtifactContentIdentity(
+        "artifact-1", DIGEST
+    )
+    assert resolver.load("artifact-1") == ArtifactContentIdentity("artifact-1", DIGEST)
+    assert resolver.snapshot_reference("latest", scope) == ArtifactContentIdentity("artifact-1", DIGEST)
+
+    with pytest.raises(ValueError):
+        resolver.load("")
+    with pytest.raises(ValueError):
+        resolver.snapshot_reference("", scope)
+    with pytest.raises(TypeError):
+        resolver.snapshot_reference("latest", object())  # type: ignore[arg-type]
+
+
+def test_removed_function_style_identity_entrypoints_are_not_public() -> None:
+    import research_platform.artifact.content.composition as composition
+
+    for old_name in (
+        "verify_artifact_content_identity",
+        "load_verified_artifact_content_identity",
+        "resolve_artifact_reference_content_identity",
+    ):
+        assert not hasattr(composition, old_name)
