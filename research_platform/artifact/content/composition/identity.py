@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from research_platform.artifact.api import ArtifactContentIdentity
 from research_platform.artifact.catalog.api import ArtifactNotFound, ArtifactRegistryPort
 from research_platform.artifact.reference.api import (
     ArtifactReference,
@@ -11,7 +12,6 @@ from research_platform.artifact.reference.api import (
 from research_platform.scope.api import ScopeIdentity
 
 from research_platform.artifact.content.api import (
-    ArtifactContentIdentity,
     ArtifactContentIdentityResolverPort,
     ArtifactContentIdentityVerificationError,
     ArtifactStorageBindingNotFound,

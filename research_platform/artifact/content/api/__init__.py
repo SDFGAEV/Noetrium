@@ -9,7 +9,6 @@ from .acquisition import (
     ArtifactAcquisitionResult,
 )
 from .identity import (
-    ArtifactContentIdentity,
     ArtifactContentIdentityResolverPort,
     ArtifactContentIdentityVerificationError,
 )
@@ -39,7 +38,6 @@ __all__ = [
     "ArtifactAcquisitionPort",
     "ArtifactAcquisitionRequest",
     "ArtifactAcquisitionResult",
-    "ArtifactContentIdentity",
     "ArtifactContentIdentityResolverPort",
     "ArtifactContentIdentityVerificationError",
     "ArtifactStorageBinding",

@@ -4,9 +4,9 @@ from dataclasses import dataclass
 
 import pytest
 
+from research_platform.artifact.api import ArtifactContentIdentity
 from research_platform.artifact.catalog.api import ArtifactNotFound
 from research_platform.artifact.content.api import (
-    ArtifactContentIdentity,
     ArtifactContentIdentityVerificationError,
     ArtifactStorageBinding,
     ArtifactStorageBindingNotFound,
@@ -374,3 +374,10 @@ def test_removed_function_style_identity_entrypoints_are_not_public() -> None:
         "resolve_artifact_reference_content_identity",
     ):
         assert not hasattr(composition, old_name)
+
+
+def test_content_identity_is_owned_only_by_top_level_artifact_api() -> None:
+    import research_platform.artifact.content.api as content_api
+
+    assert ArtifactContentIdentity("artifact-1", DIGEST).artifact_id == "artifact-1"
+    assert not hasattr(content_api, "ArtifactContentIdentity")
