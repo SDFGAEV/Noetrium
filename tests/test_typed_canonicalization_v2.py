@@ -132,9 +132,9 @@ def test_sha256_digest_requires_canonical_lowercase_text() -> None:
             require_sha256(invalid, "content_sha256")
 
 
-def test_strict_finite_json_bytes_and_digest_match_existing_artifact_and_data_overlap() -> None:
-    from research_platform.artifact._canonical import canonical_bytes as artifact_bytes, canonical_digest as artifact_digest
-    from research_platform.data._canonical import canonical_bytes as data_bytes, canonical_digest as data_digest
+def test_strict_finite_json_bytes_and_digest_form_kernel_authority_contract() -> None:
+    import hashlib
+
     from research_platform.platform.kernel import strict_finite_json_bytes, strict_finite_json_digest
 
     values = (
@@ -147,13 +147,8 @@ def test_strict_finite_json_bytes_and_digest_match_existing_artifact_and_data_ov
         ("tuple", {"x": 1}),
     )
     for value in values:
-        expected = strict_finite_json_bytes(value)
-        digest = strict_finite_json_digest(value)
-        assert artifact_bytes(value) == expected
-        assert data_bytes(value) == expected
-        assert artifact_digest(value) == digest
-        assert data_digest(value) == digest
-
+        encoded = strict_finite_json_bytes(value)
+        assert strict_finite_json_digest(value) == hashlib.sha256(encoded).hexdigest()
 
 def test_strict_finite_json_encoder_rejects_wider_canonical_domain() -> None:
     from research_platform.platform.kernel import (
@@ -226,5 +221,8 @@ def test_role01_consumers_do_not_reimplement_kernel_json_or_sha_primitives() -> 
     assert "_reject_json_constant" not in portfolio_source
     assert "_unique_json_object" not in portfolio_source
     assert "json.loads(" not in portfolio_source
+    assert "strict_finite_json_bytes" in portfolio_source
+    assert "strict_finite_json_digest" in portfolio_source
+    assert "strict_json_loads" in portfolio_source
     assert "hashlib.sha256" not in leaf_source
     assert "json.dumps(" not in leaf_source

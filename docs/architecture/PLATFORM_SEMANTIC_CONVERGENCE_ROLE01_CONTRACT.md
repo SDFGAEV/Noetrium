@@ -78,3 +78,9 @@ Semantic-boundary classification scans each catalog node and each direct plane s
 Architecture report construction keeps historical-source caching and owner-scoped migration semantics unchanged, but historical observation replay is isolated from report assembly. Report materialization now creates one typed `ArchitectureReport` draft and derives the location-independent digest from that typed value rather than duplicating every field into a second hand-built payload.
 
 Generic-leaf conformance tests intentionally validate every retained `SystemLeafContract` without freezing an exact leaf count. Architecture convergence is allowed to delete or merge unjustified shells; per-leaf contract/runtime/provider/composition conformance remains mandatory for every shell that survives.
+
+## PSC-02 consumer-test cutover after duplicate deletion
+
+ROLE01 convergence tests no longer import `research_platform.artifact._canonical` or other foreign private helpers as permanent equivalence authorities. Once a domain owner deletes a proven duplicate, restoring that private module for test compatibility would violate the migration state machine.
+
+`test_typed_canonicalization_v2.py` therefore freezes the kernel's own strict byte/digest contract and separately proves ROLE01-owned ProjectManifest code consumes `strict_finite_json_bytes`, `strict_finite_json_digest`, and `strict_json_loads` rather than reimplementing them. Artifact/Data equivalence is producer-cutover evidence owned by ROLE05 while those duplicate implementations exist; after deletion, integrated tests consume only the surviving public/kernel authority.
