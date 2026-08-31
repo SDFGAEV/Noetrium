@@ -17,6 +17,10 @@ Homepage = "https://github.com/SDFGAEV/noetrium"
 Repository = "https://github.com/SDFGAEV/noetrium"
 Documentation = "https://github.com/SDFGAEV/noetrium/tree/master/docs"
 Examples = "https://github.com/SDFGAEV/noetrium/tree/master/examples"
+Discussions = "https://github.com/SDFGAEV/noetrium/discussions"
+Security = "https://github.com/SDFGAEV/noetrium/security/policy"
+Contributing = "https://github.com/SDFGAEV/noetrium/blob/master/CONTRIBUTING.md"
+Citation = "https://github.com/SDFGAEV/noetrium/blob/master/CITATION.cff"
 Issues = "https://github.com/SDFGAEV/noetrium/issues"
 
 [project.optional-dependencies]
