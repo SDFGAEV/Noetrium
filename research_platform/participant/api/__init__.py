@@ -8,12 +8,14 @@ from research_platform.participant.agent.api import (
 )
 from .project import (
     AgentProjectDefinition,
+    MethodProjectDefinition,
     ParticipantBindingDiagnostic,
     ParticipantBindingDiagnosticCode,
     ParticipantBindingDiagnosticSeverity,
     ParticipantProjectBindingError,
     ParticipantProviderProfile,
     ParticipantRequirement,
+    ParticipantRequirementContribution,
     ProjectParticipantBinding,
     ProjectParticipantProviderPort,
 )
@@ -54,6 +56,7 @@ __all__ = [
     "AgentIdentity",
     "AgentImplementation",
     "AgentProjectDefinition",
+    "MethodProjectDefinition",
     "AgentSession",
     "AgentSnapshot",
     "AgentTurnRequest",
@@ -71,6 +74,7 @@ __all__ = [
     "ParticipantProjectBindingError",
     "ParticipantProviderProfile",
     "ParticipantRequirement",
+    "ParticipantRequirementContribution",
     "ParticipantRevisionAuthorityPort",
     "ParticipantRevisionAuthoritySnapshot",
     "ParticipantRevisionCommit",

@@ -5,6 +5,7 @@ from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
 from research_platform.participant.agent.api import AgentIdentity
+from research_platform.participant.method.api import MethodIdentity
 from research_platform.participant.core.api.contracts import (
     ParticipantImplementationIdentity,
     ParticipantRuntimeBinding,
@@ -86,6 +87,74 @@ class AgentProjectDefinition:
             configuration_digest=self.configuration_digest,
             required_capabilities=self.required_capabilities,
         )
+
+    def digest(self) -> str:
+        return canonical_digest(self)
+
+    def contribution(self) -> "ParticipantRequirementContribution":
+        return ParticipantRequirementContribution(self.digest(), self.requirement())
+
+
+@dataclass(frozen=True, slots=True)
+class MethodProjectDefinition:
+    """Level-0 declaration compiled onto the canonical Participant requirement."""
+
+    role: str
+    identity: MethodIdentity
+    configuration_digest: str = ""
+    required_capabilities: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        _text(self.role, "method project role")
+        if not isinstance(self.identity, MethodIdentity):
+            raise TypeError("method project identity must be MethodIdentity")
+        for field_name in ("method_id", "implementation_version", "abi_version", "schema_version"):
+            _text(getattr(self.identity, field_name), f"method project {field_name}")
+        if not isinstance(self.identity.artifact_digest, str):
+            raise TypeError("method project artifact_digest must be text")
+        if not isinstance(self.configuration_digest, str):
+            raise TypeError("method project configuration_digest must be text")
+        object.__setattr__(
+            self, "required_capabilities",
+            _tokens(self.required_capabilities, "method project capabilities"),
+        )
+
+    def requirement(self) -> ParticipantRequirement:
+        return ParticipantRequirement(
+            role=self.role,
+            implementation=ParticipantImplementationIdentity(
+                kind="method", participant_id=self.identity.method_id,
+                implementation_version=self.identity.implementation_version,
+                abi_version=self.identity.abi_version,
+                schema_version=self.identity.schema_version,
+                artifact_digest=self.identity.artifact_digest,
+            ),
+            configuration_digest=self.configuration_digest,
+            required_capabilities=self.required_capabilities,
+        )
+
+    def digest(self) -> str:
+        return canonical_digest(self)
+
+    def contribution(self) -> "ParticipantRequirementContribution":
+        return ParticipantRequirementContribution(self.digest(), self.requirement())
+
+
+@dataclass(frozen=True, slots=True)
+class ParticipantRequirementContribution:
+    author_definition_digest: str
+    requirement: ParticipantRequirement
+
+    def __post_init__(self) -> None:
+        if len(self.author_definition_digest) != 64 or any(
+            char not in "0123456789abcdef" for char in self.author_definition_digest
+        ):
+            raise ValueError("participant contribution author digest must be lowercase SHA-256")
+        if not isinstance(self.requirement, ParticipantRequirement):
+            raise TypeError("participant contribution requirement must be typed")
+
+    def digest(self) -> str:
+        return canonical_digest(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -214,11 +283,13 @@ class ProjectParticipantProviderPort(Protocol):
 
 __all__ = [
     "AgentProjectDefinition",
+    "MethodProjectDefinition",
     "ParticipantBindingDiagnostic",
     "ParticipantBindingDiagnosticCode",
     "ParticipantBindingDiagnosticSeverity",
     "ParticipantProjectBindingError",
     "ParticipantProviderProfile",
+    "ParticipantRequirementContribution",
     "ParticipantRequirement",
     "ProjectParticipantBinding",
     "ProjectParticipantProviderPort",

@@ -7,6 +7,7 @@ from typing import Protocol, runtime_checkable
 
 from research_platform.model.request._immutable_json import freeze_json_object
 from research_platform.model.request.api import ModelRequestEnvelope
+from research_platform.model.request.prompt.api import PromptSelectionPort
 from research_platform.platform.kernel import (
     ImmutableModelIdentity,
     JsonInput,
@@ -84,6 +85,103 @@ class ModelCapabilityRequirement:
     @property
     def is_generation(self) -> bool:
         return self.capability_id in {"generation", "structured-generation"}
+
+    def digest(self) -> str:
+        return canonical_digest(self)
+
+
+@dataclass(frozen=True, slots=True)
+class ModelProjectDefinition:
+    """Level-0 model declaration independent of provider and active prompt generation."""
+
+    role: str
+    capability_id: str = "generation"
+    prompt_id: str | None = None
+    required_capabilities: tuple[str, ...] = ()
+    minimum_context_tokens: int = 1
+    tool_schema_sha256: str | None = None
+    input_schema_id: str = "model.generation.request.v1"
+    output_schema_id: str = "model.generation.response.v1"
+
+    def __post_init__(self) -> None:
+        _text(self.role, "model project role")
+        _text(self.capability_id, "model project capability_id")
+        _text(self.input_schema_id, "model project input_schema_id")
+        _text(self.output_schema_id, "model project output_schema_id")
+        generation = self.capability_id in {"generation", "structured-generation"}
+        if generation:
+            _text(self.prompt_id, "model project prompt_id")
+        elif self.prompt_id is not None:
+            raise ValueError("non-generation model project must not declare prompt_id")
+        object.__setattr__(
+            self, "required_capabilities",
+            _tokens(self.required_capabilities, "model project capabilities"),
+        )
+        if type(self.minimum_context_tokens) is not int or self.minimum_context_tokens <= 0:
+            raise ValueError("model project minimum_context_tokens must be positive")
+        if self.tool_schema_sha256 is not None:
+            if not generation:
+                raise ValueError("tool schema identity is only valid for generation projects")
+            _sha256(self.tool_schema_sha256, "model project tool_schema_sha256")
+
+    @property
+    def is_generation(self) -> bool:
+        return self.capability_id in {"generation", "structured-generation"}
+
+    def digest(self) -> str:
+        return canonical_digest(self)
+
+    def requirement(
+        self,
+        prompt_selection: PromptSelectionPort | None = None,
+    ) -> ModelCapabilityRequirement:
+        if self.is_generation:
+            if not isinstance(prompt_selection, PromptSelectionPort):
+                raise TypeError("generation model project requires PromptSelectionPort")
+            selection = prompt_selection.resolve_selection(self.prompt_id or "")
+            if selection.prompt_id != self.prompt_id:
+                raise ValueError("prompt selection changed requested prompt_id")
+            if selection.role != self.role:
+                raise ValueError("prompt selection role does not match model project role")
+            return ModelCapabilityRequirement(
+                role=self.role,
+                prompt_generation_id=selection.generation_id,
+                prompt_id=selection.prompt_id,
+                prompt_digest=selection.prompt_digest,
+                required_capabilities=self.required_capabilities,
+                minimum_context_tokens=self.minimum_context_tokens,
+                tool_schema_sha256=self.tool_schema_sha256,
+                capability_id=self.capability_id,
+                input_schema_id=self.input_schema_id,
+                output_schema_id=self.output_schema_id,
+            )
+        if prompt_selection is not None:
+            raise ValueError("non-generation model project must not consume prompt selection")
+        return ModelCapabilityRequirement(
+            role=self.role,
+            required_capabilities=self.required_capabilities,
+            minimum_context_tokens=self.minimum_context_tokens,
+            capability_id=self.capability_id,
+            input_schema_id=self.input_schema_id,
+            output_schema_id=self.output_schema_id,
+        )
+
+    def contribution(
+        self,
+        prompt_selection: PromptSelectionPort | None = None,
+    ) -> "ModelRequirementContribution":
+        return ModelRequirementContribution(self.digest(), self.requirement(prompt_selection))
+
+
+@dataclass(frozen=True, slots=True)
+class ModelRequirementContribution:
+    author_definition_digest: str
+    requirement: ModelCapabilityRequirement
+
+    def __post_init__(self) -> None:
+        _sha256(self.author_definition_digest, "model contribution author digest")
+        if not isinstance(self.requirement, ModelCapabilityRequirement):
+            raise TypeError("model contribution requirement must be typed")
 
     def digest(self) -> str:
         return canonical_digest(self)
@@ -296,6 +394,8 @@ __all__ = [
     "ModelBindingDiagnosticSeverity",
     "ModelCapabilityRequirement",
     "ModelProjectBindingError",
+    "ModelProjectDefinition",
+    "ModelRequirementContribution",
     "ModelProviderProfile",
     "ProjectModelBinding",
     "ProjectModelClientPort",
