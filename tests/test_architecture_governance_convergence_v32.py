@@ -576,3 +576,88 @@ def test_role03_historical_and_npe_architecture_allowances_are_preserved() -> No
     assert current.delta.import_edges==52
     assert current.module_prefixes==("research_platform.execution","research_platform.experimentation","research_platform.scientific")
     assert current.import_projection_sha256=="e69dbebfd7126e1c55c3c42c79073428f86ba547febc20630e0497a763aed87c"
+
+
+def test_semantic_boundary_inventory_distinguishes_generic_shells_from_domain_authority() -> None:
+    from research_platform.governance.architecture import classify_semantic_boundaries
+    from research_platform.governance.architecture.api import SemanticBoundaryClassification
+
+    root = Path(__file__).resolve().parents[1]
+    rows = {row.node: row for row in classify_semantic_boundaries(root)}
+    assert rows["scientific"].classification is SemanticBoundaryClassification.DECLARATIVE_ONLY
+    for node in (
+        "scientific/implementation", "scientific/measurement", "scientific/method",
+        "scientific/prompt", "scientific/protocol",
+    ):
+        assert rows[node].classification is SemanticBoundaryClassification.DELETE_CANDIDATE
+        assert rows[node].generic_leaf_runtime
+        assert rows[node].generic_state_capable
+        assert rows[node].semantic_source_files == ()
+    operation = rows["execution/operation"]
+    assert operation.classification is SemanticBoundaryClassification.IMPLEMENTED_SEMANTIC_BOUNDARY
+    assert "providers/sqlite.py" in operation.semantic_source_files
+
+
+def test_semantic_boundary_inventory_does_not_promote_declarative_aggregators() -> None:
+    from research_platform.governance.architecture import classify_semantic_boundaries
+    from research_platform.governance.architecture.api import SemanticBoundaryClassification
+
+    root = Path(__file__).resolve().parents[1]
+    rows = {row.node: row for row in classify_semantic_boundaries(root)}
+    assert rows["experimentation/run/control"].classification is SemanticBoundaryClassification.DECLARATIVE_ONLY
+    assert rows["experimentation/run/control"].provides == ("run.control",)
+
+
+def test_generic_leaf_shell_cannot_claim_implemented_semantic_boundary() -> None:
+    from research_platform.governance.architecture import classify_semantic_boundary
+    from research_platform.governance.architecture.api import (
+        SemanticBoundaryClaim, SemanticBoundaryClaimError, validate_semantic_boundary_claim,
+    )
+
+    evidence = classify_semantic_boundary(Path(__file__).resolve().parents[1], "scientific/measurement")
+    with pytest.raises(SemanticBoundaryClaimError, match="cannot claim implemented"):
+        validate_semantic_boundary_claim(evidence, SemanticBoundaryClaim(evidence.node, implemented=True))
+
+
+def test_generic_leaf_state_cannot_be_claimed_as_domain_durable_authority() -> None:
+    from research_platform.governance.architecture import classify_semantic_boundary
+    from research_platform.governance.architecture.api import (
+        SemanticBoundaryClaim, SemanticBoundaryClaimError, SemanticStateAuthorityKind,
+        validate_semantic_boundary_claim,
+    )
+
+    evidence = classify_semantic_boundary(Path(__file__).resolve().parents[1], "execution/operation")
+    with pytest.raises(SemanticBoundaryClaimError, match="generic leaf state"):
+        validate_semantic_boundary_claim(
+            evidence,
+            SemanticBoundaryClaim(
+                evidence.node, implemented=True,
+                state_authority=SemanticStateAuthorityKind.GENERIC_LEAF_STATE,
+            ),
+        )
+
+
+def test_typed_domain_authority_claim_is_accepted_for_real_boundary() -> None:
+    from research_platform.governance.architecture import classify_semantic_boundary
+    from research_platform.governance.architecture.api import (
+        SemanticBoundaryClaim, SemanticStateAuthorityKind, validate_semantic_boundary_claim,
+    )
+
+    evidence = classify_semantic_boundary(Path(__file__).resolve().parents[1], "execution/operation")
+    validate_semantic_boundary_claim(
+        evidence,
+        SemanticBoundaryClaim(
+            evidence.node, implemented=True,
+            state_authority=SemanticStateAuthorityKind.DOMAIN_TYPED,
+        ),
+    )
+
+
+def test_semantic_boundary_inventory_is_deterministic_and_digest_bound() -> None:
+    from research_platform.governance.architecture import classify_semantic_boundaries
+
+    root = Path(__file__).resolve().parents[1]
+    first = classify_semantic_boundaries(root)
+    second = classify_semantic_boundaries(root)
+    assert tuple(row.node for row in first) == tuple(row.node for row in second)
+    assert tuple(row.digest for row in first) == tuple(row.digest for row in second)

@@ -16,3 +16,5 @@ __all__ = tuple(__all__) + ("SourceAuthorityViolation","audit_source_authorities
 
 from .platform_policy import build_platform_audit
 __all__ = tuple(__all__) + ("build_platform_audit",)
+from .semantic_boundary import classify_semantic_boundaries, classify_semantic_boundary
+__all__ = tuple(__all__) + ("classify_semantic_boundaries", "classify_semantic_boundary")

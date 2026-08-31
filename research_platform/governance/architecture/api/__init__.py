@@ -24,6 +24,15 @@ from .capability_composition import (
     interface_contract_digest,
 )
 
+from .semantic_boundary import (
+    SemanticBoundaryClaim,
+    SemanticBoundaryClaimError,
+    SemanticBoundaryClassification,
+    SemanticBoundaryEvidence,
+    SemanticStateAuthorityKind,
+    validate_semantic_boundary_claim,
+)
+
 __all__ = [
     "AmbiguousCapabilityProvider",
     "BindingEdge",
@@ -46,4 +55,10 @@ __all__ = [
     "RequirementAddress",
     "RequirementCardinality",
     "interface_contract_digest",
+    "SemanticBoundaryClaim",
+    "SemanticBoundaryClaimError",
+    "SemanticBoundaryClassification",
+    "SemanticBoundaryEvidence",
+    "SemanticStateAuthorityKind",
+    "validate_semantic_boundary_claim",
 ]
