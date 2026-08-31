@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import io
 import json
 from pathlib import Path
@@ -893,3 +894,37 @@ def test_v2_signed_approval_authorizes_exact_contraction(tmp_path: Path, monkeyp
     assert current==ArchitectureComplexity(17,172,142,189,4750)
     assert budget.applicable_migration_ids==("test-reviewed-migration",)
     assert budget.limits==ArchitectureComplexity(17,172,142,189,4750)
+
+
+def _role01_source(relative: str) -> str:
+    return (Path(__file__).resolve().parents[1] / relative).read_text(encoding="utf-8")
+
+
+def test_platform_runtime_builder_consumes_trial_contract() -> None:
+    source = _role01_source("research_platform/platform/composition/experiment_runtime.py")
+    tree = ast.parse(source)
+    functions = {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
+    for name in ("build_experiment_runtime_components", "build_experiment_runtime"):
+        arguments = {arg.arg for arg in (*functions[name].args.args, *functions[name].args.kwonlyargs)}
+        assert "trial_protocol" in arguments
+        assert "scientific_workflow" not in arguments
+    for token in ("ExperimentTrialProtocol", "ExperimentTrialCycleExecutor", "trial_protocol_identity"):
+        assert token in source
+    for legacy in ("ExperimentScientificWorkflow", "ExperimentScientificCycleExecutor", "workflow_identity", "scientific_workflow"):
+        assert legacy not in source
+
+
+def test_platform_default_compositions_inject_trial_protocols() -> None:
+    agent = _role01_source("research_platform/platform/composition/agent_turn.py")
+    context = _role01_source("research_platform/platform/composition/context_action.py")
+    assert "AgentTurnTrialProtocol" in agent and "trial_protocol=AgentTurnTrialProtocol()" in agent
+    assert "ContextActionTrialProtocol" in context and "trial_protocol=ContextActionTrialProtocol()" in context
+    assert "StudyWorkflow" not in agent + context
+    assert "scientific_workflow=" not in agent + context
+
+
+def test_generic_participant_guard_targets_trial_executor() -> None:
+    source = _role01_source("research_platform/governance/architecture/composition_participant_invariants.py")
+    assert '"trial_cycle.py", "ExperimentTrialCycleExecutor", "execute"' in source
+    assert "scientific_cycle.py" not in source
+    assert "ExperimentScientificCycleExecutor" not in source
