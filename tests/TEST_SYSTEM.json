@@ -201,7 +201,7 @@
     },
     {
       "id": "domain",
-      "pattern": "^test_(?:agent_effectful|agent_only|environment_(?!effect_safety)|measurement_|method_(?!observation_outbox)|metric_|prompt_(?!contract|trace_observer_isolation)|research_compiler|scientific_(?!identity_freeze)|study_)",
+      "pattern": "^test_(?:agent_effectful|agent_only|environment_(?!effect_safety)|method_(?!observation_outbox)|metric_|prompt_(?!contract|trace_observer_isolation)|scientific_(?!identity_freeze)|study_)",
       "family": "scientific-domain"
     },
     {

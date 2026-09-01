@@ -660,17 +660,14 @@ def test_current_downstream_proposals_have_exact_applicability_without_self_appr
     root = Path(__file__).resolve().parents[1]
     budget = load_architecture_complexity_budget(root)
     expected = {
-        "ROLE03": (50, ("research_platform.execution", "research_platform.experimentation", "research_platform.scientific"), "2db9d82255181f39e5a3ffc28e64d688380a5bdb9c739ddd84600b814d93f80f"),
-        "ROLE04": (101, ("research_platform.participant", "research_platform.model"), "4f47fd94552daff488eb31b112a5bbdff6a63ad2e1cf967c2af812aa2644df8a"),
-        "ROLE05": (64, ("research_platform.environment", "research_platform.data", "research_platform.artifact", "research_platform.observability"), "29e446c8368a8441bd2fec8273f9555204623a4d28a6bc267f4e1d6a3bd91f79"),
-        "ROLE06": (55, ("research_platform.operator", "research_platform.api"), "3f367d5717fd4fbca273b3fb4d13af5c54d262afeb2a1e663898338adc713e77"),
+        "ROLE03": ("role03-research-v4-mainline-20260901", 25, ("research_platform.execution", "research_platform.experimentation", "research_platform.scientific"), "1d486a376d9627e40b457991720c00fd247a5ff8034a871c71550b3cce8b5bd2"),
+        "ROLE04": ("role04-agent-model-mainline-20260901", 99, ("research_platform.participant", "research_platform.model"), "a7450828a12253ac93cbe78be2db29b60f90dfdb32ca2d33c57c07d4f551d6ef"),
+        "ROLE05": ("role05-research-data-mainline-20260901", 70, ("research_platform.environment", "research_platform.data", "research_platform.artifact", "research_platform.observability"), "b0d25f807ff2c73a6605754e7d6320b4846a4f6d866b9ef67b4d9ad563f081fe"),
+        "ROLE06": ("role06-product-assurance-v1", 55, ("research_platform.operator", "research_platform.api"), "3f367d5717fd4fbca273b3fb4d13af5c54d262afeb2a1e663898338adc713e77"),
     }
-    for role, (delta, prefixes, projection) in expected.items():
-        migrations = tuple(row for row in budget.migrations if row.owner_role == role)
-        if role == "ROLE06":
-            assert len(migrations) == 1
-            assert migrations[0].migration_id == "role06-product-assurance-v1"
-        migration = migrations[-1]
+    for role, (migration_id, delta, prefixes, projection) in expected.items():
+        migration = next(row for row in budget.migrations if row.migration_id == migration_id)
+        assert migration.owner_role == role
         assert migration.delta.import_edges == delta
         assert migration.module_prefixes == prefixes
         assert migration.import_projection_sha256 == projection
