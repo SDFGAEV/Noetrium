@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import math
 from threading import RLock
 from time import time
 
@@ -52,8 +53,8 @@ class AtomicEndpointAllocator(EndpointAllocationPort):
         probe: EndpointProbePort,
         lease_ttl_seconds: float = DEFAULT_ENDPOINT_LEASE_POLICY.ttl_seconds,
     ) -> None:
-        if lease_ttl_seconds <= 0:
-            raise ValueError("endpoint lease_ttl_seconds must be > 0")
+        if not math.isfinite(float(lease_ttl_seconds)) or lease_ttl_seconds <= 0:
+            raise ValueError("endpoint lease_ttl_seconds must be finite and > 0")
         self._reservations = reservations
         self._probe = probe
         self._lease_ttl_seconds = float(lease_ttl_seconds)
@@ -123,10 +124,17 @@ class AtomicEndpointAllocator(EndpointAllocationPort):
     def confirm_bound(self, proof: EndpointBindingProof) -> EndpointAllocation:
         return self._reservations.confirm_bound(proof)
 
+    def replace_bound(
+        self, proof: EndpointBindingProof, *, expected_previous_binding_proof_digest: str
+    ) -> EndpointAllocation:
+        return self._reservations.replace_bound(
+            proof, expected_previous_binding_proof_digest=expected_previous_binding_proof_digest
+        )
+
     def renew(self, allocation_id: str, *, ttl_seconds: float | None = None) -> EndpointAllocation:
         ttl = self._lease_ttl_seconds if ttl_seconds is None else float(ttl_seconds)
-        if ttl <= 0:
-            raise ValueError("endpoint lease ttl_seconds must be > 0")
+        if not math.isfinite(ttl) or ttl <= 0:
+            raise ValueError("endpoint lease ttl_seconds must be finite and > 0")
         return self._reservations.renew(allocation_id, ttl_seconds=ttl)
 
     def renew_many(self, allocation_ids: tuple[str, ...], *, ttl_seconds: float | None = None) -> tuple[EndpointAllocation, ...]:
@@ -135,8 +143,8 @@ class AtomicEndpointAllocator(EndpointAllocationPort):
         if len(set(allocation_ids)) != len(allocation_ids):
             raise ValueError("endpoint allocation ids must be unique")
         ttl = self._lease_ttl_seconds if ttl_seconds is None else float(ttl_seconds)
-        if ttl <= 0:
-            raise ValueError("endpoint lease ttl_seconds must be > 0")
+        if not math.isfinite(ttl) or ttl <= 0:
+            raise ValueError("endpoint lease ttl_seconds must be finite and > 0")
         return self._reservations.renew_many(allocation_ids, ttl_seconds=ttl)
 
     def release(self, allocation_id: str) -> EndpointAllocation:
@@ -169,8 +177,8 @@ class InMemoryEndpointAllocator(EndpointAllocationPort):
         probe: EndpointProbePort,
         lease_ttl_seconds: float = DEFAULT_ENDPOINT_LEASE_POLICY.ttl_seconds,
     ) -> None:
-        if lease_ttl_seconds <= 0:
-            raise ValueError("endpoint lease_ttl_seconds must be > 0")
+        if not math.isfinite(float(lease_ttl_seconds)) or lease_ttl_seconds <= 0:
+            raise ValueError("endpoint lease_ttl_seconds must be finite and > 0")
         self._ownership = ownership
         self._leases = leases
         self._probe = probe
@@ -315,8 +323,39 @@ class InMemoryEndpointAllocator(EndpointAllocationPort):
                 current,
                 state=EndpointAllocationState.BOUND,
                 binding_proof_digest=proof_digest,
+                binding_binder_identity_digest=proof.binder_identity_digest,
                 binding_evidence_ref=proof.evidence_ref,
                 bound_at_epoch_s=proof.observed_at_epoch_s,
+            )
+            self._allocations[proof.allocation_id] = updated
+            return updated
+
+    def replace_bound(
+        self, proof: EndpointBindingProof, *, expected_previous_binding_proof_digest: str
+    ) -> EndpointAllocation:
+        if len(expected_previous_binding_proof_digest) != 64 or any(
+            character not in "0123456789abcdef" for character in expected_previous_binding_proof_digest
+        ):
+            raise ValueError("expected previous endpoint binding proof digest must be canonical SHA-256")
+        with self._lock:
+            current = self._reconcile_allocation_locked(proof.allocation_id)
+            if current.state is not EndpointAllocationState.BOUND:
+                raise EndpointAllocationConflict(f"endpoint allocation is not bound: {proof.allocation_id}")
+            if current.endpoint != proof.endpoint:
+                raise EndpointAllocationConflict(f"endpoint binding proof endpoint mismatch: {proof.allocation_id}")
+            if current.lease_fencing_token != proof.lease_fencing_token:
+                raise EndpointAllocationConflict(f"endpoint binding proof fencing lost: {proof.allocation_id}")
+            if current.binding_proof_digest != expected_previous_binding_proof_digest:
+                raise EndpointAllocationConflict(f"endpoint binding replacement lost prior generation: {proof.allocation_id}")
+            if current.binding_binder_identity_digest == proof.binder_identity_digest:
+                raise EndpointAllocationConflict(f"endpoint binding replacement must use a new binder generation: {proof.allocation_id}")
+            proof_digest = proof.digest()
+            if proof_digest == current.binding_proof_digest:
+                raise EndpointAllocationConflict(f"endpoint binding replacement proof is already current: {proof.allocation_id}")
+            updated = replace(
+                current, binding_proof_digest=proof_digest,
+                binding_binder_identity_digest=proof.binder_identity_digest,
+                binding_evidence_ref=proof.evidence_ref, bound_at_epoch_s=proof.observed_at_epoch_s,
             )
             self._allocations[proof.allocation_id] = updated
             return updated
@@ -327,6 +366,8 @@ class InMemoryEndpointAllocator(EndpointAllocationPort):
             if not current.state.is_live:
                 raise EndpointAllocationConflict(f"endpoint allocation is not active: {allocation_id}")
             ttl = self._lease_ttl_seconds if ttl_seconds is None else float(ttl_seconds)
+            if not math.isfinite(ttl) or ttl <= 0:
+                raise ValueError("endpoint lease ttl_seconds must be finite and > 0")
             granted = self._leases.renew(
                 current.lease_id,
                 fencing_token=current.lease_fencing_token,

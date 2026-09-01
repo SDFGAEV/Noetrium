@@ -8,6 +8,7 @@ from .contracts import (
     DurableFactStorePort,
     FactCriticality,
     FactDecoderPort,
+    FactSchema,
     UnknownRequiredFact,
 )
 
@@ -21,5 +22,6 @@ __all__ = [
     "DurableFactStorePort",
     "FactCriticality",
     "FactDecoderPort",
+    "FactSchema",
     "UnknownRequiredFact",
 ]

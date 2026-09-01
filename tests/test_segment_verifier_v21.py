@@ -27,6 +27,39 @@ class VerifiedLedgerSliceContractTests(unittest.TestCase):
             self.assertEqual(verified.tail_hash, log.cached_tail[1])
             self.assertEqual(len(verified.checkpoint_hash), 64)
 
+
+    def test_single_file_verified_cut_streams_fixed_bounded_batches(self):
+        from research_platform.reliability.forensics.providers import HashChainedJSONL
+
+        with tempfile.TemporaryDirectory() as td:
+            log = HashChainedJSONL(Path(td) / "failures.jsonl")
+            for index in range(10):
+                log.append({"index": index})
+            cut = log.verified_cut_after(3)
+            log.append({"index": 10})
+            batches = list(log.iter_verified_payload_batches(cut, batch_size=2))
+            self.assertTrue(all(1 <= len(batch) <= 2 for batch in batches))
+            self.assertEqual(
+                [row["index"] for batch in batches for row in batch],
+                list(range(3, 10)),
+            )
+            self.assertEqual(cut.total_rows, 10)
+            self.assertEqual(cut.suffix_rows, 7)
+
+    def test_single_file_stream_rejects_prefix_changed_after_verified_cut(self):
+        from research_platform.reliability.forensics.providers import HashChainError, HashChainedJSONL
+
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "failures.jsonl"
+            log = HashChainedJSONL(path)
+            for index in range(6):
+                log.append({"index": index})
+            cut = log.verified_cut_after(2)
+            raw = path.read_bytes()
+            path.write_bytes(raw.replace(b'"index":0', b'"index":9', 1))
+            with self.assertRaises(HashChainError):
+                list(log.iter_verified_payload_batches(cut, batch_size=2))
+
     def test_contract_rejects_incoherent_row_count_or_digest(self):
         from research_platform.reliability.forensics.api import VerifiedLedgerSlice
 

@@ -16,11 +16,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator
 
+from research_platform.governance.api import RepositorySourceIndexPort
+
 
 @dataclass(slots=True)
 class ArchitectureSourceIndex:
     root: Path
     max_entries: int = 96
+    repository_index: RepositorySourceIndexPort | None = None
     _texts: OrderedDict[Path, str] = field(default_factory=OrderedDict)
     _trees: OrderedDict[Path, ast.AST] = field(default_factory=OrderedDict)
     _imports: dict[Path, tuple[tuple[str, int], ...]] = field(default_factory=dict)
@@ -34,6 +37,12 @@ class ArchitectureSourceIndex:
     @staticmethod
     def _key(path: Path) -> Path:
         return Path(path)
+
+    def _relative(self, path: Path) -> str:
+        candidate = Path(path)
+        if candidate.is_absolute():
+            return candidate.relative_to(self.root).as_posix()
+        return candidate.as_posix()
 
     @staticmethod
     def _touch(cache: OrderedDict, key):
@@ -52,7 +61,11 @@ class ArchitectureSourceIndex:
         key = self._key(path)
         if key in self._texts:
             return self._touch(self._texts, key)
-        text = key.read_text(encoding="utf-8")
+        text = (
+            self.repository_index.text(self._relative(key))
+            if self.repository_index is not None
+            else key.read_text(encoding="utf-8")
+        )
         self._texts[key] = text
         self._trim()
         return text
@@ -61,7 +74,11 @@ class ArchitectureSourceIndex:
         key = self._key(path)
         if key in self._trees:
             return self._touch(self._trees, key)
-        tree = ast.parse(self.text(key), filename=str(key))
+        tree = (
+            self.repository_index.python_tree(self._relative(key))
+            if self.repository_index is not None
+            else ast.parse(self.text(key), filename=str(key))
+        )
         self._trees[key] = tree
         self._trim()
         return tree
@@ -117,8 +134,13 @@ _ACTIVE_INDEX: ContextVar[ArchitectureSourceIndex | None] = ContextVar(
 
 
 @contextmanager
-def architecture_source_index(root: Path, *, max_entries: int = 96) -> Iterator[ArchitectureSourceIndex]:
-    index = ArchitectureSourceIndex(root, max_entries=max_entries)
+def architecture_source_index(
+    root: Path,
+    *,
+    max_entries: int = 96,
+    repository_index: RepositorySourceIndexPort | None = None,
+) -> Iterator[ArchitectureSourceIndex]:
+    index = ArchitectureSourceIndex(root, max_entries=max_entries, repository_index=repository_index)
     token = _ACTIVE_INDEX.set(index)
     try:
         yield index

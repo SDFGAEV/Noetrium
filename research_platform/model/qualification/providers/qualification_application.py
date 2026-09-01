@@ -7,6 +7,14 @@ from pathlib import Path
 import re
 from typing import Any
 
+from research_platform.model._persisted import (
+    exact_fields,
+    integer,
+    optional_text,
+    sequence,
+    text,
+    text_tuple,
+)
 from research_platform.model.qualification.api import (
     DeploymentQualificationApplicationReceipt,
     DeploymentQualificationApplicationStorePort,
@@ -22,9 +30,16 @@ from research_platform.platform.kernel.durability import (
     encode_checksummed_document,
 )
 
-
 _SCHEMA = "model-deployment-qualification-application.v1"
 _DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
+_RECEIPT_FIELDS = frozenset({
+    "plan_digest", "environment_id", "backend", "packages", "install_commands",
+    "check_command", "status", "reasons", "application_digest",
+})
+_COMMAND_FIELDS = frozenset({
+    "operation", "command_digest", "return_code", "stdout_digest", "stderr_digest",
+})
+_PACKAGE_FIELDS = frozenset({"name", "version", "index_url"})
 
 
 class QualificationApplicationIntegrityError(RuntimeError):
@@ -73,37 +88,55 @@ class FileDeploymentQualificationApplicationStore(DeploymentQualificationApplica
         return json.loads(canonical_bytes(receipt).decode("utf-8"))
 
     @staticmethod
-    def _command(data: dict[str, Any] | None) -> QualificationCommandReceipt | None:
-        if data is None:
-            return None
+    def _command(value: object) -> QualificationCommandReceipt:
+        if value is None:
+            raise ValueError("qualification command list cannot contain null")
+        data = exact_fields(value, field="qualification command", fields=_COMMAND_FIELDS)
         return QualificationCommandReceipt(
-            operation=str(data["operation"]),
-            command_digest=str(data["command_digest"]),
-            return_code=int(data["return_code"]),
-            stdout_digest=str(data["stdout_digest"]),
-            stderr_digest=str(data["stderr_digest"]),
+            operation=text(data["operation"], field="command.operation", allow_empty=False),
+            command_digest=text(data["command_digest"], field="command.command_digest", allow_empty=False),
+            return_code=integer(data["return_code"], field="command.return_code"),
+            stdout_digest=text(data["stdout_digest"], field="command.stdout_digest", allow_empty=False),
+            stderr_digest=text(data["stderr_digest"], field="command.stderr_digest", allow_empty=False),
+        )
+
+    @staticmethod
+    def _package(value: object) -> InstallPackage:
+        data = exact_fields(value, field="package", fields=_PACKAGE_FIELDS)
+        return InstallPackage(
+            name=text(data["name"], field="package.name", allow_empty=False),
+            version=text(data["version"], field="package.version", allow_empty=False),
+            index_url=text(data["index_url"], field="package.index_url", allow_empty=False),
         )
 
     @classmethod
-    def _receipt(cls, payload: dict[str, Any]) -> DeploymentQualificationApplicationReceipt:
+    def _optional_command(cls, value: object) -> QualificationCommandReceipt | None:
+        return None if value is None else cls._command(value)
+
+    @classmethod
+    def _receipt(cls, value: object) -> DeploymentQualificationApplicationReceipt:
+        payload = exact_fields(value, field="qualification application receipt", fields=_RECEIPT_FIELDS)
+        packages = sequence(payload["packages"], field="packages")
+        install_commands = sequence(payload["install_commands"], field="install_commands")
         receipt = DeploymentQualificationApplicationReceipt(
-            plan_digest=str(payload["plan_digest"]),
-            environment_id=str(payload["environment_id"]),
-            backend=str(payload["backend"]) if payload.get("backend") else None,
-            packages=tuple(
-                InstallPackage(
-                    name=str(item["name"]),
-                    version=str(item["version"]),
-                    index_url=str(item["index_url"]),
-                )
-                for item in payload.get("packages", ())
+            plan_digest=text(payload["plan_digest"], field="plan_digest", allow_empty=False),
+            environment_id=text(payload["environment_id"], field="environment_id", allow_empty=False),
+            backend=optional_text(payload["backend"], field="backend"),
+            packages=tuple(cls._package(item) for item in packages),
+            install_commands=tuple(
+                cls._command(item)
+                for item in install_commands
             ),
-            install_commands=tuple(cls._command(item) for item in payload.get("install_commands", ())),
-            check_command=cls._command(payload.get("check_command")),
-            status=QualificationMaterializationStatus(str(payload["status"])),
-            reasons=tuple(str(item) for item in payload.get("reasons", ())),
+            check_command=cls._optional_command(payload["check_command"]),
+            status=QualificationMaterializationStatus(
+                text(payload["status"], field="status", allow_empty=False)
+            ),
+            reasons=text_tuple(payload["reasons"], field="reasons"),
         )
-        if receipt.application_digest != str(payload.get("application_digest", "")):
+        stored_digest = text(
+            payload["application_digest"], field="application_digest", allow_empty=False
+        )
+        if receipt.application_digest != stored_digest:
             raise QualificationApplicationIntegrityError("qualification application digest mismatch")
         return receipt
 

@@ -42,6 +42,7 @@ def _require_manifest_identity(
         "environment_generation": binding.environment_generation,
         "method_generation": binding.method_generation,
         "task_manifest_digest": binding.task_manifest_digest,
+        "checkpoint_compatibility_digest": binding.checkpoint_compatibility_digest,
     }
     actual = {key: getattr(manifest, key) for key in expected}
     if actual != expected:

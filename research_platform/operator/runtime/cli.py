@@ -1,23 +1,20 @@
 from __future__ import annotations
 
-from dataclasses import asdict
 import json
 import sys
 
 from research_platform.operator.api import OperatorHandlerPort
 from research_platform.platform.kernel.errors import describe_exception
 
+from research_platform.operator.api.json_rendering import render_json
 from .parser import build_parser
 
 _EXPECTED_OPERATOR_ERRORS = (KeyError, ValueError, FileNotFoundError, json.JSONDecodeError)
 
 
-def _plain(value):
-    return asdict(value) if hasattr(value, "__dataclass_fields__") else value
-
 
 def _emit(value, *, stream=None):
-    print(json.dumps(_plain(value), ensure_ascii=False, sort_keys=True, indent=2), file=stream or sys.stdout)
+    print(render_json(value), file=stream or sys.stdout)
 
 
 def run_operator_cli(handler: OperatorHandlerPort, argv: list[str] | None = None) -> int:
@@ -39,7 +36,7 @@ def run_operator_cli(handler: OperatorHandlerPort, argv: list[str] | None = None
         return 2
     if isinstance(result, int):
         return result
-    _emit({"ok": True, "command": args.command, "result": _plain(result)})
+    _emit({"ok": True, "command": args.command, "result": result})
     return 0
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol, TypeVar
 
-from research_platform.execution.workflow.api import ScientificCycleExecution
+from research_platform.execution.workflow.api import TrialCycleExecution
 from research_platform.participant.core.api import (
     BoundParticipants,
     ParticipantSessionBinding,
@@ -19,7 +19,7 @@ class ExperimentComponentBindingPort(Protocol):
     def bind(self, spec: ExperimentSpec, context: ExecutionContext) -> BoundParticipants: ...
 
 
-class ExperimentScientificCycleExecutorPort(Protocol):
+class ExperimentTrialCycleExecutorPort(Protocol):
     def execute(
         self,
         *,
@@ -29,7 +29,7 @@ class ExperimentScientificCycleExecutorPort(Protocol):
         task: TaskT,
         input_kind: str,
         input_payload: JsonInput,
-    ) -> ScientificCycleExecution: ...
+    ) -> TrialCycleExecution: ...
 
 
-__all__ = ["ExperimentComponentBindingPort", "ExperimentScientificCycleExecutorPort"]
+__all__ = ["ExperimentComponentBindingPort", "ExperimentTrialCycleExecutorPort"]

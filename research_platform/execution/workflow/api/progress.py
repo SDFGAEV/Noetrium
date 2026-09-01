@@ -1,13 +1,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
 import re
 from typing import Protocol
 
 _SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
 
-from research_platform.execution.operation.api import OperationId
+from research_platform.execution.operation.api import EffectId, OperationId
+
+
+def _optional_binding_text(value: object, field: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"workflow binding {field} must be non-empty text")
+    return value.strip()
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,43 +29,13 @@ class WorkflowRunId:
         object.__setattr__(self, "value", value)
 
 
-class WorkflowRecoveryDisposition(StrEnum):
-    COMPLETED = "completed"
-    RETRY_NOT_EXECUTED = "retry_not_executed"
-    FAILED = "failed"
-
-
-@dataclass(frozen=True, slots=True)
-class WorkflowReconciliationProof:
-    workflow_run_id: WorkflowRunId
-    step_id: str
-    operation_id: OperationId
-    disposition: WorkflowRecoveryDisposition
-    evidence_digest: str
-    authority: str
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.workflow_run_id, WorkflowRunId):
-            raise TypeError("workflow reconciliation workflow_run_id must be WorkflowRunId")
-        if not isinstance(self.operation_id, OperationId):
-            raise TypeError("workflow reconciliation operation_id must be OperationId")
-        if not isinstance(self.disposition, WorkflowRecoveryDisposition):
-            raise TypeError("workflow reconciliation disposition must be WorkflowRecoveryDisposition")
-        if not isinstance(self.step_id, str) or not self.step_id.strip():
-            raise ValueError("workflow reconciliation step_id required")
-        if not isinstance(self.evidence_digest, str) or not _SHA256.fullmatch(self.evidence_digest):
-            raise ValueError("workflow reconciliation evidence_digest must be SHA-256 hex")
-        if not isinstance(self.authority, str) or not self.authority.strip():
-            raise ValueError("workflow reconciliation authority required")
-        object.__setattr__(self, "step_id", self.step_id.strip())
-        object.__setattr__(self, "evidence_digest", self.evidence_digest.lower())
-        object.__setattr__(self, "authority", self.authority.strip())
-
-
 @dataclass(frozen=True, slots=True)
 class WorkflowOperationBinding:
     step_id: str
     operation_id: OperationId
+    effect_id: EffectId | None = None
+    effect_request_id: str | None = None
+    effect_request_digest: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.step_id, str):
@@ -68,6 +45,17 @@ class WorkflowOperationBinding:
             raise ValueError("workflow binding step_id required")
         if not isinstance(self.operation_id, OperationId):
             raise TypeError("workflow binding operation_id must be OperationId")
+        if self.effect_id is not None and not isinstance(self.effect_id, EffectId):
+            raise TypeError("workflow binding effect_id must be EffectId or null")
+        request_id = _optional_binding_text(self.effect_request_id, "effect_request_id")
+        request_digest = _optional_binding_text(self.effect_request_digest, "effect_request_digest")
+        if self.effect_id is None:
+            if request_id is not None or request_digest is not None:
+                raise ValueError("workflow binding effect identity must be all-present or all-null")
+        elif request_id is None or request_digest is None:
+            raise ValueError("workflow binding effect identity must be all-present or all-null")
+        object.__setattr__(self, "effect_request_id", request_id)
+        object.__setattr__(self, "effect_request_digest", request_digest)
         object.__setattr__(self, "step_id", step_id)
 
 
@@ -141,4 +129,4 @@ class WorkflowProgressStorePort(Protocol):
 
 
 __all__ = ["WorkflowOperationBinding", "WorkflowProgress", "WorkflowProgressConflict",
-           "WorkflowProgressCorruption", "WorkflowProgressStorePort", "WorkflowReconciliationProof", "WorkflowRecoveryDisposition", "WorkflowRunId"]
+           "WorkflowProgressCorruption", "WorkflowProgressStorePort", "WorkflowRunId"]

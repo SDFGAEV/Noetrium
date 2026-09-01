@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from research_platform.runtime.service.api import ServiceLaunchContract, ServiceProcessIdentity
-from service_os_test_support import make_service_supervisor
+from service_os_test_support import make_service_supervisor, ready_evidence
 
 from dataclasses import replace
 from pathlib import Path
@@ -48,7 +48,7 @@ class Adapter:
         return ServiceProcessIdentity(11, "start:11", 11), ()
 
     def wait_ready(self, process, launch):
-        return "ready", "stdout", "stderr"
+        return ready_evidence(process, launch)
 
     def stop(self, process, launch):
         return ()

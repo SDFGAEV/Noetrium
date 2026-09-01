@@ -1,6 +1,7 @@
 """Frozen run-manifest serialization and decoding."""
 
 from .codec import (
+    RUN_LAUNCH_MANIFEST_SCHEMA_VERSION,
     RunLaunchManifestDecodeError,
     decode_run_launch_manifest,
     encode_run_launch_manifest,
@@ -15,6 +16,7 @@ from .evidence import (
 )
 
 __all__ = [
+    "RUN_LAUNCH_MANIFEST_SCHEMA_VERSION",
     "RunLaunchManifestDecodeError",
     "decode_run_launch_manifest",
     "encode_run_launch_manifest",

@@ -20,11 +20,12 @@ from research_platform.scope.api import ScopeIdentity, ScopeKind
 
 
 class SQLiteDatasetRegistry:
-    """Immutable SQLite dataset-version registry with verified base records."""
+    """Immutable portable dataset-version registry; physical placement is external."""
 
     _COLUMNS = (
-        "dataset_key", "dataset_id", "version", "scope_kind", "scope_id", "digest",
-        "location", "schema_ref", "parents_json", "tags_json", "metadata_json", "record_sha256",
+        "dataset_key", "dataset_id", "version", "scope_kind", "scope_id",
+        "content_sha256", "schema_ref", "parents_json", "tags_json", "metadata_json",
+        "record_sha256",
     )
 
     def __init__(self, path: str | Path, *, timeout_seconds: float = 30.0) -> None:
@@ -60,8 +61,7 @@ class SQLiteDatasetRegistry:
                 version TEXT NOT NULL,
                 scope_kind TEXT NOT NULL,
                 scope_id TEXT NOT NULL,
-                digest TEXT NOT NULL,
-                location TEXT NOT NULL,
+                content_sha256 TEXT NOT NULL,
                 schema_ref TEXT,
                 parents_json TEXT NOT NULL,
                 tags_json TEXT NOT NULL,
@@ -86,14 +86,20 @@ class SQLiteDatasetRegistry:
             )
 
     @staticmethod
-    def _document(dataset: DatasetVersion) -> dict[str, object]:
+    def _parent_documents(dataset: DatasetVersion) -> tuple[dict[str, str], ...]:
+        return tuple(
+            {"dataset_id": parent.dataset_id, "version": parent.version}
+            for parent in dataset.parent_versions
+        )
+
+    @classmethod
+    def _document(cls, dataset: DatasetVersion) -> dict[str, object]:
         return {
             "identity": {"dataset_id": dataset.identity.dataset_id, "version": dataset.identity.version},
             "scope": {"kind": dataset.scope.kind.value, "scope_id": dataset.scope.scope_id},
-            "digest": dataset.digest,
-            "location": dataset.location,
+            "content_sha256": dataset.content_sha256,
             "schema_ref": dataset.schema_ref,
-            "parent_versions": dataset.parent_versions,
+            "parent_versions": cls._parent_documents(dataset),
             "tags": dataset.tags,
             "metadata": dataset.metadata,
         }
@@ -110,25 +116,38 @@ class SQLiteDatasetRegistry:
             dataset.identity.version,
             dataset.scope.kind.value,
             dataset.scope.scope_id,
-            dataset.digest,
-            dataset.location,
+            dataset.content_sha256,
             dataset.schema_ref,
-            json.dumps(dataset.parent_versions, ensure_ascii=False, separators=(",", ":")),
+            json.dumps(cls._parent_documents(dataset), ensure_ascii=False, separators=(",", ":")),
             json.dumps(dataset.tags, ensure_ascii=False, separators=(",", ":")),
             json.dumps(dataset.metadata, ensure_ascii=False, separators=(",", ":")),
             cls._record_digest(dataset),
         )
 
+    @staticmethod
+    def _decode_parents(raw: object) -> tuple[DatasetIdentity, ...]:
+        if not isinstance(raw, list):
+            raise TypeError("dataset parents JSON must be a list")
+        parents: list[DatasetIdentity] = []
+        for row in raw:
+            if not isinstance(row, dict) or set(row) != {"dataset_id", "version"}:
+                raise TypeError("dataset parent JSON must contain exact identity fields")
+            dataset_id = row.get("dataset_id")
+            version = row.get("version")
+            if not isinstance(dataset_id, str) or not isinstance(version, str):
+                raise TypeError("dataset parent identity fields must be strings")
+            parents.append(DatasetIdentity(dataset_id, version))
+        return tuple(parents)
+
     @classmethod
     def _decode(cls, row: tuple[object, ...]) -> DatasetVersion:
         try:
-            parents = strict_json_loads(require_text(row[8], label="dataset parents_json"))
-            tags = strict_json_loads(require_text(row[9], label="dataset tags_json"))
-            metadata = strict_json_loads(require_text(row[10], label="dataset metadata_json"))
-            if not isinstance(parents, list) or not isinstance(tags, list) or not isinstance(metadata, list):
+            parents_raw = strict_json_loads(require_text(row[7], label="dataset parents_json"))
+            tags = strict_json_loads(require_text(row[8], label="dataset tags_json"))
+            metadata = strict_json_loads(require_text(row[9], label="dataset metadata_json"))
+            parents = cls._decode_parents(parents_raw)
+            if not isinstance(tags, list) or not isinstance(metadata, list):
                 raise TypeError("dataset collection fields have invalid JSON shape")
-            if any(not isinstance(value, str) for value in parents):
-                raise TypeError("dataset parents JSON must contain only strings")
             if any(not isinstance(value, str) for value in tags):
                 raise TypeError("dataset tags JSON must contain only strings")
             if any(
@@ -148,15 +167,14 @@ class SQLiteDatasetRegistry:
                     ScopeKind(require_text(row[3], label="dataset scope_kind")),
                     require_text(row[4], label="dataset scope_id"),
                 ),
-                digest=require_text(row[5], label="dataset digest"),
-                location=require_text(row[6], label="dataset location"),
-                schema_ref=require_optional_text(row[7], label="dataset schema_ref"),
-                parent_versions=tuple(parents),
+                content_sha256=require_text(row[5], label="dataset content_sha256"),
+                schema_ref=require_optional_text(row[6], label="dataset schema_ref"),
+                parent_versions=parents,
                 tags=tuple(tags),
                 metadata=tuple((pair[0], pair[1]) for pair in metadata),
             )
             dataset_key = require_text(row[0], label="dataset_key")
-            record_sha256 = require_text(row[11], label="dataset record_sha256")
+            record_sha256 = require_text(row[10], label="dataset record_sha256")
         except (IndexError, TypeError, ValueError, DataCanonicalDecodingError) as exc:
             raise DatasetRegistryCorruptionError("dataset registry record cannot be decoded") from exc
         if dataset.identity.key != dataset_key:
@@ -188,7 +206,7 @@ class SQLiteDatasetRegistry:
                         raise DatasetRegistryConflict(dataset.identity.key)
                     db.execute("COMMIT")
                     return current
-                db.execute("INSERT INTO datasets VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", encoded)
+                db.execute("INSERT INTO datasets VALUES(?,?,?,?,?,?,?,?,?,?,?)", encoded)
                 db.executemany(
                     "INSERT INTO dataset_tags(dataset_key,tag) VALUES(?,?)",
                     ((dataset.identity.key, tag) for tag in dataset.tags),

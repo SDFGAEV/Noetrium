@@ -3,13 +3,26 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 from collections.abc import Mapping
-from typing import Protocol, TypeAlias, runtime_checkable
+from typing import Generic, Protocol, TypeAlias, TypeVar, runtime_checkable
 
 from research_platform.data.record.api import ExecutionRecordPlane
 
 JsonScalar: TypeAlias = str | int | float | bool | None
 JsonValue: TypeAlias = JsonScalar | tuple["JsonValue", ...] | Mapping[str, "JsonValue"]
 JsonObject: TypeAlias = Mapping[str, JsonValue]
+
+
+TDecoded_co = TypeVar("TDecoded_co", covariant=True)
+
+
+@dataclass(frozen=True, slots=True)
+class FactSchema(Generic[TDecoded_co]):
+    fact_type: str
+    schema_version: str
+
+    def __post_init__(self) -> None:
+        if not self.fact_type.strip() or not self.schema_version.strip():
+            raise ValueError("fact schema identity fields must be non-empty")
 
 
 class FactCriticality(StrEnum):
@@ -28,6 +41,11 @@ class DurableFact:
     state_refs: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
+        """Validate every artifact/state reference before accepting durable fact authority.
+
+        Algorithm-Complexity: O(N)
+        Algorithm-Rationale: N is the total durable reference cardinality; every reference must be checked for non-empty identity and uniqueness.
+        """
         if not self.fact_id.strip() or not self.fact_type.strip() or not self.schema_version.strip():
             raise ValueError("durable fact identity fields must be non-empty")
         for name, refs in (("artifact_refs", self.artifact_refs), ("state_refs", self.state_refs)):
@@ -82,10 +100,10 @@ class DurableFactStorePort(DurableFactSinkPort, Protocol):
 
 
 @runtime_checkable
-class FactDecoderPort(Protocol):
-    fact_type: str
-    schema_version: str
-    def decode(self, fact: DurableFact) -> object: ...
+class FactDecoderPort(Protocol[TDecoded_co]):
+    schema: FactSchema[TDecoded_co]
+
+    def decode(self, fact: DurableFact) -> TDecoded_co: ...
 
 
 __all__ = [
@@ -98,5 +116,6 @@ __all__ = [
     "DurableFactStorePort",
     "FactCriticality",
     "FactDecoderPort",
+    "FactSchema",
     "UnknownRequiredFact",
 ]

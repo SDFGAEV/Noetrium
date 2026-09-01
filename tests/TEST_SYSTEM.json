@@ -171,12 +171,12 @@
     },
     {
       "id": "durability",
-      "pattern": "^test_(?:action_checkpoint|action_intent_journal|agent_(?:cognition_recovery|cognition_state_checkpoint|coordination_durability|memory_durability|skill_library_durability)|crash_bundle|durable|effect_journal|forensic_index|heartbeat|jsonl_log_algorithm_regressions|leaf_state|method_observation_outbox|participant_checkpoint|raw_lake|recovery_(?!lease_|observer_)|run_artifact|runtime_history|runtime_state|segmented_logs|sem_durable|sqlite_atomic_state|state_|storage|torn_)",
+      "pattern": "^test_(?:action_checkpoint|action_intent_journal|agent_(?:cognition_recovery|cognition_state_checkpoint|coordination_durability|memory_durability|skill_library_durability)|crash_bundle|durable|effect_journal|forensic_index|heartbeat|jsonl_log_algorithm_regressions|leaf_state|method_observation_outbox|participant_checkpoint|public_checkpoint|research_checkpoint_participant|raw_lake|recovery_(?!lease_|observer_)|run_artifact|runtime_history|runtime_state|segmented_logs|sem_durable|sqlite_atomic_state|state_|storage|torn_)",
       "family": "durability-recovery"
     },
     {
       "id": "concurrency",
-      "pattern": "^test_(?:capacity|platform_concurrency_runtime|qualification_index_worker_concurrency|io_performance|parallel|.*isolation|recovery_lease|resource_endpoint_(?:allocation|atomicity|heartbeat)|segmented_event_hot_path|sem_hot_path)",
+      "pattern": "^test_(?:capacity|platform_concurrency_runtime|qualification_index_worker_concurrency|io_performance|parallel|.*isolation|recovery_lease|resource_(?:endpoint_(?:allocation|atomicity|heartbeat)|shared_carrier_fencing)|segmented_event_hot_path|sem_hot_path)",
       "family": "concurrency-capacity"
     },
     {

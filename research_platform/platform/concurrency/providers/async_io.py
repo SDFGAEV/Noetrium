@@ -5,7 +5,7 @@ from concurrent.futures import Future
 import inspect
 from threading import Condition, Event, Lock, Thread
 import time
-from typing import Any, Callable, Generic, TypeVar
+from typing import Any, Awaitable, Callable, Generic, TypeVar
 
 from research_platform.platform.concurrency.api import CancellationTokenPort, Deadline, TaskCancelled
 
@@ -13,22 +13,101 @@ T = TypeVar("T")
 
 
 class _AsyncFutureHandle(Generic[T]):
-    def __init__(self, future: Future[T]) -> None:
-        self._future = future
-        self._completion_lock = Lock()
-        self._completed_monotonic: float | None = None
-        future.add_done_callback(self._capture_completion)
+    """Bridge one logical provider handle to one physically-owned asyncio Task.
 
-    def _capture_completion(self, _future: Future[T]) -> None:
+    Cancelling the public handle requests source-task cancellation but deliberately
+    does not complete the proxy Future.  Physical completion owns both capacity
+    release and source-task exception retrieval.
+    """
+
+    def __init__(
+        self,
+        *,
+        loop: asyncio.AbstractEventLoop,
+        on_physical_done: Callable[["_AsyncFutureHandle[T]"], None],
+    ) -> None:
+        self._future: Future[T] = Future()
+        self._loop = loop
+        self._on_physical_done = on_physical_done
+        self._state_lock = Lock()
+        self._completion_lock = Lock()
+        self._source_task: asyncio.Task[T] | None = None
+        self._cancel_requested = False
+        self._completed_monotonic: float | None = None
+
+    def start(self, invoke: Callable[[], Awaitable[T]]) -> None:
+        """Create the source Task on the provider-owned loop thread."""
+        try:
+            task = self._loop.create_task(invoke())
+        except BaseException as exc:
+            self.fail_submission(exc)
+            return
+        with self._state_lock:
+            self._source_task = task
+            cancel_requested = self._cancel_requested
+        task.add_done_callback(self._source_done)
+        if cancel_requested:
+            task.cancel()
+
+    def fail_submission(self, exc: BaseException) -> None:
+        self._mark_physically_done()
+        self._on_physical_done(self)
+        if not self._future.done():
+            self._future.set_exception(exc)
+
+    def _mark_physically_done(self) -> None:
         with self._completion_lock:
             if self._completed_monotonic is None:
                 self._completed_monotonic = time.monotonic()
 
-    def done(self) -> bool: return self._future.done()
-    def running(self) -> bool: return self._future.running()
-    def cancel(self) -> bool: return self._future.cancel()
-    def cancelled(self) -> bool: return self._future.cancelled()
-    def result(self, timeout: float | None = None) -> T: return self._future.result(timeout=timeout)
+    def _source_done(self, task: asyncio.Task[T]) -> None:
+        # Retrieving the source result here is provider ownership of every terminal
+        # exception, even when the logical caller already observed a deadline and
+        # no longer needs the proxy result.
+        cancelled = False
+        value: T | None = None
+        failure: BaseException | None = None
+        try:
+            value = task.result()
+        except asyncio.CancelledError:
+            cancelled = True
+        except BaseException as exc:
+            failure = exc
+        self._mark_physically_done()
+        self._on_physical_done(self)
+        if self._future.done():
+            return
+        if cancelled:
+            self._future.cancel()
+        elif failure is not None:
+            self._future.set_exception(failure)
+        else:
+            self._future.set_result(value)  # type: ignore[arg-type]
+
+    def done(self) -> bool:
+        return self._future.done()
+
+    def running(self) -> bool:
+        with self._state_lock:
+            task = self._source_task
+        return task is not None and not task.done()
+
+    def cancel(self) -> bool:
+        with self._state_lock:
+            if self._future.done() or self._cancel_requested:
+                return False
+            self._cancel_requested = True
+            task = self._source_task
+        if task is not None:
+            self._loop.call_soon_threadsafe(task.cancel)
+        return True
+
+    def cancelled(self) -> bool:
+        return self._future.cancelled()
+
+    def result(self, timeout: float | None = None) -> T:
+        return self._future.result(timeout=timeout)
+
     def add_done_callback(self, callback: Callable[["_AsyncFutureHandle[T]"], None]) -> None:
         self._future.add_done_callback(lambda _future: callback(self))
 
@@ -61,7 +140,7 @@ class AsyncIoExecutor:
         self._loop = asyncio.new_event_loop()
         self._ready = Event()
         self._thread = Thread(target=self._run, name=thread_name, daemon=False)
-        self._futures: set[Future[Any]] = set()
+        self._futures: set[_AsyncFutureHandle[Any]] = set()
         self._thread.start()
         if not self._ready.wait(self._shutdown_timeout_seconds):
             raise RuntimeError("async I/O event loop failed to start")
@@ -98,7 +177,7 @@ class AsyncIoExecutor:
                 raise TimeoutError("async I/O capacity wait deadline expired")
             self._available -= 1
 
-    def _release(self, future: Future[Any]) -> None:
+    def _release(self, future: _AsyncFutureHandle[Any]) -> None:
         with self._condition:
             self._futures.discard(future)
             self._available += 1
@@ -123,29 +202,27 @@ class AsyncIoExecutor:
                 raise TypeError("ASYNC_IO execution callable must return an awaitable")
             return await value
 
-        try:
-            future = asyncio.run_coroutine_threadsafe(invoke(), self._loop)
-        except BaseException:
-            with self._condition:
-                self._available += 1
-                self._condition.notify_all()
-            raise
-        # Register ownership before attaching the completion callback.
-        # ``Future.add_done_callback`` executes immediately for an already-complete
-        # future; doing this in the opposite order can release the capacity slot
-        # and then re-add a dead future to ``_futures``, leaking shutdown state.
+        future = _AsyncFutureHandle[T](loop=self._loop, on_physical_done=self._release)
+        # Provider ownership starts before the loop callback is scheduled so close()
+        # and admission accounting can observe every acquired capacity slot.
         with self._condition:
             self._futures.add(future)
-            if self._closed:
-                future.cancel()
-        future.add_done_callback(self._release)
-        return _AsyncFutureHandle(future)
+            closed = self._closed
+        if closed:
+            future.cancel()
+        try:
+            self._loop.call_soon_threadsafe(future.start, invoke)
+        except BaseException as exc:
+            future.fail_submission(exc)
+            raise
+        return future
 
     async def _cancel_all_tasks(self) -> None:
         current = asyncio.current_task()
         tasks = [task for task in asyncio.all_tasks() if task is not current and not task.done()]
         for task in tasks:
-            task.cancel()
+            if task.cancelling() == 0:
+                task.cancel()
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -168,7 +245,10 @@ class AsyncIoExecutor:
             else:
                 shutdown.add_done_callback(lambda _future: self._loop.call_soon_threadsafe(self._loop.stop))
         elif self._thread.is_alive() and wait:
-            self._loop.call_soon_threadsafe(self._loop.stop)
+            # A prior non-blocking close already owns shutdown and schedules loop
+            # stop only after source Tasks physically finish.  A later waiting
+            # close must join that shutdown, never stop the loop out from under it.
+            pass
         if wait:
             self._thread.join(timeout=self._shutdown_timeout_seconds)
             if self._thread.is_alive():

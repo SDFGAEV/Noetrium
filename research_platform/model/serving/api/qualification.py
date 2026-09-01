@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 
 
 @dataclass(frozen=True, slots=True)
@@ -11,6 +12,14 @@ class RoleCanaryResult:
     critical_total: int
     critical_passed: int
     contract_errors: int
+
+    def __post_init__(self) -> None:
+        for field in ("total", "passed", "critical_total", "critical_passed", "contract_errors"):
+            value = getattr(self, field)
+            if type(value) is not int or value < 0:
+                raise ValueError(f"role canary {field} must be a non-negative integer")
+        if self.passed > self.total or self.critical_passed > self.critical_total or self.critical_total > self.total:
+            raise ValueError("role canary counts are inconsistent")
 
     @property
     def pass_rate(self) -> float:
@@ -27,7 +36,20 @@ class PerformanceSample:
     output_tokens_per_second: float
     error_rate: float
 
-
+    def __post_init__(self) -> None:
+        if type(self.concurrency) is not int or self.concurrency <= 0:
+            raise ValueError("qualification performance concurrency must be positive")
+        for field in ("ttft_p50", "ttft_p99", "tpot_p50", "tpot_p99", "output_tokens_per_second", "error_rate"):
+            value = getattr(self, field)
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+                or value < 0
+            ):
+                raise ValueError(f"qualification performance {field} must be finite and non-negative")
+        if self.error_rate > 1:
+            raise ValueError("qualification performance error_rate must be <= 1")
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +86,17 @@ class QualificationPolicy:
     require_exact_output_reproducibility: bool = True
     require_long_context_checked: bool = False
     require_tool_call_checked: bool = True
+
+    def __post_init__(self) -> None:
+        for field in ("minimum_role_pass_rate", "max_error_rate"):
+            value = getattr(self, field)
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+                or not 0 <= value <= 1
+            ):
+                raise ValueError(f"qualification policy {field} must be finite and within [0, 1]")
 
 
 @dataclass(frozen=True, slots=True)

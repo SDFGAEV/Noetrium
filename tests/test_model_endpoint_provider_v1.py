@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
 
+from research_platform.model.request.api import ContentRef, ModelRequestEnvelope
 from research_platform.model.serving.endpoint import (
     JsonHttpResponse,
     ModelEndpointError,
@@ -14,6 +14,7 @@ from research_platform.model.serving.endpoint import (
 from research_platform.model.serving.endpoint.providers import OpenAICompatibleModelEndpoint
 from research_platform.model.serving.runtime import ModelAdmissionController
 from research_platform.platform.concurrency.api import ExecutionLaneKind
+from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity
 from research_platform.platform.concurrency.composition import build_concurrency_runtime
 
 
@@ -27,11 +28,19 @@ class Transport:
         return self.response
 
 
+def _envelope(request_id: str = "rq-1") -> ModelRequestEnvelope:
+    return ModelRequestEnvelope(
+        schema_version="model-request.v1", request_id=request_id,
+        context=ExecutionContext("run", "trace", "span"), role="planner",
+        model=ImmutableModelIdentity("planner", "qwen", "rev", "sglang", "1", "bfloat16", None, 8192),
+        prompt_generation_id="prompt-gen", prompt_id="planner.prompt", prompt_digest="d" * 64,
+        request_body=ContentRef("f" * 64, 2, "application/json"),
+    )
+
+
 def _request(*, deployment_id: str = "dep-1", generation: str = "a" * 64) -> ModelEndpointRequest:
     return ModelEndpointRequest(
-        request=SimpleNamespace(request_id="rq-1", envelope_digest="e" * 64),
-        deployment_id=deployment_id,
-        deployment_generation=generation,
+        request=_envelope(), deployment_id=deployment_id, deployment_generation=generation,
         body={"model": "qwen", "messages": []},
     )
 
@@ -112,3 +121,19 @@ def test_openai_compatible_endpoint_preserves_structured_http_error_detail(endpo
     )
     with pytest.raises(ModelEndpointError, match="No user query found in messages"):
         endpoint.complete(_request())
+
+
+def test_endpoint_contract_rejects_opaque_request_and_freezes_http_response() -> None:
+    with pytest.raises(TypeError, match="ModelRequestEnvelope"):
+        ModelEndpointRequest(
+            request=object(), deployment_id="dep-1", deployment_generation="a" * 64,
+            body={"model": "qwen", "messages": []},
+        )
+    body = {"choices": [{"text": "ok"}]}
+    response = JsonHttpResponse(200, body)
+    body["choices"][0]["text"] = "caller-mutated"
+    assert response.body["choices"][0]["text"] == "ok"
+    with pytest.raises(TypeError):
+        response.body["choices"][0]["text"] = "tampered"
+    with pytest.raises(ValueError, match="HTTP status"):
+        JsonHttpResponse(600, {"error": "bad"})

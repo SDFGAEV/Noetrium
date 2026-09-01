@@ -34,3 +34,7 @@ __all__ = tuple(__all__) + (
     "PromptBoundRequest", "PromptBodyContext", "PromptDynamicBlock",
     "PromptRequestBindingPort", "PromptRequestBodyBuilder",
 )
+
+from .selection import PromptSelectionIdentity, PromptSelectionPort
+
+__all__ = tuple(__all__) + ("PromptSelectionIdentity", "PromptSelectionPort")

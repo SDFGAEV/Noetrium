@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
+import math
 import os
 import signal
 import subprocess
@@ -62,13 +63,16 @@ class AsyncProcessCommandRunner(ProcessCommandRunnerPort):
         cleanup_timeout_seconds: float = 2.0,
         default_output_limit_bytes: int = 8 * 1024 * 1024,
     ) -> None:
-        if cleanup_timeout_seconds <= 0:
-            raise ValueError("process command cleanup timeout must be positive")
+        if not math.isfinite(float(cleanup_timeout_seconds)) or cleanup_timeout_seconds <= 0:
+            raise ValueError("process command cleanup timeout must be finite and positive")
         if default_output_limit_bytes <= 0:
             raise ValueError("process command output limit must be positive")
         self._task_group = task_group
         self._cleanup_timeout_seconds = float(cleanup_timeout_seconds)
         self._default_output_limit_bytes = int(default_output_limit_bytes)
+        # A task deadline must outlive child cleanup so the coroutine can reap
+        # the complete process tree before its structured owner becomes terminal.
+        self._cleanup_reserve_seconds = (2.0 * self._cleanup_timeout_seconds) + 0.1
         self._lock = Lock()
         self._sequence = 0
 
@@ -212,7 +216,7 @@ class AsyncProcessCommandRunner(ProcessCommandRunnerPort):
         self,
         context,
         argv: tuple[str, ...],
-        timeout_seconds: float | None,
+        timeout_seconds: float,
         environment: Mapping[str, str] | None,
         cwd: str | None,
         inherit_stdin: bool,
@@ -220,6 +224,20 @@ class AsyncProcessCommandRunner(ProcessCommandRunnerPort):
         output_limit_bytes: int,
     ) -> ProcessCommandResult:
         context.checkpoint()
+        remaining = context.remaining_seconds
+        if remaining is None:
+            raise RuntimeError("process command execution requires a structured deadline")
+        runtime_budget = min(
+            float(timeout_seconds),
+            max(0.0, remaining - self._cleanup_reserve_seconds),
+        )
+        if runtime_budget <= 0:
+            return ProcessCommandResult(
+                124,
+                b"",
+                b"process command deadline expired before spawn",
+                timed_out=True,
+            )
         windows_job = None
         creationflags = 0
         if os.name == "nt":
@@ -268,13 +286,24 @@ class AsyncProcessCommandRunner(ProcessCommandRunnerPort):
         stderr = _BoundedPipeCollector(output_limit_bytes)
         try:
             try:
-                if timeout_seconds is None:
-                    await self._drain_and_wait(process, stdout, stderr)
-                else:
-                    await asyncio.wait_for(
-                        self._drain_and_wait(process, stdout, stderr),
-                        timeout=timeout_seconds,
+                remaining = context.remaining_seconds
+                if remaining is None:
+                    raise RuntimeError("process command execution lost its structured deadline")
+                runtime_budget = min(
+                    float(timeout_seconds),
+                    max(0.0, remaining - self._cleanup_reserve_seconds),
+                )
+                if runtime_budget <= 0:
+                    await self._terminate_and_drain(
+                        process, stdout, stderr, windows_job=windows_job
                     )
+                    return self._result(
+                        process, stdout, stderr, return_code=124, timed_out=True
+                    )
+                await asyncio.wait_for(
+                    self._drain_and_wait(process, stdout, stderr),
+                    timeout=runtime_budget,
+                )
             except asyncio.TimeoutError:
                 await self._terminate_and_drain(process, stdout, stderr, windows_job=windows_job)
                 return self._result(process, stdout, stderr, return_code=124, timed_out=True)
@@ -294,15 +323,15 @@ class AsyncProcessCommandRunner(ProcessCommandRunnerPort):
         self,
         argv: tuple[str, ...],
         *,
-        timeout_seconds: float | None,
+        timeout_seconds: float,
         environment: dict[str, str] | None = None,
         cwd: str | None = None,
         inherit_stdin: bool = False,
         inherit_output: bool = False,
         output_limit_bytes: int | None = None,
     ):
-        if timeout_seconds is not None and timeout_seconds <= 0:
-            raise ValueError("process command timeout must be positive when specified")
+        if timeout_seconds is None or not math.isfinite(float(timeout_seconds)) or timeout_seconds <= 0:
+            raise ValueError("process command timeout must be finite and positive")
         resolved_limit = (
             self._default_output_limit_bytes
             if output_limit_bytes is None
@@ -311,9 +340,10 @@ class AsyncProcessCommandRunner(ProcessCommandRunnerPort):
         if resolved_limit <= 0:
             raise ValueError("process command output limit must be positive")
         task_id = self._task_id(argv)
-        # ``timeout_seconds`` is child-runtime budget, not queue/admission budget.
-        # It starts only after the subprocess has been successfully spawned inside
-        # ``_execute``.  Structured owner cancellation remains independent.
+        # ``timeout_seconds`` is the command's end-to-end execution budget.
+        # The task deadline also bounds ASYNC_IO admission.  A cleanup reserve is
+        # added outside that budget so timeout/cancellation can terminate and reap
+        # the process tree before ownership is released.
         return self._task_group.submit(
             ExecutionSpec(
                 task_id=task_id,
@@ -322,12 +352,13 @@ class AsyncProcessCommandRunner(ProcessCommandRunnerPort):
             ),
             self._execute,
             tuple(str(item) for item in argv),
-            None if timeout_seconds is None else float(timeout_seconds),
+            float(timeout_seconds),
             environment,
             cwd,
             bool(inherit_stdin),
             bool(inherit_output),
             resolved_limit,
+            deadline=Deadline.after(float(timeout_seconds) + self._cleanup_reserve_seconds),
         )
 
 

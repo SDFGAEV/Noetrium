@@ -10,7 +10,7 @@ from research_platform.artifact.reference.api import (
     ArtifactReferenceCorruptionError,
     ArtifactReferenceNotFound,
 )
-from research_platform.artifact._canonical import canonical_digest
+from research_platform.platform.kernel import strict_finite_json_digest as canonical_digest
 from research_platform.artifact._sqlite_connection import connect_artifact_reader, connect_artifact_writer, rollback_artifact_writer
 from research_platform.artifact._sqlite_types import require_integer, require_text
 from research_platform.scope.api import ScopeIdentity, ScopeKind

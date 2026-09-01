@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+import math
 import time
 from research_platform.platform.kernel.identity import ImmutableModelIdentity
 
@@ -34,6 +35,17 @@ class ModelRunState:
     endpoint: str | None = None
     last_failure_id: str | None = None
     checkpoint_ref: str | None = None
+
+    def __post_init__(self) -> None:
+        for field in ("created_at", "updated_at"):
+            value = getattr(self, field)
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+                or value < 0
+            ):
+                raise ValueError(f"model run {field} must be finite and non-negative")
 
     @classmethod
     def initial(cls, run_id: str, identity: ImmutableModelIdentity, deployment_digest: str) -> "ModelRunState":

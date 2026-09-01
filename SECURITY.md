@@ -32,3 +32,9 @@ Noetrium is under active development. Security review is focused on the current 
 Please allow maintainers to investigate and prepare a fix before public disclosure. Maintainers may request additional reproduction evidence or propose a coordinated disclosure plan appropriate to the issue.
 
 Security reports are evaluated against Noetrium's fail-closed design goals: uncertainty must not be silently promoted into trusted execution or trusted research evidence.
+
+## Release security checks
+
+Do not place credentials, private keys, access tokens, host secrets, private runtime profiles, or sensitive experiment evidence in issues, logs, release bundles, or example configuration.
+
+Before release, run `python scripts/product_assurance_gate.py --full --output product-assurance.json` and the formal installed-artifact distribution qualification documented in `docs/release/DISTRIBUTION_QUALIFICATION.md`. Security fixes must preserve authority boundaries and fail-closed effect/evidence semantics.

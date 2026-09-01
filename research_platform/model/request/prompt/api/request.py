@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from typing import Callable, Mapping, Protocol
 
 from research_platform.model.request.api import ModelRequestEnvelope
-from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity, JsonObject
+from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity, JsonObject, freeze_json
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,6 +32,16 @@ class PromptBodyContext:
     top_p: float
     max_output_tokens: int
 
+    def __post_init__(self) -> None:
+        for field in ("temperature", "top_p"):
+            value = getattr(self, field)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+                raise ValueError(f"prompt body context {field} must be finite")
+        if self.temperature < 0 or not 0 < self.top_p <= 1:
+            raise ValueError("prompt body context sampling parameters are invalid")
+        if type(self.max_output_tokens) is not int or self.max_output_tokens <= 0:
+            raise ValueError("prompt body context max_output_tokens must be positive")
+
 
 PromptRequestBodyBuilder = Callable[[PromptBodyContext], JsonObject]
 
@@ -42,6 +53,11 @@ class PromptBoundRequest:
     prompt_generation_id: str
     prompt_id: str
     prompt_digest: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.body, Mapping):
+            raise TypeError("prompt-bound request body must be a mapping")
+        object.__setattr__(self, "body", freeze_json(self.body))
 
 
 class PromptRequestBindingPort(Protocol):

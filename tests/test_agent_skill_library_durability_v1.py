@@ -34,7 +34,7 @@ def test_skill_checkpoint_round_trip_preserves_recipe_and_counters() -> None:
     assert target.snapshot() == source.snapshot()
     restored_record = target.snapshot()[0]
     assert restored_record.success_count == 3
-    assert restored_record.recipe[0][1]["path"] == [1, 2, 3]
+    assert restored_record.recipe[0][1]["path"] == (1, 2, 3)
 
 
 def test_skill_checkpoint_decode_rejects_coercion_and_unknown_fields() -> None:
@@ -63,12 +63,12 @@ def test_skill_restore_rejects_capacity_mismatch_without_mutation() -> None:
     assert target.snapshot() == before
 
 
-def test_skill_checkpoint_rejects_non_finite_recipe_values() -> None:
-    bad = AgentSkillRecord(
-        skill_id="skill.bad",
-        version="1",
-        summary="bad recipe",
-        recipe=(("move", {"distance": float("nan")}),),
-    )
-    with pytest.raises(ValueError, match="non-finite"):
-        AgentSkillLibraryCheckpoint(records=(bad,))
+def test_skill_record_rejects_non_finite_recipe_values_before_checkpoint() -> None:
+    from research_platform.platform.kernel import CanonicalEncodingError
+    with pytest.raises(CanonicalEncodingError, match="non-finite"):
+        AgentSkillRecord(
+            skill_id="skill.bad",
+            version="1",
+            summary="bad recipe",
+            recipe=(("move", {"distance": float("nan")}),),
+        )

@@ -1,26 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 from enum import StrEnum
-from typing import Mapping, TypeAlias
+from typing import Mapping
 
-from research_platform.platform.kernel import ExecutionContext, canonical_digest
-
-
-JsonValue: TypeAlias = (
-    str
-    | int
-    | float
-    | bool
-    | None
-    | list["JsonValue"]
-    | dict[str, "JsonValue"]
-)
-JsonObject: TypeAlias = dict[str, JsonValue]
-
-
-def _mapping(value: Mapping[str, JsonValue] | None = None) -> Mapping[str, JsonValue]:
-    return dict(value or {})
+from research_platform.platform.kernel import ExecutionContext, JsonObject, JsonValue, canonical_digest, freeze_json
 
 
 class AgentLoopTerminationReason(StrEnum):
@@ -82,13 +67,21 @@ class AgentGoal:
             raise ValueError("agent goal identity and objective are required")
         if not isinstance(self.context, Mapping):
             raise TypeError("agent goal context must be a mapping")
+        object.__setattr__(
+            self, "context", freeze_json(self.context)
+        )
         if any(
             isinstance(value, bool) or not isinstance(value, int) or value <= 0
             for value in (self.max_steps, self.max_replans, self.no_progress_limit, self.same_action_limit)
         ):
             raise ValueError("agent goal integer limits must be positive")
-        if isinstance(self.max_seconds, bool) or self.max_seconds <= 0:
-            raise ValueError("agent goal max_seconds must be positive")
+        if (
+            isinstance(self.max_seconds, bool)
+            or not isinstance(self.max_seconds, (int, float))
+            or not math.isfinite(float(self.max_seconds))
+            or self.max_seconds <= 0
+        ):
+            raise ValueError("agent goal max_seconds must be finite and positive")
 
     @property
     def digest(self) -> str:
@@ -117,12 +110,28 @@ class AgentObservation:
     evidence_payload: Mapping[str, JsonValue] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        """Freeze evidence/state and validate every artifact reference.
+
+        Algorithm-Complexity: O(N)
+        Algorithm-Rationale: N is the combined JSON/evidence and artifact-reference size; immutable fail-closed construction must traverse every supplied value before computing the state digest.
+        """
         if not self.observation_id.strip() or not self.generation.strip():
             raise ValueError("agent observation identity is required")
         if not self.modality.strip() or not isinstance(self.state, Mapping):
             raise ValueError("agent observation modality/state is invalid")
         if not isinstance(self.evidence_payload, Mapping):
             raise ValueError("agent observation evidence payload must be a mapping")
+        if not isinstance(self.artifact_refs, tuple) or any(
+            not isinstance(item, str) or not item.strip() for item in self.artifact_refs
+        ):
+            raise TypeError("agent observation artifact_refs must be a tuple of non-empty strings")
+        object.__setattr__(
+            self, "state", freeze_json(self.state)
+        )
+        object.__setattr__(
+            self, "evidence_payload",
+            freeze_json(self.evidence_payload),
+        )
         computed = canonical_digest(dict(self.state))
         if self.state_digest and self.state_digest != computed:
             raise ValueError("agent observation state digest mismatch")
@@ -152,6 +161,17 @@ class AgentActionSummary:
     observation_digest: str = ""
     rationale: str = ""
     payload: Mapping[str, JsonValue] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if any(not isinstance(value, str) or not value.strip() for value in (self.action_id, self.action_type, self.skill_id)):
+            raise ValueError("agent action summary identity is required")
+        if not isinstance(self.accepted, bool) or (self.verified is not None and not isinstance(self.verified, bool)):
+            raise TypeError("agent action summary acceptance/verification is invalid")
+        if not isinstance(self.payload, Mapping):
+            raise TypeError("agent action summary payload must be a mapping")
+        object.__setattr__(
+            self, "payload", freeze_json(self.payload)
+        )
 
 
 def action_summary_payload(summary: AgentActionSummary) -> dict[str, JsonValue]:
@@ -208,6 +228,9 @@ class AgentSkillSelection:
     def __post_init__(self) -> None:
         if not self.skill_id.strip() or not isinstance(self.arguments, Mapping):
             raise ValueError("agent skill selection is invalid")
+        object.__setattr__(
+            self, "arguments", freeze_json(self.arguments)
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -230,6 +253,13 @@ class AgentSkillRecord:
             raise ValueError("agent skill record counters cannot be negative")
         if any(not action_type.strip() or not isinstance(payload, Mapping) for action_type, payload in self.recipe):
             raise ValueError("agent skill record recipe is invalid")
+        object.__setattr__(
+            self, "recipe",
+            tuple(
+                (action_type, freeze_json(payload))
+                for index, (action_type, payload) in enumerate(self.recipe)
+            ),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -248,6 +278,9 @@ class AgentActionStep:
             raise ValueError("agent action step identity is required")
         if not isinstance(self.payload, Mapping) or self.sequence_index < 0:
             raise ValueError("agent action step payload/index is invalid")
+        object.__setattr__(
+            self, "payload", freeze_json(self.payload)
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -321,6 +354,11 @@ class AgentStepReceipt:
             raise ValueError("agent step receipt identity is required")
         if self.effect_certainty not in {"confirmed", "rejected", "possible", "unknown"}:
             raise ValueError("agent step receipt effect certainty is invalid")
+        if not isinstance(self.diagnostics, Mapping):
+            raise TypeError("agent step receipt diagnostics must be a mapping")
+        object.__setattr__(
+            self, "diagnostics", freeze_json(self.diagnostics)
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -427,6 +465,13 @@ class AgentLoopResult:
     checkpoint: AgentLoopCheckpoint
     failure_code: str = ""
     diagnostics: Mapping[str, JsonValue] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.diagnostics, Mapping):
+            raise TypeError("agent loop result diagnostics must be a mapping")
+        object.__setattr__(
+            self, "diagnostics", freeze_json(self.diagnostics)
+        )
 
 
 __all__ = [

@@ -14,6 +14,32 @@ def _require_sha256(value: str, *, field: str) -> None:
 
 
 @dataclass(frozen=True, slots=True)
+class VerifiedLedgerCut:
+    """Verified authoritative prefix/suffix boundary without materialized payloads."""
+
+    start_after: int
+    total_rows: int
+    checkpoint_hash: str
+    tail_hash: str
+
+    def __post_init__(self) -> None:
+        if self.start_after < 0:
+            raise ValueError("start_after must be non-negative")
+        if self.total_rows < self.start_after:
+            raise ValueError("total_rows cannot precede start_after")
+        _require_sha256(self.checkpoint_hash, field="checkpoint_hash")
+        _require_sha256(self.tail_hash, field="tail_hash")
+        if self.start_after == 0 and self.checkpoint_hash != "0" * 64:
+            raise ValueError("zero-row checkpoint must use the zero hash")
+        if self.start_after == self.total_rows and self.checkpoint_hash != self.tail_hash:
+            raise ValueError("terminal checkpoint must equal the authoritative tail hash")
+
+    @property
+    def suffix_rows(self) -> int:
+        return self.total_rows - self.start_after
+
+
+@dataclass(frozen=True, slots=True)
 class VerifiedLedgerSlice:
     """Verified append-only suffix bound to an authoritative ledger prefix."""
 
@@ -42,4 +68,4 @@ class VerifiedLedgerSlice:
         return not self.payloads
 
 
-__all__ = ["VerifiedLedgerSlice"]
+__all__ = ["VerifiedLedgerCut", "VerifiedLedgerSlice"]

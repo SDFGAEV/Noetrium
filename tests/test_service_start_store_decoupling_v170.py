@@ -7,6 +7,7 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from research_platform.runtime.service.composition import build_service_supervisor
+from service_os_test_support import ready_evidence
 from research_platform.runtime.service.runtime.state_storage import FileServiceStateStore
 from research_platform.runtime.service.runtime import ServicePhase
 from research_platform.runtime.service.runtime.start_intent_store import DirectoryServiceStartIntentStore
@@ -41,7 +42,7 @@ class _Adapter:
         return ServiceProcessIdentity(321, "pid:321:start:1", 321), ()
 
     def wait_ready(self, process, contract):
-        return "ready", "stdout", "stderr"
+        return ready_evidence(process, contract)
 
     def stop(self, process, contract):
         return ()

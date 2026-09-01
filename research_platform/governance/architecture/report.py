@@ -1,11 +1,26 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
+from typing import Callable
 
+from research_platform.governance.api import RepositorySourceIndexPort
 from research_platform.platform.kernel import canonical_digest
 
 from .audit import AuditViolation
+from .budget import (
+    ArchitectureBudgetViolation,
+    ArchitectureComplexity,
+    ArchitectureComplexityBudget,
+    ArchitectureMigrationApprovalSet,
+    ArchitectureMigrationObservation,
+    audit_architecture_complexity_budget,
+    import_projection_digest,
+    load_architecture_migration_approval_set,
+    scoped_architecture_complexity,
+    source_catalog_complexity,
+    source_scope_digest,
+)
 from .hotspots import ModuleHotspot
 from .import_graph import (
     ImportViolation,
@@ -77,6 +92,7 @@ class LayerViolationRecord:
 @dataclass(frozen=True, slots=True)
 class ArchitectureReport:
     source_root: str
+    source_digest: str
     import_edges: int
     import_violations: tuple[ImportViolationRecord, ...]
     layer_violations: tuple[LayerViolationRecord, ...]
@@ -84,6 +100,9 @@ class ArchitectureReport:
     declared_authority_violations: tuple[AuditViolation, ...]
     source_invariant_violations: tuple[SourceInvariantViolation, ...]
     source_authority_violations: tuple[SourceAuthorityViolation, ...]
+    architecture_complexity: ArchitectureComplexity
+    architecture_complexity_budget: ArchitectureComplexityBudget | None
+    architecture_budget_violations: tuple[ArchitectureBudgetViolation, ...]
     top_hotspots: tuple[ModuleHotspot, ...]
     top_optimization_risks: tuple[ModuleOptimizationProfile, ...]
     capability_graph: tuple[SeamEdge, ...]
@@ -102,19 +121,63 @@ class ArchitectureReport:
             or self.declared_authority_violations
             or self.source_invariant_violations
             or self.source_authority_violations
+            or self.architecture_budget_violations
         )
 
 
-def build_architecture_report(root: Path, *, hotspot_limit: int = 20) -> ArchitectureReport:
+def _build_historical_observation_resolver(
+    root: Path,
+    factory: Callable[[str], RepositorySourceIndexPort],
+) -> Callable[[str, tuple[str, ...]], tuple[str, ArchitectureMigrationObservation]]:
+    cache: dict[str, tuple[RepositorySourceIndexPort, tuple[tuple[str, str], ...], ArchitectureComplexity]] = {}
+
+    def resolve(git_sha: str, module_prefixes: tuple[str, ...]) -> tuple[str, ArchitectureMigrationObservation]:
+        cached = cache.get(git_sha)
+        if cached is None:
+            index = factory(git_sha)
+            profile = scan_architecture_source_profile(root, source_index=index)
+            pairs = tuple((edge.source_module, edge.target_module) for edge in profile.import_edges)
+            global_complexity = source_catalog_complexity(index, import_edges=len(profile.import_edges))
+            cached = (index, pairs, global_complexity)
+            cache[git_sha] = cached
+        index, pairs, global_complexity = cached
+        projection = import_projection_digest(pairs, module_prefixes) if module_prefixes else None
+        complexity = scoped_architecture_complexity(
+            global_complexity, import_edge_pairs=pairs, module_prefixes=module_prefixes
+        ) if module_prefixes else global_complexity
+        return index.source_digest, ArchitectureMigrationObservation(
+            complexity=complexity, import_projection_sha256=projection,
+            owner_source_sha256=source_scope_digest(index, module_prefixes) if module_prefixes else None,
+        )
+
+    return resolve
+
+
+def build_architecture_report(
+    root: Path,
+    *,
+    hotspot_limit: int = 20,
+    source_index: RepositorySourceIndexPort | None = None,
+    historical_source_index_factory: Callable[[str], RepositorySourceIndexPort] | None = None,
+    migration_approval_set: ArchitectureMigrationApprovalSet | None = None,
+) -> ArchitectureReport:
     root = Path(root).resolve()
+    if source_index is None:
+        from .composition.report import build_architecture_report as compose_architecture_report
+
+        return compose_architecture_report(root, hotspot_limit=hotspot_limit)
     authority_rules = architecture_source_authority_rules(root)
-    profile = scan_architecture_source_profile(root, authority_rules=authority_rules)
-    with architecture_source_index(root, max_entries=128) as source_index:
-        source_index.seed_imports(
+    profile = scan_architecture_source_profile(
+        root, source_index=source_index, authority_rules=authority_rules
+    )
+    with architecture_source_index(
+        root, max_entries=128, repository_index=source_index
+    ) as architecture_index:
+        architecture_index.seed_imports(
             (root / fact.path, fact.imports) for fact in profile.import_facts
         )
-        source_index.seed_import_edges(("research_platform", "projects"), profile.import_edges)
-        source_index.seed_import_edges(
+        architecture_index.seed_import_edges(("research_platform", "projects"), profile.import_edges)
+        architecture_index.seed_import_edges(
             ("research_platform",),
             (
                 edge
@@ -138,6 +201,22 @@ def build_architecture_report(root: Path, *, hotspot_limit: int = 20) -> Archite
     hotspots = profile.hotspots[:hotspot_limit]
     risks = profile.optimization_risks[:hotspot_limit]
     source_authority_violations = profile.authority_violations
+    historical_observation_resolver = (
+        _build_historical_observation_resolver(root, historical_source_index_factory)
+        if historical_source_index_factory is not None else None
+    )
+    architecture_complexity, architecture_complexity_budget, architecture_budget_violations = (
+        audit_architecture_complexity_budget(
+            root,
+            import_edges=len(edges),
+            import_edge_pairs=tuple(
+                (edge.source_module, edge.target_module) for edge in edges
+            ),
+            source_index=source_index,
+            approval_set=migration_approval_set,
+            historical_observation_resolver=historical_observation_resolver,
+        )
+    )
     declared_audit = build_platform_audit()
     capability_graph, operation_graph, event_graph = partition_seam_graphs(
         profile.seam_edges,
@@ -146,28 +225,9 @@ def build_architecture_report(root: Path, *, hotspot_limit: int = 20) -> Archite
     system_graph = declared_system_graph()
     subsystem_graph = declared_subsystem_graph()
 
-    payload = {
-        "source_root": str(root),
-        "import_edges": len(edges),
-        "import_violations": [asdict(item) for item in import_violations],
-        "layer_violations": [asdict(item) for item in layer_violations],
-        "package_cycles": [list(item) for item in cycles],
-        "declared_authority_violations": [asdict(item) for item in declared_authority_violations],
-        "source_invariant_violations": [asdict(item) for item in source_invariant_violations],
-        "source_authority_violations": [asdict(item) for item in source_authority_violations],
-        "top_hotspots": [asdict(item) for item in hotspots],
-        "top_optimization_risks": [asdict(item) for item in risks],
-        "capability_graph": [asdict(item) for item in capability_graph],
-        "operation_graph": [asdict(item) for item in operation_graph],
-        "event_graph": [asdict(item) for item in event_graph],
-        "system_graph": [asdict(item) for item in system_graph],
-        "subsystem_graph": [asdict(item) for item in subsystem_graph],
-    }
-    identity = {key: value for key, value in payload.items() if key != "source_root"}
-    digest = canonical_digest(identity)
-
-    return ArchitectureReport(
-        source_root=payload["source_root"],
+    draft = ArchitectureReport(
+        source_root=str(root),
+        source_digest=source_index.source_digest,
         import_edges=len(edges),
         import_violations=import_violations,
         layer_violations=layer_violations,
@@ -175,6 +235,9 @@ def build_architecture_report(root: Path, *, hotspot_limit: int = 20) -> Archite
         declared_authority_violations=declared_authority_violations,
         source_invariant_violations=source_invariant_violations,
         source_authority_violations=source_authority_violations,
+        architecture_complexity=architecture_complexity,
+        architecture_complexity_budget=architecture_complexity_budget,
+        architecture_budget_violations=architecture_budget_violations,
         top_hotspots=hotspots,
         top_optimization_risks=risks,
         capability_graph=capability_graph,
@@ -182,5 +245,9 @@ def build_architecture_report(root: Path, *, hotspot_limit: int = 20) -> Archite
         event_graph=event_graph,
         system_graph=system_graph,
         subsystem_graph=subsystem_graph,
-        report_sha256=digest,
+        report_sha256="",
     )
+    identity = asdict(draft)
+    identity.pop("source_root")
+    identity.pop("report_sha256")
+    return replace(draft, report_sha256=canonical_digest(identity))

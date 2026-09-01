@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 import math
+import re
 import time
 
 from research_platform.model.serving.api import (
@@ -16,6 +17,9 @@ from research_platform.model.serving.api import (
 from research_platform.platform.kernel import canonical_digest
 
 from ..api import ModelEndpointRoute, QualifiedModelEndpointBinding, QualifiedModelEndpointBindingPort
+
+
+_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,15 +51,13 @@ class PersistedQualifiedModelEndpointBinding(QualifiedModelEndpointBindingPort):
     ) -> None:
         if not closure.runtime_manifest_digest.strip():
             raise ValueError("qualified deployment closure requires runtime manifest identity")
-        deployment_ids = [item.deployment_id for item in closure.deployments]
-        if len(deployment_ids) != len(set(deployment_ids)):
-            raise ValueError("qualified deployment closure contains duplicate deployments")
-        route_ids = [item.deployment_id for item in closure.routes]
-        if len(route_ids) != len(set(route_ids)):
-            raise ValueError("qualified deployment closure contains duplicate routes")
         self._roles = closure.role_manifest
         self._deployments = {item.deployment_id: item for item in closure.deployments}
+        if len(self._deployments) != len(closure.deployments):
+            raise ValueError("qualified deployment closure contains duplicate deployments")
         self._routes = {item.deployment_id: item for item in closure.routes}
+        if len(self._routes) != len(closure.routes):
+            raise ValueError("qualified deployment closure contains duplicate routes")
         self._runtime_manifest_digest = closure.runtime_manifest_digest
         self._runtime_qualifications = closure.runtime_qualifications
         receipt_digests = dict(closure.runtime_qualification_receipt_digests)
@@ -64,13 +66,24 @@ class PersistedQualifiedModelEndpointBinding(QualifiedModelEndpointBindingPort):
         if set(receipt_digests) != set(self._deployments):
             raise ValueError("qualified deployment closure runtime receipt identities do not align")
         for digest in receipt_digests.values():
-            if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
+            if not isinstance(digest, str) or _SHA256.fullmatch(digest) is None:
                 raise ValueError("qualified deployment closure runtime receipt digest is invalid")
         self._runtime_receipt_digests = receipt_digests
-        self._runtime_canaries = closure.runtime_canary_evidence
+        canaries_by_binding: dict[tuple[str, str], list[RuntimeCanaryEvidence]] = {}
+        for evidence in closure.runtime_canary_evidence:
+            if evidence.passed:
+                canaries_by_binding.setdefault((evidence.deployment_id, evidence.role), []).append(evidence)
+        self._canaries_by_binding = {
+            key: tuple(values) for key, values in canaries_by_binding.items()
+        }
         self._clock = clock
 
     def binding_for(self, *, role: str, prompt_generation: str) -> QualifiedModelEndpointBinding:
+        """Revalidate one receipt and every canary bound to the requested role.
+
+        Algorithm-Complexity: O(N)
+        Algorithm-Rationale: N is the number of passed canaries for this deployment/role; each must remain bound to the exact route, process generation, validity window, and receipt evidence set.
+        """
         if not role.strip() or not prompt_generation.strip():
             raise ValueError("qualified model binding role and prompt generation are required")
         deployment_id = self._roles.deployment_for(role)
@@ -114,16 +127,14 @@ class PersistedQualifiedModelEndpointBinding(QualifiedModelEndpointBindingPort):
             raise ValueError("runtime qualification receipt is from the future")
         if receipt.valid_until < now:
             raise ValueError("runtime qualification receipt is stale")
-        canaries = [
-            item for item in self._runtime_canaries
-            if item.deployment_id == deployment_id and item.role == role and item.passed
-        ]
+        canaries = self._canaries_by_binding.get((deployment_id, role), ())
         if not canaries:
             raise ValueError(f"runtime canary evidence does not qualify role: {role}")
+        route_digest = canonical_digest(route)
         for evidence in canaries:
             if evidence.deployment_generation != deployment_generation:
                 raise ValueError("runtime canary deployment generation drift")
-            if evidence.route_digest != canonical_digest(route):
+            if evidence.route_digest != route_digest:
                 raise ValueError("runtime canary route digest drift")
             if (evidence.process_pid, evidence.process_start_marker, evidence.argv_digest) != (
                 receipt.process_pid, receipt.process_start_marker, receipt.argv_digest
@@ -146,7 +157,7 @@ class PersistedQualifiedModelEndpointBinding(QualifiedModelEndpointBindingPort):
             host_identity_digest=deployment.host_identity_digest,
             prompt_generation=prompt_generation,
             max_admitted_concurrency=deployment.certificate.resource_envelope.max_qualified_concurrency,
-            runtime_canary_evidence_digests=tuple(sorted(item.evidence_digest for item in canaries)),
+            runtime_canary_evidence_digests=tuple(item.evidence_digest for item in canaries),
             completion_path=route.completion_path,
             timeout_s=route.timeout_s,
         )

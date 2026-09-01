@@ -1,17 +1,19 @@
 from __future__ import annotations
 
+from research_platform.platform.kernel import canonical_digest
+
 from research_platform.platform.kernel import ExecutionContext, JsonValue, OperationResult
 
-from research_platform.execution.workflow.api import ScientificCycleExecution
+from research_platform.execution.workflow.api import TrialCycleExecution
 from .contracts import ContextActionOperationPort
 
 
-class ContextActionStudyWorkflow:
-    """Default context-action workflow; preserves the original Study scientific semantics."""
+class ContextActionTrialProtocol:
+    """Default context-action workflow; preserves the original Study trial semantics."""
 
-    workflow_id = "context_action.v2"
+    protocol_id = "context_action.v2"
     surface_id = "context_action.operations.v1"
-    configuration_digest = ""
+    configuration_digest = canonical_digest({})
 
     def run(
         self,
@@ -21,7 +23,7 @@ class ContextActionStudyWorkflow:
         task: object,
         input_kind: str,
         input_payload: object,
-    ) -> ScientificCycleExecution:
+    ) -> TrialCycleExecution:
         rows: list[OperationResult[JsonValue]] = list(
             operations.preflight_action(input_kind, input_payload, context)
         )
@@ -29,7 +31,7 @@ class ContextActionStudyWorkflow:
             input_kind, input_payload, context
         )
         if recovered is not None:
-            return ScientificCycleExecution(
+            return TrialCycleExecution(
                 "",
                 recovered.action_result,
                 recovered.final_context,
@@ -56,7 +58,7 @@ class ContextActionStudyWorkflow:
         if completion.receipt is not None and completion.receipt.method_generation is not None:
             context = context.with_generation("method", completion.receipt.method_generation)
 
-        return ScientificCycleExecution(
+        return TrialCycleExecution(
             recall.context_text,
             action_result,
             context,

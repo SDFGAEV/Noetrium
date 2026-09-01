@@ -1,10 +1,13 @@
 from prompt_os_test_support import make_prompt_registry
 from pathlib import Path
 import json
+import hashlib
 import tempfile
+
+from research_platform.model.request.prompt.runtime.generation_codec import decode_generation, encode_generation
 import unittest
 
-from research_platform.platform.kernel import ImmutableModelIdentity
+from research_platform.platform.kernel import ImmutableModelIdentity, canonical_bytes
 from research_platform.model.request.prompt.runtime import (
     CanaryObservation, CanarySuite, DurablePromptRegistry, OutputSchemaSpec, PromptBlock,
     PromptBlockKind, PromptBudgetExceeded, PromptBudgetPlanner, PromptCanary, PromptCompiler,
@@ -61,5 +64,36 @@ class PromptOSV10Tests(unittest.TestCase):
         self.assertIn("NO_EDIT, CREATE, RETIRE, SPLIT, MERGE",specs["meta"].compile())
         self.assertIn("Never use verifier-private, evaluation-private, audit-private",specs["semantic"].compile())
         self.assertIn("Temporal proximity alone is never causality",specs["diagnostic"].compile())
+
+    def test_output_schema_is_deeply_immutable_after_digest_binding(self):
+        raw={"type":"object","required":["x"],"properties":{"x":{"type":"string"}}}
+        spec=OutputSchemaSpec("immutable","1",raw)
+        digest=spec.digest()
+        raw["type"]="array"
+        raw["required"].append("y")
+        self.assertEqual(spec.schema["type"],"object")
+        self.assertEqual(spec.schema["required"],("x",))
+        self.assertEqual(spec.digest(),digest)
+        with self.assertRaises(TypeError): spec.schema["type"]="array"
+        with self.assertRaises((TypeError, AttributeError)): spec.schema["required"].append("y")
+        with self.assertRaises(TypeError): dict.__setitem__(spec.schema,"type","bypassed")
+        with self.assertRaises(TypeError): list.append(spec.schema["required"],"bypassed")
+        recursive={}
+        recursive["self"]=recursive
+        from research_platform.platform.kernel import CanonicalEncodingError
+        with self.assertRaisesRegex(CanonicalEncodingError,"cyclic"):
+            OutputSchemaSpec("recursive","1",recursive)
+
+    def test_encoded_generation_payload_cannot_drift_from_payload_hash(self):
+        encoded=encode_generation("immutable_gen",default_prompt_specs(),default_block_policies(),default_output_schemas())
+        digest=hashlib.sha256(canonical_bytes(encoded.payload)).hexdigest()
+        self.assertEqual(digest,encoded.payload_sha256)
+        with self.assertRaises(TypeError): encoded.payload["generation_id"]="other"
+        with self.assertRaises(TypeError): encoded.payload["bundles"][0]["text"]="tampered"
+        self.assertEqual(hashlib.sha256(canonical_bytes(encoded.payload)).hexdigest(),encoded.payload_sha256)
+        decoded_digest,_,decoded_payload=decode_generation(encoded.envelope_bytes.decode("utf-8"),"immutable_gen")
+        self.assertEqual(decoded_digest,encoded.payload_sha256)
+        with self.assertRaises(TypeError): decoded_payload["generation_id"]="tampered"
+        with self.assertRaises(TypeError): decoded_payload["bundles"][0]["text"]="tampered"
 
 if __name__ == '__main__': unittest.main()

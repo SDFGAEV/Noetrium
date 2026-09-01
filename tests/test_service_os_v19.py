@@ -1,5 +1,5 @@
 from research_platform.runtime.service.api import ServiceContractDrift, ServiceLaunchContract, ServiceProcessIdentity
-from service_os_test_support import make_service_supervisor
+from service_os_test_support import make_service_supervisor, ready_evidence
 from pathlib import Path
 import hashlib
 import tempfile
@@ -31,7 +31,7 @@ class Adapter:
     def wait_ready(self,p,c):
         self.calls.append("ready")
         if self.fail_ready: raise TimeoutError("not ready")
-        return "ready.json","stdout.manifest","stderr.manifest"
+        return ready_evidence(p,c,"ready.json","stdout.manifest","stderr.manifest")
     def stop(self,p,c): self.calls.append("stop"); return ("stopped",)
 
 

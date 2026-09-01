@@ -14,7 +14,7 @@ from .contracts import ServiceExitClass, ServicePhase
 from .service_state_contracts import ServiceSupervisorState
 
 
-SERVICE_STATE_DOCUMENT_SCHEMA = "service-supervisor-state.v2"
+SERVICE_STATE_DOCUMENT_SCHEMA = "service-supervisor-state.v3"
 
 
 class ServiceStateIntegrityError(DocumentIntegrityError):
@@ -32,6 +32,7 @@ def _payload(state: ServiceSupervisorState) -> dict[str, object]:
         "stdout_capture_ref": state.stdout_capture_ref,
         "stderr_capture_ref": state.stderr_capture_ref,
         "last_heartbeat_at": state.last_heartbeat_at,
+        "ready_at": state.ready_at,
         "last_failure_id": state.last_failure_id,
         "last_exit_class": None if state.last_exit_class is None else int(state.last_exit_class),
         "updated_at": state.updated_at,
@@ -44,6 +45,8 @@ class ServiceSupervisorStateCodec:
     schema = SERVICE_STATE_DOCUMENT_SCHEMA
 
     def encode(self, state: ServiceSupervisorState) -> bytes:
+        if (state.ready_evidence_ref is None) != (state.ready_at is None):
+            raise ServiceStateIntegrityError("service ready evidence and ready_at must be complete together")
         return encode_checksummed_document(self.schema, _payload(state))
 
     def decode(self, raw: bytes) -> ServiceSupervisorState:
@@ -65,6 +68,8 @@ class ServiceSupervisorStateCodec:
             data["phase"] = ServicePhase(data["phase"])
             if data.get("last_exit_class") is not None:
                 data["last_exit_class"] = ServiceExitClass(int(data["last_exit_class"]))
+            if (data.get("ready_evidence_ref") is None) != (data.get("ready_at") is None):
+                raise ValueError("service ready evidence and ready_at must be complete together")
             if data.get("process") is not None:
                 process = data["process"]
                 if not isinstance(process, dict):

@@ -49,6 +49,7 @@ class _ProgressBinding:
         self.environment_generation = source.environment_generation
         self.method_generation = source.method_generation
         self.task_manifest_digest = source.task_manifest_digest
+        self.checkpoint_compatibility_digest = source.checkpoint_compatibility_digest
 
     def checkpoint_components(self) -> tuple[WorkloadCheckpointComponentPort, ...]:
         components = self._source.checkpoint_components()

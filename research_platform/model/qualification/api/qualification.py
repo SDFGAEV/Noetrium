@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+import math
 from pathlib import Path
 from typing import Protocol
 
@@ -35,6 +36,25 @@ class DeploymentRuntimeQualificationStatus(StrEnum):
 
 DEFAULT_DEPLOYMENT_PROBE_TIMEOUT_SECONDS = 90.0
 DEFAULT_PACKAGE_INDEX_URL = "https://pypi.org/simple"
+
+
+def _require_text(value: object, field_name: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field_name} must be non-empty text")
+    return value
+
+
+def _require_sha256(value: object, field_name: str) -> str:
+    text = _require_text(value, field_name)
+    if len(text) != 64 or any(char not in "0123456789abcdef" for char in text):
+        raise ValueError(f"{field_name} must be a lowercase SHA-256 digest")
+    return text
+
+
+def _require_string_tuple(values: object, field_name: str) -> tuple[str, ...]:
+    if not isinstance(values, tuple) or any(not isinstance(item, str) for item in values):
+        raise ValueError(f"{field_name} must be a tuple of strings")
+    return values
 
 
 def native_cuda_runtime_package_names(cuda_version: str | None) -> tuple[str, ...]:
@@ -88,6 +108,15 @@ class GpuCapabilityFacts:
     pci_bus_id: str | None = None
     numa_node: int | None = None
     power_limit_watts: float | None = None
+
+    def __post_init__(self) -> None:
+        if self.power_limit_watts is not None and (
+            isinstance(self.power_limit_watts, bool)
+            or not isinstance(self.power_limit_watts, (int, float))
+            or not math.isfinite(float(self.power_limit_watts))
+            or self.power_limit_watts < 0
+        ):
+            raise ValueError("GPU power_limit_watts must be finite and non-negative")
 
 
 @dataclass(frozen=True, slots=True)
@@ -228,6 +257,15 @@ class DeploymentCapabilityFacts:
     fabric: GpuFabricFacts = field(default_factory=GpuFabricFacts)
     storage: StorageCapabilityFacts = field(default_factory=lambda: StorageCapabilityFacts("unknown"))
 
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.captured_at_unix, bool)
+            or not isinstance(self.captured_at_unix, (int, float))
+            or not math.isfinite(float(self.captured_at_unix))
+            or self.captured_at_unix < 0
+        ):
+            raise ValueError("deployment capability captured_at_unix must be finite and non-negative")
+
     def digest(self) -> str:
         return canonical_digest(self)
 
@@ -261,8 +299,13 @@ class DeploymentQualificationRequest:
             raise ValueError("deployment qualification python_environment_id must be non-empty")
         if not self.backends or any(not value.strip() for value in self.backends):
             raise ValueError("deployment qualification requires at least one backend")
-        if self.probe_timeout_seconds <= 0:
-            raise ValueError("deployment qualification probe timeout must be positive")
+        if (
+            isinstance(self.probe_timeout_seconds, bool)
+            or not isinstance(self.probe_timeout_seconds, (int, float))
+            or not math.isfinite(float(self.probe_timeout_seconds))
+            or self.probe_timeout_seconds <= 0
+        ):
+            raise ValueError("deployment qualification probe timeout must be finite and positive")
 
     def digest(self) -> str:
         return canonical_digest(self)
@@ -274,6 +317,11 @@ class InstallPackage:
     version: str
     index_url: str
 
+    def __post_init__(self) -> None:
+        _require_text(self.name, "install package name")
+        _require_text(self.version, "install package version")
+        _require_text(self.index_url, "install package index_url")
+
 
 @dataclass(frozen=True, slots=True)
 class BackendCandidatePlan:
@@ -283,6 +331,19 @@ class BackendCandidatePlan:
     packages: tuple[InstallPackage, ...]
     reasons: tuple[str, ...]
     evidence_refs: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        _require_text(self.backend, "qualification backend")
+        if not isinstance(self.decision, CandidateDecision):
+            raise ValueError("qualification candidate decision is invalid")
+        if self.version is not None:
+            _require_text(self.version, "qualification backend version")
+        if not isinstance(self.packages, tuple) or any(
+            not isinstance(item, InstallPackage) for item in self.packages
+        ):
+            raise ValueError("qualification packages must be typed InstallPackage values")
+        _require_string_tuple(self.reasons, "qualification candidate reasons")
+        _require_string_tuple(self.evidence_refs, "qualification candidate evidence_refs")
 
 
 @dataclass(frozen=True, slots=True)
@@ -294,7 +355,15 @@ class DeploymentQualificationPlan:
     plan_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
+        _require_sha256(self.request_digest, "qualification request_digest")
+        _require_sha256(self.facts_digest, "qualification facts_digest")
+        if not isinstance(self.candidates, tuple) or not self.candidates or any(
+            not isinstance(item, BackendCandidatePlan) for item in self.candidates
+        ):
+            raise ValueError("qualification plan requires typed backend candidates")
         accepted = [item.backend for item in self.candidates if item.decision is CandidateDecision.ACCEPTED]
+        if self.selected_backend is not None:
+            _require_text(self.selected_backend, "qualification selected_backend")
         if self.selected_backend is not None and self.selected_backend not in accepted:
             raise ValueError("selected backend must be an accepted candidate")
         object.__setattr__(
@@ -322,6 +391,13 @@ class DeploymentQualificationEvidenceRecord:
     record_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
+        if (
+            isinstance(self.captured_at_unix, bool)
+            or not isinstance(self.captured_at_unix, (int, float))
+            or not math.isfinite(float(self.captured_at_unix))
+            or self.captured_at_unix < 0
+        ):
+            raise ValueError("qualification evidence captured_at_unix must be finite and non-negative")
         if self.plan.request_digest != self.request.digest():
             raise ValueError("qualification evidence request digest does not match plan")
         if self.plan.facts_digest != self.facts.digest():
@@ -375,6 +451,14 @@ class QualificationCommandReceipt:
     stdout_digest: str
     stderr_digest: str
 
+    def __post_init__(self) -> None:
+        _require_text(self.operation, "qualification command operation")
+        _require_sha256(self.command_digest, "qualification command_digest")
+        if isinstance(self.return_code, bool) or not isinstance(self.return_code, int):
+            raise ValueError("qualification command return_code must be an integer")
+        _require_sha256(self.stdout_digest, "qualification stdout_digest")
+        _require_sha256(self.stderr_digest, "qualification stderr_digest")
+
 
 @dataclass(frozen=True, slots=True)
 class DeploymentQualificationApplicationReceipt:
@@ -389,8 +473,30 @@ class DeploymentQualificationApplicationReceipt:
     application_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
-        if len(self.plan_digest) != 64:
-            raise ValueError("qualification application plan digest is invalid")
+        """Validate every package/command/reason before issuing the application digest.
+
+        Algorithm-Complexity: O(N)
+        Algorithm-Rationale: N is the number of variable-length packages, command receipts, and reason strings that must each be type-checked before this durable qualification receipt is trusted.
+        """
+        _require_sha256(self.plan_digest, "qualification application plan_digest")
+        _require_text(self.environment_id, "qualification application environment_id")
+        if self.backend is not None:
+            _require_text(self.backend, "qualification application backend")
+        if not isinstance(self.packages, tuple) or any(
+            not isinstance(item, InstallPackage) for item in self.packages
+        ):
+            raise ValueError("qualification application packages must be typed")
+        if not isinstance(self.install_commands, tuple) or any(
+            not isinstance(item, QualificationCommandReceipt) for item in self.install_commands
+        ):
+            raise ValueError("qualification install_commands must be typed receipts")
+        if self.check_command is not None and not isinstance(
+            self.check_command, QualificationCommandReceipt
+        ):
+            raise ValueError("qualification check_command must be a typed receipt")
+        if not isinstance(self.status, QualificationMaterializationStatus):
+            raise ValueError("qualification application status is invalid")
+        _require_string_tuple(self.reasons, "qualification application reasons")
         object.__setattr__(
             self,
             "application_digest",
@@ -456,6 +562,16 @@ class RuntimeCheckReceipt:
     stdout_preview: str = ""
     stderr_preview: str = ""
 
+    def __post_init__(self) -> None:
+        _require_text(self.check, "runtime qualification check")
+        _require_sha256(self.command_digest, "runtime qualification command_digest")
+        if isinstance(self.return_code, bool) or not isinstance(self.return_code, int):
+            raise ValueError("runtime qualification return_code must be an integer")
+        _require_sha256(self.stdout_digest, "runtime qualification stdout_digest")
+        _require_sha256(self.stderr_digest, "runtime qualification stderr_digest")
+        if not isinstance(self.stdout_preview, str) or not isinstance(self.stderr_preview, str):
+            raise ValueError("runtime qualification previews must be strings")
+
 
 @dataclass(frozen=True, slots=True)
 class DeploymentQualificationRuntimeReceipt:
@@ -469,6 +585,23 @@ class DeploymentQualificationRuntimeReceipt:
     runtime_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
+        """Validate every runtime check/reason before issuing the runtime digest.
+
+        Algorithm-Complexity: O(N)
+        Algorithm-Rationale: N is the number of runtime checks and reason strings carried by the receipt; fail-closed construction must inspect every variable-length typed element.
+        """
+        _require_sha256(self.application_digest, "runtime qualification application_digest")
+        _require_sha256(self.plan_digest, "runtime qualification plan_digest")
+        _require_text(self.environment_id, "runtime qualification environment_id")
+        if self.backend is not None:
+            _require_text(self.backend, "runtime qualification backend")
+        if not isinstance(self.checks, tuple) or any(
+            not isinstance(item, RuntimeCheckReceipt) for item in self.checks
+        ):
+            raise ValueError("runtime qualification checks must be typed receipts")
+        if not isinstance(self.status, DeploymentRuntimeQualificationStatus):
+            raise ValueError("runtime qualification status is invalid")
+        _require_string_tuple(self.reasons, "runtime qualification reasons")
         object.__setattr__(
             self,
             "runtime_digest",

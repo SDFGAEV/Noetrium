@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
-import json
+import math
+from collections.abc import Mapping
 
+from research_platform.platform.kernel import JsonInput, canonical_bytes
 from research_platform.platform.kernel.identity import ImmutableModelIdentity
 from .runtime_contracts import PromptResolution
 
@@ -21,21 +23,26 @@ class PromptRequestContract:
     top_p: float
     max_output_tokens: int
 
+    def __post_init__(self) -> None:
+        for field in ("temperature", "top_p"):
+            value = getattr(self, field)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+                raise ValueError(f"prompt request {field} must be finite")
+        if self.temperature < 0 or not 0 < self.top_p <= 1:
+            raise ValueError("prompt request sampling parameters are invalid")
+        if type(self.max_output_tokens) is not int or self.max_output_tokens <= 0:
+            raise ValueError("prompt request max_output_tokens must be positive")
+
 
 def build_prompt_request_contract(
     *,
     request_id: str,
     resolution: PromptResolution,
     model: ImmutableModelIdentity,
-    request_body: dict[str, object],
+    request_body: Mapping[str, JsonInput],
 ) -> PromptRequestContract:
     bundle = resolution.bundle
-    encoded = json.dumps(
-        request_body,
-        sort_keys=True,
-        ensure_ascii=False,
-        separators=(",", ":"),
-    ).encode("utf-8")
+    encoded = canonical_bytes(request_body)
     return PromptRequestContract(
         request_id=request_id,
         generation_id=resolution.generation_id,
@@ -55,7 +62,7 @@ def verify_prompt_request_contract(
     *,
     resolution: PromptResolution,
     model: ImmutableModelIdentity,
-    request_body: dict[str, object],
+    request_body: Mapping[str, JsonInput],
 ) -> None:
     actual = build_prompt_request_contract(
         request_id=contract.request_id,

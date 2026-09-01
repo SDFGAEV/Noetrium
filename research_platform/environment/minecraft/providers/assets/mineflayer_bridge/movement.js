@@ -18,7 +18,7 @@ async function gotoEntity (msg) {
   }
   const entity = runtime.findEntity(action.entity, action.max_distance)
   if (!entity) return runtime.rejected('goto_entity', action, 'ENTITY_NOT_FOUND')
-  const outcome = await runtime.gotoPos(entity.position, action.radius)
+  const outcome = await runtime.gotoEntity(entity, action.radius)
   const activeBot = runtime.getBot()
   const live = activeBot.entities[entity.id]
   const distance = live && live.position ? live.position.distanceTo(activeBot.entity.position) : outcome.distance

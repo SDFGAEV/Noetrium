@@ -38,7 +38,7 @@ class RuntimeStatusCLIV79Tests(unittest.TestCase):
             FileServiceStateStore(service_path).write(ServiceSupervisorState(
                 d.deployment_id,"contract",ServicePhase.RUNNING,1,None,
                 "ready://planner","capture://stdout","capture://stderr",
-                time.time(),None,None,time.time(),
+                time.time(),None,None,time.time(),time.time(),
             ))
             with ForensicStore(root/"forensics"):
                 pass

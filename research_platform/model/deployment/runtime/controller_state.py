@@ -3,6 +3,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from research_platform.model._persisted import (
+    exact_fields,
+    integer,
+    number,
+    optional_integer,
+    sequence,
+    text,
+)
 from research_platform.model.deployment.api import (
     ModelControllerPhase,
     ModelControllerState,
@@ -12,6 +20,16 @@ from research_platform.model.deployment.api import (
     ModelRuntimeState,
 )
 from research_platform.platform.kernel.durability.durable_file import atomic_replace_bytes
+
+
+_STATE_FIELDS = frozenset({
+    "controller_id", "phase", "pid", "started_at_utc", "heartbeat_at_utc", "interval_seconds",
+    "cycle_count", "detail", "last_cycle",
+})
+_CYCLE_FIELDS = frozenset({"cycle_index", "completed_at_utc", "statuses"})
+_STATUS_FIELDS = frozenset({
+    "deployment_id", "service_id", "desired_state", "runtime_state", "pid", "detail",
+})
 
 
 class FileModelControllerStateStore:
@@ -24,23 +42,23 @@ class FileModelControllerStateStore:
     def read(self) -> ModelControllerState | None:
         if not self._path.exists():
             return None
-        data = json.loads(self._path.read_text("utf-8"))
-        cycle_data = data.get("last_cycle")
-        cycle = None if cycle_data is None else ModelReconcileCycle(
-            cycle_index=int(cycle_data["cycle_index"]),
-            completed_at_utc=str(cycle_data["completed_at_utc"]),
-            statuses=tuple(self._status_from_data(item) for item in cycle_data.get("statuses", ())),
+        data = exact_fields(
+            json.loads(self._path.read_text("utf-8")),
+            field="model controller state",
+            fields=_STATE_FIELDS,
         )
+        cycle_data = data["last_cycle"]
+        cycle = None if cycle_data is None else self._cycle_from_data(cycle_data)
         return ModelControllerState(
-            controller_id=str(data["controller_id"]),
-            phase=ModelControllerPhase(str(data["phase"])),
-            pid=(int(data["pid"]) if data.get("pid") is not None else None),
-            started_at_utc=str(data["started_at_utc"]),
-            heartbeat_at_utc=str(data["heartbeat_at_utc"]),
-            interval_seconds=float(data["interval_seconds"]),
-            cycle_count=int(data["cycle_count"]),
+            controller_id=text(data["controller_id"], field="controller_id", allow_empty=False),
+            phase=ModelControllerPhase(text(data["phase"], field="phase", allow_empty=False)),
+            pid=optional_integer(data["pid"], field="pid", minimum=1),
+            started_at_utc=text(data["started_at_utc"], field="started_at_utc", allow_empty=False),
+            heartbeat_at_utc=text(data["heartbeat_at_utc"], field="heartbeat_at_utc", allow_empty=False),
+            interval_seconds=number(data["interval_seconds"], field="interval_seconds", minimum=0.0),
+            cycle_count=integer(data["cycle_count"], field="cycle_count", minimum=0),
             last_cycle=cycle,
-            detail=str(data.get("detail", "")),
+            detail=text(data["detail"], field="detail"),
         )
 
     def write(self, state: ModelControllerState) -> ModelControllerState:
@@ -48,14 +66,28 @@ class FileModelControllerStateStore:
         return state
 
     @staticmethod
-    def _status_from_data(data: dict[str, object]) -> ModelDeploymentStatus:
+    def _cycle_from_data(value: object) -> ModelReconcileCycle:
+        data = exact_fields(value, field="model reconcile cycle", fields=_CYCLE_FIELDS)
+        statuses = sequence(data["statuses"], field="statuses")
+        return ModelReconcileCycle(
+            cycle_index=integer(data["cycle_index"], field="cycle_index", minimum=0),
+            completed_at_utc=text(data["completed_at_utc"], field="completed_at_utc", allow_empty=False),
+            statuses=tuple(
+                FileModelControllerStateStore._status_from_data(item)
+                for item in statuses
+            ),
+        )
+
+    @staticmethod
+    def _status_from_data(value: object) -> ModelDeploymentStatus:
+        data = exact_fields(value, field="model deployment status", fields=_STATUS_FIELDS)
         return ModelDeploymentStatus(
-            deployment_id=str(data["deployment_id"]),
-            service_id=str(data["service_id"]),
-            desired_state=ModelDesiredState(str(data["desired_state"])),
-            runtime_state=ModelRuntimeState(str(data["runtime_state"])),
-            pid=(int(data["pid"]) if data.get("pid") is not None else None),
-            detail=str(data.get("detail", "")),
+            deployment_id=text(data["deployment_id"], field="status.deployment_id", allow_empty=False),
+            service_id=text(data["service_id"], field="status.service_id", allow_empty=False),
+            desired_state=ModelDesiredState(text(data["desired_state"], field="status.desired_state", allow_empty=False)),
+            runtime_state=ModelRuntimeState(text(data["runtime_state"], field="status.runtime_state", allow_empty=False)),
+            pid=optional_integer(data["pid"], field="status.pid", minimum=1),
+            detail=text(data["detail"], field="status.detail"),
         )
 
     @staticmethod
@@ -86,7 +118,12 @@ class FileModelControllerStateStore:
                 ],
             },
         }
-        return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
 
 
 __all__ = ["FileModelControllerStateStore"]

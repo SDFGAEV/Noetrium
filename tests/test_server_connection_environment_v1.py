@@ -37,8 +37,10 @@ OS_ROUTE = LocalOperatingSystemRoute()
 class _ImmediateHandle:
     def __init__(self, value):
         self._value = value
+        self.result_timeouts: list[float | None] = []
 
     def result(self, timeout=None):
+        self.result_timeouts.append(timeout)
         return self._value
 
 
@@ -46,10 +48,13 @@ class _ProcessRunner:
     def __init__(self, result: ProcessCommandResult) -> None:
         self.result = result
         self.calls: list[tuple[tuple[str, ...], dict[str, object]]] = []
+        self.handles: list[_ImmediateHandle] = []
 
     def execute(self, argv: tuple[str, ...], **kwargs):
         self.calls.append((argv, dict(kwargs)))
-        return _ImmediateHandle(self.result)
+        handle = _ImmediateHandle(self.result)
+        self.handles.append(handle)
+        return handle
 
 
 def test_server_identity_composition_records_the_host_route_binding() -> None:
@@ -212,10 +217,36 @@ def test_ssh_foreground_operator_session_uses_process_supervision_authority() ->
     assert len(process_runner.calls) == 1
     submitted_argv, options = process_runner.calls[0]
     assert submitted_argv == argv
-    assert options["timeout_seconds"] == profile.command_timeout_seconds
+    assert options["timeout_seconds"] == profile.interactive_timeout_seconds
     assert options["inherit_stdin"] is True
     assert options["inherit_output"] is True
+    assert process_runner.handles[0].result_timeouts == [None]
 
+
+
+def test_ssh_interactive_timeout_is_finite_identity_and_environment_configurable() -> None:
+    profile = EnvironmentSSHServerConnectionFactory(OS_ROUTE, ssh_executable="ssh-test").from_environment(
+        "server-a",
+        environ={
+            "RP_SERVER_SERVER_A_HOST": "research.example",
+            "RP_SERVER_SERVER_A_PORT": "60320",
+            "RP_SERVER_SERVER_A_USER": "ubuntu",
+            "RP_SERVER_SERVER_A_SSH_INTERACTIVE_TIMEOUT_SECONDS": "7200",
+        },
+    ).profile
+    assert profile.interactive_timeout_seconds == 7200.0
+
+    for invalid in ("inf", "nan", "0", "-1"):
+        with pytest.raises(ServerIdentityConfigurationError, match="finite and positive"):
+            EnvironmentSSHServerConnectionFactory(OS_ROUTE, ssh_executable="ssh-test").from_environment(
+                "server-a",
+                environ={
+                    "RP_SERVER_SERVER_A_HOST": "research.example",
+                    "RP_SERVER_SERVER_A_PORT": "60320",
+                    "RP_SERVER_SERVER_A_USER": "ubuntu",
+                    "RP_SERVER_SERVER_A_SSH_INTERACTIVE_TIMEOUT_SECONDS": invalid,
+                },
+            )
 
 def test_ssh_provider_reuses_one_explicit_control_path_for_interactive_operations(tmp_path: Path) -> None:
     captured: list[tuple[tuple[str, ...], bool]] = []
@@ -327,6 +358,7 @@ def test_managed_health_verifies_python_package_identity() -> None:
             "host=box\n"
             "python_version=Python 3.11.15\n"
             "python_packages_status=0\n"
+            "inotify_watch_authority=available\n"
             f"python_packages_digest={package_digest}  -\n"
             "python_binary_digest=" + "c" * 64 + "  /srv/research-platform/envs/sem/bin/python\n"
             "node_binary_digest=" + "d" * 64 + "  /srv/toolchains/node/bin/node\n"

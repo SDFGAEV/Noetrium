@@ -13,7 +13,7 @@ from research_platform.participant.capability.api import (
     CapabilityResult,
 )
 from research_platform.platform.kernel import EffectClass, canonical_digest
-from research_platform.execution.workflow.implementations.agent_turn.agent_turn_workflow import AgentTurnStudyWorkflow
+from research_platform.execution.workflow.implementations.agent_turn.agent_turn_workflow import AgentTurnTrialProtocol
 from research_platform.experimentation.experiment.runtime import ExperimentRuntime
 from research_platform.experimentation.experiment.api import ExperimentParticipantSpec, ExperimentSpec
 
@@ -62,7 +62,7 @@ class GenericAgentSession:
 
 
 class GenericAgent:
-    identity = AgentIdentity("generic-agent", "1", "1", "1", "agent-cfg")
+    identity = AgentIdentity("generic-agent", "1", "1", "1", "a" * 64)
     def open_session(self, *, session_id: str, services: object): return GenericAgentSession(session_id)
 
 
@@ -73,10 +73,11 @@ def _spec():
         project_id="default-project",
         participants=(
             participant("capability_provider", "echo", "echo-provider", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="provider-cfg"),
-            participant("agent", "agent", "generic-agent", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="agent-cfg", depends_on_roles=("echo",)),
+            participant("agent", "agent", "generic-agent", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="a" * 64, depends_on_roles=("echo",)),
         ),
         model_stack_digest="model", prompt_generation="prompt", workload_digest="work",
-        seed_digest="seed", repetitions=1, scientific_workflow_id="agent_turn.v1",
+        seed_digest="seed", repetitions=1, trial_protocol_id="agent_turn.v1",
+        trial_protocol_configuration_digest="44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
     )
 
 

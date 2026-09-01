@@ -18,7 +18,7 @@ from research_platform.reliability.effect.api import EffectReconciliationDisposi
 from research_platform.reliability.effect.runtime import InMemoryEffectIntentJournal
 from research_platform.platform.kernel import EffectCertainty, EffectClass, EffectReceipt
 from research_platform.participant.core.api.contracts import ParticipantImplementationIdentity
-from research_platform.execution.workflow.implementations.agent_turn.agent_turn_workflow import AgentTurnStudyWorkflow
+from research_platform.execution.workflow.implementations.agent_turn.agent_turn_workflow import AgentTurnTrialProtocol
 from research_platform.execution.decision.cycle_identity import DecisionCycleIdentity
 from research_platform.experimentation.experiment.runtime import ExperimentRuntime
 from research_platform.experimentation.experiment.api import ExperimentParticipantSpec, ExperimentSpec
@@ -123,7 +123,7 @@ class AgentSession:
 
 
 class Agent:
-    identity = AgentIdentity("robot-agent", "1", "1", "1", "agent-cfg")
+    identity = AgentIdentity("robot-agent", "1", "1", "1", "a" * 64)
     def open_session(self, *, session_id: str, services: object):
         del services
         return AgentSession(session_id)
@@ -136,10 +136,11 @@ def _spec():
         project_id="default-project",
         participants=(
             ExperimentParticipantSpec("arm", ParticipantImplementationIdentity("robot", "arm", "1", "1", "1"), runtime_identity_for_test("robot"), "robot-cfg"),
-            ExperimentParticipantSpec("agent", ParticipantImplementationIdentity("agent", "robot-agent", "1", "1", "1", "agent-cfg"), runtime_identity_for_test("agent"), "", depends_on_roles=("arm",)),
+            ExperimentParticipantSpec("agent", ParticipantImplementationIdentity("agent", "robot-agent", "1", "1", "1", "a" * 64), runtime_identity_for_test("agent"), "", depends_on_roles=("arm",)),
         ),
         model_stack_digest="model", prompt_generation="prompt", workload_digest="work", seed_digest="seed",
-        repetitions=1, scientific_workflow_id="agent_turn.v1",
+        repetitions=1, trial_protocol_id="agent_turn.v1",
+        trial_protocol_configuration_digest="44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
     )
 
 

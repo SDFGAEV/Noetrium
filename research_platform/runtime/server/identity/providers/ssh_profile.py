@@ -52,6 +52,7 @@ def materialize_ssh_profile(
     control_path_text = values.get(f"{prefix}_SSH_CONTROL_PATH", "").strip()
     control_persist_text = values.get(f"{prefix}_SSH_CONTROL_PERSIST_SECONDS", "600").strip() or "600"
     timeout_text = values.get(f"{prefix}_SSH_COMMAND_TIMEOUT_SECONDS", "120").strip() or "120"
+    interactive_timeout_text = values.get(f"{prefix}_SSH_INTERACTIVE_TIMEOUT_SECONDS", str(8 * 60 * 60)).strip() or str(8 * 60 * 60)
     transfer_timeout_text = values.get(f"{prefix}_SSH_TRANSFER_TIMEOUT_SECONDS", "1800").strip() or "1800"
     repository_timeout_text = values.get(f"{prefix}_SSH_REPOSITORY_TIMEOUT_SECONDS", "1800").strip() or "1800"
     git_transport_timeout_text = values.get(f"{prefix}_SSH_GIT_TIMEOUT_SECONDS", "120").strip() or "120"
@@ -59,6 +60,7 @@ def materialize_ssh_profile(
     try:
         control_persist_seconds = int(control_persist_text)
         command_timeout_seconds = float(timeout_text)
+        interactive_timeout_seconds = float(interactive_timeout_text)
         transfer_timeout_seconds = float(transfer_timeout_text)
         repository_timeout_seconds = float(repository_timeout_text)
         git_transport_timeout_seconds = float(git_transport_timeout_text)
@@ -80,6 +82,7 @@ def materialize_ssh_profile(
         control_path=(Path(control_path_text).expanduser() if control_path_text else None),
         control_persist_seconds=control_persist_seconds,
         command_timeout_seconds=command_timeout_seconds,
+        interactive_timeout_seconds=interactive_timeout_seconds,
         transfer_timeout_seconds=transfer_timeout_seconds,
         repository_timeout_seconds=repository_timeout_seconds,
         git_transport_timeout_seconds=git_transport_timeout_seconds,

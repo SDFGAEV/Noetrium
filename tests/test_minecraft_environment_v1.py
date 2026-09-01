@@ -1136,11 +1136,11 @@ class _FakeServiceRuntime:
 
     def start_exact(self, contract):
         self.calls.append("start")
-        return ServiceStartOutcome(contract.digest(), self.process, "ready-ref", ("start-ref",))
+        return ServiceStartOutcome(contract.digest(), self.process, "ready-ref", 1234.5, ("start-ref",))
 
     def verify_ready_exact(self, contract):
         self.calls.append("verify")
-        return ServiceReadyObservation(contract.digest(), self.process, "ready-ref", ("ready-ref",))
+        return ServiceReadyObservation(contract.digest(), self.process, "ready-ref", 1234.5, ("ready-ref",))
 
     def stop_exact(self, contract):
         self.calls.append("stop")
@@ -1255,3 +1255,101 @@ def test_planner_finish_requires_action_receipt() -> None:
     assert completion.is_complete(
         goal, observation, planner_finished=True, last_receipt=None
     ) is False
+
+
+
+def test_last_action_verified_requires_grounded_non_contradictory_receipt() -> None:
+    from research_platform.environment.minecraft.composition import MinecraftAgentCompletion
+    from research_platform.participant.agent.api import AgentGoal, AgentObservation, AgentStepReceipt
+
+    completion = MinecraftAgentCompletion()
+    goal = AgentGoal(
+        "goal:last-action-grounded",
+        "finish",
+        context={"success": {"kind": "last_action_verified"}},
+    )
+    observation = AgentObservation("obs:last-action-grounded", "world-v1", {})
+    contradictory = AgentStepReceipt(
+        "action:rejected", "wait", "minecraft.wait", "sequence:1", False, True,
+        effect_id="minecraft-action:rejected", effect_certainty="rejected",
+    )
+    uncertain = AgentStepReceipt(
+        "action:possible", "wait", "minecraft.wait", "sequence:2", True, True,
+        effect_id="minecraft-action:possible", effect_certainty="possible",
+    )
+    grounded = AgentStepReceipt(
+        "action:confirmed", "wait", "minecraft.wait", "sequence:3", True, True,
+        effect_id="minecraft-action:confirmed", effect_certainty="confirmed",
+    )
+
+    assert completion.is_complete(goal, observation, planner_finished=False, last_receipt=contradictory) is False
+    assert completion.is_complete(goal, observation, planner_finished=False, last_receipt=uncertain) is False
+    assert completion.is_complete(goal, observation, planner_finished=False, last_receipt=grounded) is True
+
+
+def test_minecraft_agent_executor_preserves_effect_identity_and_possible_certainty() -> None:
+    from research_platform.environment.api import ActionResult
+    from research_platform.environment.minecraft.composition import MinecraftAgentActionExecutor
+    from research_platform.participant.agent.api import AgentActionStep
+    from research_platform.platform.kernel import EffectCertainty, EffectClass, EffectReceipt
+
+    context = ExecutionContext("run", "trace", "span", task_id="task")
+    step = AgentActionStep(
+        "action:possible",
+        "wait",
+        {"ms": 1},
+        "minecraft.wait",
+        "sequence:1",
+        0,
+    )
+    effect = EffectReceipt(
+        "minecraft-action:action:possible",
+        "d" * 64,
+        EffectClass.RECONCILABLE,
+        EffectCertainty.EFFECT_POSSIBLE,
+        provider_instance_id="minecraft:test",
+        verification_required=True,
+        provider_receipt=step.action_id,
+    )
+
+    class Session:
+        def act(self, request):
+            assert request.action_id == step.action_id
+            return ActionResult(request.action_id, True, None, effect, {"verified": False})
+
+    receipt = MinecraftAgentActionExecutor(Session()).execute(step, context)
+    assert receipt.accepted is True
+    assert receipt.verified is False
+    assert receipt.effect_id == effect.effect_id
+    assert receipt.effect_certainty == "possible"
+
+
+def test_planner_finish_requires_grounded_action_receipt() -> None:
+    from research_platform.environment.minecraft.composition import MinecraftAgentCompletion
+    from research_platform.participant.agent.api import AgentGoal, AgentObservation, AgentStepReceipt
+
+    completion = MinecraftAgentCompletion()
+    goal = AgentGoal("goal:planner-grounded", "finish", context={"success": {"kind": "planner_finish"}})
+    observation = AgentObservation("obs:planner-grounded", "world-v1", {})
+    accepted_unverified = AgentStepReceipt(
+        "action:unverified", "wait", "minecraft.wait", "sequence:1", True, False,
+        effect_id="minecraft-action:unverified", effect_certainty="possible",
+    )
+    confirmed = AgentStepReceipt(
+        "action:confirmed", "wait", "minecraft.wait", "sequence:2", True, None,
+        effect_id="minecraft-action:confirmed", effect_certainty="confirmed",
+    )
+    verified = AgentStepReceipt(
+        "action:verified", "wait", "minecraft.wait", "sequence:3", True, True,
+        effect_id="minecraft-action:verified", effect_certainty="confirmed",
+    )
+
+    assert completion.is_complete(
+        goal, observation, planner_finished=True, last_receipt=accepted_unverified
+    ) is False
+    assert completion.is_complete(
+        goal, observation, planner_finished=True, last_receipt=confirmed
+    ) is True
+    assert completion.is_complete(
+        goal, observation, planner_finished=True, last_receipt=verified
+    ) is True

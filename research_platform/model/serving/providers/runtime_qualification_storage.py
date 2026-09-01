@@ -16,7 +16,7 @@ from research_platform.platform.kernel.durability.file_lock import InterprocessF
 from ..api.runtime_qualification import RuntimeQualificationReceipt
 
 
-_SCHEMA = "runtime-qualification-receipt.v3"
+_SCHEMA = "runtime-qualification-receipt.v4"
 _RECEIPT_FIELDS = frozenset(
     {
         "deployment_id",
@@ -33,7 +33,7 @@ _RECEIPT_FIELDS = frozenset(
         "created_at",
     }
 )
-_PAYLOAD_FIELDS = frozenset({"receipt", "receipt_digest"})
+_PAYLOAD_FIELDS = frozenset({"runtime_manifest_digest", "receipt", "receipt_digest"})
 _LOCAL_LOCKS_GUARD = Lock()
 _LOCAL_LOCKS: dict[str, Lock] = {}
 
@@ -68,8 +68,9 @@ def _string_list(value: object, field: str) -> tuple[str, ...]:
     return tuple(value)
 
 
-def _encode_receipt(receipt: RuntimeQualificationReceipt) -> bytes:
+def _encode_receipt(receipt: RuntimeQualificationReceipt, runtime_manifest_digest: str) -> bytes:
     payload = {
+        "runtime_manifest_digest": _require_digest(runtime_manifest_digest, "runtime_manifest_digest"),
         "receipt": {
             "deployment_id": receipt.deployment_id,
             "stack_digest": receipt.stack_digest,
@@ -89,13 +90,22 @@ def _encode_receipt(receipt: RuntimeQualificationReceipt) -> bytes:
     return encode_checksummed_document(_SCHEMA, payload)
 
 
-def _decode_receipt(raw: bytes) -> RuntimeQualificationReceipt:
+def _decode_receipt(
+    raw: bytes,
+    *,
+    expected_runtime_manifest_digest: str | None = None,
+) -> RuntimeQualificationReceipt:
     try:
         payload = decode_checksummed_document(raw, expected_schema=_SCHEMA).payload
     except ChecksummedDocumentError as exc:
         raise RuntimeQualificationEvidenceError("runtime qualification document integrity failure") from exc
-    if frozenset(payload) != _PAYLOAD_FIELDS:
+    if type(payload) is not dict or frozenset(payload) != _PAYLOAD_FIELDS:
         raise RuntimeQualificationEvidenceError("runtime qualification payload field set mismatch")
+    manifest = _require_digest(payload.get("runtime_manifest_digest"), "runtime_manifest_digest")
+    if expected_runtime_manifest_digest is not None:
+        expected = _require_digest(expected_runtime_manifest_digest, "expected_runtime_manifest_digest")
+        if manifest != expected:
+            raise RuntimeQualificationEvidenceError("runtime qualification runtime manifest binding mismatch")
     receipt_raw = payload.get("receipt")
     if not isinstance(receipt_raw, dict) or frozenset(receipt_raw) != _RECEIPT_FIELDS:
         raise RuntimeQualificationEvidenceError("runtime qualification receipt field set mismatch")
@@ -156,18 +166,24 @@ class DirectoryRuntimeQualificationEvidenceStore:
     def publish(self, runtime_manifest_digest: str, receipt: RuntimeQualificationReceipt) -> str:
         path = self._path(runtime_manifest_digest, receipt.deployment_id)
         lock_path = path.with_name(path.name + ".lock")
-        raw = _encode_receipt(receipt)
+        raw = _encode_receipt(receipt, runtime_manifest_digest)
         with _local_lock(lock_path):
             with InterprocessFileLock(lock_path):
                 if path.exists():
-                    existing = _decode_receipt(path.read_bytes())
+                    existing = _decode_receipt(
+                        path.read_bytes(),
+                        expected_runtime_manifest_digest=runtime_manifest_digest,
+                    )
                     if existing != receipt:
                         raise RuntimeQualificationEvidenceError(
                             "runtime qualification receipt already exists with different evidence"
                         )
                     return str(path)
                 atomic_replace_bytes(path, raw)
-                persisted = _decode_receipt(path.read_bytes())
+                persisted = _decode_receipt(
+                    path.read_bytes(),
+                    expected_runtime_manifest_digest=runtime_manifest_digest,
+                )
                 if persisted != receipt:
                     raise RuntimeQualificationEvidenceError("runtime qualification receipt readback drift")
                 return str(path)
@@ -175,7 +191,10 @@ class DirectoryRuntimeQualificationEvidenceStore:
     def load(self, runtime_manifest_digest: str, deployment_id: str) -> RuntimeQualificationReceipt:
         path = self._path(runtime_manifest_digest, deployment_id)
         try:
-            receipt = _decode_receipt(path.read_bytes())
+            receipt = _decode_receipt(
+                path.read_bytes(),
+                expected_runtime_manifest_digest=runtime_manifest_digest,
+            )
         except OSError as exc:
             raise RuntimeQualificationEvidenceError(
                 f"runtime qualification receipt cannot be read: {path}"

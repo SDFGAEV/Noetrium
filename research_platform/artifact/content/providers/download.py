@@ -156,11 +156,13 @@ class HttpArtifactAcquirer(ArtifactAcquisitionPort):
             fsync_directory(destination.parent)
             temporary_path = None
             return ArtifactAcquisitionResult(
-                self._record(request, destination, sha256),
-                True,
-                sha256,
-                sha1,
-                size,
+                record=self._record(request, sha256),
+                storage_provider_id="artifact.filesystem",
+                location=str(destination),
+                downloaded=True,
+                sha256=sha256,
+                sha1=sha1,
+                size=size,
             )
         except ArtifactAcquisitionError as exc:
             _cleanup_temporary(temporary_path, primary=exc)
@@ -187,11 +189,13 @@ class HttpArtifactAcquirer(ArtifactAcquisitionPort):
         except ArtifactAcquisitionError:
             return None
         return ArtifactAcquisitionResult(
-            HttpArtifactAcquirer._record(request, path, sha256),
-            False,
-            sha256,
-            sha1,
-            size,
+            record=HttpArtifactAcquirer._record(request, sha256),
+            storage_provider_id="artifact.filesystem",
+            location=str(path),
+            downloaded=False,
+            sha256=sha256,
+            sha1=sha1,
+            size=size,
         )
 
     @staticmethod
@@ -213,13 +217,12 @@ class HttpArtifactAcquirer(ArtifactAcquisitionPort):
             )
 
     @staticmethod
-    def _record(request: ArtifactAcquisitionRequest, path: Path, sha256: str) -> ArtifactRecord:
+    def _record(request: ArtifactAcquisitionRequest, sha256: str) -> ArtifactRecord:
         return ArtifactRecord(
             artifact_id=request.artifact_id,
             kind=request.kind,
             scope=request.scope,
             digest=sha256,
-            location=str(path),
             producer_component_id=request.producer_component_id,
             producer_operation_id=request.producer_operation_id,
             media_type=request.media_type,

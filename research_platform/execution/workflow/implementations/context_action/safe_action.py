@@ -66,7 +66,7 @@ class SafeEnvironmentActionExecutor:
             capability_checked=capability_checked,
         )
 
-    def confirm_scientific_commit(
+    def confirm_trial_commit(
         self,
         context: ExecutionContext,
         consumption: EffectCompletionEvidence,

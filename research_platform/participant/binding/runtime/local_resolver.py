@@ -6,7 +6,10 @@ from research_platform.participant.binding.api.contracts import (
     ParticipantRuntimeEndpointFactory,
     ParticipantSessionRuntimeCatalogPort,
 )
-from research_platform.participant.core.api.contracts import ParticipantRuntimeBinding
+from research_platform.participant.core.api.contracts import (
+    ParticipantConfigurationArtifact,
+    ParticipantRuntimeBinding,
+)
 from research_platform.participant.core.api.runtime import ParticipantRuntimeHandle
 
 
@@ -28,7 +31,11 @@ class LocalParticipantResolver:
     def resolve(self, binding: ParticipantRuntimeBinding) -> ParticipantRuntimeHandle:
         registered_implementation = self._implementations.resolve(binding.implementation)
         registered_runtime = self._runtimes.resolve(binding.runtime)
-        configuration = self._configurations.resolve(binding.configuration_digest)
+        configuration = (
+            ParticipantConfigurationArtifact.empty()
+            if binding.configuration_digest is None
+            else self._configurations.resolve(binding.configuration_digest)
+        )
         implementation = registered_implementation.factory(configuration)
         runtime = registered_runtime.factory()
         if runtime.runtime_identity != binding.runtime:

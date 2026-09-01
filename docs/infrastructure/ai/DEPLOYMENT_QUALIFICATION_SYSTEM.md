@@ -33,6 +33,10 @@ Qualification records deployment-relevant facts or explicitly records that a fac
 
 The controller operating system and the target runtime operating system are separate path domains. Paths embedded in target-runtime probes are serialized with the target runtime's path grammar; controller-local SSH/config/control paths use controller-native validation.
 
+Model `config.json` is treated as measured qualification evidence, not as a permissive metadata bag. Parsed roots must be JSON objects, and observed model type, architecture list, dtype, and context length retain their JSON types; malformed values fail closed instead of being coerced through `str()`/`int()` and marked captured.
+
+The target-Python capability probe follows the same rule: its subprocess JSON has an exact field set and exact string/list/null types. Malformed capability payloads become explicit probe errors, and candidates carrying those errors are rejected rather than qualified from partially reconstructed defaults.
+
 Observation is read-only. It must not download large payloads, install packages, alter GPU state, or mutate the selected environment merely to decide whether a candidate is plausible.
 ## Resolution and materialization
 
@@ -77,3 +81,11 @@ The management CLI exposes qualification through the generic deployment namespac
 The upstream stores qualification contracts, resolvers, providers, evidence schemas, and generic operator documentation. Concrete deployment investigations, machine observations, chosen model stacks, benchmark results, and project qualification receipts belong to the downstream repository or its external evidence store.
 
 This separation allows the same qualification system to support different models, runtimes, accelerators, and research projects without making any one of them part of the platform identity.
+
+## Persisted qualification schema integrity
+
+The application and runtime qualification stores use checksummed documents, but checksum verification is only the outer integrity layer. After checksum validation, every receipt is decoded against an exact field set and exact scalar/array/object types.
+
+A checksum-valid receipt is rejected when fields are missing or added, a return code is encoded as a string, a package/command/check has the wrong shape, a list contains `null`, or any other coercion would be required. This prevents durable qualification evidence from being silently normalized into a different typed fact.
+
+This strictness applies to platform-owned persisted receipts. It does not prohibit explicit parsing at external process/protocol boundaries, where the source contract itself is textual.

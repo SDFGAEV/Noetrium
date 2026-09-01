@@ -6,7 +6,7 @@ from research_platform.platform.kernel import ComponentIdentity, JsonValue, Oper
 
 from .contracts import ParticipantImplementationIdentity
 from .lifecycle import ParticipantLifecycleAdapter
-from .runtime import ParticipantRuntimeHandle
+from .runtime import ParticipantRuntimeEndpoint, ParticipantRuntimeHandle
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,7 +20,7 @@ class BoundParticipant:
     adapter: ParticipantLifecycleAdapter
 
     @property
-    def endpoint(self) -> object:
+    def endpoint(self) -> ParticipantRuntimeEndpoint:
         return self.runtime.endpoint
 
 
@@ -44,7 +44,7 @@ class BoundParticipants:
     def component(self, role: str) -> ComponentIdentity:
         return self.participant(role).component
 
-    def endpoint(self, role: str) -> object:
+    def endpoint(self, role: str) -> ParticipantRuntimeEndpoint:
         return self.participant(role).endpoint
 
 

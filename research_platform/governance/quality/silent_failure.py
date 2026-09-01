@@ -4,6 +4,8 @@ import ast
 from dataclasses import dataclass
 from pathlib import Path
 
+from research_platform.governance.api import RepositorySourceIndexPort
+
 
 @dataclass(frozen=True, slots=True)
 class SilentFailureFinding:
@@ -16,19 +18,16 @@ class SilentFailureFinding:
 def _is_broad(handler: ast.ExceptHandler) -> bool:
     if handler.type is None:
         return True
-    if isinstance(handler.type, ast.Name) and handler.type.id in {"Exception", "BaseException"}:
-        return True
-    return False
+    return isinstance(handler.type, ast.Name) and handler.type.id in {"Exception", "BaseException"}
 
 
 def _handler_is_silent(handler: ast.ExceptHandler) -> bool:
     body = handler.body
     if not body:
         return True
-    # pass / continue / bare return are the high-confidence patterns that erase the defect.
     return all(
-        isinstance(stmt, (ast.Pass, ast.Continue)) or
-        (isinstance(stmt, ast.Return) and stmt.value is None)
+        isinstance(stmt, (ast.Pass, ast.Continue))
+        or (isinstance(stmt, ast.Return) and stmt.value is None)
         for stmt in body
     )
 
@@ -37,14 +36,48 @@ def _is_suppress_broad(node: ast.Call) -> bool:
     fn = node.func
     if not (isinstance(fn, ast.Attribute) and fn.attr == "suppress"):
         return False
-    for arg in node.args:
-        if isinstance(arg, ast.Name) and arg.id in {"Exception", "BaseException"}:
-            return True
-    return False
+    return any(
+        isinstance(arg, ast.Name) and arg.id in {"Exception", "BaseException"}
+        for arg in node.args
+    )
 
 
-def scan_silent_failures(root: Path) -> tuple[SilentFailureFinding, ...]:
+def _scan_tree(path: str, tree: ast.AST) -> tuple[SilentFailureFinding, ...]:
     findings: list[SilentFailureFinding] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ExceptHandler) and _is_broad(node) and _handler_is_silent(node):
+            findings.append(SilentFailureFinding(
+                path, node.lineno, "silent_broad_except", "broad exception is discarded without evidence"
+            ))
+        elif isinstance(node, ast.Call) and _is_suppress_broad(node):
+            findings.append(SilentFailureFinding(
+                path, node.lineno, "broad_suppress", "contextlib.suppress discards Exception/BaseException"
+            ))
+    return tuple(findings)
+
+
+def scan_silent_failures(
+    root: Path,
+    *,
+    source_index: RepositorySourceIndexPort | None = None,
+    path_prefixes: tuple[str, ...] = (),
+) -> tuple[SilentFailureFinding, ...]:
+    findings: list[SilentFailureFinding] = []
+    if source_index is not None:
+        for source in source_index.documents(suffixes={".py"}):
+            if path_prefixes and not any(
+                source.relative_path == prefix.rstrip("/")
+                or source.relative_path.startswith(prefix.rstrip("/") + "/")
+                for prefix in path_prefixes
+            ):
+                continue
+            if "except" not in source.text and "suppress" not in source.text:
+                continue
+            tree = source_index.python_tree(source.relative_path, sha256=source.sha256)
+            findings.extend(_scan_tree(source.relative_path, tree))
+        return tuple(findings)
+
+    root = Path(root)
     for path in sorted(root.rglob("*.py")):
         if "__pycache__" in path.parts:
             continue
@@ -53,19 +86,17 @@ def scan_silent_failures(root: Path) -> tuple[SilentFailureFinding, ...]:
         except UnicodeDecodeError as exc:
             findings.append(SilentFailureFinding(str(path), 0, "parse_error", str(exc)))
             continue
-        # A silent broad handler requires ``except``; broad contextlib suppression
-        # requires ``suppress``.  This exact-safe prefilter avoids parsing files
-        # that cannot possibly produce a finding.
         if "except" not in text and "suppress" not in text:
             continue
         try:
             tree = ast.parse(text, filename=str(path))
         except SyntaxError as exc:
-            findings.append(SilentFailureFinding(str(path), getattr(exc, "lineno", 0) or 0, "parse_error", str(exc)))
+            findings.append(SilentFailureFinding(
+                str(path), getattr(exc, "lineno", 0) or 0, "parse_error", str(exc)
+            ))
             continue
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ExceptHandler) and _is_broad(node) and _handler_is_silent(node):
-                findings.append(SilentFailureFinding(str(path), node.lineno, "silent_broad_except", "broad exception is discarded without evidence"))
-            elif isinstance(node, ast.Call) and _is_suppress_broad(node):
-                findings.append(SilentFailureFinding(str(path), node.lineno, "broad_suppress", "contextlib.suppress discards Exception/BaseException"))
+        findings.extend(_scan_tree(str(path), tree))
     return tuple(findings)
+
+
+__all__ = ["SilentFailureFinding", "scan_silent_failures"]

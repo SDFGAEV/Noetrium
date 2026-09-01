@@ -28,6 +28,7 @@ def _encoded() -> dict[str, object]:
         branch_id="branch-1", source_cut_id="cut-1",
         environment_generation="env-1", method_generation="method-1",
         task_manifest_digest="tasks-1",
+        checkpoint_compatibility_digest="a" * 64,
         execution_cut=WorkloadExecutionCut(("task-1",)), component_refs=(ref,),
     )
     return json.loads(WorkloadCheckpointManifestCodec.encode(manifest))
@@ -90,7 +91,7 @@ def _direct_manifest_and_payload():
     manifest = build_workload_checkpoint_manifest(
         run_id="run-1", study_id="study-1", workload_id="workload-1",
         branch_id="branch-1", source_cut_id="cut-1", environment_generation="env-1",
-        method_generation="method-1", task_manifest_digest="tasks-1",
+        method_generation="method-1", task_manifest_digest="tasks-1", checkpoint_compatibility_digest="a" * 64,
         execution_cut=WorkloadExecutionCut(("task-1",)), component_refs=(ref,),
     )
     return manifest, WorkloadCheckpointPayload(ref, payload)

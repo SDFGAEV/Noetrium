@@ -25,7 +25,7 @@ class RunCloser:
         self._participant_sessions = participant_sessions
         self._lifecycle = lifecycle
 
-    def close(self, context: ExecutionContext | None, *, scientific_cycle_completed: bool) -> RunCleanupReport:
+    def close(self, context: ExecutionContext | None, *, trial_completed: bool) -> RunCleanupReport:
         root = context or ExecutionContext(
             self._identity.run_id, self._identity.trace_id, "run-close", study_id=self._spec.study_id
         )
@@ -35,7 +35,7 @@ class RunCloser:
         )
         report = RunCleanupReport(rows)
         if report.failures:
-            raise RunCleanupFailure(report, scientific_cycle_completed=scientific_cycle_completed)
+            raise RunCleanupFailure(report, trial_completed=trial_completed)
         return report
 
 

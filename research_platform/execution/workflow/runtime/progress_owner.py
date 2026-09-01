@@ -4,15 +4,16 @@ from dataclasses import replace
 import hashlib
 import json
 
-from research_platform.execution.operation.api import OperationId
+from research_platform.execution.operation.api import (
+    OperationEffectCertainty, OperationEffectProfile, OperationId, OperationRecoveryPort, OperationState,
+)
+from research_platform.reliability.effect.api import EffectReconciliationDisposition, EffectReconciliationProof
 from research_platform.execution.workflow.api.graph import WorkflowGraph
 from research_platform.execution.workflow.api.progress import (
     WorkflowOperationBinding,
     WorkflowProgress,
     WorkflowProgressConflict,
     WorkflowProgressStorePort,
-    WorkflowReconciliationProof,
-    WorkflowRecoveryDisposition,
     WorkflowRunId,
 )
 
@@ -29,8 +30,9 @@ def workflow_graph_digest(graph: WorkflowGraph) -> str:
 class WorkflowProgressOwner:
     """Single durable owner for workflow progress and step/operation ancestry."""
 
-    def __init__(self, store: WorkflowProgressStorePort) -> None:
+    def __init__(self, store: WorkflowProgressStorePort, operations: OperationRecoveryPort) -> None:
         self._store = store
+        self._operations = operations
 
     @property
     def durability(self) -> str:
@@ -88,7 +90,11 @@ class WorkflowProgressOwner:
         ready = graph.ready_steps(frozenset(progress.completed_steps), occupied)
         if step_id not in ready:
             raise RuntimeError(f"workflow step is not ready: {step_id}")
-        binding = WorkflowOperationBinding(step_id, operation_id)
+        operation = self._operations.require(operation_id)
+        binding = WorkflowOperationBinding(
+            step_id, operation_id, operation.effect_id,
+            operation.effect_request_id, operation.effect_request_digest,
+        )
         updated = replace(progress, version=progress.version + 1, running=progress.running + (binding,))
         return self._store.compare_and_swap(progress.version, updated)
 
@@ -107,9 +113,22 @@ class WorkflowProgressOwner:
             )
         return binding
 
+    def _require_operation_identity(self, binding: WorkflowOperationBinding):
+        operation = self._operations.require(binding.operation_id)
+        durable = (operation.effect_id, operation.effect_request_id, operation.effect_request_digest)
+        bound = (binding.effect_id, binding.effect_request_id, binding.effect_request_digest)
+        if durable != bound:
+            raise RuntimeError(
+                f"durable workflow/operation effect identity mismatch: {binding.operation_id.value}"
+            )
+        return operation
+
     def complete(self, workflow_run_id: WorkflowRunId, step_id: str, operation_id: OperationId) -> WorkflowProgress:
         progress = self.require(workflow_run_id)
         binding = self._require_binding(progress.running, step_id, operation_id, state="running")
+        operation = self._require_operation_identity(binding)
+        if operation.state is not OperationState.COMPLETED:
+            raise RuntimeError(f"workflow step operation is not completed: {operation_id.value}")
         updated = replace(
             progress,
             version=progress.version + 1,
@@ -147,27 +166,59 @@ class WorkflowProgressOwner:
         )
         return self._store.compare_and_swap(progress.version, updated)
 
-    def reconcile(self, proof: WorkflowReconciliationProof) -> WorkflowProgress:
-        if not isinstance(proof, WorkflowReconciliationProof):
-            raise TypeError("workflow reconciliation requires authoritative WorkflowReconciliationProof")
-        progress = self.require(proof.workflow_run_id)
-        binding = self._require_binding(
-            progress.uncertain, proof.step_id, proof.operation_id, state="uncertain"
-        )
+    def retry_interrupted_effect_free(
+        self, workflow_run_id: WorkflowRunId, step_id: str, operation_id: OperationId
+    ) -> WorkflowProgress:
+        progress = self.require(workflow_run_id)
+        binding = self._require_binding(progress.uncertain, step_id, operation_id, state="uncertain")
+        operation = self._require_operation_identity(binding)
+        if operation.effect_profile is not OperationEffectProfile.NONE:
+            raise RuntimeError("effectful interrupted workflow step requires authoritative reconciliation proof")
+        recovered = self._operations.recover_interrupted(operation_id)
+        if recovered.effect_profile is not OperationEffectProfile.NONE:
+            raise RuntimeError("effect-free workflow recovery observed mutable operation effect identity")
         remaining = tuple(item for item in progress.uncertain if item != binding)
-        if proof.disposition is WorkflowRecoveryDisposition.COMPLETED:
+        updated = replace(progress, version=progress.version + 1, uncertain=remaining)
+        return self._store.compare_and_swap(progress.version, updated)
+
+    def reconcile(
+        self, workflow_run_id: WorkflowRunId, step_id: str, operation_id: OperationId,
+        proof: EffectReconciliationProof,
+    ) -> WorkflowProgress:
+        if not isinstance(proof, EffectReconciliationProof):
+            raise TypeError("workflow reconciliation requires EffectReconciliationProof")
+        progress = self.require(workflow_run_id)
+        binding = self._require_binding(progress.uncertain, step_id, operation_id, state="uncertain")
+        operation = self._require_operation_identity(binding)
+        if operation.effect_profile is OperationEffectProfile.NONE:
+            raise RuntimeError("effect-free interrupted workflow step must use retry_interrupted_effect_free")
+        if proof.request_id != binding.effect_request_id:
+            raise ValueError("workflow reconciliation request_id does not match durable effect binding")
+        resolved = self._operations.reconcile_effect(operation_id, proof)
+        if proof.disposition is EffectReconciliationDisposition.UNKNOWN:
+            return progress
+        remaining = tuple(item for item in progress.uncertain if item != binding)
+        if proof.disposition is EffectReconciliationDisposition.APPLIED:
+            if resolved.state is not OperationState.COMPLETED:
+                resolved = self._operations.complete(operation_id)
+            if resolved.state is not OperationState.COMPLETED or resolved.effect_certainty is not OperationEffectCertainty.EXECUTED:
+                raise RuntimeError("applied reconciliation did not produce completed executed operation authority")
             updated = replace(
-                progress,
-                version=progress.version + 1,
-                uncertain=remaining,
+                progress, version=progress.version + 1, uncertain=remaining,
                 completed=tuple(sorted((*progress.completed, binding), key=lambda item: item.step_id)),
             )
-        elif proof.disposition is WorkflowRecoveryDisposition.RETRY_NOT_EXECUTED:
+        elif proof.disposition is EffectReconciliationDisposition.NOT_APPLIED:
+            if resolved.effect_certainty is not OperationEffectCertainty.NOT_EXECUTED or resolved.state not in {OperationState.RECOVERING, OperationState.CANCELLED}:
+                raise RuntimeError("not-applied reconciliation did not produce retry-safe operation authority")
             updated = replace(progress, version=progress.version + 1, uncertain=remaining)
-        else:
+        elif proof.disposition is EffectReconciliationDisposition.REJECTED:
+            if resolved.state is not OperationState.FAILED:
+                raise RuntimeError("rejected reconciliation did not produce failed operation authority")
             if progress.failed is not None:
                 raise RuntimeError(f"workflow already failed at step: {progress.failed.step_id}")
             updated = replace(progress, version=progress.version + 1, uncertain=remaining, failed=binding)
+        else:
+            raise RuntimeError("unhandled effect reconciliation disposition")
         return self._store.compare_and_swap(progress.version, updated)
 
     def request_cancel(

@@ -167,6 +167,57 @@ class RawLakeV50Tests(unittest.TestCase):
                 )
             target = RawSegmentPool.target(root, "r", "study.raw")
             self.assertFalse(target.exists())
+            self.assertFalse(target.with_name(target.name + ".writer.lock").exists())
+            lake.close()
+
+    def test_append_rejects_all_non_finite_payloads_without_new_artifacts(self):
+        for index, value in enumerate((float("nan"), float("inf"), float("-inf"))):
+            with self.subTest(value=value):
+                with tempfile.TemporaryDirectory() as td:
+                    root = Path(td)
+                    lake = raw_observation_lake(root)
+                    with self.assertRaises(ValueError):
+                        lake.append_once(
+                            self._ctx("r", "s"),
+                            "study.raw",
+                            {"kind": "task", "status": "running", "score": value},
+                            idempotency_key=f"non-finite:{index}",
+                        )
+                    target = RawSegmentPool.target(root, "r", "study.raw")
+                    self.assertFalse(target.exists())
+                    self.assertFalse(target.with_name(target.name + ".writer.lock").exists())
+                    lake.close()
+
+    def test_non_finite_rejection_does_not_mutate_existing_writer_sequence_or_idempotency(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            lake = raw_observation_lake(root)
+            first = lake.append_once(
+                self._ctx("r", "s1"),
+                "study.raw",
+                {"kind": "task", "status": "running", "score": 1.0},
+                idempotency_key="first",
+            )
+            target = Path(first.segment_path)
+            before = target.read_bytes()
+
+            with self.assertRaises(ValueError):
+                lake.append_once(
+                    self._ctx("r", "s2"),
+                    "study.raw",
+                    {"kind": "task", "status": "running", "score": float("nan")},
+                    idempotency_key="reusable-after-reject",
+                )
+            self.assertEqual(target.read_bytes(), before)
+
+            second = lake.append_once(
+                self._ctx("r", "s3"),
+                "study.raw",
+                {"kind": "task", "status": "done", "score": 2.0},
+                idempotency_key="reusable-after-reject",
+            )
+            self.assertEqual(second.sequence, 2)
+            self.assertEqual(len(target.read_text(encoding="utf-8").splitlines()), 2)
             lake.close()
 
     def test_recovery_rejects_non_finite_json_with_matching_digest(self):

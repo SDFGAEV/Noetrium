@@ -7,7 +7,12 @@ from pathlib import Path
 
 from research_platform.platform.kernel.durability.durable_file import atomic_replace_bytes
 
-from research_platform.runtime.process.api import ByteSegment, CaptureIntegrityError, CaptureManifest
+from research_platform.runtime.process.api import (
+    ByteSegment,
+    CaptureIntegrityError,
+    CaptureManifest,
+    CaptureWriterState,
+)
 
 
 class CaptureStorage:
@@ -16,6 +21,7 @@ class CaptureStorage:
     def __init__(self,root:Path,stream:str)->None:
         self.root=root; self.stream=stream; root.mkdir(parents=True,exist_ok=True)
         self.manifest_path=root/f"{stream}.manifest.json"
+        self.resume_path=root/f"{stream}.resume.json"
 
     def path(self,index:int)->Path:
         return self.root/f"{self.stream}.{index:06d}.bin"
@@ -26,6 +32,117 @@ class CaptureStorage:
     def sized_files(self) -> tuple[tuple[Path, int], ...]:
         """Freeze one ordered segment-name/size snapshot with one directory scan."""
         return tuple((path, path.stat().st_size) for path in self.files())
+
+    @staticmethod
+    def _resume_digest(payload: dict[str, object]) -> str:
+        raw = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+        return hashlib.sha256(raw).hexdigest()
+
+    def write_resume_state(self, state: CaptureWriterState) -> None:
+        """Publish a rebuildable O(1)-reopen checkpoint after durable writer state."""
+        payload: dict[str, object] = {
+            "schema_version": 1,
+            "stream": self.stream,
+            "index": state.index,
+            "total_bytes": state.total_bytes,
+            "active_size": state.active_size,
+            "sealed": state.sealed,
+        }
+        document = {**payload, "resume_sha256": self._resume_digest(payload)}
+        atomic_replace_bytes(
+            self.resume_path,
+            json.dumps(document, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode(),
+        )
+
+    def _read_resume_state(self) -> CaptureWriterState | None:
+        if not self.resume_path.exists():
+            return None
+        try:
+            document = json.loads(self.resume_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise CaptureIntegrityError("capture resume checkpoint is unreadable") from exc
+        if not isinstance(document, dict):
+            raise CaptureIntegrityError("capture resume checkpoint must be an object")
+        expected = {
+            "schema_version", "stream", "index", "total_bytes", "active_size", "sealed", "resume_sha256"
+        }
+        if set(document) != expected:
+            raise CaptureIntegrityError("capture resume checkpoint fields are not exact")
+        payload = {key: document[key] for key in expected if key != "resume_sha256"}
+        if document.get("resume_sha256") != self._resume_digest(payload):
+            raise CaptureIntegrityError("capture resume checkpoint digest mismatch")
+        if document.get("schema_version") != 1 or document.get("stream") != self.stream:
+            raise CaptureIntegrityError("capture resume checkpoint identity mismatch")
+        index = document.get("index")
+        total = document.get("total_bytes")
+        active = document.get("active_size")
+        sealed = document.get("sealed")
+        if type(index) is not int or type(total) is not int or type(active) is not int or type(sealed) is not bool:
+            raise CaptureIntegrityError("capture resume checkpoint types are invalid")
+        if index < 0 or total < 0 or active < 0 or active > total:
+            raise CaptureIntegrityError("capture resume checkpoint counters are invalid")
+        return CaptureWriterState(index, total, 0, sealed, active)
+
+    def _resume_matches_disk(self, state: CaptureWriterState) -> bool:
+        if state.sealed != self.manifest_path.exists():
+            return False
+        current = self.path(state.index)
+        if state.total_bytes == 0:
+            if current.exists() and current.stat().st_size != 0:
+                return False
+        elif not current.exists() or current.stat().st_size != state.active_size:
+            return False
+        if self.path(state.index + 1).exists():
+            return False
+        if state.index > 0 and not self.path(state.index - 1).exists():
+            return False
+        return True
+
+    def _scan_resume_state(self) -> CaptureWriterState:
+        sized = self.sized_files()
+        total = 0
+        active_size = 0
+        for index, (path, size) in enumerate(sized):
+            if path.name != self.path(index).name:
+                raise CaptureIntegrityError(f"segment sequence gap at {index}")
+            total += size
+            active_size = size
+        last_index = len(sized) - 1 if sized else 0
+        return CaptureWriterState(last_index, total, 0, self.manifest_path.exists(), active_size)
+
+    def resume_state(self) -> CaptureWriterState:
+        """Load the fast checkpoint or explicitly rebuild stale/missing state from disk."""
+        state = self._read_resume_state()
+        if state is not None and self._resume_matches_disk(state):
+            return state
+        rebuilt = self._scan_resume_state()
+        self.write_resume_state(rebuilt)
+        return rebuilt
+
+    def load_tail_from_state(self, state: CaptureWriterState, limit: int) -> bytes:
+        """Read only the bounded suffix, independent of total historical segment count."""
+        remaining = min(state.total_bytes, limit)
+        if remaining <= 0:
+            return b""
+        parts: list[bytes] = []
+        index = state.index
+        while remaining > 0 and index >= 0:
+            path = self.path(index)
+            if not path.exists():
+                raise CaptureIntegrityError(f"capture tail segment missing: {index}")
+            size = path.stat().st_size
+            wanted = min(remaining, size)
+            with path.open("rb") as handle:
+                handle.seek(size - wanted)
+                chunk = handle.read(wanted)
+            if len(chunk) != wanted:
+                raise CaptureIntegrityError(f"capture tail segment truncated: {index}")
+            parts.append(chunk)
+            remaining -= wanted
+            index -= 1
+        if remaining:
+            raise CaptureIntegrityError("capture resume total exceeds available segment bytes")
+        return b"".join(reversed(parts))
 
     def scan_segments(self)->tuple[ByteSegment,...]:
         out=[]; offset=0

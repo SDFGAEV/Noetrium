@@ -4,13 +4,16 @@ from dataclasses import asdict
 import json
 from pathlib import Path
 
-from ..api import CompositionPlanReference, RunLaunchManifest
+from research_platform.experimentation.identity import OptionalIdentityFacet, ReplayLevel
+from ..api import CompositionPlanReference, RunLaunchManifest, RunResearchSemanticsReference
 
 
 class RunLaunchManifestDecodeError(ValueError):
     """A launch-manifest document violates the frozen run contract."""
 
 
+RUN_LAUNCH_MANIFEST_SCHEMA_VERSION = "4"
+_WIRE_FIELDS = frozenset({"schema_version", "manifest"})
 _FIELDS = frozenset(
     {
         "release_digest",
@@ -22,7 +25,9 @@ _FIELDS = frozenset(
         "participant_implementation_inventory_digest",
         "participant_runtime_inventory_digest",
         "participant_binding_manifest_digest",
+        "project_manifest_digest",
         "experiment_spec_digest",
+        "research_semantics",
         "command_argv",
         "launcher_binary_sha256",
         "command_environment_digest",
@@ -31,14 +36,19 @@ _FIELDS = frozenset(
         "composition_plans",
     }
 )
+_RESEARCH_FIELDS = frozenset({"research_plan_digest", "study_plan_digest", "measurement_protocol_digest", "trial_protocol_digest", "intervention", "topology", "participant_schedule", "revision", "replay_level"})
 _PLAN_FIELDS = frozenset(
     {"composition_id", "owner_key", "scope_key", "plan_digest"}
 )
 
 
 def encode_run_launch_manifest(manifest: RunLaunchManifest) -> bytes:
+    document = {
+        "schema_version": RUN_LAUNCH_MANIFEST_SCHEMA_VERSION,
+        "manifest": asdict(manifest),
+    }
     return json.dumps(
-        asdict(manifest),
+        document,
         sort_keys=True,
         ensure_ascii=False,
         indent=2,
@@ -48,7 +58,12 @@ def encode_run_launch_manifest(manifest: RunLaunchManifest) -> bytes:
 def _require_document(raw: bytes) -> dict[str, object]:
     if type(raw) is not bytes:
         raise TypeError("run launch manifest payload must be bytes")
-    document = json.loads(raw.decode("utf-8"))
+    envelope = json.loads(raw.decode("utf-8"))
+    if not isinstance(envelope, dict) or set(envelope) != _WIRE_FIELDS:
+        raise TypeError("run launch manifest envelope fields are not exact")
+    if type(envelope["schema_version"]) is not str or envelope["schema_version"] != RUN_LAUNCH_MANIFEST_SCHEMA_VERSION:
+        raise TypeError("run launch manifest schema_version is unsupported")
+    document = envelope["manifest"]
     if not isinstance(document, dict) or set(document) != _FIELDS:
         raise TypeError("run launch manifest fields are not exact")
     return document
@@ -68,6 +83,34 @@ def _require_string_list(value: object, field: str) -> tuple[str, ...]:
         )
     return tuple(value)
 
+
+
+def _decode_facet(value: object, field: str) -> OptionalIdentityFacet:
+    if not isinstance(value, dict) or set(value) != {"digest"}:
+        raise TypeError(f"run launch manifest research_semantics {field} facet is not exact")
+    digest = value["digest"]
+    if digest is not None and type(digest) is not str:
+        raise TypeError(f"run launch manifest research_semantics {field} digest must be string or null")
+    return OptionalIdentityFacet(digest)
+
+
+def _decode_research(value: object) -> RunResearchSemanticsReference:
+    if not isinstance(value, dict) or set(value) != _RESEARCH_FIELDS:
+        raise TypeError("run launch manifest research_semantics is not exact")
+    required = ("research_plan_digest", "study_plan_digest", "measurement_protocol_digest", "trial_protocol_digest", "replay_level")
+    if any(type(value[field]) is not str for field in required):
+        raise TypeError("run launch manifest research_semantics scalar fields must be strings")
+    return RunResearchSemanticsReference(
+        research_plan_digest=value["research_plan_digest"],
+        study_plan_digest=value["study_plan_digest"],
+        measurement_protocol_digest=value["measurement_protocol_digest"],
+        trial_protocol_digest=value["trial_protocol_digest"],
+        intervention=_decode_facet(value["intervention"], "intervention"),
+        topology=_decode_facet(value["topology"], "topology"),
+        participant_schedule=_decode_facet(value["participant_schedule"], "participant_schedule"),
+        revision=_decode_facet(value["revision"], "revision"),
+        replay_level=ReplayLevel(value["replay_level"]),
+    )
 
 def _decode_plan(row: object) -> CompositionPlanReference:
     if not isinstance(row, dict) or set(row) != _PLAN_FIELDS:
@@ -129,7 +172,9 @@ def _build_manifest(document: dict[str, object]) -> RunLaunchManifest:
         participant_binding_manifest_digest=_require_string(
             document, "participant_binding_manifest_digest"
         ),
+        project_manifest_digest=_require_string(document, "project_manifest_digest"),
         experiment_spec_digest=_require_string(document, "experiment_spec_digest"),
+        research_semantics=_decode_research(document["research_semantics"]),
         command_argv=_require_string_list(document["command_argv"], "command_argv"),
         launcher_binary_sha256=_require_string(
             document, "launcher_binary_sha256"
@@ -145,7 +190,10 @@ def _build_manifest(document: dict[str, object]) -> RunLaunchManifest:
 
 def decode_run_launch_manifest(raw: bytes) -> RunLaunchManifest:
     try:
-        return _build_manifest(_require_document(raw))
+        manifest = _build_manifest(_require_document(raw))
+        if raw != encode_run_launch_manifest(manifest):
+            raise ValueError("run launch manifest bytes are not canonical")
+        return manifest
     except (
         UnicodeDecodeError,
         json.JSONDecodeError,
@@ -174,6 +222,7 @@ def load_run_launch_manifest(path: str | Path) -> RunLaunchManifest:
 
 
 __all__ = [
+    "RUN_LAUNCH_MANIFEST_SCHEMA_VERSION",
     "RunLaunchManifestDecodeError",
     "decode_run_launch_manifest",
     "encode_run_launch_manifest",

@@ -13,7 +13,7 @@ from research_platform.experimentation.checkpoint import RunCheckpointStore
 from research_platform.execution.decision.cycle_identity import DecisionCycleIdentityProvider
 from research_platform.participant.core.api.lifecycle import ParticipantLifecycleAdapter
 from research_platform.execution.workflow.api import WorkflowSurfaceFactory
-from research_platform.execution.workflow.implementations.agent_turn import AgentTurnStudyWorkflow, AgentTurnSurfaceFactory
+from research_platform.execution.workflow.implementations.agent_turn import AgentTurnTrialProtocol, AgentTurnSurfaceFactory
 from research_platform.execution.workflow.implementations.agent_turn.failure_classifier import AgentTurnFailureClassifier
 from research_platform.execution.capability.runtime import (
     CapabilityInvocationPipelineFactory,
@@ -60,7 +60,7 @@ def compose_agent_turn_runtime(
             include_capability_provider=include_capability_provider,
             extra=extra_participant_adapters,
         ),
-        scientific_workflow=AgentTurnStudyWorkflow(),
+        trial_protocol=AgentTurnTrialProtocol(),
         workflow_surface_factories=(
             AgentTurnSurfaceFactory(
                 CapabilityInvocationPipelineFactory(),

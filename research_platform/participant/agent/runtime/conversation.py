@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Mapping
 
-from research_platform.platform.kernel import canonical_digest
+from research_platform.platform.kernel import canonical_digest, freeze_json
 
 from ..api.coordination_checkpoint import (
     AgentConversationCheckpoint,
@@ -40,12 +40,25 @@ class ConversationMessage:
     kind: ConversationKind = ConversationKind.CHAT
 
     def __post_init__(self) -> None:
+        """Validate and freeze the complete caller-supplied metadata mapping.
+
+        Algorithm-Complexity: O(N)
+        Algorithm-Rationale: N is the number of metadata entries and each key/value must be validated and frozen before the conversation message crosses the participant boundary.
+        """
         if any(not value.strip() for value in (self.message_id, self.peer_id, self.sender_id, self.text)):
             raise ValueError("conversation message identity and text are required")
         if self.turn < 0:
             raise ValueError("conversation turn cannot be negative")
         if self.priority < 0 or self.generation < 0:
             raise ValueError("conversation priority/generation cannot be negative")
+        if not isinstance(self.metadata, Mapping) or any(
+            not isinstance(key, str) or not isinstance(value, str)
+            for key, value in self.metadata.items()
+        ):
+            raise TypeError("conversation metadata must be a string mapping")
+        object.__setattr__(
+            self, "metadata", freeze_json(self.metadata)
+        )
 
 
 @dataclass(frozen=True, slots=True)

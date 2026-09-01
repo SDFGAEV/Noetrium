@@ -1,8 +1,10 @@
 from __future__ import annotations
 import time
 from research_platform.execution.command.api import CommandId
+from research_platform.reliability.effect.api import EffectReconciliationProof
 from research_platform.execution.operation.api import (EffectId,OperationEffectCertainty,OperationEffectProfile,OperationFailure,
-    OperationFailureKind,OperationId,OperationSnapshot,OperationState,OperationStorePort,revise_operation,transition_operation)
+    OperationFailureKind,OperationId,OperationSnapshot,OperationState,OperationStorePort,revise_operation,transition_operation,
+    EffectReconciliationOutcome,project_effect_reconciliation)
 
 class OperationOwner:
     """Single authority for operation identity, state and crash classification."""
@@ -11,10 +13,12 @@ class OperationOwner:
     def durability(self)->str: return self._store.durability
     def submit(self,command_id:CommandId,*,operation_id:OperationId,parent_operation_id:OperationId|None=None,
                effect_profile:OperationEffectProfile=OperationEffectProfile.NONE,effect_id:EffectId|None=None,
+               effect_request_id:str|None=None,effect_request_digest:str|None=None,
                now_unix:float|None=None)->tuple[OperationSnapshot,bool]:
         created_at=time.time() if now_unix is None else now_unix
         snapshot=OperationSnapshot(operation_id,command_id,OperationState.CREATED,0,created_at,created_at,
-                                   parent_operation_id,effect_id,effect_profile)
+                                   parent_operation_id,effect_id,effect_profile,
+                                   effect_request_id=effect_request_id,effect_request_digest=effect_request_digest)
         return self._store.create_or_get(snapshot)
     def require(self,operation_id:OperationId)->OperationSnapshot:
         snapshot=self._store.load(operation_id)
@@ -79,19 +83,56 @@ class OperationOwner:
             return self._transition_from(current,OperationState.CANCELLED,
                                          cancellation_reason=current.cancellation_reason or "cancelled during recovery")
         return self._transition_from(current,OperationState.RECOVERING)
-    def reconcile_effect(self,operation_id:OperationId,certainty:OperationEffectCertainty)->OperationSnapshot:
-        if certainty is OperationEffectCertainty.UNKNOWN:
-            raise ValueError("reconciliation must resolve effect certainty")
+    @staticmethod
+    def _reconciliation_outcome(current:OperationSnapshot,proof:EffectReconciliationProof)->str:
+        verdict=project_effect_reconciliation(proof)
+        if current.effect_profile is OperationEffectProfile.NONE or current.effect_id is None:
+            raise RuntimeError("effect-free operation does not accept external reconciliation proof")
+        if verdict.request_id != current.effect_request_id:
+            raise ValueError("effect reconciliation request_id does not match durable operation identity")
+        if verdict.effect_id is not None:
+            if verdict.effect_id != current.effect_id.value:
+                raise ValueError("effect reconciliation effect_id does not match durable operation identity")
+            if verdict.request_digest != current.effect_request_digest:
+                raise ValueError("effect reconciliation request_digest does not match durable operation identity")
+        if verdict.outcome is EffectReconciliationOutcome.UNKNOWN:
+            return "unknown"
+        if verdict.verification_required:
+            raise ValueError("effect reconciliation requiring verification cannot resolve operation authority")
+        if verdict.outcome is EffectReconciliationOutcome.EXECUTED:
+            return "executed"
+        if verdict.outcome is EffectReconciliationOutcome.NOT_EXECUTED:
+            return "not_executed"
+        if verdict.outcome is EffectReconciliationOutcome.REJECTED:
+            return "rejected"
+        raise ValueError("effect reconciliation outcome is unsupported")
+
+    def reconcile_effect(self,operation_id:OperationId,proof:EffectReconciliationProof)->OperationSnapshot:
         current=self.require(operation_id)
+        outcome=self._reconciliation_outcome(current,proof)
+        if outcome == "unknown":
+            return current
         if current.state is not OperationState.UNKNOWN_EFFECT:
-            raise RuntimeError(f"operation does not require effect reconciliation: {current.state.value}")
-        if current.cancellation_requested and certainty is OperationEffectCertainty.NOT_EXECUTED:
-            return self._transition_from(
-                current,OperationState.CANCELLED,effect_certainty=certainty,failure=None
-            )
-        return self._transition_from(
-            current,OperationState.RECOVERING,effect_certainty=certainty,failure=None
-        )
+            if outcome == "executed" and current.state in {OperationState.RECOVERING,OperationState.COMPLETED} and current.effect_certainty is OperationEffectCertainty.EXECUTED:
+                return current
+            if outcome == "not_executed" and current.effect_certainty is OperationEffectCertainty.NOT_EXECUTED and current.state in {OperationState.RECOVERING,OperationState.CANCELLED}:
+                return current
+            if outcome == "rejected" and current.state is OperationState.FAILED and current.failure is not None and current.failure.code == "EFFECT_RECONCILIATION_REJECTED":
+                return current
+            raise RuntimeError(f"operation does not require matching effect reconciliation: {current.state.value}")
+        if outcome == "not_executed" and current.cancellation_requested:
+            return self._transition_from(current,OperationState.CANCELLED,
+                                         effect_certainty=OperationEffectCertainty.NOT_EXECUTED,failure=None)
+        if outcome == "not_executed":
+            return self._transition_from(current,OperationState.RECOVERING,
+                                         effect_certainty=OperationEffectCertainty.NOT_EXECUTED,failure=None)
+        if outcome == "executed":
+            return self._transition_from(current,OperationState.RECOVERING,
+                                         effect_certainty=OperationEffectCertainty.EXECUTED,failure=None)
+        failure=OperationFailure(OperationFailureKind.OPERATION_FAILURE,"EFFECT_RECONCILIATION_REJECTED",
+                                 "authoritative effect reconciliation confirmed provider rejection")
+        return self._transition_from(current,OperationState.FAILED,
+                                     effect_certainty=OperationEffectCertainty.NOT_EXECUTED,failure=failure)
     def complete(self,operation_id:OperationId,*,result_digest:str|None=None,effect_certainty:OperationEffectCertainty|None=None)->OperationSnapshot:
         current=self.require(operation_id)
         certainty=effect_certainty

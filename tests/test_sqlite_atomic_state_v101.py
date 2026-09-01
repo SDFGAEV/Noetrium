@@ -167,13 +167,12 @@ class DataArtifactDurabilityV207Tests(unittest.TestCase):
     def _sha(value: str) -> str:
         return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
-    def _artifact(self, *, artifact_id: str = "artifact:one", digest: str | None = None, location: str = "/artifact.bin") -> ArtifactRecord:
+    def _artifact(self, *, artifact_id: str = "artifact:one", digest: str | None = None) -> ArtifactRecord:
         return ArtifactRecord(
             artifact_id=artifact_id,
             kind=ArtifactKind.RUNTIME,
             scope=PLATFORM_SCOPE,
             digest=digest or self._sha("artifact"),
-            location=location,
             producer_component_id="test.component",
             metadata=(("source", "test"),),
         )
@@ -188,7 +187,7 @@ class DataArtifactDurabilityV207Tests(unittest.TestCase):
             self.assertEqual(reopened.put(record), record)
             self.assertEqual(reopened.query(ArtifactQuery(kind=ArtifactKind.RUNTIME)), (record,))
             with self.assertRaises(ArtifactRegistryConflict):
-                reopened.put(self._artifact(location="/different.bin"))
+                reopened.put(self._artifact(digest=self._sha("different")))
 
     def test_artifact_catalog_query_is_explicitly_bounded(self):
         with tempfile.TemporaryDirectory() as td:
@@ -198,7 +197,6 @@ class DataArtifactDurabilityV207Tests(unittest.TestCase):
                 self._artifact(
                     artifact_id=f"artifact:{index:03d}",
                     digest=self._sha(f"artifact-{index}"),
-                    location=f"/artifact-{index}.bin",
                 )
                 for index in range(5)
             )
@@ -233,22 +231,22 @@ class DataArtifactDurabilityV207Tests(unittest.TestCase):
             SQLiteArtifactRegistry(path).put(record)
             with closing(sqlite3.connect(path)) as db:
                 db.execute(
-                    "UPDATE artifacts SET location=? WHERE artifact_id=?",
-                    ("/tampered.bin", record.artifact_id),
+                    "UPDATE artifacts SET producer_component_id=? WHERE artifact_id=?",
+                    ("tampered.component", record.artifact_id),
                 )
                 db.commit()
             with self.assertRaises(ArtifactRegistryCorruptionError):
                 SQLiteArtifactRegistry(path).get(record.artifact_id)
 
-    def test_artifact_catalog_rejects_non_string_collection_members(self):
+    def test_artifact_catalog_rejects_legacy_string_lineage_members(self):
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "artifacts.sqlite3"
             record = self._artifact()
             SQLiteArtifactRegistry(path).put(record)
             with closing(sqlite3.connect(path)) as db:
                 db.execute(
-                    "UPDATE artifacts SET lineage_json='[123]' WHERE artifact_id=?",
-                    (record.artifact_id,),
+                    "UPDATE artifacts SET lineage_json=? WHERE artifact_id=?",
+                    ('["artifact:legacy"]', record.artifact_id),
                 )
                 db.commit()
             with self.assertRaises(ArtifactRegistryCorruptionError):
@@ -260,12 +258,16 @@ class DataArtifactDurabilityV207Tests(unittest.TestCase):
             record = self._artifact()
             store = SQLiteArtifactRegistry(path)
             store.put(record)
-            coerced = self._artifact(location=str(b"/blob-artifact"))
+            coerced = ArtifactRecord(
+                artifact_id=record.artifact_id, kind=record.kind, scope=record.scope,
+                digest=record.digest, producer_component_id=str(b"blob-component"),
+                metadata=record.metadata,
+            )
             with closing(sqlite3.connect(path)) as db:
                 db.execute(
-                    "UPDATE artifacts SET location=?,record_sha256=? WHERE artifact_id=?",
+                    "UPDATE artifacts SET producer_component_id=?,record_sha256=? WHERE artifact_id=?",
                     (
-                        sqlite3.Binary(b"/blob-artifact"),
+                        sqlite3.Binary(b"blob-component"),
                         store._record_digest(coerced),
                         record.artifact_id,
                     ),
@@ -274,12 +276,36 @@ class DataArtifactDurabilityV207Tests(unittest.TestCase):
             with self.assertRaises(ArtifactRegistryCorruptionError):
                 store.get(record.artifact_id)
 
-    def _dataset(self, *, version: str = "v1", location: str = "/dataset") -> DatasetVersion:
+    def test_artifact_catalog_rejects_legacy_location_schema(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "legacy-artifacts.sqlite3"
+            with closing(sqlite3.connect(path)) as db:
+                db.execute(
+                    "CREATE TABLE artifacts("
+                    "artifact_id TEXT PRIMARY KEY,kind TEXT NOT NULL,scope_kind TEXT NOT NULL,"
+                    "scope_id TEXT NOT NULL,digest TEXT NOT NULL,location TEXT NOT NULL,"
+                    "producer_component_id TEXT NOT NULL,producer_operation_id TEXT,"
+                    "media_type TEXT NOT NULL,lineage_json TEXT NOT NULL,"
+                    "declared_retention TEXT NOT NULL,metadata_json TEXT NOT NULL,"
+                    "record_sha256 TEXT NOT NULL)"
+                )
+                db.commit()
+            with self.assertRaisesRegex(ArtifactRegistryCorruptionError, "unsupported artifact catalog schema"):
+                SQLiteArtifactRegistry(path)
+
+    def _dataset(
+        self,
+        *,
+        version: str = "v1",
+        content_sha256: str | None = None,
+        schema_ref: str | None = None,
+    ) -> DatasetVersion:
         return DatasetVersion(
             identity=DatasetIdentity("dataset", version),
             scope=PLATFORM_SCOPE,
-            digest=self._sha("dataset"),
-            location=location,
+            content_sha256=content_sha256 or self._sha("dataset"),
+            schema_ref=schema_ref,
+            parent_versions=(DatasetIdentity("source", "v1"),),
             tags=("training", "verified"),
             metadata=(("format", "jsonl"),),
         )
@@ -293,15 +319,16 @@ class DataArtifactDurabilityV207Tests(unittest.TestCase):
             self.assertEqual(reopened.get(record.identity), record)
             self.assertEqual(reopened.register(record), record)
             self.assertEqual(reopened.query(DatasetQuery(tag="verified")), (record,))
+            self.assertFalse(hasattr(record, "location"))
             with self.assertRaises(DatasetRegistryConflict):
-                reopened.register(self._dataset(location="/different"))
+                reopened.register(self._dataset(content_sha256=self._sha("different")))
 
     def test_dataset_registry_query_is_explicitly_bounded(self):
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "datasets.sqlite3"
             store = SQLiteDatasetRegistry(path)
             rows = tuple(
-                self._dataset(version=f"v{index:03d}", location=f"/dataset-{index}")
+                self._dataset(version=f"v{index:03d}")
                 for index in range(5)
             )
             for row in rows:
@@ -331,8 +358,8 @@ class DataArtifactDurabilityV207Tests(unittest.TestCase):
             SQLiteDatasetRegistry(path).register(record)
             with closing(sqlite3.connect(path)) as db:
                 db.execute(
-                    "UPDATE datasets SET location=? WHERE dataset_key=?",
-                    ("/tampered", record.identity.key),
+                    "UPDATE datasets SET content_sha256=? WHERE dataset_key=?",
+                    ("0" * 64, record.identity.key),
                 )
                 db.commit()
             with self.assertRaises(DatasetRegistryCorruptionError):
@@ -358,12 +385,12 @@ class DataArtifactDurabilityV207Tests(unittest.TestCase):
             record = self._dataset()
             store = SQLiteDatasetRegistry(path)
             store.register(record)
-            coerced = self._dataset(location=str(b"/blob-location"))
+            coerced = self._dataset(schema_ref=str(b"schema:blob"))
             with closing(sqlite3.connect(path)) as db:
                 db.execute(
-                    "UPDATE datasets SET location=?,record_sha256=? WHERE dataset_key=?",
+                    "UPDATE datasets SET schema_ref=?,record_sha256=? WHERE dataset_key=?",
                     (
-                        sqlite3.Binary(b"/blob-location"),
+                        sqlite3.Binary(b"schema:blob"),
                         store._record_digest(coerced),
                         record.identity.key,
                     ),
@@ -371,6 +398,33 @@ class DataArtifactDurabilityV207Tests(unittest.TestCase):
                 db.commit()
             with self.assertRaises(DatasetRegistryCorruptionError):
                 store.get(record.identity)
+
+    def test_dataset_registry_rejects_legacy_location_schema(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "legacy-datasets.sqlite3"
+            with closing(sqlite3.connect(path)) as db:
+                db.execute(
+                    "CREATE TABLE datasets("
+                    "dataset_key TEXT PRIMARY KEY,dataset_id TEXT NOT NULL,version TEXT NOT NULL,"
+                    "scope_kind TEXT NOT NULL,scope_id TEXT NOT NULL,digest TEXT NOT NULL,"
+                    "location TEXT NOT NULL,schema_ref TEXT,parents_json TEXT NOT NULL,"
+                    "tags_json TEXT NOT NULL,metadata_json TEXT NOT NULL,record_sha256 TEXT NOT NULL)"
+                )
+                db.commit()
+            with self.assertRaisesRegex(DatasetRegistryCorruptionError, "unsupported dataset registry schema"):
+                SQLiteDatasetRegistry(path)
+
+    def test_durable_fact_validates_tail_artifact_and_state_references(self):
+        with self.assertRaisesRegex(ValueError, "artifact_refs"):
+            DurableFact(
+                "fact", "project.fact", "v1", FactCriticality.REQUIRED, {},
+                artifact_refs=("artifact:one", "artifact:two", ""),
+            )
+        with self.assertRaisesRegex(ValueError, "state_refs"):
+            DurableFact(
+                "fact", "project.fact", "v1", FactCriticality.REQUIRED, {},
+                state_refs=("state:one", "state:two", ""),
+            )
 
     @staticmethod
     def _fact(*, status: str = "ok") -> DurableFact:

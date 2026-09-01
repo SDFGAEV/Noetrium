@@ -1,8 +1,13 @@
+import json
 from pathlib import Path
+
+import pytest
 
 import research_platform.model.qualification.providers.qualification_host_probe as host_module
 from research_platform.model.qualification.providers.qualification_accelerator_probe import AcceleratorFactsProbe
 from research_platform.model.qualification.providers.qualification_host_probe import HostFactsProbe
+from research_platform.model.qualification.providers.qualification_model_artifact_probe import ModelArtifactProbe
+from research_platform.model.qualification.providers.qualification_python_facts_probe import PythonFactsProbe
 
 
 def test_host_probe_captures_resource_values_without_controller(monkeypatch) -> None:
@@ -121,3 +126,143 @@ def test_local_capability_probe_composes_split_fact_probes(tmp_path) -> None:
     assert facts.python.version == "3.11.0"
     assert facts.host.logical_cpu_count >= 1
     assert facts.package_indexes[0].package == "dummy"
+
+
+def _capture_model_artifact(tmp_path: Path, payload: object):
+    model_path = tmp_path / "strict-model"
+    model_path.mkdir()
+    (model_path / "config.json").write_text(json.dumps(payload), encoding="utf-8")
+    from research_platform.model.qualification.api import DeploymentQualificationRequest
+
+    request = DeploymentQualificationRequest(
+        "strict-model",
+        model_path,
+        Path("/opt/python/bin/python"),
+    )
+    return ModelArtifactProbe.capture(request)
+
+
+def test_model_artifact_probe_preserves_exact_typed_config_facts(tmp_path: Path) -> None:
+    facts, error = _capture_model_artifact(
+        tmp_path,
+        {
+            "model_type": "qwen3",
+            "architectures": ["Qwen3ForCausalLM"],
+            "torch_dtype": "bfloat16",
+            "max_position_embeddings": 32768,
+        },
+    )
+
+    assert error is None
+    assert facts.config_present is True
+    assert facts.model_type == "qwen3"
+    assert facts.architectures == ("Qwen3ForCausalLM",)
+    assert facts.torch_dtype == "bfloat16"
+    assert facts.context_length == 32768
+
+
+def test_model_artifact_probe_rejects_non_object_config_without_throwing(tmp_path: Path) -> None:
+    facts, error = _capture_model_artifact(tmp_path, ["not", "an", "object"])
+
+    assert facts.config_present is False
+    assert facts.model_type is None
+    assert facts.architectures == ()
+    assert facts.context_length is None
+    assert error == "model config.json root must be a JSON object"
+    assert facts.error == error
+
+
+@pytest.mark.parametrize(
+    "payload, expected_detail",
+    [
+        ({"model_type": 123}, "model_type must be non-empty text"),
+        ({"architectures": "Qwen3ForCausalLM"}, "architectures must be a JSON list"),
+        ({"architectures": ["Qwen3ForCausalLM", 7]}, "architectures must contain only non-empty strings"),
+        ({"torch_dtype": 16}, "torch_dtype must be non-empty text"),
+        ({"max_position_embeddings": "32768"}, "max_position_embeddings must be a positive integer"),
+        ({"max_position_embeddings": True}, "max_position_embeddings must be a positive integer"),
+        ({"max_position_embeddings": 0}, "max_position_embeddings must be a positive integer"),
+    ],
+)
+def test_model_artifact_probe_fails_closed_on_malformed_typed_facts(
+    tmp_path: Path,
+    payload: object,
+    expected_detail: str,
+) -> None:
+    facts, error = _capture_model_artifact(tmp_path, payload)
+
+    assert facts.config_present is False
+    assert error is not None
+    assert expected_detail in error
+    assert facts.error == error
+
+
+_VALID_PYTHON_INFO = {
+    "version": "3.12.10",
+    "site_packages": "/opt/python/lib/python3.12/site-packages",
+    "torch_version": "2.8.0",
+    "kernel_architectures": ["sm86"],
+    "native_library_names": ["libcudart.so.13"],
+    "python_abi": "cpython-312",
+    "platform_tag": "linux-x86_64",
+}
+
+
+def _capture_python_info(payload: object):
+    def run(argv: tuple[str, ...], timeout: float):
+        del timeout
+        if len(argv) >= 3 and argv[1] == "-c" and "sysconfig.get_paths" in argv[2]:
+            return 0, json.dumps(payload), ""
+        if len(argv) >= 3 and argv[1] == "-c" and "import torch" in argv[2]:
+            return 1, "", "torch unavailable"
+        if argv[1:4] == ("-m", "pip", "--version"):
+            return 0, "pip 26.0", ""
+        if argv[1:4] == ("-m", "ensurepip", "--version"):
+            return 0, "pip 26.0", ""
+        if len(argv) >= 3 and argv[1] == "-c" and "import venv" in argv[2]:
+            return 0, "ok", ""
+        raise AssertionError(argv)
+
+    return PythonFactsProbe(run).capture(Path("/opt/python/bin/python"), 1.0)
+
+
+def test_python_facts_probe_preserves_exact_typed_observation() -> None:
+    facts, errors = _capture_python_info(dict(_VALID_PYTHON_INFO))
+
+    assert errors == []
+    assert facts.version == "3.12.10"
+    assert facts.kernel_architectures == ("sm86",)
+    assert facts.native_library_names == ("libcudart.so.13",)
+    assert facts.python_abi == "cpython-312"
+    assert facts.platform_tag == "linux-x86_64"
+
+
+@pytest.mark.parametrize(
+    "payload, expected_detail",
+    [
+        (["not", "an", "object"], "root must be a JSON object"),
+        ({key: value for key, value in _VALID_PYTHON_INFO.items() if key != "version"}, "field set mismatch"),
+        ({**_VALID_PYTHON_INFO, "unexpected": "field"}, "field set mismatch"),
+        ({**_VALID_PYTHON_INFO, "version": 312}, "version must be non-empty text"),
+        ({**_VALID_PYTHON_INFO, "site_packages": 12}, "site_packages must be non-empty text"),
+        ({**_VALID_PYTHON_INFO, "kernel_architectures": "sm86"}, "kernel_architectures must be a JSON list"),
+        ({**_VALID_PYTHON_INFO, "native_library_names": ["libcudart.so.13", 7]}, "native_library_names must contain only non-empty strings"),
+    ],
+)
+def test_python_facts_probe_fails_closed_on_malformed_typed_observation(
+    payload: object,
+    expected_detail: str,
+) -> None:
+    facts, errors = _capture_python_info(payload)
+
+    assert facts.version == "unknown"
+    assert facts.site_packages is None
+    assert facts.torch_version is None
+    assert facts.kernel_architectures == ()
+    assert facts.native_library_names == ()
+    assert facts.python_abi is None
+    assert facts.platform_tag is None
+    assert len(errors) == 1
+    assert "invalid typed facts" in errors[0]
+    assert expected_detail in errors[0]
+    assert facts.errors == tuple(errors)

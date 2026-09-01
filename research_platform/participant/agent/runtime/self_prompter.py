@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+import math
 from typing import Callable
 
 from ..api.cognition import AgentGoal, AgentObservation
@@ -26,8 +27,19 @@ class SelfPrompterState:
     def __post_init__(self) -> None:
         if self.schema_version != "agent-self-prompter.v1":
             raise ValueError("unsupported self-prompter snapshot")
-        if min(self.prompt_count, self.no_command_count) < 0:
+        if (
+            type(self.prompt_count) is not int
+            or self.prompt_count < 0
+            or type(self.no_command_count) is not int
+            or self.no_command_count < 0
+        ):
             raise ValueError("self-prompter counters cannot be negative")
+        if (
+            isinstance(self.next_prompt_at, bool)
+            or not isinstance(self.next_prompt_at, (int, float))
+            or not math.isfinite(float(self.next_prompt_at))
+        ):
+            raise ValueError("self-prompter next_prompt_at must be finite")
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,7 +67,14 @@ class AgentSelfPrompter:
         cooldown_s: float = 2.0,
         no_command_limit: int = 3,
     ) -> None:
-        if cooldown_s < 0 or no_command_limit < 1:
+        if (
+            isinstance(cooldown_s, bool)
+            or not isinstance(cooldown_s, (int, float))
+            or not math.isfinite(float(cooldown_s))
+            or cooldown_s < 0
+            or type(no_command_limit) is not int
+            or no_command_limit < 1
+        ):
             raise ValueError("self-prompter limits are invalid")
         self.goal = goal
         self._prompt_factory = prompt_factory

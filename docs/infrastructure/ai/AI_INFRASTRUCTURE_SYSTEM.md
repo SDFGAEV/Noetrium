@@ -56,3 +56,11 @@ Qualification evidence, serving telemetry, and request traces prove operational 
 ## Extension rule
 
 New model families and serving engines enter through the smallest existing model/runtime provider contract. The upstream platform should gain a new generic contract only when the capability itself is new, not merely because one downstream application selected a different model or engine.
+
+## Durable model-state decoding
+
+Model assets, desired deployments, applied launch snapshots, controller state, qualification receipts, and model request envelopes are durable authority records rather than permissive configuration inputs. Their persisted readers therefore require the exact documented field set and exact JSON value types.
+
+Readers must not repair schema drift with `str()`, `int()`, `float()`, omitted-field defaults, tuple coercion, or unknown-field tolerance. Checksums protect bytes from accidental alteration, but a checksum-valid document with an invalid internal schema must still fail closed.
+
+External probe adapters may normalize protocol text where that protocol defines textual values; that boundary is distinct from decoding platform-owned persisted truth.

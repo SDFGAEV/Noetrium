@@ -55,10 +55,24 @@ def test_canary_store_rejects_rechecksummed_type_corruption(tmp_path: Path) -> N
     path = Path(store.publish(manifest, evidence))
     document = json.loads(path.read_text(encoding='utf-8'))
     document['payload']['evidence']['process_pid'] = True
-    path.write_bytes(encode_checksummed_document('runtime-canary-evidence.v2', document['payload']))
+    path.write_bytes(encode_checksummed_document('runtime-canary-evidence.v3', document['payload']))
     with pytest.raises(RuntimeCanaryEvidenceError):
         store.load(manifest, evidence.evidence_digest)
 
+
+
+def test_canary_evidence_cannot_be_rebound_to_another_runtime_manifest(tmp_path: Path) -> None:
+    store = DirectoryRuntimeCanaryEvidenceStore(tmp_path / 'canary')
+    evidence = _evidence()
+    source_manifest = _digest('5')
+    target_manifest = _digest('6')
+    source_path = Path(store.publish(source_manifest, evidence))
+    target_path = store._path(target_manifest, evidence.evidence_digest)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    target_path.write_bytes(source_path.read_bytes())
+
+    with pytest.raises(RuntimeCanaryEvidenceError, match='runtime manifest binding mismatch'):
+        store.load(target_manifest, evidence.evidence_digest)
 
 def test_canary_store_same_evidence_converges_across_instances(tmp_path: Path) -> None:
     root = tmp_path / 'canary'
