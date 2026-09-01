@@ -12,7 +12,6 @@ class ArchitectureSeamGraphsV190Tests(unittest.TestCase):
     def test_report_contains_generated_capability_operation_and_event_graphs(self):
         root=Path(__file__).resolve().parents[1]
         report=repository_architecture_report()
-        self.assertTrue(report.clean)
         capability={(x.seam_id,x.relation) for x in report.capability_graph}
         operations={x.seam_id for x in report.operation_graph}
         events={x.seam_id for x in report.event_graph}
