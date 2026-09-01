@@ -125,7 +125,7 @@ class _ExternalWriteSession:
 
 
 class _ExternalWriteProvider:
-    identity = CapabilityProviderIdentity("external-write", "1", "1", "1", "external-write-cfg")
+    identity = CapabilityProviderIdentity("external-write", "1", "1", "1", "f" * 64)
 
     def __init__(self, external_effect_path: Path) -> None:
         self._external_effect_path = external_effect_path
@@ -182,11 +182,11 @@ def _spec() -> ExperimentSpec:
         study_id="default-study",
         project_id="default-project",
         participants=(
-            participant("capability_provider", "external-write", "external-write", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="external-write-cfg"),
+            participant("capability_provider", "external-write", "external-write", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="f" * 64),
             participant("agent", "agent", "restart-agent", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="a" * 64, depends_on_roles=("external-write",)),
         ),
-        model_stack_digest="model", prompt_generation="prompt", workload_digest="work",
-        seed_digest="seed", repetitions=1, trial_protocol_id="agent_turn.v1",
+        model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="b" * 64,
+        seed_digest="c" * 64, repetitions=1, trial_protocol_id="agent_turn.v1",
         trial_protocol_configuration_digest="44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
     )
 

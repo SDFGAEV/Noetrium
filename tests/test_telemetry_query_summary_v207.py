@@ -23,6 +23,31 @@ class TelemetryQuerySummaryTests(unittest.TestCase):
     def _context() -> ExecutionContext:
         return ExecutionContext(run_id="summary-run", trace_id="trace", span_id="span")
 
+    def test_query_returns_the_typed_metric_row_shape(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "metrics.sqlite3"
+            self._store(path).observe(
+                self._context(),
+                "operation.latency",
+                3.5,
+                component="c",
+                operation="op",
+                status="ok",
+            )
+            row = SQLiteTelemetryReader(path).query(run_id="summary-run")[0]
+            self.assertEqual(
+                set(row),
+                {
+                    "sequence", "metric", "value", "timestamp", "run_id", "task_id",
+                    "decision_cycle_id", "trace_id", "span_id", "operation_id", "component_id",
+                    "dimensions",
+                },
+            )
+            self.assertEqual(row["metric"], "operation.latency")
+            self.assertEqual(row["value"], 3.5)
+            self.assertEqual(row["run_id"], "summary-run")
+            self.assertEqual(row["dimensions"], {"component": "c", "operation": "op", "status": "ok"})
+
     def test_summary_preserves_linear_percentile_semantics(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "metrics.sqlite3"

@@ -3,8 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from research_platform.reliability.failure.api import FailureEnvelope
-from research_platform.reliability.failure.api import failure_from_dict
+from research_platform.reliability.failure.api import FailureEnvelope, failure_from_dict
 from research_platform.reliability.forensics.api.runtime_parts import ForensicRuntimeParts
 from research_platform.reliability.forensics.runtime.runtime_lifecycle import ForensicRuntimeLifecycle
 from research_platform.reliability.forensics.runtime.write_lanes import ForensicProjectionError

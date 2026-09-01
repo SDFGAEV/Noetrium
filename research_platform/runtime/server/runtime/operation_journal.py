@@ -6,8 +6,7 @@ from pathlib import Path
 from contextlib import AbstractContextManager
 
 from research_platform.platform.kernel.durability import fsync_directory
-from research_platform.platform.kernel.durability.file_lock import InterprocessFileLock
-from research_platform.platform.kernel.durability.file_lock import InterprocessLockBusy
+from research_platform.platform.kernel.durability.file_lock import InterprocessFileLock, InterprocessLockBusy
 from research_platform.platform.concurrency.api import SerialActorPort
 from .operation_journal_codec import (
     MAX_SERVER_OPERATION_RECORD_BYTES,

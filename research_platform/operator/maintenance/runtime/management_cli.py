@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict, is_dataclass
-from enum import Enum
 import json
 from pathlib import Path
 import sys
@@ -13,25 +11,13 @@ from research_platform.platform.concurrency.api import TaskFailurePolicy, TaskGr
 from research_platform.platform.composition.concurrency import build_execution_concurrency_runtime
 from research_platform.resource.directory.api import DirectoryLayout
 from research_platform.platform.kernel.errors import describe_exception
+from research_platform.operator.api.json_rendering import render_json
 from .management import DISPATCH, ManagementCommandContext, register_all
 
 
-def _plain(value):
-    if is_dataclass(value) and not isinstance(value, type):
-        return {key: _plain(item) for key, item in asdict(value).items()}
-    if isinstance(value, Enum):
-        return value.value
-    if isinstance(value, Path):
-        return str(value)
-    if isinstance(value, dict):
-        return {str(key): _plain(item) for key, item in value.items()}
-    if isinstance(value, (tuple, list)):
-        return [_plain(item) for item in value]
-    return value
-
 
 def _emit(value, *, stream=None) -> None:
-    print(json.dumps(_plain(value), ensure_ascii=False, sort_keys=True, indent=2), file=stream or sys.stdout)
+    print(render_json(value), file=stream or sys.stdout)
 
 
 def _load_context(config_path: Path, task_group: TaskGroupPort) -> ManagementCommandContext:

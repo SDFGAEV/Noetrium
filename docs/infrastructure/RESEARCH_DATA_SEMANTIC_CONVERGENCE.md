@@ -36,6 +36,12 @@ The `artifact.content` subsystem owns verification/materialization rather than t
 
 `snapshot_reference(...)` is the migration seam for mutable aliases: it verifies the exact `ArtifactReference`, resolves the current artifact, and returns only the immutable verified content snapshot. Later reference retargets/generation changes create a new snapshot and cannot mutate a previously captured scientific identity. The former function-style public entrypoints were deleted rather than retained as compatibility aliases.
 
+## Typed Artifact lineage
+
+`ArtifactRecord.lineage` and `ArtifactLineageEdge` use top-level `ArtifactContentIdentity` values rather than artifact-id strings. Catalog lineage is unique, canonically ordered, and rejects self-lineage; edge identity commits to both artifact id and immutable content SHA-256, so equal names with different content cannot be silently merged. Supporting evidence refs use the same immutable content vocabulary.
+
+SQLite Artifact catalog persists lineage as exact `{artifact_id, content_sha256}` objects and rejects legacy string lineage rows. SQLite lineage authority persists explicit parent/child content digests plus exact typed evidence-content objects. The former artifact-id-only relation schema and string evidence refs fail closed; no compatibility aliases recreate artifact-id-only lineage authority.
+
 Data and ROLE03 must consume this producer-owned value through the published dependency once the clean upstream producer union is consumable; they must not replace it with a mutable `ArtifactReference` alias or a second content authority.
 
 ## Typed research-result query federation

@@ -4,14 +4,14 @@ from dataclasses import dataclass
 
 from research_platform.platform.kernel import ExecutionContext, JsonValue, OperationResult
 
-from ..lifecycle.api import RunCleanupReport
-from ..lifecycle.api import attach_cleanup_note
-from research_platform.participant.core.api import BoundParticipants
-from research_platform.experimentation.experiment.api import ExperimentComponentBindingPort
+from ..lifecycle.api import RunCleanupReport, attach_cleanup_note
+from research_platform.participant.core.api import BoundParticipants, ParticipantSessionBinding
+from research_platform.experimentation.experiment.api import (
+    ExperimentComponentBindingPort,
+    ExperimentSpec,
+)
 from ..identity.api import RunIdentity
-from research_platform.participant.core.api import ParticipantSessionBinding
 from research_platform.participant.core.api.runtime_ports import ParticipantSessionLifecyclePort
-from research_platform.experimentation.experiment.api import ExperimentSpec
 
 
 @dataclass(frozen=True, slots=True)

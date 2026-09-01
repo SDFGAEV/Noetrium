@@ -28,7 +28,7 @@ class StudyFactoryOperationV116Tests(unittest.TestCase):
             root=Path(td); methods=FakeParticipantResolver(); environments=FakeParticipantResolver(); methods.register("method", "broken",BrokenFactory())
             store=ForensicStore(root/"forensics")
             runtime=context_action_runtime(methods,environments,operation_executor=OperationExecutor(OperationForensicFailureSink(store, classifier=context_action_failure_classifier_chain())))
-            spec=context_action_spec(study_id="study", method_id="broken", environment_id="unused", model_stack_digest="model", prompt_generation="prompt", workload_digest="work", seed_digest="seed", repetitions=1)
+            spec=context_action_spec(study_id="study", method_id="broken", environment_id="unused", model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="b" * 64, seed_digest="c" * 64, repetitions=1)
             with self.assertRaises(OperationFailure) as raised:
                 runtime.execute_cycle(spec,task="x",input_kind="a",input_payload={})
             self.assertIn("method.resolve",str(raised.exception))

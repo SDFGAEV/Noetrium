@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from research_platform.experimentation.run.api import ExperimentRunExecutionPort
+from research_platform.experimentation.run.api import ExperimentRunExecutionPort, RunArtifactStorePort
 from research_platform.experimentation.run.runtime import ExperimentRunApplication
-from research_platform.experimentation.run.api import RunArtifactStorePort
 from research_platform.experimentation.study.composition import (
     build_default_study_protocol_services,
     build_run_study_publication,

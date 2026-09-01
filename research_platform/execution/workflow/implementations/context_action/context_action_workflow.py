@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from research_platform.platform.kernel import canonical_digest
-
-from research_platform.platform.kernel import ExecutionContext, JsonValue, OperationResult
+from research_platform.platform.kernel import (
+    ExecutionContext,
+    JsonValue,
+    OperationResult,
+    canonical_digest,
+)
 
 from research_platform.execution.workflow.api import TrialCycleExecution
 from .contracts import ContextActionOperationPort

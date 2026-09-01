@@ -4,8 +4,7 @@ from collections import deque
 from typing import Mapping, Protocol
 
 from research_platform.observability.api.metrics import ContextMetricSink
-from research_platform.observability.logging.record.api import LogLevel
-from research_platform.observability.logging.record.api import LogWriterPort
+from research_platform.observability.logging.record.api import LogLevel, LogWriterPort
 from research_platform.platform.kernel import ExecutionContext, JsonValue
 from research_platform.reliability.failure.api import FailureEnvelope, FailureLedgerPort
 

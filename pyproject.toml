@@ -27,7 +27,7 @@ Issues = "https://github.com/SDFGAEV/noetrium/issues"
 test = ["pytest>=8,<10"]
 
 [project.scripts]
-evoctl-next = "research_platform.operator.composition.cli:main"
+research = "research_platform.operator.composition.research:main"
 research-platform-architecture-gate = "research_platform.governance.architecture.gate:main"
 research-platform-manage = "research_platform.operator.maintenance.runtime.management_cli:main"
 research-platform-algorithm = "research_platform.governance.algorithm.cli:main"

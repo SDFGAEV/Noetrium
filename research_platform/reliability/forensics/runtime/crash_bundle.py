@@ -7,13 +7,12 @@ from pathlib import Path
 
 from research_platform.platform.kernel.durability.durable_file import atomic_replace_bytes
 
-from research_platform.reliability.failure.api import DEFAULT_FAILURE_CATALOG
+from research_platform.reliability.failure.api import DEFAULT_FAILURE_CATALOG, fingerprint_failure
 from research_platform.reliability.forensics.api.crash_bundle_contracts import (
     CRASH_BUNDLE_SCHEMA_VERSION,
     CrashBundleManifest,
     CrashBundleVerification,
 )
-from research_platform.reliability.failure.api import fingerprint_failure
 from research_platform.reliability.forensics.api.ports import ForensicStorePort
 
 

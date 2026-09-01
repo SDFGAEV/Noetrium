@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from research_platform.participant.core.api.contracts import ParticipantImplementationIdentity
-from research_platform.participant.core.api.contracts import ParticipantSessionRuntimeIdentity
+from research_platform.participant.core.api.contracts import (
+    ParticipantImplementationIdentity,
+    ParticipantSessionRuntimeIdentity,
+)
 from research_platform.participant.session.runtime import LocalParticipantRuntimeEndpoint
 
 from ..runtime import (

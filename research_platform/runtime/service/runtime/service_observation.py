@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from research_platform.runtime.service.api import ServiceLaunchContract, ServiceContractDrift
-from research_platform.runtime.service.api import ServiceReconcileObservation
+from research_platform.runtime.service.api import (
+    ServiceContractDrift,
+    ServiceLaunchContract,
+    ServiceReconcileObservation,
+)
 from .start_journal import ServiceStartJournal
 from .state_ports import ServiceStateStorePort
 from .supervision_contracts import ServiceProcessAdapter

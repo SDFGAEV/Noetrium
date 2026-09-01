@@ -69,7 +69,7 @@ class ArtifactCatalogResearchResultSource:
         elif result_kind is ResearchResultKind.PUBLICATION:
             dimensions.append(ResearchDimension(ResearchDimensionKind.PUBLICATION, artifact.artifact_id))
         lineage = tuple(
-            ResearchResultReference(ResearchResultKind.ARTIFACT, ref, self.source_id)
+            ResearchResultReference(ResearchResultKind.ARTIFACT, ref.artifact_id, self.source_id)
             for ref in artifact.lineage
         )
         return ResearchResultRecord(

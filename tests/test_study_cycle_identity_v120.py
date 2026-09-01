@@ -38,12 +38,12 @@ class EnvironmentSession:
 
 
 class Environment:
-    identity=EnvironmentIdentity("e", "1", "1", "1", "ecfg")
+    identity=EnvironmentIdentity("e", "1", "1", "1", "e" * 64)
     def open_session(self, *, session_id, services): return EnvironmentSession()
 
 
 def spec():
-    return context_action_spec(study_id="s", method_id="m", environment_id="e", model_stack_digest="model", prompt_generation="prompt", workload_digest="work", seed_digest="seed", repetitions=1, method_artifact_digest="c" * 64, environment_artifact_digest="ecfg")
+    return context_action_spec(study_id="s", method_id="m", environment_id="e", model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="b" * 64, seed_digest="c" * 64, repetitions=1, method_artifact_digest="c" * 64, environment_artifact_digest="e" * 64)
 
 
 def runtime(provider=None):

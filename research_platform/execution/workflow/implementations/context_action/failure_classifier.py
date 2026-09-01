@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from research_platform.reliability.effect.api import EffectAlreadyConsumed, EffectRecoveryAnchorMissing
 from research_platform.environment.runtime.api import ActionNotApplied, ActionSafetyCapabilityMissing, ActionScientificCommitContradiction
-from research_platform.reliability.failure.api import DEFAULT_FAILURE_CATALOG, FailureCatalog
-from research_platform.reliability.failure.api import ClassifiedOperationFailure
+from research_platform.reliability.failure.api import (
+    ClassifiedOperationFailure,
+    DEFAULT_FAILURE_CATALOG,
+    FailureCatalog,
+)
 from research_platform.platform.kernel import EffectCertainty, OperationRequest
 from research_platform.participant.method.api import MethodObservationDeliveryError, TaskCompletionSafetyCapabilityMissing
 

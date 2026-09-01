@@ -1,4 +1,7 @@
-from .capability import FunctionalModelCapabilityClient, FunctionalModelCapabilityProvider
+from .capability import (
+    FunctionalModelCapabilityClient, FunctionalModelCapabilityProvider,
+    QualifiedStructuredGenerationCapabilityClient, QualifiedStructuredGenerationCapabilityProvider,
+)
 from .project import EndpointFactory, QualifiedModelProjectProvider
 
 __all__ = [
@@ -6,4 +9,6 @@ __all__ = [
     "FunctionalModelCapabilityClient",
     "FunctionalModelCapabilityProvider",
     "QualifiedModelProjectProvider",
+    "QualifiedStructuredGenerationCapabilityProvider",
+    "QualifiedStructuredGenerationCapabilityClient",
 ]

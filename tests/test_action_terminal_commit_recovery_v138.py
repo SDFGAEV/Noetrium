@@ -217,7 +217,7 @@ class Environment:
 
 
 def _spec() -> ExperimentSpec:
-    return context_action_spec(study_id="study", method_id="m", environment_id="e", model_stack_digest="model", prompt_generation="prompt", workload_digest="work", seed_digest="seed", repetitions=1)
+    return context_action_spec(study_id="study", method_id="m", environment_id="e", model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="b" * 64, seed_digest="c" * 64, repetitions=1)
 
 
 def _registries(authority: MethodAuthority, world: World, sessions: list[MethodSession]):

@@ -6,9 +6,11 @@ from .cycle import RunCycleExecutor
 from ..identity.api import RunIdentity
 from .resources import OpenRunResources
 from .restore import RunInitialization
-from research_platform.experimentation.experiment.api import ExperimentTrialCycleExecutorPort
+from research_platform.experimentation.experiment.api import (
+    ExperimentSpec,
+    ExperimentTrialCycleExecutorPort,
+)
 from research_platform.participant.core.api.runtime_ports import ParticipantSessionLifecyclePort
-from research_platform.experimentation.experiment.api import ExperimentSpec
 
 
 class RunAssembly:

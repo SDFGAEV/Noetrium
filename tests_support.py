@@ -80,17 +80,30 @@ def participant(
     abi_version: str = "1",
     schema_version: str = "1",
     configuration_digest: str = "",
-    artifact_digest: str = "",
+    artifact_digest: str | None = "",
     runtime_id: str | None = None,
     depends_on_roles: tuple[str, ...] = (),
 ) -> ExperimentParticipantSpec:
+    import hashlib
+    artifact_seed = artifact_digest
+    resolved_artifact = (
+        artifact_seed
+        if artifact_seed is None or (len(artifact_seed) == 64 and all(ch in "0123456789abcdef" for ch in artifact_seed))
+        else hashlib.sha256(artifact_seed.encode()).hexdigest()
+    )
+    configuration_seed = configuration_digest or f"{kind}:{plugin_id}:configuration"
+    resolved_configuration = (
+        configuration_seed
+        if len(configuration_seed) == 64 and all(ch in "0123456789abcdef" for ch in configuration_seed)
+        else hashlib.sha256(configuration_seed.encode()).hexdigest()
+    )
     return ExperimentParticipantSpec(
         role=role,
         implementation=ParticipantImplementationIdentity(
-            kind, plugin_id, implementation_version or "1", abi_version or "1", schema_version or "1", artifact_digest or None
+            kind, plugin_id, implementation_version or "1", abi_version or "1", schema_version or "1", resolved_artifact
         ),
         runtime=runtime_identity_for_test(kind, runtime_id),
-        configuration_digest=configuration_digest,
+        configuration_digest=resolved_configuration,
         depends_on_roles=depends_on_roles,
     )
 
@@ -111,15 +124,20 @@ def context_action_spec(
     method_abi_version: str = "",
     method_schema_version: str = "",
     method_configuration_digest: str = "",
-    method_artifact_digest: str = "",
+    method_artifact_digest: str | None = None,
     environment_implementation_version: str = "",
     environment_abi_version: str = "",
     environment_schema_version: str = "",
     environment_configuration_digest: str = "",
-    environment_artifact_digest: str = "",
+    environment_artifact_digest: str | None = None,
     scientific_workflow_id: str = "context_action.v2",
     scientific_workflow_configuration_digest: str = "",
 ) -> ExperimentSpec:
+    import hashlib
+
+    def digest_seed(value: str) -> str:
+        return value if len(value) == 64 and all(ch in "0123456789abcdef" for ch in value) else hashlib.sha256(value.encode()).hexdigest()
+
     return ExperimentSpec(
         experiment_id=experiment_id,
         study_id=study_id,
@@ -140,13 +158,17 @@ def context_action_spec(
                 configuration_digest=environment_configuration_digest, artifact_digest=environment_artifact_digest,
             ),
         ),
-        model_stack_digest=model_stack_digest,
+        model_stack_digest=digest_seed(model_stack_digest) if model_stack_digest else None,
         prompt_generation=prompt_generation,
-        workload_digest=workload_digest,
-        seed_digest=seed_digest,
+        workload_digest=digest_seed(workload_digest),
+        seed_digest=digest_seed(seed_digest),
         repetitions=repetitions,
-        scientific_workflow_id=scientific_workflow_id,
-        scientific_workflow_configuration_digest=scientific_workflow_configuration_digest,
+        trial_protocol_id=scientific_workflow_id,
+        trial_protocol_configuration_digest=(
+            "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+            if not scientific_workflow_configuration_digest
+            else digest_seed(scientific_workflow_configuration_digest)
+        ),
     )
 
 
@@ -169,13 +191,17 @@ def study_spec(
         study_id=study_id,
         project_id=project_id,
         participants=participants,
-        model_stack_digest=model_stack_digest,
+        model_stack_digest=digest_seed(model_stack_digest) if model_stack_digest else None,
         prompt_generation=prompt_generation,
-        workload_digest=workload_digest,
-        seed_digest=seed_digest,
+        workload_digest=digest_seed(workload_digest),
+        seed_digest=digest_seed(seed_digest),
         repetitions=repetitions,
-        scientific_workflow_id=scientific_workflow_id,
-        scientific_workflow_configuration_digest=scientific_workflow_configuration_digest,
+        trial_protocol_id=scientific_workflow_id,
+        trial_protocol_configuration_digest=(
+            "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+            if not scientific_workflow_configuration_digest
+            else digest_seed(scientific_workflow_configuration_digest)
+        ),
     )
 
 
@@ -252,13 +278,19 @@ def frozen_binding(
     resolved_artifact = artifact_digest or hashlib.sha256(
         f"{kind}:{participant_id}:{implementation_version}:{abi_version}:{schema_version}".encode()
     ).hexdigest()
+    configuration_seed = configuration_digest or f"{kind}:{participant_id}:configuration"
+    resolved_configuration = (
+        configuration_seed
+        if len(configuration_seed) == 64 and all(ch in "0123456789abcdef" for ch in configuration_seed)
+        else hashlib.sha256(configuration_seed.encode()).hexdigest()
+    )
     return ParticipantRuntimeBinding(
         role,
         ParticipantImplementationIdentity(
             kind, participant_id, implementation_version, abi_version, schema_version, resolved_artifact
         ),
         runtime_identity_for_test(kind),
-        configuration_digest,
+        resolved_configuration,
     )
 
 
@@ -315,6 +347,11 @@ def frozen_runtime_manifest(
     seed_identity: str = "seed",
     composition_plans=None,
 ):
+    from research_platform.experimentation.identity import (
+        OptionalIdentityFacet,
+        ReplayLevel,
+        RunResearchSemanticsReference,
+    )
     from research_platform.experimentation.run.manifest.api import (
         CompositionPlanReference,
         RunLaunchManifest,
@@ -345,6 +382,17 @@ def frozen_runtime_manifest(
         participant_binding_manifest_digest=binding_manifest_digest,
         project_manifest_digest=project_manifest_digest,
         experiment_spec_digest=experiment_spec_digest,
+        research_semantics=RunResearchSemanticsReference(
+            research_plan_digest="a" * 64,
+            study_plan_digest="b" * 64,
+            measurement_protocol_digest="c" * 64,
+            trial_protocol_digest="d" * 64,
+            intervention=OptionalIdentityFacet(),
+            topology=OptionalIdentityFacet(),
+            participant_schedule=OptionalIdentityFacet(),
+            revision=OptionalIdentityFacet(),
+            replay_level=ReplayLevel.EXACT,
+        ),
         command_argv=command_argv,
         launcher_binary_sha256=launcher_binary_sha256,
         command_environment_digest=(

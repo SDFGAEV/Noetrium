@@ -238,15 +238,15 @@ class DataArtifactDurabilityV207Tests(unittest.TestCase):
             with self.assertRaises(ArtifactRegistryCorruptionError):
                 SQLiteArtifactRegistry(path).get(record.artifact_id)
 
-    def test_artifact_catalog_rejects_non_string_collection_members(self):
+    def test_artifact_catalog_rejects_legacy_string_lineage_members(self):
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "artifacts.sqlite3"
             record = self._artifact()
             SQLiteArtifactRegistry(path).put(record)
             with closing(sqlite3.connect(path)) as db:
                 db.execute(
-                    "UPDATE artifacts SET lineage_json='[123]' WHERE artifact_id=?",
-                    (record.artifact_id,),
+                    "UPDATE artifacts SET lineage_json=? WHERE artifact_id=?",
+                    ('["artifact:legacy"]', record.artifact_id),
                 )
                 db.commit()
             with self.assertRaises(ArtifactRegistryCorruptionError):

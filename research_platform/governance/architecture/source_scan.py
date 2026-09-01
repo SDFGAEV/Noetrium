@@ -23,7 +23,10 @@ def is_transient_source_path(path: Path) -> bool:
     """Exclude synchronization and bytecode staging paths from source audits."""
 
     return any(
-        part.startswith(".rsync-") or part in {"__pycache__", ".git", ".venv", "venv"}
+        part.startswith(".rsync-") or part in {
+            "__pycache__", ".git", ".venv", "venv", "node_modules",
+            ".pytest_cache", ".local", ".server-state", "build", "dist",
+        }
         for part in path.parts
     )
 

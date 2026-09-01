@@ -4,51 +4,27 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from itertools import product
-from typing import Protocol
 
 from research_platform.experimentation.experiment.api import (
+    ExperimentParticipantSpec,
     ExperimentParticipantTopology,
     ExperimentSpec,
     ExperimentTrialProtocolIdentity,
 )
 from research_platform.experimentation.identity import OptionalIdentityFacet, RunResearchSemanticsReference
 from research_platform.platform.kernel import canonical_digest
+from research_platform.portfolio.api import ProjectManifest, ProjectRequirementCardinality
 
-from .binding import ResearchBindingContribution, ResearchRequirementResolution
-from .contracts import StudyAssignment, StudyProtocol, StudyVariantSpec, VariantKind
-from .design import (
+from research_platform.experimentation.binding import ResearchBindingContribution, ResearchRequirementResolution
+from research_platform.experimentation.study.api.contracts import StudyAssignment, StudyProtocol, StudyVariantSpec, VariantKind
+from research_platform.experimentation.study.api.design import (
     FactorSelection,
     ParticipantSchedule,
     ResearchStudyDefinition,
     StudyIntervention,
 )
-from .measurement import MeasurementProtocol, MeasurementValueKind
-from .plan import ExperimentPlan, VariantBinding
-
-
-class ProjectIdentityProjection(Protocol):
-    project_id: str
-
-
-class CapabilityRequirementProjection(Protocol):
-    requirement_id: str
-
-
-class MethodRequirementProjection(Protocol):
-    method_id: str
-    treatment_id: str
-
-
-class ConfigurationReferenceProjection(Protocol):
-    configuration_id: str
-
-
-class ResearchProjectManifestProjection(Protocol):
-    identity: ProjectIdentityProjection
-    semantic_digest: str
-    capability_requirements: tuple[CapabilityRequirementProjection, ...]
-    method_requirements: tuple[MethodRequirementProjection, ...]
-    configuration_refs: tuple[ConfigurationReferenceProjection, ...]
+from research_platform.experimentation.study.api.measurement import MeasurementProtocol, MeasurementValueKind
+from research_platform.experimentation.study.api.plan import ExperimentPlan, VariantBinding
 
 
 def _unique_preserving_order(values):
@@ -63,22 +39,17 @@ def _unique_preserving_order(values):
 
 def resolve_research_requirements(
     definition: ResearchStudyDefinition,
-    project_manifest: ResearchProjectManifestProjection,
+    project_manifest: ProjectManifest,
 ) -> ResearchRequirementResolution:
-    """Algorithm-Complexity: O(N)
-    Algorithm-Rationale: N is total declared and available capability, method and configuration requirements; each row is indexed or filtered a constant number of times.
-    """
+    """Select the exact ProjectManifest facts required by one author definition."""
     if type(definition) is not ResearchStudyDefinition:
         raise TypeError("requirement resolver requires ResearchStudyDefinition")
-    identity = getattr(project_manifest, "identity", None)
-    if getattr(identity, "project_id", None) != definition.project_id:
+    if not isinstance(project_manifest, ProjectManifest):
+        raise TypeError("requirement resolver requires ProjectManifest")
+    if project_manifest.identity.project_id != definition.project_id:
         raise ValueError("research requirements belong to a different project")
-    project_digest = getattr(project_manifest, "semantic_digest", None)
-    if type(project_digest) is not str or len(project_digest) != 64 or any(ch not in "0123456789abcdef" for ch in project_digest):
-        raise TypeError("project manifest semantic_digest must be lowercase SHA-256")
-    available_capabilities = {row.requirement_id for row in project_manifest.capability_requirements}
-    available_methods = {(row.method_id, row.treatment_id) for row in project_manifest.method_requirements}
-    available_configs = {row.configuration_id for row in project_manifest.configuration_refs}
+    if definition.study_id not in project_manifest.study_ids:
+        raise ValueError("research study is not declared by ProjectManifest")
     requirements = definition.binding_requirements
     capability_ids = [requirements.trial_provider_requirement_id]
     if requirements.model_requirement_id is not None:
@@ -91,17 +62,36 @@ def resolve_research_requirements(
         capability_ids.extend(participant.capability_requirement_ids)
         method_pairs.append((participant.method_id, participant.treatment_id))
         configuration_ids.extend(participant.configuration_ref_ids)
-    selected_capabilities = _unique_preserving_order(capability_ids)
-    selected_methods = _unique_preserving_order(method_pairs)
-    selected_configs = _unique_preserving_order(configuration_ids)
-    missing_capabilities = tuple(row for row in selected_capabilities if row not in available_capabilities)
-    missing_methods = tuple(row for row in selected_methods if row not in available_methods)
-    missing_configs = tuple(row for row in selected_configs if row not in available_configs)
+    selected_capability_ids = _unique_preserving_order(capability_ids)
+    selected_method_keys = _unique_preserving_order(method_pairs)
+    selected_config_ids = _unique_preserving_order(configuration_ids)
+    capability_by_id = {row.requirement_id: row for row in project_manifest.capability_requirements}
+    method_by_key = {(row.method_id, row.treatment_id): row for row in project_manifest.method_requirements}
+    config_by_id = {row.configuration_id: row for row in project_manifest.configuration_refs}
+    missing_capabilities = tuple(row for row in selected_capability_ids if row not in capability_by_id)
+    missing_methods = tuple(row for row in selected_method_keys if row not in method_by_key)
+    missing_configs = tuple(row for row in selected_config_ids if row not in config_by_id)
     if missing_capabilities or missing_methods or missing_configs:
-        raise ValueError(f"research requirements unresolved: capabilities={missing_capabilities} methods={missing_methods} configurations={missing_configs}")
+        raise ValueError(
+            f"research requirements unresolved: capabilities={missing_capabilities} "
+            f"methods={missing_methods} configurations={missing_configs}"
+        )
+    selected_capabilities = tuple(capability_by_id[row] for row in selected_capability_ids)
+    selected_methods = tuple(method_by_key[row] for row in selected_method_keys)
+    selected_configs = tuple(config_by_id[row] for row in selected_config_ids)
+    selected_capability_set = set(selected_capability_ids)
+    selected_provider_bindings = tuple(
+        row for row in project_manifest.provider_bindings
+        if row.requirement_id in selected_capability_set
+    )
+    from research_platform.governance.architecture.api import CompositionSubject
     return ResearchRequirementResolution(
-        project_digest, definition.binding_requirement_digest,
-        selected_capabilities, selected_methods, selected_configs,
+        project_manifest.semantic_digest,
+        CompositionSubject.project_subject(
+            project_manifest.identity.project_id, project_manifest.identity.version
+        ),
+        definition.binding_requirement_digest,
+        selected_capabilities, selected_methods, selected_configs, selected_provider_bindings,
     )
 
 
@@ -202,15 +192,23 @@ def _intervention_for(
     return StudyIntervention(intervention_id, selections)
 
 
+def _trial_provider_id(
+    definition: ResearchStudyDefinition,
+    binding: ResearchBindingContribution,
+) -> str:
+    requirement_id = definition.binding_requirements.trial_provider_requirement_id
+    return binding.capability_binding(requirement_id).proof.provider_identity
+
+
 def _variant_for(
     definition: ResearchStudyDefinition,
     intervention: StudyIntervention,
-    binding: ResearchBindingContribution,
+    provider_id: str,
 ) -> StudyVariantSpec:
     return StudyVariantSpec(
         intervention.intervention_id,
         VariantKind.CONTROL if intervention.control else VariantKind.TREATMENT,
-        binding.provider_id,
+        provider_id,
         intervention.intervention_digest,
         definition.trial_budget.budget_id,
     )
@@ -269,18 +267,41 @@ def _protocol(
 
 def _bindings(
     variants: tuple[StudyVariantSpec, ...],
-    binding: ResearchBindingContribution,
+    provider_id: str,
 ) -> tuple[VariantBinding, ...]:
     return tuple(
         VariantBinding(
-            variant,
-            variant.configuration_digest,
-            binding.provider_id,
-            "none",
-            variant.kind.value,
+            variant, variant.configuration_digest, provider_id,
+            "none", variant.kind.value,
         )
         for variant in variants
     )
+
+
+def _participants(
+    definition: ResearchStudyDefinition,
+    binding: ResearchBindingContribution,
+) -> tuple[ExperimentParticipantSpec, ...]:
+    requirements = {row.role: row for row in definition.binding_requirements.participants}
+    return tuple(
+        ExperimentParticipantSpec(
+            role=row.role,
+            implementation=row.binding.binding.implementation,
+            runtime=row.binding.binding.runtime,
+            configuration_digest=row.binding.binding.configuration_digest,
+            depends_on_roles=requirements[row.role].depends_on_roles,
+        )
+        for row in binding.participant_bindings
+    )
+
+
+def _model_projection(
+    binding: ResearchBindingContribution,
+) -> tuple[str | None, str | None]:
+    if binding.model_binding is None:
+        return None, None
+    model = binding.model_binding.binding
+    return model.model_stack_digest, model.prompt_generation_id
 
 
 def _experiment(
@@ -288,13 +309,14 @@ def _experiment(
     protocol: StudyProtocol,
     binding: ResearchBindingContribution,
 ) -> ExperimentSpec:
+    model_stack_digest, prompt_generation = _model_projection(binding)
     return ExperimentSpec(
         experiment_id=definition.experiment_id,
         study_id=definition.study_id,
         project_id=definition.project_id,
-        participants=binding.participants,
-        model_stack_digest=binding.model_stack_digest,
-        prompt_generation=binding.prompt_generation,
+        participants=_participants(definition, binding),
+        model_stack_digest=model_stack_digest,
+        prompt_generation=prompt_generation,
         workload_digest=canonical_digest({
             "workload_id": definition.workload_id,
             "benchmark_cut_digest": definition.benchmark.cut_digest,
@@ -302,9 +324,7 @@ def _experiment(
         seed_digest=protocol.seed_schedule_digest,
         repetitions=definition.repetitions,
         trial_protocol_id=definition.trial_protocol_identity.protocol_id,
-        trial_protocol_configuration_digest=(
-            definition.trial_protocol_identity.configuration_digest
-        ),
+        trial_protocol_configuration_digest=definition.trial_protocol_identity.configuration_digest,
     )
 
 
@@ -330,6 +350,75 @@ def _revision_facet(definition: ResearchStudyDefinition) -> OptionalIdentityFace
     return OptionalIdentityFacet(definition.revision.revision_digest)
 
 
+def _validate_capability_bindings(
+    resolution: ResearchRequirementResolution,
+    binding: ResearchBindingContribution,
+) -> None:
+    provided_ids = {row.requirement_id for row in binding.capability_bindings}
+    expected_ids = set(resolution.capability_requirement_ids)
+    if provided_ids != expected_ids:
+        raise ValueError("binding contribution capability coverage drifted")
+    for requirement in resolution.capability_requirements:
+        rows = binding.capability_bindings_for(requirement.requirement_id)
+        if requirement.cardinality is ProjectRequirementCardinality.EXACTLY_ONE:
+            if len(rows) != 1:
+                raise ValueError("exactly-one capability requires exactly one producer proof")
+        elif not rows:
+            raise ValueError("one-or-more capability requires producer proof")
+        expected_requirement_digest = canonical_digest(requirement)
+        selected_provider_ids = {
+            row.provider_identity
+            for row in resolution.provider_bindings_for(requirement.requirement_id)
+        }
+        for row in rows:
+            proof = row.proof
+            if proof.subject != resolution.project_subject:
+                raise ValueError("capability proof belongs to another project subject")
+            if proof.requirement_digest.value != expected_requirement_digest:
+                raise ValueError("capability proof requirement drifted")
+            if selected_provider_ids and proof.provider_identity not in selected_provider_ids:
+                raise ValueError("capability proof violates ProjectManifest provider selection")
+
+
+def _validate_participant_bindings(
+    definition: ResearchStudyDefinition,
+    resolution: ResearchRequirementResolution,
+    binding: ResearchBindingContribution,
+) -> None:
+    requirements = definition.binding_requirements.participants
+    if tuple(row.role for row in binding.participant_bindings) != tuple(row.role for row in requirements):
+        raise ValueError("binding contribution participant roles drifted")
+    for requirement, row in zip(requirements, binding.participant_bindings, strict=True):
+        if row.proof.subject != resolution.project_subject:
+            raise ValueError("participant proof belongs to another project subject")
+        runtime_binding = row.binding.binding
+        if runtime_binding.implementation.kind != requirement.participant_kind:
+            raise ValueError("binding contribution participant kind drifted")
+        if requirement.participant_kind == "method" and runtime_binding.implementation.participant_id != requirement.method_id:
+            raise ValueError("method participant binding changed author method identity")
+
+
+def _validate_model_binding(
+    definition: ResearchStudyDefinition,
+    resolution: ResearchRequirementResolution,
+    binding: ResearchBindingContribution,
+) -> None:
+    requirement_id = definition.binding_requirements.model_requirement_id
+    if requirement_id is None:
+        if binding.model_binding is not None:
+            raise ValueError("model binding supplied when author definition has no model requirement")
+        return
+    if binding.model_binding is None or binding.model_binding.requirement_id != requirement_id:
+        raise ValueError("model binding does not satisfy author model requirement")
+    if binding.model_binding.proof.subject != resolution.project_subject:
+        raise ValueError("model proof belongs to another project subject")
+    capability_rows = binding.capability_bindings_for(requirement_id)
+    if not any(row.proof.provider_identity == binding.model_binding.proof.provider_identity for row in capability_rows):
+        raise ValueError("model domain binding does not match capability provider proof")
+    if definition.binding_requirements.prompt_configuration_id is not None and binding.model_binding.binding.prompt_generation_id is None:
+        raise ValueError("prompt configuration requires a generation-bound model binding")
+
+
 def _validate_binding_contribution(
     definition: ResearchStudyDefinition,
     resolution: ResearchRequirementResolution,
@@ -343,20 +432,12 @@ def _validate_binding_contribution(
         raise ValueError("requirement resolution does not bind the author definition")
     if binding.requirement_resolution_digest != resolution.resolution_digest:
         raise ValueError("binding contribution does not bind requirement resolution")
-    if binding.satisfied_capability_requirement_ids != resolution.capability_requirement_ids:
-        raise ValueError("binding contribution capability coverage drifted")
-    if binding.satisfied_method_requirements != resolution.method_requirements:
-        raise ValueError("binding contribution method coverage drifted")
-    if binding.satisfied_configuration_ref_ids != resolution.configuration_ref_ids:
-        raise ValueError("binding contribution configuration coverage drifted")
-    requirements = definition.binding_requirements.participants
-    if tuple(row.role for row in binding.participants) != tuple(row.role for row in requirements):
-        raise ValueError("binding contribution participant roles drifted")
-    for requirement, participant in zip(requirements, binding.participants, strict=True):
-        if participant.implementation.kind != requirement.participant_kind:
-            raise ValueError("binding contribution participant kind drifted")
-        if participant.depends_on_roles != requirement.depends_on_roles:
-            raise ValueError("binding contribution participant dependencies drifted")
+    _validate_capability_bindings(resolution, binding)
+    trial_requirement = definition.binding_requirements.trial_provider_requirement_id
+    if len(binding.capability_bindings_for(trial_requirement)) != 1:
+        raise ValueError("compiled Trial requires exactly one trial provider proof")
+    _validate_participant_bindings(definition, resolution, binding)
+    _validate_model_binding(definition, resolution, binding)
 
 
 def compile_research_plan(
@@ -370,11 +451,12 @@ def compile_research_plan(
     interventions = tuple(
         _intervention_for(definition, rows) for rows in _factor_selections(definition)
     )
-    variants = tuple(_variant_for(definition, row, binding) for row in interventions)
+    provider_id = _trial_provider_id(definition, binding)
+    variants = tuple(_variant_for(definition, row, provider_id) for row in interventions)
     assignments = _assignments(definition, variants)
     protocol = _protocol(definition, variants, assignments)
     experiment_plan = ExperimentPlan.compile(
-        protocol, _bindings(variants, binding), assignments
+        protocol, _bindings(variants, provider_id), assignments
     )
     experiment = _experiment(definition, protocol, binding)
     participant_schedule, topology, schedule = _schedule(experiment)
@@ -480,7 +562,6 @@ def diff_research_plans(
 __all__ = [
     "CompiledResearchPlan",
     "ResearchPlanDiff",
-    "ResearchProjectManifestProjection",
     "compile_research_plan",
     "resolve_research_requirements",
     "diff_research_plans",

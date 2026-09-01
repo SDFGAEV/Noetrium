@@ -1,9 +1,17 @@
 from research_platform.experimentation.identity import ReplayLevel
+from research_platform.experimentation.binding import (
+    ResearchBindingContribution, ResearchBindingRequirements, ResearchCapabilityBinding,
+    ResearchModelBinding, ResearchParticipantBinding, ResearchParticipantRequirement,
+    ResearchRequirementResolution,
+)
 from research_platform.experimentation.study.api import (
     AnalysisDefinition, AnalysisResult, BenchmarkTaskSet, FactorLevelSpec, FactorSelection, MeasurementContentReference, MeasurementCut, MeasurementDefinition, MeasurementProtocol,
-    MeasurementRecord, MeasurementValue, MeasurementValueKind, ParticipantSchedule, ResearchBindingContribution, ResearchBindingRequirements, ResearchParticipantRequirement, ResearchRequirementResolution, ResearchRevision, ResearchStudyDefinition, StudyFactorSpec, StudyIntervention,
+    MeasurementRecord, MeasurementValue, MeasurementValueKind, ParticipantSchedule, ResearchRevision, ResearchStudyDefinition, StudyFactorSpec, StudyIntervention,
     TaskDefinition, TaskGraph, TaskGraphEdge, TaskGraphRelation, TaskSetSplit, TrialBudget, TrialExecutionReceipt, TrialExecutionRequest, TrialMatrixExecutionReport, TrialProviderPort,
-    CompiledResearchPlan, ResearchPlanDiff, ResearchProjectManifestProjection, compile_research_plan, diff_research_plans, resolve_research_requirements,
+)
+from .research_compiler import (
+    CompiledResearchPlan, ResearchPlanDiff, compile_research_plan,
+    diff_research_plans, resolve_research_requirements,
 )
 from .construction import (
     ProjectIdentityProjection,
@@ -25,10 +33,12 @@ from research_platform.experimentation.run.control.api import (
 
 __all__ = [
     "ResearchBindingContribution",
+    "ResearchCapabilityBinding",
+    "ResearchModelBinding",
+    "ResearchParticipantBinding",
     "ResearchBindingRequirements",
     "ResearchParticipantRequirement",
     "ResearchRequirementResolution",
-    "ResearchProjectManifestProjection",
     "resolve_research_requirements",
     "TrialProviderPort",
     "TrialMatrixExecutionReport",

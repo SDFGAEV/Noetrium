@@ -15,10 +15,12 @@ from research_platform.environment.runtime.api import (
 )
 from research_platform.platform.kernel import ExecutionContext, JsonValue, OperationResult
 
-from research_platform.execution.workflow.api import EffectIntentOperationPort
+from research_platform.execution.workflow.api import (
+    EffectIntentOperationPort,
+    OperationDispatchPort,
+)
 from research_platform.participant.core.api import BoundParticipants
 from .action_effect_identity import build_action_effect_intent
-from research_platform.execution.workflow.api import OperationDispatchPort
 
 
 class ActionSlotGuard:

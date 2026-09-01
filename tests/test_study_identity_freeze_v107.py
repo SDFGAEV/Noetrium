@@ -1,5 +1,6 @@
 from tests_support import FakeParticipantResolver
 from tests_support import context_action_spec, runtime_identity_for_test
+import hashlib
 import unittest
 
 from research_platform.environment.runtime.api import action_request_digest, EnvironmentIdentity, Observation, ActionResult
@@ -58,10 +59,12 @@ class StudyIdentityFreezeV107Tests(unittest.TestCase):
         environment_runtime = runtime_identity_for_test("environment")
         runtimes.register(method_runtime, lambda: DelegatingRuntime(method_runtime))
         runtimes.register(environment_runtime, lambda: DelegatingRuntime(environment_runtime))
+        configurations.register(ParticipantConfigurationArtifact(hashlib.sha256(b"method:m:configuration").hexdigest(), b"method-default"))
+        configurations.register(ParticipantConfigurationArtifact(hashlib.sha256(b"environment:e:configuration").hexdigest(), b"environment-default"))
         if known_method_config:
-            configurations.register(ParticipantConfigurationArtifact(known_method_config, b"method-config"))
+            configurations.register(ParticipantConfigurationArtifact(hashlib.sha256(known_method_config.encode()).hexdigest(), b"method-config"))
         if known_environment_config:
-            configurations.register(ParticipantConfigurationArtifact(known_environment_config, b"environment-config"))
+            configurations.register(ParticipantConfigurationArtifact(hashlib.sha256(known_environment_config.encode()).hexdigest(), b"environment-config"))
         return compose_context_action_runtime(LocalParticipantResolver(
             implementations,
             runtimes,

@@ -1,0 +1,151 @@
+name: platform-assurance
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [master]
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: quality / py${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install package and test tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+      - name: Compile source
+        run: python -m compileall -q research_platform tests
+      - name: Run full Python test suite
+        run: pytest -q --junitxml="${{ runner.temp }}/pytest-${{ matrix.python-version }}.xml"
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-${{ matrix.python-version }}
+          if-no-files-found: error
+          path: ${{ runner.temp }}/pytest-${{ matrix.python-version }}.xml
+
+  governance:
+    name: governance / contracts / architecture
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install package and test tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+      - name: Verify test taxonomy
+        run: python scripts/test_system.py check
+      - name: Verify public contracts
+        run: python scripts/public_contract_audit.py
+      - name: Verify README localization
+        run: python scripts/check_readme_i18n.py
+      - name: Run architecture gate
+        run: python scripts/architecture_gate.py
+      - name: Run no-degradation audit
+        run: python scripts/no_degradation_audit.py
+
+  assurance:
+    needs: [quality, governance]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install test and build tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]" build
+
+      - name: Run machine-readable product assurance gate
+        run: python scripts/product_assurance_gate.py --full --output "$RUNNER_TEMP/product-assurance.json"
+
+      - name: Build and qualify installed distributions
+        run: python scripts/release_distribution.py "$RUNNER_TEMP/research-distribution"
+
+      - name: Prepare exact distribution container context
+        run: |
+          python scripts/prepare_container_context.py \
+            "$RUNNER_TEMP/research-distribution" \
+            "$RUNNER_TEMP/research-container-context" \
+            --expected-source-sha "${GITHUB_SHA}"
+          python - <<'PY' >> "$GITHUB_ENV"
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"])
+          ctx = json.loads((root / "research-container-context" / "CONTAINER_CONTEXT.json").read_text())
+          print(f"ROLE06_WHEEL_SHA256={ctx['wheel_sha256']}")
+          print(f"ROLE06_DISTRIBUTION_EVIDENCE_SHA256={ctx['distribution_evidence_sha256']}")
+          PY
+
+      - name: Build exact-distribution container
+        run: |
+          docker build \
+            --build-arg PLATFORM_SOURCE_SHA="${GITHUB_SHA}" \
+            --build-arg PLATFORM_WHEEL_SHA256="${ROLE06_WHEEL_SHA256}" \
+            --build-arg PLATFORM_DISTRIBUTION_EVIDENCE_SHA256="${ROLE06_DISTRIBUTION_EVIDENCE_SHA256}" \
+            --tag "research-platform:${GITHUB_SHA}" \
+            "$RUNNER_TEMP/research-container-context"
+
+      - name: Verify installed container provenance and lifecycle
+        run: |
+          python scripts/verify_container_image.py \
+            "research-platform:${GITHUB_SHA}" \
+            --expected-source-sha "${GITHUB_SHA}" \
+            --expected-wheel-sha256 "${ROLE06_WHEEL_SHA256}" \
+            --expected-distribution-evidence-sha256 "${ROLE06_DISTRIBUTION_EVIDENCE_SHA256}" \
+            --output "$RUNNER_TEMP/container-verification.json"
+
+      - name: Upload assurance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: product-assurance-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/product-assurance.json
+            ${{ runner.temp }}/research-distribution/**
+            ${{ runner.temp }}/research-container-context/CONTAINER_CONTEXT.json
+            ${{ runner.temp }}/container-verification.json

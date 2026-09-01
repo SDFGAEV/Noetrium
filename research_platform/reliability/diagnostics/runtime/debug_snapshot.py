@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from research_platform.platform.kernel import JsonValue
-from research_platform.reliability.diagnostics.api import DiagnosticEvidencePort, MetricQueryPort
+from research_platform.reliability.diagnostics.api import DiagnosticEvidencePort, MetricQueryPort, MetricQueryRow
 from research_platform.reliability.diagnostics.api.records import freeze_diagnostic_mapping
 
 from .causal_contracts import CausalGraphSnapshot
@@ -21,7 +21,7 @@ class DebugSnapshot:
     timeline: tuple[Mapping[str, JsonValue], ...]
     recent_state_writers: tuple[Mapping[str, JsonValue], ...]
     operations_open_at_time: tuple[Mapping[str, JsonValue], ...]
-    nearby_metrics: tuple[dict[str, object], ...]
+    nearby_metrics: tuple[MetricQueryRow, ...]
 
 
 class DebugSnapshotService:
@@ -74,7 +74,7 @@ class DebugSnapshotService:
                 else None
             )
             graph = CausalGraphService(self.evidence).build(object_id, index=index)
-        nearby_metrics: tuple[dict[str, object], ...] = ()
+        nearby_metrics: tuple[MetricQueryRow, ...] = ()
         if self.metrics is not None and run_id:
             decision_cycle_id = (
                 str(context.get("decision_cycle_id"))

@@ -25,7 +25,7 @@ class ParticipantImplementationInventory:
         missing = tuple(
             f"{row.kind}:{row.participant_id}"
             for row in self.implementations
-            if not row.artifact_digest.strip()
+            if not row.artifact_digest or not row.artifact_digest.strip()
         )
         if missing:
             raise ValueError(

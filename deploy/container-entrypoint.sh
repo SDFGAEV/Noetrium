@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 ROOT=/opt/research-platform
+PACKAGE_ROOT="$(python -c 'from pathlib import Path; import research_platform; print(Path(research_platform.__file__).resolve().parent)')"
 STATE_DIR="${PLATFORM_STATE_DIR:-/var/lib/research-platform}"
 
 die() {
@@ -18,6 +19,7 @@ import research_platform
 print(f"research_platform_import={research_platform.__name__}")
 print(f"research_platform_version={version('research-platform')}")
 PY
+  research --help >/dev/null
   research-platform-manage --help >/dev/null
   research-platform-architecture-gate --help >/dev/null 2>&1 || true
   mkdir -p "$STATE_DIR"
@@ -33,7 +35,7 @@ minecraft_doctor() {
   java -version 2>&1 | head -n 1
   node --version
   npm --version
-  local bridge="${MC_BRIDGE_DIR:-$ROOT/research_platform/environment/minecraft/providers/assets/mineflayer_bridge}"
+  local bridge="${MC_BRIDGE_DIR:-$PACKAGE_ROOT/environment/minecraft/providers/assets/mineflayer_bridge}"
   test -f "$bridge/package.json" || die "missing Mineflayer bridge package.json"
   MC_BRIDGE_DIR="$bridge" node - <<'JS'
 const path = process.env.MC_BRIDGE_DIR
@@ -57,7 +59,7 @@ case "${1:-doctor}" in
     ;;
   verify)
     doctor
-    exec python "$ROOT/scripts/architecture_gate.py"
+    exec research-platform-architecture-gate
     ;;
   shell)
     shift

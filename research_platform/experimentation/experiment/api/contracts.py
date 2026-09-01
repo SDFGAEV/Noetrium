@@ -17,7 +17,7 @@ class ExperimentParticipantSpec:
     role: str
     implementation: ParticipantImplementationIdentity
     runtime: ParticipantSessionRuntimeIdentity
-    configuration_digest: str = ""
+    configuration_digest: str | None = None
     depends_on_roles: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
@@ -29,6 +29,8 @@ class ExperimentParticipantSpec:
             raise ValueError("participant role must be a safe topology token")
         if self.role in self.depends_on_roles:
             raise ValueError(f"participant {self.role} cannot depend on itself")
+        if self.configuration_digest is not None:
+            require_sha256(self.configuration_digest, "participant configuration_digest")
 
     def runtime_binding(self) -> ParticipantRuntimeBinding:
         return ParticipantRuntimeBinding(
@@ -45,8 +47,8 @@ class ExperimentSpec:
     study_id: str
     project_id: str
     participants: tuple[ExperimentParticipantSpec, ...]
-    model_stack_digest: str
-    prompt_generation: str
+    model_stack_digest: str | None
+    prompt_generation: str | None
     workload_digest: str
     seed_digest: str
     repetitions: int
@@ -60,7 +62,11 @@ class ExperimentSpec:
             raise ValueError("study_id must be non-empty")
         if not self.project_id.strip():
             raise ValueError("project_id must be non-empty")
-        for name, value in (("model_stack_digest", self.model_stack_digest), ("workload_digest", self.workload_digest), ("seed_digest", self.seed_digest)):
+        if self.model_stack_digest is not None:
+            require_sha256(self.model_stack_digest, "model_stack_digest")
+        if self.prompt_generation is not None and not self.prompt_generation.strip():
+            raise ValueError("prompt_generation cannot be empty when provided")
+        for name, value in (("workload_digest", self.workload_digest), ("seed_digest", self.seed_digest)):
             require_sha256(value, name)
         if self.repetitions <= 0:
             raise ValueError("repetitions must be positive")

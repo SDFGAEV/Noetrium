@@ -11,7 +11,7 @@ from research_platform.experimentation.study.api import (
     TrialProviderPort,
 )
 
-from research_platform.experimentation.study.api import CompiledResearchPlan
+from research_platform.experimentation.api.research_compiler import CompiledResearchPlan
 
 
 def _require_measurements(

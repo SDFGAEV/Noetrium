@@ -28,7 +28,7 @@ class StudyLifecycleV108Tests(unittest.TestCase):
     def test_partial_open_failure_closes_already_open_method_session(self):
         state=[]; mr=FakeParticipantResolver(); er=FakeParticipantResolver()
         mr.register("method", "m",lambda:Method(state)); er.register("environment", "e",lambda:EnvOpenFails(state))
-        spec=context_action_spec(study_id="s", method_id="m", environment_id="e", model_stack_digest="model", prompt_generation="prompt", workload_digest="work", seed_digest="seed", repetitions=1)
+        spec=context_action_spec(study_id="s", method_id="m", environment_id="e", model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="b" * 64, seed_digest="c" * 64, repetitions=1)
         with self.assertRaises(OperationFailure):
             context_action_runtime(mr,er).execute_cycle(spec,task="x",input_kind="a",input_payload={})
         self.assertEqual(state,["method.open","env.open","method.close"])
@@ -40,7 +40,7 @@ class StudyLifecycleV108Tests(unittest.TestCase):
         class BadCloseEnv(GoodEnv):
             def open_session(self,*,session_id,services): return BadCloseESession()
         mr=FakeParticipantResolver(); er=FakeParticipantResolver(); mr.register("method", "m",GoodMethod); er.register("environment", "e",BadCloseEnv)
-        spec=context_action_spec(study_id="s", method_id="m", environment_id="e", model_stack_digest="model", prompt_generation="prompt", workload_digest="work", seed_digest="seed", repetitions=1)
+        spec=context_action_spec(study_id="s", method_id="m", environment_id="e", model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="b" * 64, seed_digest="c" * 64, repetitions=1)
         with self.assertRaises(RunCleanupFailure) as cm:
             context_action_runtime(mr,er).execute_cycle(spec,task="x",input_kind="a",input_payload={})
         self.assertTrue(cm.exception.trial_completed)

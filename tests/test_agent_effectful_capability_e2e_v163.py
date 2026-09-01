@@ -78,7 +78,7 @@ class WriteToolSession:
 
 
 class WriteToolProvider:
-    identity = CapabilityProviderIdentity("write-tool", "1", "1", "1", "write-tool-cfg")
+    identity = CapabilityProviderIdentity("write-tool", "1", "1", "1", "e" * 64)
     def open_session(self, *, session_id: str, services: object):
         del session_id, services
         return WriteToolSession()
@@ -124,11 +124,11 @@ def _spec():
         study_id="default-study",
         project_id="default-project",
         participants=(
-            participant("capability_provider", "writer", "write-tool", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="write-tool-cfg"),
+            participant("capability_provider", "writer", "write-tool", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="e" * 64),
             participant("agent", "agent", "tool-agent", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="a" * 64, depends_on_roles=("writer",)),
         ),
-        model_stack_digest="model", prompt_generation="prompt", workload_digest="work",
-        seed_digest="seed", repetitions=1, trial_protocol_id="agent_turn.v1",
+        model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="b" * 64,
+        seed_digest="c" * 64, repetitions=1, trial_protocol_id="agent_turn.v1",
         trial_protocol_configuration_digest="44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
     )
 

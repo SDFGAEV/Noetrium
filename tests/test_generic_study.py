@@ -33,7 +33,7 @@ class Env:
 class GenericStudyTests(unittest.TestCase):
     def test_method_environment_are_replaceable(self):
         mr=FakeParticipantResolver(); er=FakeParticipantResolver(); mr.register("method", "m",Method); er.register("environment", "e",Env)
-        s=context_action_spec(study_id="study", method_id="m", environment_id="e", model_stack_digest="model", prompt_generation="prompts", workload_digest="work", seed_digest="seed", repetitions=1)
+        s=context_action_spec(study_id="study", method_id="m", environment_id="e", model_stack_digest="a" * 64, prompt_generation="prompts", workload_digest="b" * 64, seed_digest="c" * 64, repetitions=1)
         r=context_action_runtime(mr,er).execute_cycle(s,task="task",input_kind="act",input_payload={})
         self.assertEqual(r.context_text,"generic-context")
         self.assertTrue(r.primary_result.accepted)

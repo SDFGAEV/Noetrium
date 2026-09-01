@@ -11,6 +11,12 @@ from research_platform.model.api import (
     ModelCapabilityRequirement,
     ModelCapabilityResponse,
     ProjectModelBinding,
+    ProjectModelClientPort,
+    ProjectModelProviderPort,
+    ProjectModelRequest,
+    StructuredGenerationDecoderPort,
+    StructuredGenerationInput,
+    StructuredGenerationOutput,
 )
 
 InputT = TypeVar("InputT", bound=ModelCapabilityInput)
@@ -94,7 +100,96 @@ class FunctionalModelCapabilityProvider(Generic[InputT, OutputT]):
         )
 
 
+_INPUT_SCHEMA = "model.structured-generation.input.v1"
+_OUTPUT_SCHEMA = "model.structured-generation.output.v1"
+
+
+@dataclass(frozen=True, slots=True)
+class QualifiedStructuredGenerationCapabilityClient:
+    requirement: ModelCapabilityRequirement
+    _client: ProjectModelClientPort
+    _decoder: StructuredGenerationDecoderPort
+
+    def __post_init__(self) -> None:
+        if self.requirement.capability_id != "structured-generation":
+            raise ValueError("structured generation client requires structured-generation capability")
+        if self.requirement.input_schema_id != _INPUT_SCHEMA or self.requirement.output_schema_id != _OUTPUT_SCHEMA:
+            raise ValueError("structured generation client requires canonical input/output schema ids")
+        if not isinstance(self._client, ProjectModelClientPort):
+            raise TypeError("structured generation client requires ProjectModelClientPort")
+        if not isinstance(self._decoder, StructuredGenerationDecoderPort):
+            raise TypeError("structured generation decoder must satisfy StructuredGenerationDecoderPort")
+        binding = self._client.binding
+        if binding.requirement_digest != self.requirement.digest():
+            raise ValueError("structured generation binding requirement provenance drift")
+        if binding.capability_id != self.requirement.capability_id:
+            raise ValueError("structured generation binding capability provenance drift")
+        if binding.input_schema_id != _INPUT_SCHEMA or binding.output_schema_id != _OUTPUT_SCHEMA:
+            raise ValueError("structured generation binding schema provenance drift")
+
+    @property
+    def binding(self) -> ProjectModelBinding:
+        return self._client.binding
+
+    def invoke(self, request: ModelCapabilityInvocation[StructuredGenerationInput]) -> ModelCapabilityResponse[StructuredGenerationOutput]:
+        if not isinstance(request, ModelCapabilityInvocation):
+            raise TypeError("structured generation invocation must be typed")
+        if request.requirement_digest != self.requirement.digest():
+            raise ValueError("structured generation request requirement provenance drift")
+        if request.capability_id != "structured-generation" or request.input_schema_id != _INPUT_SCHEMA:
+            raise ValueError("structured generation request capability/schema drift")
+        if not isinstance(request.payload, StructuredGenerationInput):
+            raise TypeError("structured generation payload must be StructuredGenerationInput")
+        project_request = ProjectModelRequest(
+            requirement_digest=self.requirement.digest(),
+            envelope=request.payload.envelope,
+            body=request.payload.body,
+        )
+        raw = self._client.complete(project_request)
+        if raw.request_digest != project_request.request_digest:
+            raise ValueError("structured generation source response request provenance drift")
+        if raw.binding_digest != self.binding.digest():
+            raise ValueError("structured generation source response binding provenance drift")
+        document = self._decoder.decode_and_validate(
+            raw.text, schema_sha256=request.payload.output_schema_sha256
+        )
+        output = StructuredGenerationOutput(
+            document=document,
+            output_schema_sha256=request.payload.output_schema_sha256,
+            model_revision=self.binding.model.revision,
+            source_response_digest=raw.response_digest,
+        )
+        return ModelCapabilityResponse(
+            request_digest=request.request_digest,
+            binding_digest=self.binding.digest(),
+            output_schema_id=_OUTPUT_SCHEMA,
+            output=output,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class QualifiedStructuredGenerationCapabilityProvider:
+    _generation_provider: ProjectModelProviderPort
+    _decoder: StructuredGenerationDecoderPort
+
+    @property
+    def capability_id(self) -> str:
+        return "structured-generation"
+
+    def bind_capability(self, requirement: ModelCapabilityRequirement) -> QualifiedStructuredGenerationCapabilityClient:
+        if not isinstance(requirement, ModelCapabilityRequirement):
+            raise TypeError("structured generation requirement must be typed")
+        if requirement.capability_id != self.capability_id:
+            raise ValueError("structured generation provider does not own requested capability")
+        if requirement.input_schema_id != _INPUT_SCHEMA or requirement.output_schema_id != _OUTPUT_SCHEMA:
+            raise ValueError("structured generation requirement must use canonical input/output schema ids")
+        client = self._generation_provider.bind(requirement)
+        return QualifiedStructuredGenerationCapabilityClient(requirement, client, self._decoder)
+
+
 __all__ = [
     "FunctionalModelCapabilityClient",
     "FunctionalModelCapabilityProvider",
+    "QualifiedStructuredGenerationCapabilityProvider",
+    "QualifiedStructuredGenerationCapabilityClient",
 ]

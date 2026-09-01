@@ -108,7 +108,7 @@ class NonIdempotentMethod:
 
 
 def _spec() -> ExperimentSpec:
-    return context_action_spec(study_id="study", method_id="m", environment_id="e", model_stack_digest="model", prompt_generation="prompt", workload_digest="work", seed_digest="seed", repetitions=1, method_artifact_digest=METHOD_ARTIFACT, environment_artifact_digest=ENV_ARTIFACT)
+    return context_action_spec(study_id="study", method_id="m", environment_id="e", model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="b" * 64, seed_digest="c" * 64, repetitions=1, method_artifact_digest=METHOD_ARTIFACT, environment_artifact_digest=ENV_ARTIFACT)
 
 
 def test_crash_durable_action_refuses_non_idempotent_method_before_trial_protocol_or_act():

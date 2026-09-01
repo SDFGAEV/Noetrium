@@ -36,7 +36,7 @@ class EchoProviderSession:
 
 
 class EchoProvider:
-    identity = CapabilityProviderIdentity("echo-provider", "1", "1", "1", "provider-cfg")
+    identity = CapabilityProviderIdentity("echo-provider", "1", "1", "1", "d" * 64)
     def open_session(self, *, session_id: str, services: object): return EchoProviderSession()
 
 
@@ -72,11 +72,11 @@ def _spec():
         study_id="default-study",
         project_id="default-project",
         participants=(
-            participant("capability_provider", "echo", "echo-provider", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="provider-cfg"),
+            participant("capability_provider", "echo", "echo-provider", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="d" * 64),
             participant("agent", "agent", "generic-agent", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="a" * 64, depends_on_roles=("echo",)),
         ),
-        model_stack_digest="model", prompt_generation="prompt", workload_digest="work",
-        seed_digest="seed", repetitions=1, trial_protocol_id="agent_turn.v1",
+        model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="b" * 64,
+        seed_digest="c" * 64, repetitions=1, trial_protocol_id="agent_turn.v1",
         trial_protocol_configuration_digest="44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
     )
 

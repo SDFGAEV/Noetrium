@@ -7,13 +7,15 @@ from research_platform.participant.method.api import RecallRequest, RecallResult
 from .action_preflight_state import ActionPreflightState
 from .committed_cycle_recovery import CommittedCycleRecoveryCoordinator
 from .completion_recovery import CommittedCycleRecovery
-from research_platform.participant.core.api import BoundParticipants
+from research_platform.participant.core.api import BoundParticipants, ParticipantSessionBinding
 from .method_completion import MethodCompletionAdapter
-from research_platform.execution.workflow.api import EffectIntentOperationPort, OperationDispatchPort
+from research_platform.execution.workflow.api import (
+    EffectIntentOperationPort,
+    OperationDispatchPort,
+    WorkflowParticipantRequirementError,
+)
 from .safe_action import SafeEnvironmentActionExecutor
-from research_platform.participant.core.api import ParticipantSessionBinding
 from .contracts import StudyTaskCompletionExecution
-from research_platform.execution.workflow.api import WorkflowParticipantRequirementError
 
 
 class ContextActionTrialOperations:

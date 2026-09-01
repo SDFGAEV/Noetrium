@@ -68,7 +68,7 @@ def rt(j):
     ident=DecisionCycleIdentity("run","dc","session","task","trace")
     return context_action_runtime(mr,er,cycle_identity_provider=FixedDecisionCycleIdentityProvider(ident),effect_journal=j)
 
-def spec(): return context_action_spec(study_id="s", method_id="m", environment_id="e", model_stack_digest="model", prompt_generation="prompt", workload_digest="work", seed_digest="seed", repetitions=1)
+def spec(): return context_action_spec(study_id="s", method_id="m", environment_id="e", model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="b" * 64, seed_digest="c" * 64, repetitions=1)
 
 
 def test_authoritative_not_applied_never_becomes_method_task_completed():

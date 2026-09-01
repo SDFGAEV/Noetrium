@@ -44,11 +44,15 @@ from research_platform.environment.python.runtime import (
     VenvEnvironmentBackend,
 )
 from research_platform.runtime.service.api import ServiceLaunchContract
-from research_platform.runtime.service.runtime.capture_paths import DirectoryCapturePathProvider
-from research_platform.runtime.service.runtime.environment import MaterializedServiceEnvironment, StaticServiceEnvironmentProvider
-from research_platform.runtime.service.runtime.process_adapter import LocalServiceProcessAdapter
-from research_platform.runtime.service.runtime.readiness import HttpEndpointReadinessProbe, ProcessAliveReadinessProbe
-from research_platform.runtime.service.runtime.runtime_endpoint import ExactServiceRuntimeEndpoint
+from research_platform.runtime.service.runtime import (
+    DirectoryCapturePathProvider,
+    ExactServiceRuntimeEndpoint,
+    HttpEndpointReadinessProbe,
+    LocalServiceProcessAdapter,
+    MaterializedServiceEnvironment,
+    ProcessAliveReadinessProbe,
+    StaticServiceEnvironmentProvider,
+)
 from research_platform.runtime.service.runtime.start_intent_store import DirectoryServiceStartIntentStore
 from research_platform.runtime.service.runtime.state_storage import FileServiceStateStore
 

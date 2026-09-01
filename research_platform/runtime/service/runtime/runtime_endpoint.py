@@ -1,8 +1,13 @@
 from __future__ import annotations
 
-from research_platform.runtime.service.api import ServiceLaunchContract
+from research_platform.runtime.service.api import (
+    ServiceLaunchContract,
+    ServiceReadyObservation,
+    ServiceReconcileObservation,
+    ServiceStartOutcome,
+    ServiceStopOutcome,
+)
 from .contracts import ServicePhase
-from research_platform.runtime.service.api import ServiceReadyObservation, ServiceReconcileObservation, ServiceStartOutcome, ServiceStopOutcome
 from .supervisor import ExactServiceSupervisor
 
 

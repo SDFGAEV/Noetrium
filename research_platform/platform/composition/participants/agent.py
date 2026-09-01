@@ -29,7 +29,7 @@ class AgentParticipantPolicy:
     def implementation_identity(self, plugin: object) -> ParticipantImplementationIdentity:
         i = self._identity(plugin)
         return ParticipantImplementationIdentity(
-            self.kind, i.agent_id, i.implementation_version, i.abi_version, i.schema_version, i.artifact_digest
+            self.kind, i.agent_id, i.implementation_version, i.abi_version, i.schema_version, i.artifact_digest or None
         )
 
     def open_session(self, plugin: object, *, session_id: str, services: object) -> object:

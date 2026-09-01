@@ -57,8 +57,20 @@ class ArchitectureSourceIndex:
         while len(self._texts) > self.max_entries:
             self._texts.popitem(last=False)
 
+    @staticmethod
+    def _is_excluded_source_path(path: Path) -> bool:
+        return any(
+            part.startswith(".rsync-") or part in {
+                "__pycache__", ".git", ".venv", "venv", "node_modules",
+                ".pytest_cache", ".local", ".server-state", "build", "dist",
+            }
+            for part in path.parts
+        )
+
     def text(self, path: Path) -> str:
         key = self._key(path)
+        if self._is_excluded_source_path(key):
+            return ""
         if key in self._texts:
             return self._touch(self._texts, key)
         text = (
@@ -72,6 +84,8 @@ class ArchitectureSourceIndex:
 
     def tree(self, path: Path) -> ast.AST:
         key = self._key(path)
+        if self._is_excluded_source_path(key):
+            return ast.parse("", filename=str(key))
         if key in self._trees:
             return self._touch(self._trees, key)
         tree = (

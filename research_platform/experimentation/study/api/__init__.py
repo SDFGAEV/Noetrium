@@ -1,7 +1,3 @@
-from .binding import (
-    ResearchBindingContribution, ResearchBindingRequirements,
-    ResearchParticipantRequirement, ResearchRequirementResolution,
-)
 from .contracts import (
     StudyConcurrencyPolicy,
     StudyAssignment,
@@ -32,10 +28,6 @@ from .trial import (
     TrialExecutionReceipt, TrialExecutionRequest,
     TrialMatrixExecutionReport, TrialProviderPort,
 )
-from .compiler import (
-    CompiledResearchPlan, ResearchPlanDiff, ResearchProjectManifestProjection,
-    compile_research_plan, diff_research_plans, resolve_research_requirements,
-)
 from .ports import (
     StudyArtifactPublicationPort,
     StudyAssignmentPort,
@@ -55,11 +47,13 @@ from .plan import (
 __all__ = [
     "CompiledResearchPlan",
     "ResearchPlanDiff",
-    "ResearchProjectManifestProjection",
     "compile_research_plan",
     "diff_research_plans",
     "resolve_research_requirements",
     "ResearchBindingContribution",
+    "ResearchCapabilityBinding",
+    "ResearchModelBinding",
+    "ResearchParticipantBinding",
     "ResearchBindingRequirements",
     "ResearchParticipantRequirement",
     "ResearchRequirementResolution",

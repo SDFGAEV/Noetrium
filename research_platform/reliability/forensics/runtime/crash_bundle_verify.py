@@ -5,10 +5,13 @@ import json
 from pathlib import Path
 
 from research_platform.platform.kernel.errors import describe_exception
-from research_platform.reliability.failure.api import FailureSpec
+from research_platform.reliability.failure.api import (
+    FailureSpec,
+    RecoveryAction,
+    RiskLevel,
+    fingerprint_failure,
+)
 from research_platform.reliability.forensics.api.crash_bundle_contracts import CRASH_BUNDLE_SCHEMA_VERSION, CrashBundleVerification
-from research_platform.reliability.failure.api import RecoveryAction, RiskLevel
-from research_platform.reliability.failure.api import fingerprint_failure
 
 
 def _read_bundle(path: Path) -> tuple[dict[str, object] | None, tuple[str, ...]]:

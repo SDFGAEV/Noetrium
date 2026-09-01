@@ -38,6 +38,8 @@ Run focused tests first, then the gates appropriate to the affected boundary. Co
 ```bash
 python -m pytest -q <focused tests>
 python scripts/test_system.py check
+python scripts/provider_conformance.py check
+python scripts/product_assurance_gate.py --full --output product-assurance.json
 python scripts/architecture_gate.py
 python scripts/public_contract_audit.py
 python scripts/no_degradation_audit.py
@@ -70,3 +72,5 @@ Use the repository pull request template. Draft pull requests are welcome for ea
 Use clear, scoped commit messages and avoid mixing drive-by cleanup with the change under review. Keep local machine state, generated caches, and unrelated experiment output out of commits.
 
 By contributing, you agree to follow `CODE_OF_CONDUCT.md` and the Apache-2.0 licensing terms for contributions to this repository.
+
+Packaging or public-surface changes must additionally qualify installed distributions from a clean exact Git revision with `scripts/release_distribution.py`.

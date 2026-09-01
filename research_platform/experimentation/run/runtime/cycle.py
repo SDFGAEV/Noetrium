@@ -4,15 +4,16 @@ from dataclasses import dataclass, replace
 
 from research_platform.platform.kernel import ExecutionContext, JsonValue, OperationResult
 
-from research_platform.participant.core.api import ParticipantSessionBinding
+from research_platform.participant.core.api import BoundParticipants, ParticipantSessionBinding
 from research_platform.experimentation.checkpoint.api import RunCheckpointCoordinatorPort
-from research_platform.participant.core.api import BoundParticipants
 from .decision_coordination import identity_context
 from research_platform.execution.decision.cycle_identity import DecisionCycleIdentity
 from research_platform.execution.decision.cycle_result import DecisionCycleResult
 from ..identity.api import RunIdentity
-from research_platform.experimentation.experiment.api import ExperimentTrialCycleExecutorPort
-from research_platform.experimentation.experiment.api import ExperimentSpec
+from research_platform.experimentation.experiment.api import (
+    ExperimentSpec,
+    ExperimentTrialCycleExecutorPort,
+)
 
 
 class RunIdentityMismatch(RuntimeError):

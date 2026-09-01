@@ -3,9 +3,7 @@ from __future__ import annotations
 from research_platform.platform.kernel import ExecutionContext, JsonValue, OperationResult
 from research_platform.participant.core.api import BoundParticipant, BoundParticipants
 from research_platform.participant.core.api.runtime_ports import ParticipantResolutionPort
-from research_platform.experimentation.experiment.api import ExperimentSpec
-
-from research_platform.experimentation.experiment.api import ExperimentParticipantTopology
+from research_platform.experimentation.experiment.api import ExperimentParticipantTopology, ExperimentSpec
 
 
 class ExperimentComponentBinder:
