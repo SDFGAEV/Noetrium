@@ -84,7 +84,7 @@ def registries(mo,eo):
     return mr,er
 
 
-def spec(): return context_action_spec(study_id="study", method_id="m", environment_id="e", model_stack_digest="model", prompt_generation="prompt", workload_digest="work", seed_digest="seed", repetitions=1)
+def spec(): return context_action_spec(study_id="study", method_id="m", environment_id="e", model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="b" * 64, seed_digest="c" * 64, repetitions=1)
 
 
 def test_long_lived_run_opens_once_checkpoints_each_cycle_and_restores_exact_cut():

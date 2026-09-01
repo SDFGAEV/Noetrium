@@ -19,7 +19,7 @@ class AlternateTrialProtocol:
 
 class ExperimentTrialProtocolIdentityV127Tests(unittest.TestCase):
     def test_workflow_changes_study_identity(self):
-        default = context_action_spec(study_id="s", method_id="m", environment_id="e", model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="work", seed_digest="seed", repetitions=1)
+        default = context_action_spec(study_id="s", method_id="m", environment_id="e", model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="b" * 64, seed_digest="c" * 64, repetitions=1)
         from dataclasses import replace
         alternate = replace(
             default, trial_protocol_id="alternate.v1",
@@ -29,7 +29,7 @@ class ExperimentTrialProtocolIdentityV127Tests(unittest.TestCase):
 
     def test_runtime_rejects_workflow_drift_before_plugin_construction(self):
         runtime = build_experiment_runtime(participant_adapters=(), trial_protocol=AlternateTrialProtocol(), workflow_surface_factories=(EmptyWorkflowSurfaceFactory(),))
-        frozen_default = context_action_spec(study_id="s", method_id="missing-method", environment_id="missing-env", model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="work", seed_digest="seed", repetitions=1)
+        frozen_default = context_action_spec(study_id="s", method_id="missing-method", environment_id="missing-env", model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="b" * 64, seed_digest="c" * 64, repetitions=1)
         with self.assertRaises(ExperimentTrialProtocolIdentityMismatch):
             runtime.execute_cycle(
                 frozen_default,

@@ -55,7 +55,7 @@ def _spec():
         study_id="default-study",
         project_id="default-project",
         participants=(ExperimentParticipantSpec("physical_arm", ParticipantImplementationIdentity("robot", "arm-vendor-sdk", "7", "1", "3"), runtime_identity_for_test("robot"), "robot-cfg"),),
-        model_stack_digest="model", prompt_generation="prompt", workload_digest="work", seed_digest="seed",
+        model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="b" * 64, seed_digest="c" * 64,
         repetitions=1, trial_protocol_id="external-robot-noop.v1",
         trial_protocol_configuration_digest="44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
     )

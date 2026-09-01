@@ -43,7 +43,7 @@ class Environment:
 
 
 def spec():
-    return context_action_spec(study_id="s", method_id="m", environment_id="e", model_stack_digest="model", prompt_generation="prompt", workload_digest="work", seed_digest="seed", repetitions=1, method_artifact_digest="c" * 64, environment_artifact_digest="ecfg")
+    return context_action_spec(study_id="s", method_id="m", environment_id="e", model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="b" * 64, seed_digest="c" * 64, repetitions=1, method_artifact_digest="c" * 64, environment_artifact_digest="ecfg")
 
 
 def runtime(provider=None):
