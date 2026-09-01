@@ -11,11 +11,13 @@ from research_platform.participant.method.api import (
     MethodProgramIdentity,
     MethodGraphProgram,
     ResearchMethodProgram,
+    StatefulResearchMethodProgram,
 )
 from research_platform.participant.method.providers import (
     LangGraphCodec,
     LangGraphInvocation,
     LangGraphMethodProgram,
+    LangGraphStatefulMethodProgram,
 )
 from research_platform.platform.kernel import ExecutionContext
 
@@ -89,9 +91,10 @@ class Codec(LangGraphCodec[Task, Input, str, str, str]):
         )
 
 
-def _program() -> tuple[LangGraphMethodProgram[Task, Input, str, str, str], FakeGraph]:
+def _program(stateful: bool = False):
     graph = FakeGraph()
-    program = LangGraphMethodProgram(
+    program_type = LangGraphStatefulMethodProgram if stateful else LangGraphMethodProgram
+    program = program_type(
         program_identity=MethodProgramIdentity(
             MethodIdentity("langgraph-paper", "1", "abi1", "schema1", "a" * 64),
             "b" * 64,
@@ -114,6 +117,7 @@ def test_langgraph_adapter_is_a_typed_whole_method_and_graph_program():
 
     assert isinstance(program, ResearchMethodProgram)
     assert isinstance(program, MethodGraphProgram)
+    assert not isinstance(program, StatefulResearchMethodProgram)
     assert program.run(
         task=Task("task-1"), input_value=Input("hello"), context=_context()
     ) == "done"
@@ -138,7 +142,7 @@ def test_langgraph_adapter_keeps_resume_and_stream_as_explicit_typed_boundaries(
 
 
 def test_langgraph_checkpoint_capability_is_delegated_without_new_platform_identity():
-    program, graph = _program()
+    program, graph = _program(True)
 
     assert program.checkpoint_state() == b"0"
     program.restore_state(b"7")
@@ -154,7 +158,7 @@ def test_langgraph_adapter_fails_explicitly_when_checkpoint_is_not_supported():
         (),
         {"invoke": lambda self, input_value, *, config, context, version: {}},
     )()
-    program = LangGraphMethodProgram(
+    program = LangGraphStatefulMethodProgram(
         program_identity=program.program_identity,
         graph=invoke_only,
         codec=Codec(),

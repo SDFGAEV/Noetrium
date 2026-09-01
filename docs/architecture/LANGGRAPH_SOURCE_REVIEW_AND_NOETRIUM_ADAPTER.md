@@ -94,8 +94,9 @@ The following public types are now available from
 - `MethodGraphEvent[EventT]`: immutable ordered event projection.
 - `MethodGraphProgram`: provider-neutral invoke/stream protocol.
 - `MethodGraphCheckpointPort`: optional graph-state capability.
-- `LangGraphMethodProgram`: optional adapter in
-  `participant.method.providers`.
+- `LangGraphMethodProgram`: optional stateless adapter in
+  `participant.method.providers`; `LangGraphStatefulMethodProgram` is the
+  explicit variant for graphs that expose the checkpoint capability.
 
 The adapter deliberately requires a codec. A codec owns:
 
@@ -106,6 +107,7 @@ The adapter deliberately requires a codec. A codec owns:
 
 This prevents a generic JSON dictionary from becoming the method ABI and makes
 every paper method's schema visible at its own downstream boundary.
+
 ## What is intentionally not copied
 
 - LangGraph's private Pregel/channel/checkpoint classes are not imported.

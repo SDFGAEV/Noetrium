@@ -25,6 +25,8 @@ class MethodGraphRequest(Generic[TaskT, InputT, ResumeT]):
     resume: ResumeT | None = None
 
     def __post_init__(self) -> None:
+        if not isinstance(self.context, ExecutionContext):
+            raise TypeError("method graph request context must be an ExecutionContext")
         if any(not isinstance(value, str) or not value.strip() for value in (
             self.session_id, self.invocation_id,
         )):
