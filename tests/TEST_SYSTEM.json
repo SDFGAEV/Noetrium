@@ -196,7 +196,7 @@
     },
     {
       "id": "composition",
-      "pattern": "^test_(?:agent_cognition_(?:action_phase|planning_phase)|controller|deployment_(?!qualification)|experiment_(?!run_spec)|generic_|host_|java_runtime|joined_runtime_status|local_service|management|model_|operator_(?!unclosed)|participant_(?!checkpoint_envelope)|platform_meta_systems|prepared_process|process_|qualification_(?:fact_probes|index_snapshot)|resource_resolution|runtime_(?!failure|history|observer|platform|recovery|service|state|small|verification)|server_(?!connection)|service_(?!crash_)|trial_matrix_executor|workload_)",
+      "pattern": "^test_(?:agent_cognition_(?:action_phase|planning_phase)|controller|deployment_(?!qualification)|experiment_(?!run_spec)|generic_|host_|java_runtime|joined_runtime_status|local_service|management|model_|operator_(?!unclosed)|participant_(?!checkpoint_envelope)|platform_meta_systems|prepared_process|process_|qualification_(?:fact_probes|index_snapshot)|resource_resolution|runtime_(?!failure|history|observer|platform|recovery|service|state|small|verification)|server_(?!connection)|service_(?!crash_)|workload_)",
       "family": "composition-integration"
     },
     {
