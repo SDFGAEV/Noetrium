@@ -377,6 +377,46 @@
         ],
         "import_projection_sha256": "29e446c8368a8441bd2fec8273f9555204623a4d28a6bc267f4e1d6a3bd91f79"
       }
+    },
+    {
+      "migration_id": "role04-agent-model-convergence-v4-20260901",
+      "owner_role": "ROLE04",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 108
+      },
+      "justification": "Exact ROLE00 v4 integration candidate records the measured Participant/Model owner-scoped growth from the frozen baseline while preserving downstream method extensibility, typed runtime bindings, and one-way public platform dependencies.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.participant",
+          "research_platform.model"
+        ],
+        "import_projection_sha256": "e5e2bd98dedafcf17e6be42df261046b47a93e3172c30ce5811e0ae83286ee89"
+      }
+    },
+    {
+      "migration_id": "role05-research-data-convergence-v4-20260901",
+      "owner_role": "ROLE05",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 66
+      },
+      "justification": "Exact ROLE00 v4 integration candidate records the measured Environment/Data/Artifact/Observability owner-scoped growth from the frozen baseline while preserving portable evidence, content identity, and storage relocation semantics.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.environment",
+          "research_platform.data",
+          "research_platform.artifact",
+          "research_platform.observability"
+        ],
+        "import_projection_sha256": "195efba0ac5738ce48885c287a19a37a58069c5dc04e23f4b70c04e8c9464415"
+      }
     }
   ]
 }
