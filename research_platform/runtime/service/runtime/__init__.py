@@ -60,6 +60,13 @@ from .start_intent_contracts import ServiceStartIntent, ServiceStartIntentPhase
 __all__ += ("PreparedServiceStartReconcileResult","PreparedServiceStartStatus","ServiceStartRecoveryHandle","ServicePreparedStartRecoveryRequired","ServiceStartCoordinator","ServiceStartIntent","ServiceStartIntentPhase")
 
 from .quiescence import ExactServiceQuiescenceProbe, ServiceQuiescenceObservation
+from .readiness import HttpEndpointReadinessProbe
+from .runtime_endpoint import ExactServiceRuntimeEndpoint
 
-__all__ += ("ExactServiceQuiescenceProbe", "ServiceQuiescenceObservation")
+__all__ += (
+    "ExactServiceQuiescenceProbe",
+    "ServiceQuiescenceObservation",
+    "HttpEndpointReadinessProbe",
+    "ExactServiceRuntimeEndpoint",
+)
 
