@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from research_platform.platform.kernel import canonical_digest
-from research_platform.participant.core.api import BoundParticipants
+from research_platform.participant.core.api import BoundParticipant, BoundParticipants
 from research_platform.execution.decision.cycle_identity import DecisionCycleIdentity
 from research_platform.experimentation.experiment.api import ExperimentSpec
 
@@ -44,9 +44,9 @@ def _require_run_identity(
 
 def _bound_topology(
     bound: BoundParticipants,
-) -> tuple[dict[str, tuple[str, str]], dict[str, object]]:
+) -> tuple[dict[str, tuple[str, str]], dict[str, BoundParticipant]]:
     identities: dict[str, tuple[str, str]] = {}
-    participants: dict[str, object] = {}
+    participants: dict[str, BoundParticipant] = {}
     for row in bound.participants:
         if row.role in identities:
             raise RunCheckpointIdentityMismatch(
@@ -94,7 +94,7 @@ def _payload_index(
 def _verify_payload(
     role: str,
     item: RunParticipantPayload,
-    participant: object,
+    participant: BoundParticipant,
     cycle_identity: DecisionCycleIdentity,
 ) -> None:
     try:
