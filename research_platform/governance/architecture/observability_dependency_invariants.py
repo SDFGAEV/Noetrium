@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .source_scan import SourceInvariantViolation, imports, violation
+from .source_scan import SourceInvariantViolation, imports, is_transient_source_path, violation
 
 
 def audit_observability_dependency_invariants(root: Path) -> list[SourceInvariantViolation]:
@@ -42,6 +42,8 @@ def audit_observability_logging_leaf_invariants(root: Path) -> list[SourceInvari
         if not scan_root.exists():
             continue
         for path in sorted(scan_root.rglob("*.py")):
+            if is_transient_source_path(path):
+                continue
             for module, line in imports(path):
                 if any(module == prefix or module.startswith(prefix + ".") for prefix in legacy_import_prefixes):
                     rows.append(violation(
