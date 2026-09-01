@@ -81,6 +81,10 @@ def test_container_smoke_verifies_wheel_record_and_effective_identity():
     assert "PLATFORM_EMBEDDED_WHEEL" in script
     assert "zipfile.ZipFile" in script
     assert ".dist-info/RECORD" in script
+    assert 'distribution("noetrium")' in script
+    assert 'version("noetrium")' in script
+    assert 'distribution("research-platform")' not in script
+    assert 'version("research-platform")' not in script
     assert "hashlib.sha256(target.read_bytes()).digest()" in script
     assert "os.geteuid()" in script
     assert "os.getegid()" in script

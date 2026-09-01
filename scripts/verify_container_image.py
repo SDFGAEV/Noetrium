@@ -102,7 +102,7 @@ uid = os.geteuid()
 gid = os.getegid()
 if uid == 0 or gid == 0:
     raise SystemExit("container effective uid/gid must both be non-root")
-dist = importlib.metadata.distribution("research-platform")
+dist = importlib.metadata.distribution("noetrium")
 site_root = Path(dist.locate_file("")).resolve()
 verified_files = 0
 with zipfile.ZipFile(wheel) as archive:
@@ -169,7 +169,7 @@ for action in actions:
 print("CONTAINER_PRODUCT_SMOKE=" + json.dumps({
     "actions": actions,
     "module_file": research_platform.api.__file__,
-    "package_version": importlib.metadata.version("research-platform"),
+    "package_version": importlib.metadata.version("noetrium"),
     "python_version": sys.version.split()[0],
     **provenance,
 }, sort_keys=True))

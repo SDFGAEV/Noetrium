@@ -237,7 +237,7 @@ def verify_npe_cleanroom(artifact: Path) -> NpeCleanRoomReceipt:
 
         metadata_code = (
             "import importlib.metadata,json,research_platform.api;"
-            "print(json.dumps({'version':importlib.metadata.version('research-platform'),"
+            "print(json.dumps({'version':importlib.metadata.version('noetrium'),"
             "'module_file':research_platform.api.__file__}))"
         )
         metadata = _run(

@@ -17,7 +17,7 @@ from importlib.metadata import version
 import research_platform
 
 print(f"research_platform_import={research_platform.__name__}")
-print(f"research_platform_version={version('research-platform')}")
+print(f"research_platform_version={version('noetrium')}")
 PY
   research --help >/dev/null
   research-platform-manage --help >/dev/null
