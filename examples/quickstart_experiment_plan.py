@@ -6,6 +6,7 @@ from research_platform.experimentation.study import (
     StudyVariantSpec,
     VariantBinding,
     VariantKind,
+    StudyAssignment,
 )
 from research_platform.platform.kernel import canonical_digest
 
@@ -33,10 +34,15 @@ def build_plan() -> ExperimentPlan:
         task_manifest_digest=canonical_digest(("task-a", "task-b")),
     )
     bindings = (
-        VariantBinding(control, "seed-schedule-v1", "baseline-provider", "none", "reference"),
-        VariantBinding(treatment, "seed-schedule-v1", "candidate-provider", "none", "candidate"),
+        VariantBinding(control, canonical_digest("seed-schedule-v1"), canonical_digest("baseline-provider"), canonical_digest("none"), "reference"),
+        VariantBinding(treatment, canonical_digest("seed-schedule-v1"), canonical_digest("candidate-provider"), canonical_digest("none"), "candidate"),
     )
-    return ExperimentPlan.compile(protocol, bindings)
+    assignments = tuple(
+        StudyAssignment(protocol.study_id, variant.variant_id, repetition, f"seed-{repetition}-{variant.variant_id}")
+        for repetition in range(protocol.repetitions)
+        for variant in protocol.variants
+    )
+    return ExperimentPlan.compile(protocol, bindings, assignments)
 
 
 def main() -> None:

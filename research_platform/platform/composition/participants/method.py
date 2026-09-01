@@ -45,7 +45,7 @@ class MethodParticipantPolicy:
         )
         actual = (
             snapshot.method_id, snapshot.implementation_version, snapshot.schema_version,
-            snapshot.method_runtime_binding_digest, snapshot.session_id,
+            snapshot.method_runtime_binding_digest or None, snapshot.session_id,
         )
         if actual != expected or hashlib.sha256(snapshot.opaque_payload).hexdigest() != snapshot.payload_sha256:
             raise ParticipantIdentityMismatch("Method snapshot identity/checksum mismatch")

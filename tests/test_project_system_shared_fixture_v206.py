@@ -17,4 +17,4 @@ def test_context_action_fixture_respects_domain_absent_artifact_identity() -> No
     spec = context_action_spec()
     method, environment = spec.participants
     assert method.implementation.artifact_digest is None
-    assert environment.implementation.artifact_digest == ""
+    assert environment.implementation.artifact_digest is None
