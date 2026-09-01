@@ -182,7 +182,7 @@ def _spec() -> ExperimentSpec:
         study_id="default-study",
         project_id="default-project",
         participants=(
-            participant("capability_provider", "external-write", "external-write", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="external-write-cfg"),
+            participant("capability_provider", "external-write", "external-write", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="f" * 64),
             participant("agent", "agent", "restart-agent", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="a" * 64, depends_on_roles=("external-write",)),
         ),
         model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="b" * 64,

@@ -90,8 +90,8 @@ def spec():
         study_id="default-study",
         project_id="default-project",
         participants=(participant("sidecar", "controller", "custom", implementation_version="1", abi_version="1", schema_version="1", configuration_digest="cfg"),),
-        model_stack_digest="model", prompt_generation="prompt", workload_digest="work",
-        seed_digest="seed", repetitions=1, trial_protocol_id="no_op.v1",
+        model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="b" * 64,
+        seed_digest="c" * 64, repetitions=1, trial_protocol_id="no_op.v1",
         trial_protocol_configuration_digest="44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
     )
 
@@ -203,8 +203,8 @@ def _dependency_spec(*participants: ExperimentParticipantSpec) -> ExperimentSpec
     return ExperimentSpec(
         experiment_id="dependency-study",
         study_id="default-study",
-        project_id="default-project", participants=participants, model_stack_digest="model",
-        prompt_generation="prompt", workload_digest="work", seed_digest="seed", repetitions=1,
+        project_id="default-project", participants=participants, model_stack_digest="a" * 64,
+        prompt_generation="prompt", workload_digest="b" * 64, seed_digest="c" * 64, repetitions=1,
         trial_protocol_id="no_op.v1",
         trial_protocol_configuration_digest="44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
     )
