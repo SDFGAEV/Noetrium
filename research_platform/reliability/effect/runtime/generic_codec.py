@@ -4,18 +4,15 @@ import base64
 import json
 
 from research_platform.reliability.effect.api import (
-    EffectJournalIntegrityError,
-    PreparedEffectHandle,
-)
-from research_platform.platform.kernel import EffectCertainty, EffectClass, EffectReceipt, canonical_digest
-
-from research_platform.reliability.effect.api import (
     EffectCompletionEvidence,
     EffectIntent,
     EffectIntentPhase,
     EffectIntentRecord,
+    EffectJournalIntegrityError,
+    PreparedEffectHandle,
     effect_digest,
 )
+from research_platform.platform.kernel import EffectCertainty, EffectClass, EffectReceipt, canonical_digest
 from .persistence import EncodedEffectIntentRecord
 
 

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from research_platform.runtime.service.api import ServiceLaunchContract, ServiceProcessIdentity
+from research_platform.runtime.service.api import (
+    ServiceLaunchContract,
+    ServiceProcessIdentity,
+    ServiceReconcileObservation,
+)
 from .contracts import ServiceExitClass
 from .crash_capture import ServiceCrashEvidenceAdapter, ServiceCrashReport
-from research_platform.runtime.service.api import ServiceReconcileObservation
 from .service_crash_transition import ServiceCrashTransitionCoordinator
 from .service_observation import ServiceObservationCoordinator
 from .service_state_contracts import ServiceSupervisorState

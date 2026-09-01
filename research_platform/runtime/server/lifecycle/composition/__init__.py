@@ -8,6 +8,9 @@ from research_platform.runtime.server.identity.api import (
 )
 from research_platform.runtime.server.lifecycle.api import (
     ServerReleaseDeploymentPort,
+    ServerReleaseDirectoryPort,
+    ServerReleaseLayout,
+    ServerRemoteProfile,
     ServerRepositoryCommandPort,
     ServerRepositorySyncPort,
 )
@@ -18,8 +21,6 @@ from research_platform.runtime.server.lifecycle.providers import (
     SSHGitRepositoryCommandRunner,
     SSHGitBundleRepositorySynchronizer,
 )
-from research_platform.runtime.server.lifecycle.api import ServerRemoteProfile
-from research_platform.runtime.server.lifecycle.api import ServerReleaseDirectoryPort, ServerReleaseLayout
 from research_platform.runtime.session.providers import SSHRemoteTmuxSessionControl
 
 
