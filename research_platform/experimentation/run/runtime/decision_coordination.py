@@ -27,7 +27,7 @@ def _require_trial_execution(
     value: TrialCycleExecution | None,
 ) -> TrialCycleExecution:
     if value is None:
-        raise RuntimeError("decision cycle trial executor returned no execution result")
+        raise RuntimeError("scientific executor returned no execution result (decision cycle trial executor)")
     return value
 
 
