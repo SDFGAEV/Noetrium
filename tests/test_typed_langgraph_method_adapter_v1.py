@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -14,6 +15,7 @@ from research_platform.participant.method.api import (
     StatefulResearchMethodProgram,
 )
 from research_platform.participant.method.providers import (
+    LangGraphAsyncInvoker,
     LangGraphCodec,
     LangGraphInvocation,
     LangGraphMethodProgram,
@@ -59,6 +61,24 @@ class FakeGraph:
         object.__setattr__(self, "state", bytes(payload))
 
 
+@dataclass(frozen=True, slots=True)
+class AsyncGraph:
+    async def ainvoke(
+        self, input_value: object, *, config: dict[str, object],
+        context: object, version: str,
+    ) -> object:
+        return {"value": "done", "interrupts": ()}
+
+    async def astream(
+        self, input_value: object, *, config: dict[str, object],
+        context: object, version: str,
+    ):
+        yield {
+            "sequence": 0, "kind": "updates", "node": "answer",
+            "payload": "done",
+        }
+
+
 class Codec(LangGraphCodec[Task, Input, str, str, str]):
     def encode(
         self, request: MethodGraphRequest[Task, Input, str]
@@ -91,8 +111,8 @@ class Codec(LangGraphCodec[Task, Input, str, str, str]):
         )
 
 
-def _program(stateful: bool = False):
-    graph = FakeGraph()
+def _program(stateful: bool = False, graph: object | None = None):
+    graph = graph or FakeGraph()
     program_type = LangGraphStatefulMethodProgram if stateful else LangGraphMethodProgram
     program = program_type(
         program_identity=MethodProgramIdentity(
@@ -141,9 +161,29 @@ def test_langgraph_adapter_keeps_resume_and_stream_as_explicit_typed_boundaries(
     assert graph.calls[0][0]["resume"] == "approve"
 
 
+def test_langgraph_async_adapter_keeps_async_graphs_optional_and_typed():
+    graph = AsyncGraph()
+    program, _ = _program(graph=graph)
+    request = MethodGraphRequest(
+        Task("task-async"), Input("review"), _context(),
+        "session-1", "op-async", None,
+    )
+
+    async def exercise():
+        result = await program.ainvoke(request)
+        events = tuple([event async for event in program.astream(request)])
+        return result, events
+
+    result, events = asyncio.run(exercise())
+    assert isinstance(graph, LangGraphAsyncInvoker)
+    assert result == MethodGraphResult("done")
+    assert events == (MethodGraphEvent(0, "updates", "answer", "done"),)
+
+
 def test_langgraph_checkpoint_capability_is_delegated_without_new_platform_identity():
     program, graph = _program(True)
 
+    assert isinstance(program, StatefulResearchMethodProgram)
     assert program.checkpoint_state() == b"0"
     program.restore_state(b"7")
     assert graph.state == b"7"
@@ -173,7 +213,8 @@ def test_langgraph_adapter_fails_explicitly_when_checkpoint_is_not_supported():
 
 
 def test_langgraph_provider_has_no_hard_runtime_import():
-    source = Path(
-        "research_platform/participant/method/providers/langgraph.py"
-    ).read_text()
+    source = (
+        Path(__file__).parents[1]
+        / "research_platform/participant/method/providers/langgraph.py"
+    ).read_text(encoding="utf-8")
     assert "import langgraph" not in source

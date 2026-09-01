@@ -1,6 +1,7 @@
 """Optional external method-runtime adapters."""
 
 from .langgraph import (
+    LangGraphAsyncInvoker,
     LangGraphCodec,
     LangGraphInvocation,
     LangGraphInvoker,
@@ -9,6 +10,7 @@ from .langgraph import (
 )
 
 __all__ = [
+    "LangGraphAsyncInvoker",
     "LangGraphCodec",
     "LangGraphInvocation",
     "LangGraphInvoker",
