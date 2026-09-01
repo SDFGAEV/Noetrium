@@ -9,7 +9,7 @@ from research_platform.experimentation.identity import ReplayLevel
 from research_platform.platform.kernel import JsonValue, canonical_digest, freeze_json
 
 from .benchmark import BenchmarkTaskSet, TrialBudget
-from .binding import ResearchBindingRequirements
+from research_platform.experimentation.binding import ResearchBindingRequirements
 from .contracts import StudyConcurrencyPolicy
 from .measurement import MeasurementProtocol
 

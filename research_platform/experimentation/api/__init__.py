@@ -1,13 +1,13 @@
 from research_platform.experimentation.identity import ReplayLevel
+from research_platform.experimentation.binding import (
+    ResearchBindingContribution, ResearchBindingRequirements, ResearchCapabilityBinding,
+    ResearchModelBinding, ResearchParticipantBinding, ResearchParticipantRequirement,
+    ResearchRequirementResolution,
+)
 from research_platform.experimentation.study.api import (
     AnalysisDefinition, AnalysisResult, BenchmarkTaskSet, FactorLevelSpec, FactorSelection, MeasurementContentReference, MeasurementCut, MeasurementDefinition, MeasurementProtocol,
     MeasurementRecord, MeasurementValue, MeasurementValueKind, ParticipantSchedule, ResearchRevision, ResearchStudyDefinition, StudyFactorSpec, StudyIntervention,
     TaskDefinition, TaskGraph, TaskGraphEdge, TaskGraphRelation, TaskSetSplit, TrialBudget, TrialExecutionReceipt, TrialExecutionRequest, TrialMatrixExecutionReport, TrialProviderPort,
-)
-from .research_binding import (
-    ResearchBindingContribution, ResearchBindingRequirements, ResearchCapabilityBinding,
-    ResearchModelBinding, ResearchParticipantBinding, ResearchParticipantRequirement,
-    ResearchRequirementResolution,
 )
 from .research_compiler import (
     CompiledResearchPlan, ResearchPlanDiff, compile_research_plan,
