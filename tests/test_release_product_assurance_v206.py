@@ -39,7 +39,7 @@ def test_product_assurance_gate_fails_fast_on_blocker(monkeypatch):
     assert calls == ["test-taxonomy", "provider-conformance"]
 
 
-def test_full_assurance_binds_source_and_uses_local_basetemp(monkeypatch):
+def test_full_assurance_binds_source_and_uses_external_basetemp(monkeypatch):
     commands: list[tuple[str, list[str]]] = []
 
     def fake_run(name: str, argv: list[str]):
@@ -65,8 +65,8 @@ def test_full_assurance_binds_source_and_uses_local_basetemp(monkeypatch):
     ]
     full_argv = commands[-1][1]
     index = full_argv.index("--basetemp")
-    assert ".local" in full_argv[index + 1]
-    assert "product-assurance-full" in full_argv[index + 1]
+    assert str(assurance.tempfile.gettempdir()) in full_argv[index + 1]
+    assert "research-platform-product-assurance-full" in full_argv[index + 1]
 
 
 def test_full_assurance_blocks_dirty_source_before_commands(monkeypatch):
