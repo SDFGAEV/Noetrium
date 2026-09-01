@@ -634,7 +634,9 @@
       "execution",
       "participant",
       "platform",
-      "scope"
+      "portfolio",
+      "scope",
+      "governance"
     ],
     "provides": [],
     "components": []

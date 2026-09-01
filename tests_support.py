@@ -84,13 +84,20 @@ def participant(
     runtime_id: str | None = None,
     depends_on_roles: tuple[str, ...] = (),
 ) -> ExperimentParticipantSpec:
+    import hashlib
+    resolved_artifact = artifact_digest or hashlib.sha256(
+        f"{kind}:{plugin_id}:{implementation_version or '1'}:{abi_version or '1'}:{schema_version or '1'}".encode()
+    ).hexdigest()
+    resolved_configuration = configuration_digest or hashlib.sha256(
+        f"{kind}:{plugin_id}:configuration".encode()
+    ).hexdigest()
     return ExperimentParticipantSpec(
         role=role,
         implementation=ParticipantImplementationIdentity(
-            kind, plugin_id, implementation_version or "1", abi_version or "1", schema_version or "1", artifact_digest
+            kind, plugin_id, implementation_version or "1", abi_version or "1", schema_version or "1", resolved_artifact
         ),
         runtime=runtime_identity_for_test(kind, runtime_id),
-        configuration_digest=configuration_digest,
+        configuration_digest=resolved_configuration,
         depends_on_roles=depends_on_roles,
     )
 
@@ -315,6 +322,11 @@ def frozen_runtime_manifest(
     seed_identity: str = "seed",
     composition_plans=None,
 ):
+    from research_platform.experimentation.identity import (
+        OptionalIdentityFacet,
+        ReplayLevel,
+        RunResearchSemanticsReference,
+    )
     from research_platform.experimentation.run.manifest.api import (
         CompositionPlanReference,
         RunLaunchManifest,
@@ -345,6 +357,17 @@ def frozen_runtime_manifest(
         participant_binding_manifest_digest=binding_manifest_digest,
         project_manifest_digest=project_manifest_digest,
         experiment_spec_digest=experiment_spec_digest,
+        research_semantics=RunResearchSemanticsReference(
+            research_plan_digest="a" * 64,
+            study_plan_digest="b" * 64,
+            measurement_protocol_digest="c" * 64,
+            trial_protocol_digest="d" * 64,
+            intervention=OptionalIdentityFacet(),
+            topology=OptionalIdentityFacet(),
+            participant_schedule=OptionalIdentityFacet(),
+            revision=OptionalIdentityFacet(),
+            replay_level=ReplayLevel.EXACT,
+        ),
         command_argv=command_argv,
         launcher_binary_sha256=launcher_binary_sha256,
         command_environment_digest=(
