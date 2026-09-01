@@ -417,6 +417,87 @@
         ],
         "import_projection_sha256": "195efba0ac5738ce48885c287a19a37a58069c5dc04e23f4b70c04e8c9464415"
       }
+    },
+    {
+      "migration_id": "role01-platform-v4-mainline-20260901",
+      "owner_role": "ROLE01",
+      "delta": {
+        "top_level_systems": -1,
+        "subsystems": -31,
+        "contract_declarations": 17,
+        "authorities": -32,
+        "import_edges": 39
+      },
+      "justification": "Exact ROLE00 v4 mainline integration records the measured Governance and Platform owner-scoped topology and contract projection after reconciling the current platform mainline with the reviewed union.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.platform",
+          "research_platform.governance",
+          "research_platform.scope",
+          "research_platform.portfolio"
+        ],
+        "import_projection_sha256": "66cc1abe3a0ea3a3ff7cc169f66901770c3c0277a38b059a27722bc23fb2d78f"
+      }
+    },
+    {
+      "migration_id": "role03-research-v4-mainline-20260901",
+      "owner_role": "ROLE03",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 25
+      },
+      "justification": "Exact ROLE00 v4 mainline integration records the measured Execution and Experimentation owner-scoped import projection after reconciling the current platform mainline with the reviewed union.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.execution",
+          "research_platform.experimentation",
+          "research_platform.scientific"
+        ],
+        "import_projection_sha256": "1d486a376d9627e40b457991720c00fd247a5ff8034a871c71550b3cce8b5bd2"
+      }
+    },
+    {
+      "migration_id": "role04-agent-model-mainline-20260901",
+      "owner_role": "ROLE04",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 99
+      },
+      "justification": "Exact ROLE00 v4 mainline integration records the measured Participant and Model owner-scoped import projection after reconciling the current platform mainline with the reviewed union.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.participant",
+          "research_platform.model"
+        ],
+        "import_projection_sha256": "a7450828a12253ac93cbe78be2db29b60f90dfdb32ca2d33c57c07d4f551d6ef"
+      }
+    },
+    {
+      "migration_id": "role05-research-data-mainline-20260901",
+      "owner_role": "ROLE05",
+      "delta": {
+        "top_level_systems": 0,
+        "subsystems": 0,
+        "contract_declarations": 0,
+        "authorities": 0,
+        "import_edges": 70
+      },
+      "justification": "Exact ROLE00 v4 mainline integration records the measured Environment Data Artifact and Observability owner-scoped import projection after reconciling the current platform mainline with the reviewed union.",
+      "applicability": {
+        "module_prefixes": [
+          "research_platform.environment",
+          "research_platform.data",
+          "research_platform.artifact",
+          "research_platform.observability"
+        ],
+        "import_projection_sha256": "b0d25f807ff2c73a6605754e7d6320b4846a4f6d866b9ef67b4d9ad563f081fe"
+      }
     }
   ]
 }
