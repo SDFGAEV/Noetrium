@@ -1,15 +1,85 @@
 name: platform-assurance
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches: [master]
+    tags: ["v*"]
 
 permissions:
   contents: read
 
+concurrency:
+  group: platform-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  quality:
+    name: quality / py${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install package and test tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+      - name: Compile source
+        run: python -m compileall -q research_platform tests
+      - name: Run full Python test suite
+        run: pytest -q --junitxml="${{ runner.temp }}/pytest-${{ matrix.python-version }}.xml"
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-${{ matrix.python-version }}
+          if-no-files-found: error
+          path: ${{ runner.temp }}/pytest-${{ matrix.python-version }}.xml
+
+  governance:
+    name: governance / contracts / architecture
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install package and test tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+      - name: Verify test taxonomy
+        run: python scripts/test_system.py check
+      - name: Verify public contracts
+        run: python scripts/public_contract_audit.py
+      - name: Verify README localization
+        run: python scripts/check_readme_i18n.py
+      - name: Run architecture gate
+        run: python scripts/architecture_gate.py
+      - name: Run no-degradation audit
+        run: python scripts/no_degradation_audit.py
+
   assurance:
+    needs: [quality, governance]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
