@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from research_platform.reliability.effect.api import PreparedEffectHandle
-from research_platform.reliability.effect.api import EffectIntent
+from research_platform.reliability.effect.api import EffectIntent, PreparedEffectHandle
 from research_platform.environment.runtime.api import ActionRequest, action_request_digest
 from research_platform.platform.kernel import ComponentIdentity
 

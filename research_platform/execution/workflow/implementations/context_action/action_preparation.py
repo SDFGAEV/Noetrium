@@ -8,10 +8,12 @@ from research_platform.platform.kernel import ExecutionContext, JsonValue, Opera
 from .action_authorization import ActionAuthorizationBuilder
 from .action_capability import ActionRecoveryCapabilityGuard
 from .action_contracts import PreparedSafeAction
-from research_platform.execution.workflow.api import EffectIntentOperationPort
+from research_platform.execution.workflow.api import (
+    EffectIntentOperationPort,
+    OperationDispatchPort,
+)
 from .action_slot_guard import ActionSlotGuard
 from research_platform.participant.core.api import BoundParticipants
-from research_platform.execution.workflow.api import OperationDispatchPort
 
 
 class ActionPreparationCoordinator:

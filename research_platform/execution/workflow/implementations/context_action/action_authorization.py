@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from research_platform.reliability.effect.api import PreparedEffectHandle
-
-from research_platform.reliability.effect.api import EffectIntent
+from research_platform.reliability.effect.api import EffectIntent, PreparedEffectHandle
 from research_platform.environment.runtime.api import (
     ActionRecoveryRequired,
     ActionRequest,
@@ -14,9 +12,11 @@ from research_platform.platform.kernel import ExecutionContext, JsonValue, Opera
 from .action_contracts import ActionSafetyPermit, PreparedSafeAction
 from .action_effect_identity import build_action_effect_intent
 from .action_recovery_binding import ActionRecoveryRequestBinder
-from research_platform.execution.workflow.api import EffectIntentOperationPort
+from research_platform.execution.workflow.api import (
+    EffectIntentOperationPort,
+    OperationDispatchPort,
+)
 from research_platform.participant.core.api import BoundParticipants
-from research_platform.execution.workflow.api import OperationDispatchPort
 
 
 class ActionAuthorizationBuilder:

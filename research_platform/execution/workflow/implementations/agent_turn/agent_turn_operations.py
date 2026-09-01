@@ -11,8 +11,11 @@ from research_platform.platform.kernel import ExecutionContext, JsonValue, Opera
 from .capability_effects import CapabilityEffectExecutor
 from .capability_operations import CapabilityOperationAdapter
 from .capability_routing import CapabilitySessionBinding, StudyCapabilityRouter
-from research_platform.execution.workflow.api import WorkflowParticipantRequirementError
-from research_platform.execution.workflow.api import EffectIntentOperationPort, OperationDispatchPort
+from research_platform.execution.workflow.api import (
+    EffectIntentOperationPort,
+    OperationDispatchPort,
+    WorkflowParticipantRequirementError,
+)
 from research_platform.participant.core.api import ParticipantSessionBinding
 
 

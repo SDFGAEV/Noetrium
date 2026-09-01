@@ -6,11 +6,10 @@ from ..api.contracts import RunCheckpointStore
 from .identity import CHECKPOINT_STORE_IDENTITY
 from ..api.results import RunRestoreResult
 from .validation import validate_restore_bundle
-from research_platform.participant.core.api import BoundParticipants
+from research_platform.participant.core.api import BoundParticipants, ParticipantSessionBinding
 from research_platform.execution.decision.cycle_identity import DecisionCycleIdentity
 from research_platform.execution.workflow.api import OperationDispatchPort
 from research_platform.participant.core.api.runtime_ports import ParticipantCheckpointOperationsPort
-from research_platform.participant.core.api import ParticipantSessionBinding
 from research_platform.experimentation.experiment.api import ExperimentSpec
 
 
