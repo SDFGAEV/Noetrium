@@ -145,7 +145,7 @@ class TelemetryQuerySummaryTests(unittest.TestCase):
                     self.percentile_queries = 0
 
                 def execute(self, sql: str, parameters=()):
-                    if "WITH ordered AS" in sql:
+                    if "WITH ranked AS" in sql:
                         self.percentile_queries += 1
                     return self.connection.execute(sql, parameters)
 
