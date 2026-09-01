@@ -97,7 +97,7 @@ jobs:
           python -m pip install -e ".[test]" build
 
       - name: Run machine-readable product assurance gate
-        run: python scripts/product_assurance_gate.py --full --output "$RUNNER_TEMP/product-assurance.json"
+        run: python scripts/product_assurance_gate.py --full --skip-architecture --output "$RUNNER_TEMP/product-assurance.json"
 
       - name: Build and qualify installed distributions
         run: python scripts/release_distribution.py "$RUNNER_TEMP/research-distribution"

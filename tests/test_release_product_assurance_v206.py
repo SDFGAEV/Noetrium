@@ -39,6 +39,20 @@ def test_product_assurance_gate_fails_fast_on_blocker(monkeypatch):
     assert calls == ["test-taxonomy", "provider-conformance"]
 
 
+def test_full_assurance_can_skip_architecture_gate(monkeypatch):
+    commands: list[str] = []
+
+    def fake_run(name: str, argv: list[str]):
+        commands.append(name)
+        return _receipt(name, argv, 0)
+
+    monkeypatch.setattr(assurance, "_run", fake_run)
+    _bind_source_identity(monkeypatch)
+    result = assurance.evaluate(full=True, include_architecture=False)
+    assert result.passed is True
+    assert commands == ["test-taxonomy", "provider-conformance", "full-regression"]
+
+
 def test_full_assurance_binds_source_and_uses_external_basetemp(monkeypatch):
     commands: list[tuple[str, list[str]]] = []
 

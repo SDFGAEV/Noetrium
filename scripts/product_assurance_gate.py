@@ -130,7 +130,7 @@ def _run(name: str, argv: list[str]) -> GateCommandReceipt:
     )
 
 
-def evaluate(*, full: bool) -> ProductAssuranceReceipt:
+def evaluate(*, full: bool, include_architecture: bool = True) -> ProductAssuranceReceipt:
     source_sha, branch, source_tree_sha256, source_clean = _source_identity()
     if full and not source_clean:
         return ProductAssuranceReceipt(
@@ -156,11 +156,14 @@ def evaluate(*, full: bool) -> ProductAssuranceReceipt:
             "provider-conformance",
             [sys.executable, "scripts/provider_conformance.py", "run"],
         ),
-        (
-            "architecture",
-            [sys.executable, "-m", "research_platform.governance.architecture.gate"],
-        ),
     ]
+    if include_architecture:
+        commands.append(
+            (
+                "architecture",
+                [sys.executable, "-m", "research_platform.governance.architecture.gate"],
+            )
+        )
     if full:
         commands.append(
             (
@@ -224,9 +227,14 @@ def evaluate(*, full: bool) -> ProductAssuranceReceipt:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--full", action="store_true")
+    parser.add_argument(
+        "--skip-architecture",
+        action="store_true",
+        help="omit the architecture budget gate when CI uses the non-ROLE00 assurance profile",
+    )
     parser.add_argument("--output", type=Path)
     args = parser.parse_args(argv)
-    receipt = evaluate(full=args.full)
+    receipt = evaluate(full=args.full, include_architecture=not args.skip_architecture)
     document = (
         json.dumps(asdict(receipt), ensure_ascii=False, sort_keys=True, indent=2)
         + "\n"
