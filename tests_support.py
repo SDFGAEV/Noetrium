@@ -87,7 +87,7 @@ def participant(
     return ExperimentParticipantSpec(
         role=role,
         implementation=ParticipantImplementationIdentity(
-            kind, plugin_id, implementation_version or "1", abi_version or "1", schema_version or "1", artifact_digest
+            kind, plugin_id, implementation_version or "1", abi_version or "1", schema_version or "1", artifact_digest or None
         ),
         runtime=runtime_identity_for_test(kind, runtime_id),
         configuration_digest=configuration_digest,
@@ -102,10 +102,10 @@ def context_action_spec(
     *,
     experiment_id: str = "default-experiment",
     project_id: str = "default-project",
-    model_stack_digest: str = "model",
+    model_stack_digest: str = "a" * 64,
     prompt_generation: str = "prompt",
-    workload_digest: str = "work",
-    seed_digest: str = "seed",
+    workload_digest: str = "b" * 64,
+    seed_digest: str = "c" * 64,
     repetitions: int = 1,
     method_implementation_version: str = "",
     method_abi_version: str = "",
@@ -156,10 +156,10 @@ def study_spec(
     *,
     experiment_id: str = "default-experiment",
     project_id: str = "default-project",
-    model_stack_digest: str = "model",
+    model_stack_digest: str = "a" * 64,
     prompt_generation: str = "prompt",
-    workload_digest: str = "work",
-    seed_digest: str = "seed",
+    workload_digest: str = "b" * 64,
+    seed_digest: str = "c" * 64,
     repetitions: int = 1,
     scientific_workflow_id: str,
     scientific_workflow_configuration_digest: str = "",

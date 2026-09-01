@@ -166,12 +166,12 @@
     },
     {
       "id": "contracts",
-      "pattern": "^test_(?:agent_(?:capability_abi|observation_evidence_payload)|checksummed_document_failure_codes|document_integrity|exact_|experiment_run_spec|failure_taxonomy_binding|leaf_failure_contract|prompt_contract|public_api_imports|qualification_evidence_codec|project_system|python_environment|run_(?:launch_manifest_authority|manifest_codec)|runtime_verification_ports|scientific_identity_freeze|segment_verifier|server_connection_environment|source_.*|system_leaf_contracts|typed_.*)",
+      "pattern": "^test_(?:agent_(?:capability_abi|observation_evidence_payload)|checksummed_document_failure_codes|document_integrity|exact_|experiment_run_spec|failure_taxonomy_binding|leaf_failure_contract|prompt_contract|public_api_imports|qualification_evidence_codec|project_system|python_environment|run_(?:launch_manifest_authority|manifest_codec)|runtime_verification_ports|scientific_identity_freeze|section42_identity_facets|segment_verifier|server_connection_environment|source_.*|system_leaf_contracts|trial_(?:identity_freeze|protocol_identity)|typed_.*)",
       "family": "typed-contracts"
     },
     {
       "id": "durability",
-      "pattern": "^test_(?:action_checkpoint|action_intent_journal|agent_(?:cognition_recovery|cognition_state_checkpoint|coordination_durability|memory_durability|skill_library_durability)|crash_bundle|durable|effect_journal|forensic_index|heartbeat|jsonl_log_algorithm_regressions|leaf_state|method_observation_outbox|participant_checkpoint|public_checkpoint|raw_lake|recovery_(?!lease_|observer_)|run_artifact|runtime_history|runtime_state|segmented_logs|sem_durable|sqlite_atomic_state|state_|storage|torn_)",
+      "pattern": "^test_(?:action_checkpoint|action_intent_journal|agent_(?:cognition_recovery|cognition_state_checkpoint|coordination_durability|memory_durability|skill_library_durability)|crash_bundle|durable|effect_journal|forensic_index|heartbeat|jsonl_log_algorithm_regressions|leaf_state|method_observation_outbox|participant_checkpoint|public_checkpoint|raw_lake|recovery_(?!lease_|observer_)|research_checkpoint|run_artifact|runtime_history|runtime_state|segmented_logs|sem_durable|sqlite_atomic_state|state_|storage|torn_)",
       "family": "durability-recovery"
     },
     {
@@ -191,12 +191,12 @@
     },
     {
       "id": "composition",
-      "pattern": "^test_(?:agent_cognition_(?:action_phase|planning_phase)|controller|deployment_(?!qualification)|experiment_(?!run_spec)|generic_|host_|java_runtime|joined_runtime_status|local_service|management|model_|operator_(?!unclosed)|participant_(?!checkpoint_envelope)|platform_meta_systems|prepared_process|process_|qualification_(?:fact_probes|index_snapshot)|resource_resolution|runtime_(?!failure|history|observer|platform|recovery|service|state|small|verification)|server_(?!connection)|service_(?!crash_)|workload_)",
+      "pattern": "^test_(?:agent_cognition_(?:action_phase|planning_phase)|controller|deployment_(?!qualification)|experiment_(?!run_spec)|generic_|host_|java_runtime|joined_runtime_status|local_service|management|model_|operator_(?!unclosed)|participant_(?!checkpoint_envelope)|platform_meta_systems|prepared_process|process_|qualification_(?:fact_probes|index_snapshot)|resource_resolution|runtime_(?!failure|history|observer|platform|recovery|service|state|small|verification)|server_(?!connection)|service_(?!crash_)|trial_matrix_executor|workload_)",
       "family": "composition-integration"
     },
     {
       "id": "domain",
-      "pattern": "^test_(?:agent_effectful|agent_only|environment_(?!effect_safety)|method_(?!observation_outbox)|metric_|prompt_(?!contract|trace_observer_isolation)|scientific_(?!identity_freeze)|study_)",
+      "pattern": "^test_(?:agent_effectful|agent_only|environment_(?!effect_safety)|measurement_|method_(?!observation_outbox)|metric_|prompt_(?!contract|trace_observer_isolation)|research_compiler|scientific_(?!identity_freeze)|study_)",
       "family": "scientific-domain"
     },
     {

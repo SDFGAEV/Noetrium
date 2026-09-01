@@ -62,8 +62,8 @@ def spec(*, method_id="requested", method_implementation_version="2", method_abi
             ),
             participant("environment", "environment", "env", implementation_version="3", abi_version="abi-3", schema_version="schema-3", configuration_digest="cfg-e"),
         ),
-        model_stack_digest="model", prompt_generation="prompt", workload_digest="work",
-        seed_digest="seed", repetitions=1, trial_protocol_id="context_action.v2",
+        model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="b" * 64,
+        seed_digest="c" * 64, repetitions=1, trial_protocol_id="context_action.v2",
         trial_protocol_configuration_digest="44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
     )
 
