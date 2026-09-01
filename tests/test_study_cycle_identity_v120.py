@@ -38,7 +38,7 @@ class EnvironmentSession:
 
 
 class Environment:
-    identity=EnvironmentIdentity("e", "1", "1", "1", "ecfg")
+    identity=EnvironmentIdentity("e", "1", "1", "1", "e" * 64)
     def open_session(self, *, session_id, services): return EnvironmentSession()
 
 
