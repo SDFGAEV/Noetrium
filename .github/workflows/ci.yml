@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   pull_request:
   push:
-    branches: [master]
+    branches: [master, main]
     tags: ["v*"]
 
 permissions:
@@ -73,6 +73,22 @@ jobs:
         run: python scripts/public_contract_audit.py
       - name: Verify README localization
         run: python scripts/check_readme_i18n.py
+      - name: Load external ROLE00 architecture migration approvals
+        env:
+          APPROVALS_JSON: ${{ secrets.ROLE00_ARCHITECTURE_MIGRATION_APPROVALS_JSON }}
+          APPROVALS_SHA256: ${{ secrets.ROLE00_ARCHITECTURE_MIGRATION_APPROVALS_SHA256 }}
+        run: |
+          test -n "$APPROVALS_JSON"
+          test -n "$APPROVALS_SHA256"
+          approval_path="$RUNNER_TEMP/architecture-migration-approvals.json"
+          printf '%s' "$APPROVALS_JSON" > "$approval_path"
+          observed="$(sha256sum "$approval_path" | cut -d' ' -f1)"
+          test "$observed" = "$APPROVALS_SHA256"
+          {
+            echo "RESEARCH_PLATFORM_ARCHITECTURE_MIGRATION_APPROVALS=$approval_path"
+            echo "RESEARCH_PLATFORM_ARCHITECTURE_MIGRATION_APPROVALS_SHA256=$observed"
+          } >> "$GITHUB_ENV"
+
       - name: Run architecture gate
         run: python scripts/architecture_gate.py
       - name: Run no-degradation audit

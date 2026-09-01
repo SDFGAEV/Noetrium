@@ -5,9 +5,11 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -138,7 +140,15 @@ def evaluate(*, full: bool) -> ProductAssuranceReceipt:
                     "pytest",
                     "-q",
                     "--basetemp",
-                    str(ROOT / ".local" / "product-assurance-full"),
+                    str(
+                        Path(
+                            os.environ.get(
+                                "RUNNER_TEMP",
+                                tempfile.gettempdir(),
+                            )
+                        )
+                        / "research-platform-product-assurance-full"
+                    ),
                 ],
             )
         )
