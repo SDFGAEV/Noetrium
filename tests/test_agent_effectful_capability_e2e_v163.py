@@ -127,7 +127,7 @@ def _spec():
             participant("capability_provider", "writer", "write-tool", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="write-tool-cfg"),
             participant("agent", "agent", "tool-agent", implementation_version="1", abi_version="1", schema_version="1", artifact_digest="a" * 64, depends_on_roles=("writer",)),
         ),
-        model_stack_digest="model", prompt_generation="prompt", workload_digest="work",
+        model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="work",
         seed_digest="seed", repetitions=1, trial_protocol_id="agent_turn.v1",
         trial_protocol_configuration_digest="44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
     )
