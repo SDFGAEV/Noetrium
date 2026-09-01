@@ -5,6 +5,7 @@ from .langgraph import (
     LangGraphInvocation,
     LangGraphInvoker,
     LangGraphMethodProgram,
+    LangGraphStatefulMethodProgram,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "LangGraphInvocation",
     "LangGraphInvoker",
     "LangGraphMethodProgram",
+    "LangGraphStatefulMethodProgram",
 ]

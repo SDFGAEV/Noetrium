@@ -167,6 +167,12 @@ class LangGraphMethodProgram(
             )
         )
 
+
+class LangGraphStatefulMethodProgram(
+    LangGraphMethodProgram[TaskT, InputT, ResumeT, ResultT, EventT]
+):
+    """Stateful adapter variant for a graph exposing the checkpoint capability."""
+
     def checkpoint_state(self) -> bytes:
         if not isinstance(self._graph, MethodGraphCheckpointPort):
             raise TypeError(
@@ -180,9 +186,12 @@ class LangGraphMethodProgram(
                 "the configured graph does not expose the checkpoint capability"
             )
         self._graph.restore_state(payload)
+
+
 __all__ = [
     "LangGraphCodec",
     "LangGraphInvocation",
     "LangGraphInvoker",
     "LangGraphMethodProgram",
+    "LangGraphStatefulMethodProgram",
 ]
