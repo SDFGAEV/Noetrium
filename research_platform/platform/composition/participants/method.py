@@ -29,7 +29,7 @@ class MethodParticipantPolicy:
     def implementation_identity(self, plugin: object) -> ParticipantImplementationIdentity:
         i = self._identity(plugin)
         return ParticipantImplementationIdentity(
-            self.kind, i.method_id, i.implementation_version, i.abi_version, i.schema_version, i.artifact_digest
+            self.kind, i.method_id, i.implementation_version, i.abi_version, i.schema_version, i.artifact_digest or None
         )
 
     def open_session(self, plugin: object, *, session_id: str, services: object) -> object:
@@ -41,7 +41,7 @@ class MethodParticipantPolicy:
             raise TypeError("MethodSession.checkpoint must return MethodSnapshot")
         i = self._identity(plugin)
         expected = (
-            i.method_id, i.implementation_version, i.schema_version, i.artifact_digest, session_id
+            i.method_id, i.implementation_version, i.schema_version, i.artifact_digest or None, session_id
         )
         actual = (
             snapshot.method_id, snapshot.implementation_version, snapshot.schema_version,
@@ -54,7 +54,7 @@ class MethodParticipantPolicy:
     def restore(self, plugin: object, session: object, payload: bytes, *, session_id: str) -> None:
         i = self._identity(plugin)
         session.restore(MethodSnapshot(
-            i.method_id, i.implementation_version, i.schema_version, i.artifact_digest,
+            i.method_id, i.implementation_version, i.schema_version, i.artifact_digest or None,
             session_id, hashlib.sha256(payload).hexdigest(), payload,
         ))
 

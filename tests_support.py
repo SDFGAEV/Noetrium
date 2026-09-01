@@ -85,12 +85,13 @@ def participant(
     depends_on_roles: tuple[str, ...] = (),
 ) -> ExperimentParticipantSpec:
     import hashlib
-    resolved_artifact = artifact_digest or hashlib.sha256(
-        f"{kind}:{plugin_id}:{implementation_version or '1'}:{abi_version or '1'}:{schema_version or '1'}".encode()
-    ).hexdigest()
-    resolved_configuration = configuration_digest or hashlib.sha256(
-        f"{kind}:{plugin_id}:configuration".encode()
-    ).hexdigest()
+    resolved_artifact = artifact_digest or None
+    configuration_seed = configuration_digest or f"{kind}:{plugin_id}:configuration"
+    resolved_configuration = (
+        configuration_seed
+        if len(configuration_seed) == 64 and all(ch in "0123456789abcdef" for ch in configuration_seed)
+        else hashlib.sha256(configuration_seed.encode()).hexdigest()
+    )
     return ExperimentParticipantSpec(
         role=role,
         implementation=ParticipantImplementationIdentity(
@@ -127,6 +128,11 @@ def context_action_spec(
     scientific_workflow_id: str = "context_action.v2",
     scientific_workflow_configuration_digest: str = "",
 ) -> ExperimentSpec:
+    import hashlib
+
+    def digest_seed(value: str) -> str:
+        return value if len(value) == 64 and all(ch in "0123456789abcdef" for ch in value) else hashlib.sha256(value.encode()).hexdigest()
+
     return ExperimentSpec(
         experiment_id=experiment_id,
         study_id=study_id,
@@ -147,13 +153,17 @@ def context_action_spec(
                 configuration_digest=environment_configuration_digest, artifact_digest=environment_artifact_digest,
             ),
         ),
-        model_stack_digest=model_stack_digest,
+        model_stack_digest=digest_seed(model_stack_digest) if model_stack_digest else None,
         prompt_generation=prompt_generation,
-        workload_digest=workload_digest,
-        seed_digest=seed_digest,
+        workload_digest=digest_seed(workload_digest),
+        seed_digest=digest_seed(seed_digest),
         repetitions=repetitions,
-        scientific_workflow_id=scientific_workflow_id,
-        scientific_workflow_configuration_digest=scientific_workflow_configuration_digest,
+        trial_protocol_id=scientific_workflow_id,
+        trial_protocol_configuration_digest=(
+            "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+            if not scientific_workflow_configuration_digest
+            else digest_seed(scientific_workflow_configuration_digest)
+        ),
     )
 
 
@@ -176,13 +186,17 @@ def study_spec(
         study_id=study_id,
         project_id=project_id,
         participants=participants,
-        model_stack_digest=model_stack_digest,
+        model_stack_digest=digest_seed(model_stack_digest) if model_stack_digest else None,
         prompt_generation=prompt_generation,
-        workload_digest=workload_digest,
-        seed_digest=seed_digest,
+        workload_digest=digest_seed(workload_digest),
+        seed_digest=digest_seed(seed_digest),
         repetitions=repetitions,
-        scientific_workflow_id=scientific_workflow_id,
-        scientific_workflow_configuration_digest=scientific_workflow_configuration_digest,
+        trial_protocol_id=scientific_workflow_id,
+        trial_protocol_configuration_digest=(
+            "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+            if not scientific_workflow_configuration_digest
+            else digest_seed(scientific_workflow_configuration_digest)
+        ),
     )
 
 
@@ -259,13 +273,19 @@ def frozen_binding(
     resolved_artifact = artifact_digest or hashlib.sha256(
         f"{kind}:{participant_id}:{implementation_version}:{abi_version}:{schema_version}".encode()
     ).hexdigest()
+    configuration_seed = configuration_digest or f"{kind}:{participant_id}:configuration"
+    resolved_configuration = (
+        configuration_seed
+        if len(configuration_seed) == 64 and all(ch in "0123456789abcdef" for ch in configuration_seed)
+        else hashlib.sha256(configuration_seed.encode()).hexdigest()
+    )
     return ParticipantRuntimeBinding(
         role,
         ParticipantImplementationIdentity(
             kind, participant_id, implementation_version, abi_version, schema_version, resolved_artifact
         ),
         runtime_identity_for_test(kind),
-        configuration_digest,
+        resolved_configuration,
     )
 
 
