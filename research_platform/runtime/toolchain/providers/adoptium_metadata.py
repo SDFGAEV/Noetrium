@@ -4,7 +4,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol, TypeAlias
+from typing import Protocol
 from urllib.parse import unquote, urlencode, urlparse
 from urllib.request import Request, urlopen
 
@@ -19,7 +19,7 @@ _DOWNLOAD_HOST = "github.com"
 _DOWNLOAD_PATH = re.compile(r"^/adoptium/temurin\d+-binaries/releases/download/")
 _MAX_METADATA_BYTES = 4 * 1024 * 1024
 
-JsonValue: TypeAlias = str | int | float | bool | None | list["JsonValue"] | dict[str, "JsonValue"]
+JsonValue = str | int | float | bool | None | list["JsonValue"] | dict[str, "JsonValue"]
 
 
 @dataclass(frozen=True, slots=True)
