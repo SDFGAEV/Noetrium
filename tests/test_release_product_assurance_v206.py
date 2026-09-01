@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 
 import scripts.product_assurance_gate as assurance
 
@@ -79,7 +80,8 @@ def test_full_assurance_binds_source_and_uses_external_basetemp(monkeypatch):
     ]
     full_argv = commands[-1][1]
     index = full_argv.index("--basetemp")
-    assert str(assurance.tempfile.gettempdir()) in full_argv[index + 1]
+    expected_temp_root = os.environ.get("RUNNER_TEMP", assurance.tempfile.gettempdir())
+    assert str(expected_temp_root) in full_argv[index + 1]
     assert "research-platform-product-assurance-full" in full_argv[index + 1]
 
 
