@@ -212,7 +212,7 @@ def test_ssh_foreground_operator_session_uses_process_supervision_authority() ->
     assert len(process_runner.calls) == 1
     submitted_argv, options = process_runner.calls[0]
     assert submitted_argv == argv
-    assert options["timeout_seconds"] is None
+    assert options["timeout_seconds"] == profile.command_timeout_seconds
     assert options["inherit_stdin"] is True
     assert options["inherit_output"] is True
 

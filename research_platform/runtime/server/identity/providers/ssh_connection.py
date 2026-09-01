@@ -115,9 +115,10 @@ class SSHServerConnection(ServerConnectionPort):
         if process_runner is None:
             raise RuntimeError("interactive SSH requires an injected async process command runner")
         self._prepare_control_path()
+        timeout_seconds = self._profile.command_timeout_seconds
         completed = process_runner.execute(
-            argv, timeout_seconds=None, inherit_stdin=True, inherit_output=True
-        ).result()
+            argv, timeout_seconds=timeout_seconds, inherit_stdin=True, inherit_output=True
+        ).result(timeout=timeout_seconds + 4.0)
         if completed.spawn_error is not None:
             return 127
         return completed.return_code
