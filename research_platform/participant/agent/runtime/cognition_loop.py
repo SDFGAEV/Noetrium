@@ -5,8 +5,7 @@ import time
 from typing import Callable
 
 from research_platform.platform.kernel import ExecutionContext
-from research_platform.platform.kernel.errors import describe_exception
-from research_platform.platform.kernel.errors import redact_text
+from research_platform.platform.kernel.errors import describe_exception, redact_text
 
 from ..api.cognition import (
     AgentCognitionError,

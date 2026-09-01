@@ -3,10 +3,16 @@ from __future__ import annotations
 from research_platform.data.state.api import StateVersionConflict
 
 from research_platform.reliability.effect.api import PendingEffectRecoveryRequired
-from research_platform.reliability.failure.api import DEFAULT_FAILURE_CATALOG, FailureCatalog, ClassifiedOperationFailure, PartialOperationFailureClassifier
+from research_platform.reliability.failure.api import (
+    DEFAULT_FAILURE_CATALOG,
+    ClassifiedOperationFailure,
+    FailureCatalog,
+    OperationFailureReferenceProjection,
+    OperationFailureReferenceProjector,
+    PartialOperationFailureClassifier,
+)
 from research_platform.reliability.forensics.runtime import FailureRecorder
 from research_platform.reliability.forensics.composition import ForensicStore
-from research_platform.reliability.failure.api import OperationFailureReferenceProjection, OperationFailureReferenceProjector
 from research_platform.platform.kernel import EffectCertainty, OperationAuxiliaryFailure, OperationRequest, OperationSemanticPolicyViolation
 from research_platform.platform.kernel.failure_materialization import FailureRecordReceipt
 from research_platform.participant.core.api.runtime_operations import participant_operation_verb

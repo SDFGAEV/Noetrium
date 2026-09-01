@@ -7,8 +7,7 @@ from research_platform.experimentation.experiment.api import ExperimentTaskSpec,
 from research_platform.experimentation.run.api import RunDiagnosticsPort
 from research_platform.environment.runtime.api import ActionRequest, ActionResult, Observation
 from research_platform.participant.method.api import MethodSession
-from research_platform.platform.kernel import ExecutionContext
-from research_platform.platform.kernel import JsonValue
+from research_platform.platform.kernel import ExecutionContext, JsonValue
 
 from .contracts import WorkloadDecision, WorkloadTaskResult
 
