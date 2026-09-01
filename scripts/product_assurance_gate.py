@@ -79,10 +79,41 @@ def _source_identity() -> tuple[str, str, str, bool]:
     return sha, branch, source_tree_sha256, clean
 
 
+def _isolated_python_argv(argv: list[str]) -> list[str]:
+    if not argv or Path(argv[0]).resolve() != Path(sys.executable).resolve():
+        return argv
+    target = argv[1:]
+    if target[:1] == ["-m"] and len(target) >= 2:
+        launcher = (
+            "import runpy,sys; "
+            "root,module,*args=sys.argv[1:]; "
+            "sys.path.insert(0,root); "
+            "sys.argv=[module,*args]; "
+            "runpy.run_module(module,run_name='__main__')"
+        )
+        return [argv[0], "-c", launcher, str(ROOT), target[1], *target[2:]]
+    if target:
+        launcher = (
+            "import runpy,sys; "
+            "root,script,*args=sys.argv[1:]; "
+            "sys.path.insert(0,root); "
+            "sys.argv=[script,*args]; "
+            "runpy.run_path(script,run_name='__main__')"
+        )
+        return [argv[0], "-c", launcher, str(ROOT), *target]
+    return argv
+
+
 def _run(name: str, argv: list[str]) -> GateCommandReceipt:
+    child_env = os.environ.copy()
+    existing_pythonpath = child_env.get("PYTHONPATH", "")
+    child_env["PYTHONPATH"] = os.pathsep.join(
+        item for item in (str(ROOT), existing_pythonpath) if item
+    )
     completed = subprocess.run(
-        argv,
+        _isolated_python_argv(argv),
         cwd=ROOT,
+        env=child_env,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
