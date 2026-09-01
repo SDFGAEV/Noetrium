@@ -85,7 +85,12 @@ def participant(
     depends_on_roles: tuple[str, ...] = (),
 ) -> ExperimentParticipantSpec:
     import hashlib
-    resolved_artifact = artifact_digest or None
+    artifact_seed = artifact_digest
+    resolved_artifact = (
+        artifact_seed
+        if artifact_seed is None or (len(artifact_seed) == 64 and all(ch in "0123456789abcdef" for ch in artifact_seed))
+        else hashlib.sha256(artifact_seed.encode()).hexdigest()
+    )
     configuration_seed = configuration_digest or f"{kind}:{plugin_id}:configuration"
     resolved_configuration = (
         configuration_seed
