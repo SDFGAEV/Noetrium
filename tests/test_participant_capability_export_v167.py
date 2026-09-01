@@ -135,8 +135,8 @@ def _spec():
         study_id="default-study",
         project_id="default-project",
         participants=(
-            ExperimentParticipantSpec("arm", ParticipantImplementationIdentity("robot", "arm", "1", "1", "1"), runtime_identity_for_test("robot"), "robot-cfg"),
-            ExperimentParticipantSpec("agent", ParticipantImplementationIdentity("agent", "robot-agent", "1", "1", "1", "a" * 64), runtime_identity_for_test("agent"), "", depends_on_roles=("arm",)),
+            ExperimentParticipantSpec("arm", ParticipantImplementationIdentity("robot", "arm", "1", "1", "1"), runtime_identity_for_test("robot"), "d" * 64),
+            ExperimentParticipantSpec("agent", ParticipantImplementationIdentity("agent", "robot-agent", "1", "1", "1", "a" * 64), runtime_identity_for_test("agent"), "d" * 64, depends_on_roles=("arm",)),
         ),
         model_stack_digest="a" * 64, prompt_generation="prompt", workload_digest="b" * 64, seed_digest="c" * 64,
         repetitions=1, trial_protocol_id="agent_turn.v1",

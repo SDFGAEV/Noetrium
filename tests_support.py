@@ -129,7 +129,7 @@ def context_action_spec(
     environment_abi_version: str = "",
     environment_schema_version: str = "",
     environment_configuration_digest: str = "",
-    environment_artifact_digest: str = "",
+    environment_artifact_digest: str | None = None,
     scientific_workflow_id: str = "context_action.v2",
     scientific_workflow_configuration_digest: str = "",
 ) -> ExperimentSpec:
