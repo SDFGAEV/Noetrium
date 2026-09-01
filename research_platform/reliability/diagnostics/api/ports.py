@@ -1,8 +1,25 @@
 from __future__ import annotations
 
-from typing import ContextManager, Protocol
+from typing import ContextManager, Protocol, TypedDict
 
 from .records import DiagnosticObjectRecord, OperationInvocationRecord, StateWriterRecord
+
+
+class MetricQueryRow(TypedDict):
+    """Validated read-side metric row returned by diagnostic queries."""
+
+    sequence: int
+    metric: str
+    value: float
+    timestamp: float
+    run_id: str
+    task_id: str | None
+    decision_cycle_id: str | None
+    trace_id: str
+    span_id: str
+    operation_id: str | None
+    component_id: str | None
+    dimensions: dict[str, str]
 
 
 class DiagnosticIndexSessionPort(Protocol):
@@ -85,7 +102,7 @@ class MetricQueryPort(Protocol):
         metric: str | None = None,
         decision_cycle_id: str | None = None,
         limit: int = 1000,
-    ) -> tuple[dict[str, object], ...]: ...
+    ) -> tuple[MetricQueryRow, ...]: ...
 
 
-__all__ = ["DiagnosticEvidencePort", "DiagnosticIndexSessionPort", "MetricQueryPort"]
+__all__ = ["DiagnosticEvidencePort", "DiagnosticIndexSessionPort", "MetricQueryPort", "MetricQueryRow"]

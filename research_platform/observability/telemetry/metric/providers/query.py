@@ -69,7 +69,7 @@ class SQLiteTelemetryReader:
         metric: str | None = None,
         decision_cycle_id: str | None = None,
         limit: int = 1000,
-    ) -> tuple[dict[str, object], ...]:
+    ) -> tuple[dict[str, int | float | str | None | dict[str, str]], ...]:
         if limit <= 0:
             return ()
         clauses = ["run_id=?"]
@@ -88,7 +88,7 @@ class SQLiteTelemetryReader:
         )
         with closing(self._connect()) as db:
             rows = db.execute(sql, args).fetchall()
-        result: list[dict[str, object]] = []
+        result: list[dict[str, int | float | str | None | dict[str, str]]] = []
         for row in rows:
             if len(row) != 12:
                 raise TelemetryMetricCorruptionError("telemetry query row has an invalid field count")
