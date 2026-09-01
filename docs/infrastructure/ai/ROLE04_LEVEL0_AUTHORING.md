@@ -59,17 +59,27 @@ envelope. Domain requirement types, diagnostic enums, provider qualification and
 binding authority remain ROLE04-owned. Owner and project subject identities are
 explicit composition inputs rather than ambient registry lookups.
 
-ROLE04 also consumes Platform Kernel `freeze_json`, `strict_json_loads`, and
-`strict_finite_json_bytes` instead of private Model/Participant JSON acceptance
-helpers. The consumer cut is verified on an exact ROLE01+ROLE04 disposable union;
-formal dependency integration into the authoritative branch remains a ROLE00/DAG
-decision rather than a worker-side merge.
+ROLE04 also consumes Platform Kernel `freeze_json`, `strict_json_loads`,
+`strict_finite_json_bytes`, and `require_sha256` instead of private
+Model/Participant JSON or digest acceptance helpers. Formal dependency integration
+into the authoritative branch remains a ROLE00/DAG decision rather than a
+worker-side merge.
 
 ## Artifact and configuration digest identity
 
-Level-0 Participant declarations treat non-empty `artifact_digest` and
+Level-0 Participant declarations treat provided `artifact_digest` and
 `configuration_digest` values as canonical lowercase SHA-256 identities. Arbitrary
 labels such as `artifact-v1` or `config-v1` are rejected before a canonical
-`ParticipantRequirement` can be emitted. The empty string remains the explicit
-absence of a separately published artifact/configuration digest; it is not
-reinterpreted as a digest value.
+`ParticipantRequirement` can be emitted. Absence is typed explicitly as `None`;
+an empty string is rejected and is never overloaded as a digest sentinel. The
+Agent/Method identity -> ParticipantRequirement projection preserves `None` or the
+exact lowercase SHA-256 value without inventing a replacement identity. In the
+ROLE01-integrated consumer cut, validation delegates to kernel `require_sha256` so
+ROLE04 does not own a second generic digest acceptance authority.
+
+Core Participant artifact identity is enforced at the canonical identity types,
+not only at Level-0 wrappers. `ParticipantImplementationIdentity` accepts either
+typed absence (`None`) or a canonical lowercase SHA-256 artifact identity, while
+`ParticipantSessionRuntimeIdentity` requires a canonical lowercase SHA-256
+runtime artifact identity. Direct construction therefore cannot bypass the same
+shared kernel acceptance authority used by higher-level authoring projections.
