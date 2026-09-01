@@ -14,6 +14,14 @@ from .contracts import (
     TaskCompletionReconciliationSession,
 )
 from .errors import TaskCompletionSafetyCapabilityMissing
+from .graph import (
+    MethodGraphCheckpointPort,
+    MethodGraphEvent,
+    MethodGraphInterrupt,
+    MethodGraphProgram,
+    MethodGraphRequest,
+    MethodGraphResult,
+)
 from .binding import MethodSystemBinding
 from .observability import (
     MethodObservation,
@@ -36,6 +44,12 @@ from .runtime import (
 __all__ = [
     "IdempotentTaskCompletionSession",
     "MethodIdentity",
+    "MethodGraphCheckpointPort",
+    "MethodGraphEvent",
+    "MethodGraphInterrupt",
+    "MethodGraphProgram",
+    "MethodGraphRequest",
+    "MethodGraphResult",
     "MethodCompositionPorts",
     "MethodEndpointFactoryPort",
     "MethodEndpointPort",
