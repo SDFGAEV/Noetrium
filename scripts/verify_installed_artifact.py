@@ -119,7 +119,7 @@ def verify_installed_artifact(artifact: Path) -> InstalledArtifactReceipt:
         commands.append(_run([str(research), "--help"], cwd=work, env=env))
         metadata_code = (
             "import importlib.metadata,json,research_platform.api;"
-            "print(json.dumps({'version':importlib.metadata.version('research-platform'),"
+            "print(json.dumps({'version':importlib.metadata.version('noetrium'),"
             "'module_file':research_platform.api.__file__}))"
         )
         metadata_receipt = _run(
