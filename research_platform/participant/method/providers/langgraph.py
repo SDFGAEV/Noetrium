@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping
+from collections.abc import AsyncIterator, Iterator, Mapping
 from dataclasses import dataclass
-from typing import Generic, Protocol, TypeVar
+from typing import Generic, Protocol, TypeVar, runtime_checkable
 
 from research_platform.platform.kernel import ExecutionContext
 
@@ -21,6 +21,7 @@ ResultT = TypeVar("ResultT")
 EventT = TypeVar("EventT")
 
 
+@runtime_checkable
 class LangGraphInvoker(Protocol):
     """Narrow public invoke surface; no LangGraph import is required here."""
 
@@ -41,6 +42,29 @@ class LangGraphInvoker(Protocol):
         context: object,
         version: str,
     ) -> Iterator[object]: ...
+
+
+@runtime_checkable
+class LangGraphAsyncInvoker(Protocol):
+    """Optional async public invoke surface for async graph runtimes."""
+
+    async def ainvoke(
+        self,
+        input_value: object,
+        *,
+        config: Mapping[str, object],
+        context: object,
+        version: str,
+    ) -> object: ...
+
+    def astream(
+        self,
+        input_value: object,
+        *,
+        config: Mapping[str, object],
+        context: object,
+        version: str,
+    ) -> AsyncIterator[object]: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,6 +89,8 @@ class LangGraphCodec(Protocol[TaskT, InputT, ResumeT, ResultT, EventT]):
     def decode_result(self, raw: object) -> MethodGraphResult[ResultT]: ...
 
     def decode_event(self, raw: object) -> MethodGraphEvent[EventT]: ...
+
+
 class LangGraphMethodProgram(
     Generic[TaskT, InputT, ResumeT, ResultT, EventT]
 ):
@@ -139,6 +165,47 @@ class LangGraphMethodProgram(
             previous_sequence = event.sequence
             yield event
 
+    async def ainvoke(
+        self, request: MethodGraphRequest[TaskT, InputT, ResumeT]
+    ) -> MethodGraphResult[ResultT]:
+        graph = self._async_graph()
+        invocation = self._codec.encode(request)
+        raw = await graph.ainvoke(
+            invocation.input_value,
+            config=invocation.config,
+            context=invocation.context,
+            version=invocation.version,
+        )
+        return self._codec.decode_result(raw)
+
+    async def astream(
+        self, request: MethodGraphRequest[TaskT, InputT, ResumeT]
+    ) -> AsyncIterator[MethodGraphEvent[EventT]]:
+        graph = self._async_graph()
+        invocation = self._codec.encode(request)
+        previous_sequence = -1
+        async for raw in graph.astream(
+            invocation.input_value,
+            config=invocation.config,
+            context=invocation.context,
+            version=invocation.version,
+        ):
+            event = self._codec.decode_event(raw)
+            if event.sequence <= previous_sequence:
+                raise ValueError(
+                    "LangGraph async stream events must have strictly increasing "
+                    "sequence numbers"
+                )
+            previous_sequence = event.sequence
+            yield event
+
+    def _async_graph(self) -> LangGraphAsyncInvoker:
+        if not isinstance(self._graph, LangGraphAsyncInvoker):
+            raise TypeError(
+                "the configured graph does not expose the async invoke capability"
+            )
+        return self._graph
+
     def run(
         self,
         *,
@@ -189,6 +256,7 @@ class LangGraphStatefulMethodProgram(
 
 
 __all__ = [
+    "LangGraphAsyncInvoker",
     "LangGraphCodec",
     "LangGraphInvocation",
     "LangGraphInvoker",

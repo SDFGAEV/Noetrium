@@ -40,14 +40,24 @@ class MethodGraphInterrupt:
     payload: object
 
     def __post_init__(self) -> None:
-        if any(not isinstance(value, str) or not value.strip() for value in (
-            self.interrupt_id, self.node,
-        )):
+        if any(
+            not isinstance(value, str) or not value.strip()
+            for value in (self.interrupt_id, self.node)
+        ):
             raise ValueError("method graph interrupt identity fields are required")
+
+
 @dataclass(frozen=True, slots=True)
 class MethodGraphResult(Generic[ResultT]):
     value: ResultT
     interrupts: tuple[MethodGraphInterrupt, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.interrupts, tuple) or any(
+            not isinstance(interrupt, MethodGraphInterrupt)
+            for interrupt in self.interrupts
+        ):
+            raise TypeError("method graph result interrupts must be typed tuple")
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,12 +69,21 @@ class MethodGraphEvent(Generic[EventT]):
     checkpoint_id: str | None = None
 
     def __post_init__(self) -> None:
-        if self.sequence < 0:
-            raise ValueError("method graph event sequence must be non-negative")
-        if any(not isinstance(value, str) or not value.strip() for value in (
-            self.kind, self.node,
-        )):
+        if (
+            isinstance(self.sequence, bool)
+            or not isinstance(self.sequence, int)
+            or self.sequence < 0
+        ):
+            raise ValueError("method graph event sequence must be a non-negative integer")
+        if any(
+            not isinstance(value, str) or not value.strip()
+            for value in (self.kind, self.node)
+        ):
             raise ValueError("method graph event kind and node are required")
+        if self.checkpoint_id is not None and (
+            not isinstance(self.checkpoint_id, str) or not self.checkpoint_id.strip()
+        ):
+            raise ValueError("method graph event checkpoint_id must be non-empty text")
 
 
 @runtime_checkable
@@ -81,6 +100,8 @@ class MethodGraphProgram(Protocol[TaskT, InputT, ResultT, ResumeT, EventT]):
     def stream(
         self, request: MethodGraphRequest[TaskT, InputT, ResumeT]
     ) -> Iterator[MethodGraphEvent[EventT]]: ...
+
+
 @runtime_checkable
 class MethodGraphCheckpointPort(Protocol):
     """Optional graph-state trait; the participant envelope remains authoritative."""

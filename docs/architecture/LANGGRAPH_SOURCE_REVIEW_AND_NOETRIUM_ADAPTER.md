@@ -97,6 +97,8 @@ The following public types are now available from
 - `LangGraphMethodProgram`: optional stateless adapter in
   `participant.method.providers`; `LangGraphStatefulMethodProgram` is the
   explicit variant for graphs that expose the checkpoint capability.
+- `LangGraphAsyncInvoker`: optional public `ainvoke/astream` capability exposed
+  by the same adapter; async support is structural and remains provider-optional.
 
 The adapter deliberately requires a codec. A codec owns:
 
