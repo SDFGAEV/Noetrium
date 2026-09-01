@@ -125,7 +125,7 @@ class _ExternalWriteSession:
 
 
 class _ExternalWriteProvider:
-    identity = CapabilityProviderIdentity("external-write", "1", "1", "1", "external-write-cfg")
+    identity = CapabilityProviderIdentity("external-write", "1", "1", "1", "f" * 64)
 
     def __init__(self, external_effect_path: Path) -> None:
         self._external_effect_path = external_effect_path

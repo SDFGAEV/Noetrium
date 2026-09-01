@@ -78,7 +78,7 @@ class WriteToolSession:
 
 
 class WriteToolProvider:
-    identity = CapabilityProviderIdentity("write-tool", "1", "1", "1", "write-tool-cfg")
+    identity = CapabilityProviderIdentity("write-tool", "1", "1", "1", "e" * 64)
     def open_session(self, *, session_id: str, services: object):
         del session_id, services
         return WriteToolSession()

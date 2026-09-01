@@ -36,7 +36,7 @@ class EchoProviderSession:
 
 
 class EchoProvider:
-    identity = CapabilityProviderIdentity("echo-provider", "1", "1", "1", "provider-cfg")
+    identity = CapabilityProviderIdentity("echo-provider", "1", "1", "1", "d" * 64)
     def open_session(self, *, session_id: str, services: object): return EchoProviderSession()
 
 
