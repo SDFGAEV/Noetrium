@@ -31,6 +31,10 @@ python -m pip install -e ".[test]"
 4. Treat external effects, identity changes, and recovery behavior as explicit contract decisions.
 5. If the change is intentionally breaking, make the semantic change explicit rather than adding hidden compatibility behavior.
 
+## Single-mainline development
+
+Platform changes are serialized in the canonical worktree and mainline. Do not create role-owned branches or long-lived role worktrees. Reviewers inspect commits read-only; they do not need a second worktree. The exact operating rules are in [`docs/development/SINGLE_MAINLINE_WORKFLOW.md`](docs/development/SINGLE_MAINLINE_WORKFLOW.md).
+
 ## Tests and evidence
 
 Run focused tests first, then the gates appropriate to the affected boundary. Common checks are:
