@@ -9,7 +9,7 @@ import struct
 import sys
 import time
 from pathlib import Path
-from threading import RLock
+from threading import Lock, RLock
 
 _IN_CREATE = 0x00000100
 _IN_DELETE = 0x00000200
@@ -44,6 +44,7 @@ class _LinuxInotifyHub:
             error = ctypes.get_errno()
             raise OSError(error, "failed to initialize Linux inotify authority")
         self._lock = RLock()
+        self._read_lock = Lock()
         self._next_token = 1
         self._watch_by_token: dict[int, int] = {}
         self._tokens_by_watch: dict[int, set[int]] = {}
@@ -74,8 +75,8 @@ class _LinuxInotifyHub:
 
     def register(self, root: Path) -> int:
         self._require_owner_process()
+        self._drain()
         with self._lock:
-            self._drain_locked()
             watch = int(self._add_watch(self._fd, os.fsencode(root), _WATCH_MASK))
             if watch < 0:
                 error = ctypes.get_errno()
@@ -86,57 +87,76 @@ class _LinuxInotifyHub:
             self._tokens_by_watch.setdefault(watch, set()).add(token)
             return token
 
-    def _mark_all_pending(self) -> None:
-        self._pending.update(self._watch_by_token)
+    def _drain(self) -> None:
+        """Drain non-blocking kernel events before entering the state lock."""
+        self._read_lock.acquire()
+        try:
+            fd = self._fd
+            if fd < 0:
+                return
+            events: list[tuple[int, int]] = []
+            all_pending = False
+            while True:
+                try:
+                    data = os.read(fd, 64 * 1024)
+                except BlockingIOError:
+                    break
+                except OSError as exc:
+                    if exc.errno == errno.EINTR:
+                        continue
+                    all_pending = True
+                    break
+                if not data:
+                    break
+                decoded, overflow = self._decode_events(data)
+                events.extend(decoded)
+                if overflow:
+                    all_pending = True
+                    break
 
-    def _drain_locked(self) -> None:
-        while True:
-            try:
-                data = os.read(self._fd, 64 * 1024)
-            except BlockingIOError:
-                return
-            except OSError as exc:
-                if exc.errno == errno.EINTR:
-                    continue
-                self._mark_all_pending()
-                return
-            if not data:
-                return
-            self._decode_locked(data)
+            with self._lock:
+                if all_pending:
+                    self._pending.update(self._watch_by_token)
+                for watch, mask in events:
+                    if mask & _MUTATION_MASK:
+                        self._pending.update(self._tokens_by_watch.get(watch, ()))
+        finally:
+            self._read_lock.release()
 
-    def _decode_locked(self, data: bytes) -> None:
+    @staticmethod
+    def _decode_events(data: bytes) -> tuple[tuple[tuple[int, int], ...], bool]:
+        events: list[tuple[int, int]] = []
         offset = 0
         while offset < len(data):
             if len(data) - offset < _INOTIFY_EVENT.size:
-                self._mark_all_pending()
-                return
+                return tuple(events), True
             watch, mask, _cookie, name_length = _INOTIFY_EVENT.unpack_from(data, offset)
             record_length = _INOTIFY_EVENT.size + name_length
             if record_length > len(data) - offset:
-                self._mark_all_pending()
-                return
+                return tuple(events), True
             if mask & _IN_Q_OVERFLOW:
-                self._mark_all_pending()
-            elif mask & _MUTATION_MASK:
-                self._pending.update(self._tokens_by_watch.get(watch, ()))
+                return tuple(events), True
+            if mask & _MUTATION_MASK:
+                events.append((watch, mask))
             offset += record_length
+        return tuple(events), False
 
     def changed(self, token: int) -> bool:
         self._require_owner_process()
+        self._drain()
         with self._lock:
             if token not in self._watch_by_token:
                 raise OSError("Linux directory watch token is closed")
-            self._drain_locked()
             return token in self._pending
 
     def wait_changed(self, token: int, timeout_seconds: float) -> bool:
         self._require_owner_process()
         deadline = time.monotonic() + timeout_seconds
         while True:
+            self._drain()
             with self._lock:
                 if token not in self._watch_by_token:
                     raise OSError("Linux directory watch token is closed")
-                self._drain_locked()
                 if token in self._pending:
                     return True
                 fd = self._fd
@@ -152,16 +172,16 @@ class _LinuxInotifyHub:
                     self._pending.add(token)
                 return True
             if not readable:
+                self._drain()
                 with self._lock:
-                    self._drain_locked()
                     return token in self._pending
 
     def acknowledge(self, token: int) -> None:
         self._require_owner_process()
+        self._drain()
         with self._lock:
             if token not in self._watch_by_token:
                 raise OSError("Linux directory watch token is closed")
-            self._drain_locked()
             self._pending.discard(token)
 
     def unregister(self, token: int) -> None:
@@ -178,14 +198,16 @@ class _LinuxInotifyHub:
             if tokens:
                 return
             self._tokens_by_watch.pop(watch, None)
-            result = int(self._remove_watch(self._fd, watch))
-            if result < 0:
-                error = ctypes.get_errno()
-                if error not in (errno.EINVAL, errno.EBADF):
-                    raise OSError(error, "failed to remove Linux directory watch")
-            # rm_watch queues IN_IGNORED. Drain it before a future registration can
-            # reuse the descriptor and accidentally attribute the stale event.
-            self._drain_locked()
+            fd = self._fd
+
+        result = int(self._remove_watch(fd, watch))
+        if result < 0:
+            error = ctypes.get_errno()
+            if error not in (errno.EINVAL, errno.EBADF):
+                raise OSError(error, "failed to remove Linux directory watch")
+        # rm_watch queues IN_IGNORED. Drain it before a future registration can
+        # reuse the descriptor and accidentally attribute the stale event.
+        self._drain()
 
     def close(self) -> None:
         if os.getpid() != self._owner_pid:
