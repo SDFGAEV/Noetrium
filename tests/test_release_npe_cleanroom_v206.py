@@ -139,12 +139,69 @@ def test_clean_room_records_level0_binding_blocker_without_false_pass(
     assert "DOCTOR_BLOCKED:level0_standard_bindings" in result.blocker_codes
     assert "URE_LEVEL0_STANDARD_BINDINGS_UNAVAILABLE" in result.blocker_codes
 
-def test_clean_room_does_not_claim_npe_when_level0_doctor_is_ready_but_lifecycle_gate_is_unbound(
+def test_clean_room_verifies_explicit_downstream_lifecycle_and_fresh_reopen(
     tmp_path: Path, monkeypatch
 ) -> None:
     artifact = tmp_path / "noetrium_platform.whl"
     artifact.write_bytes(b"wheel")
     venv_state = _bind_fake_venv(monkeypatch)
+    monkeypatch.setattr(npe, "_reference_project_package", lambda project: "npe_reference")
+    monkeypatch.setattr(npe, "_materialize_reference_lifecycle", lambda *args: True)
+    lifecycle = {
+        "run": ("running", 1, False),
+        "inspect": ("running", 1, False),
+        "stop": ("stopped", 2, False),
+        "resume": ("running", 3, False),
+        "reconcile": ("running", 3, False),
+        "evidence": ("running", 3, True),
+    }
+    rows = {
+        "install-artifact": _receipt("install-artifact", 0),
+        "project-create": _receipt("project-create", 0, {"ok": True}),
+        "project-doctor": _receipt("project-doctor", 0, _doctor(ready=True)),
+        "project-test": _receipt("project-test", 0, {"ok": True}),
+    }
+    def fake_run(name, argv, cwd, env):
+        del argv, cwd, env
+        if name == "installed-metadata":
+            module_file = venv_state["root"] / "Lib" / "site-packages" / "noetrium_platform" / "api.py"
+            return _receipt(name, 0, {"version": "0.43.1", "module_file": str(module_file)})
+        if name.startswith("reference-lifecycle-"):
+            action = name.removeprefix("reference-lifecycle-")
+            lookup = "inspect" if action == "fresh-inspect" else action
+            expected_state, generation, evidence = lifecycle[lookup]
+            if action == "fresh-inspect":
+                generation = 3
+                evidence = True
+            payload = {
+                "control_generation": generation,
+                "evidence_bundle": {} if evidence else None,
+                "outcomes": {"evidence": "finalized_valid" if evidence else "not_observed"},
+            }
+            return _receipt(
+                name,
+                0,
+                {"ok": True, "action": lookup, "state": expected_state, "payload": payload},
+            )
+        return rows[name]
+    monkeypatch.setattr(npe, "_run", fake_run)
+    result = npe.verify_npe_cleanroom(artifact)
+    assert result.template_profile == "author"
+    assert result.doctor_ready is True
+    assert result.reference_lifecycle_complete is True, result.blocker_codes
+    assert result.fresh_process_reopen_passed is True, result.blocker_codes
+    assert result.npe_verified is True
+    assert result.blocker_codes == ()
+
+
+def test_clean_room_rejects_missing_reference_driver_after_author_readiness(
+    tmp_path: Path, monkeypatch
+) -> None:
+    artifact = tmp_path / "noetrium_platform.whl"
+    artifact.write_bytes(b"wheel")
+    venv_state = _bind_fake_venv(monkeypatch)
+    monkeypatch.setattr(npe, "_reference_project_package", lambda project: "npe_reference")
+    monkeypatch.setattr(npe, "_materialize_reference_lifecycle", lambda *args: False)
     rows = {
         "install-artifact": _receipt("install-artifact", 0),
         "project-create": _receipt("project-create", 0, {"ok": True}),
@@ -159,10 +216,8 @@ def test_clean_room_does_not_claim_npe_when_level0_doctor_is_ready_but_lifecycle
         return rows[name]
     monkeypatch.setattr(npe, "_run", fake_run)
     result = npe.verify_npe_cleanroom(artifact)
-    assert result.template_profile == "author"
-    assert result.doctor_ready is True
     assert result.npe_verified is False
-    assert result.blocker_codes == ("REFERENCE_LIFECYCLE_DRIVER_UNAVAILABLE",)
+    assert result.blocker_codes == ("REFERENCE_DRIVER_TEMPLATE_MISSING",)
 
 def test_clean_room_rejects_installed_import_outside_verification_venv(
     tmp_path: Path, monkeypatch

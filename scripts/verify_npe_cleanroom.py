@@ -177,6 +177,9 @@ def _blocked_receipt(
     doctor_ready: bool = False,
     generated_tests_passed: bool = False,
     public_import_boundary_passed: bool = False,
+    reference_lifecycle_complete: bool = False,
+    fresh_process_reopen_passed: bool = False,
+    npe_verified: bool = False,
 ) -> NpeCleanRoomReceipt:
     return NpeCleanRoomReceipt(
         schema="noetrium.npe-clean-room.v2",
@@ -192,12 +195,156 @@ def _blocked_receipt(
         doctor_ready=doctor_ready,
         generated_tests_passed=generated_tests_passed,
         public_import_boundary_passed=public_import_boundary_passed,
-        reference_lifecycle_complete=False,
-        fresh_process_reopen_passed=False,
-        npe_verified=False,
+        reference_lifecycle_complete=reference_lifecycle_complete,
+        fresh_process_reopen_passed=fresh_process_reopen_passed,
+        npe_verified=npe_verified,
         blocker_codes=tuple(blockers),
         commands=tuple(commands),
     )
+
+
+def _reference_project_package(project: Path) -> str | None:
+    src = project / "src"
+    packages = tuple(
+        candidate.name
+        for candidate in src.iterdir()
+        if candidate.is_dir() and not candidate.is_symlink()
+    ) if src.is_dir() else ()
+    return packages[0] if len(packages) == 1 else None
+
+
+def _materialize_reference_lifecycle(project: Path, package: str, run_id: str, manifest_digest: str) -> bool:
+    template = Path(__file__).with_name("npe_reference_lifecycle_template.py")
+    if not template.is_file() or template.is_symlink():
+        return False
+    source = template.read_text(encoding="utf-8")
+    source = source.replace("__RUN_ID__", run_id)
+    source = source.replace("__RUN_MANIFEST_DIGEST__", manifest_digest)
+    destination = project / "src" / package / "reference_lifecycle.py"
+    destination.write_text(source, encoding="utf-8", newline="\n")
+    return True
+
+
+def _reference_command(
+    python: Path,
+    project: Path,
+    package: str,
+    action: str,
+    state_path: Path,
+    payload: dict[str, object],
+) -> list[str]:
+    bootstrap = (
+        "import runpy,sys;"
+        "project_src,module_name,*module_args=sys.argv[1:];"
+        "sys.path.insert(0,project_src);"
+        "sys.argv=[module_name,*module_args];"
+        "runpy.run_module(module_name,run_name='__main__')"
+    )
+    encoded_payload = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return [
+        str(python), "-I", "-c", bootstrap,
+        str((project / "src").resolve()),
+        f"{package}.reference_lifecycle",
+        action,
+        str(state_path.resolve()),
+        encoded_payload,
+    ]
+
+
+def _reference_step_facts(
+    receipt: CommandReceipt,
+    *,
+    action: str,
+    expected_state: str,
+    expected_generation: int,
+    require_evidence: bool = False,
+) -> tuple[bool, str]:
+    document = _json_output(receipt)
+    if receipt.returncode != 0 or not isinstance(document, dict) or document.get("ok") is not True:
+        return False, "command did not return a successful machine receipt"
+    if document.get("action") != action or document.get("state") != expected_state:
+        return False, "lifecycle action/state receipt does not match the expected projection"
+    payload = document.get("payload")
+    if not isinstance(payload, dict) or payload.get("control_generation") != expected_generation:
+        return False, "lifecycle generation receipt does not match the expected generation"
+    if require_evidence:
+        evidence = payload.get("evidence_bundle")
+        outcomes = payload.get("outcomes")
+        if not isinstance(evidence, dict) or not isinstance(outcomes, dict):
+            return False, "evidence receipt projection is incomplete"
+        if outcomes.get("evidence") != "finalized_valid":
+            return False, "evidence receipt is not finalized_valid"
+    return True, ""
+
+
+def _run_reference_lifecycle(
+    python: Path,
+    project: Path,
+    package: str,
+    state_path: Path,
+    env: dict[str, str],
+    commands: list[CommandReceipt],
+) -> tuple[bool, bool, tuple[str, ...]]:
+    cycle = {
+        "run_id": "npe-reference-run",
+        "decision_cycle_id": "cycle-1",
+        "session_id": "session-1",
+        "task_id": "task-1",
+        "trace_id": "trace-1",
+    }
+    steps = (
+        ("run", {"expected_generation": 0}, "running", 1, False),
+        ("inspect", {"expected_generation": 1}, "running", 1, False),
+        ("stop", {"expected_generation": 1}, "stopped", 2, False),
+        ("resume", {
+            "expected_generation": 2,
+            "restore_checkpoint_id": "checkpoint-1",
+            "restore_cycle_identity": cycle,
+        }, "running", 3, False),
+        ("reconcile", {"expected_generation": 3}, "running", 3, False),
+        ("evidence", {"expected_generation": 3}, "running", 3, True),
+    )
+    blockers: list[str] = []
+    lifecycle_ok = True
+    for action, payload, expected_state, generation, require_evidence in steps:
+        receipt = _run(
+            f"reference-lifecycle-{action}",
+            _reference_command(python, project, package, action, state_path, payload),
+            cwd=project,
+            env=env,
+        )
+        commands.append(receipt)
+        passed, detail = _reference_step_facts(
+            receipt,
+            action=action,
+            expected_state=expected_state,
+            expected_generation=generation,
+            require_evidence=require_evidence,
+        )
+        if not passed:
+            lifecycle_ok = False
+            blockers.append(f"REFERENCE_LIFECYCLE_FAILED:{action}:{detail}")
+
+    reopen = _run(
+        "reference-lifecycle-fresh-inspect",
+        _reference_command(
+            python, project, package, "inspect", state_path,
+            {"expected_generation": 3},
+        ),
+        cwd=project,
+        env=env,
+    )
+    commands.append(reopen)
+    reopen_ok, detail = _reference_step_facts(
+        reopen,
+        action="inspect",
+        expected_state="running",
+        expected_generation=3,
+        require_evidence=True,
+    )
+    if not reopen_ok:
+        blockers.append(f"REFERENCE_REOPEN_FAILED:{detail}")
+    return lifecycle_ok and not blockers, reopen_ok, tuple(blockers)
 
 
 def verify_npe_cleanroom(artifact: Path) -> NpeCleanRoomReceipt:
@@ -206,7 +353,7 @@ def verify_npe_cleanroom(artifact: Path) -> NpeCleanRoomReceipt:
         raise FileNotFoundError(artifact)
     commands: list[CommandReceipt] = []
     blockers: list[str] = []
-    with tempfile.TemporaryDirectory(prefix="research-npe-clean-room-") as td:
+    with tempfile.TemporaryDirectory(prefix="noetrium-npe-clean-room-") as td:
         root = Path(td)
         venv_root = root / "venv"
         work = root / "work"
@@ -329,13 +476,45 @@ def verify_npe_cleanroom(artifact: Path) -> NpeCleanRoomReceipt:
             blockers.append("GENERATED_TESTS_FAILED")
         if not public_boundary:
             blockers.append("PUBLIC_IMPORT_BOUNDARY_FAILED")
-        if doctor_ready:
-            blockers.append("REFERENCE_LIFECYCLE_DRIVER_UNAVAILABLE")
 
+        reference_complete = False
+        fresh_reopen = False
+        if doctor_ready and tests_passed and public_boundary:
+            package = _reference_project_package(project)
+            if package is None:
+                blockers.append("REFERENCE_PROJECT_PACKAGE_INVALID")
+            else:
+                reference_run_id = "npe-reference-run"
+                reference_manifest_digest = hashlib.sha256(
+                    b"noetrium:npe-reference:manifest:v1"
+                ).hexdigest()
+                if not _materialize_reference_lifecycle(
+                    project, package, reference_run_id, reference_manifest_digest
+                ):
+                    blockers.append("REFERENCE_DRIVER_TEMPLATE_MISSING")
+                else:
+                    reference_complete, fresh_reopen, reference_blockers = _run_reference_lifecycle(
+                        python,
+                        project,
+                        package,
+                        root / "work" / "npe-reference-state.json",
+                        env,
+                        commands,
+                    )
+                    blockers.extend(reference_blockers)
+
+        verified = (
+            doctor_ready
+            and tests_passed
+            and public_boundary
+            and reference_complete
+            and fresh_reopen
+            and not blockers
+        )
         return _blocked_receipt(
             artifact,
             commands=commands,
-            blockers=blockers or ["NPE_ACCEPTANCE_INCOMPLETE"],
+            blockers=blockers or ["NPE_ACCEPTANCE_INCOMPLETE"] if not verified else [],
             installed_version=installed_version,
             module_file=module_file,
             installed_import_isolated=True,
@@ -345,6 +524,9 @@ def verify_npe_cleanroom(artifact: Path) -> NpeCleanRoomReceipt:
             doctor_ready=doctor_ready,
             generated_tests_passed=tests_passed,
             public_import_boundary_passed=public_boundary,
+            reference_lifecycle_complete=reference_complete,
+            fresh_process_reopen_passed=fresh_reopen,
+            npe_verified=verified,
         )
 
 

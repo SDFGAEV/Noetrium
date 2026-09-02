@@ -61,7 +61,7 @@ def test_project(project_root: Path) -> ProjectTestReceipt:
     environment = isolated_environment()
     environment["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
     environment["PIP_NO_INPUT"] = "1"
-    with tempfile.TemporaryDirectory(prefix="research-project-test-") as td:
+    with tempfile.TemporaryDirectory(prefix="noetrium-project-test-") as td:
         install_root = Path(td) / "site-packages"
         install_root.mkdir()
         build_command = _build_install_command(root, install_root)
