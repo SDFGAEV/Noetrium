@@ -54,7 +54,7 @@ def _resolve_relative(source: str, level: int, module: str | None, *, source_is_
     return ".".join(base)
 
 
-def scan_imports(root: Path, package_roots: tuple[str,...]=( "noetrium_platform", "projects")) -> tuple[ImportEdge,...]:
+def scan_imports(root: Path, package_roots: tuple[str,...]=( "noetrium_platform", "components", "orchestration", "noetrium", "projects")) -> tuple[ImportEdge,...]:
     cached = cached_import_edges(package_roots)
     if cached is not None:
         return tuple(cached)

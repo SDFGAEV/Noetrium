@@ -10,7 +10,7 @@ if __package__ in (None, ""):
 from noetrium.adapters.bridges import (
     LangGraphDecisionAdapter, reference_state_mapping,
 )
-from noetrium.components.reference.single_agent.agent import (
+from components.reference.single_agent.agent import (
     ReferenceAgentState,
 )
 

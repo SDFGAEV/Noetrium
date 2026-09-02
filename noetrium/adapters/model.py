@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from noetrium.components.reference.single_agent.agent import (
+from components.reference.single_agent.agent import (
     ReferenceAgentDecision,
     ReferenceAgentState,
 )

@@ -8,7 +8,7 @@ from tempfile import TemporaryDirectory
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from noetrium.components.reference.graph import (
+from components.reference.graph import (
     GraphCommand, GraphInterrupted, SQLiteGraphCheckpointer, StateGraph,
 )
 

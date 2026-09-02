@@ -38,7 +38,7 @@ noetrium-performance = "noetrium_platform.foundation.governance.performance.cli:
 noetrium-repository-boundary = "noetrium_platform.foundation.governance.repository_boundary.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["noetrium*", "noetrium_platform*"]
+include = ["components*", "orchestration*", "noetrium*", "noetrium_platform*"]
 
 [tool.setuptools.package-data]
 "noetrium_platform.foundation.governance.system_registry" = ["catalog.json"]

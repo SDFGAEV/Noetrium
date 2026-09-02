@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from noetrium.components.reference.single_agent.agent import (
+from components.reference.single_agent.agent import (
     ReferenceAgentAction,
     ReferenceAgentActionKind,
     ReferenceAgentDecision,
@@ -9,8 +9,8 @@ from noetrium.components.reference.single_agent.agent import (
     ReferenceReActMethod,
     ReferenceToolRegistryPort,
 )
-from noetrium.components.reference.single_agent.memory import MemoryItem, VectorMemoryStore, WorkingMemory
-from noetrium.orchestration.multi_agent import (
+from components.reference.single_agent.memory import MemoryItem, VectorMemoryStore, WorkingMemory
+from orchestration.multi_agent import (
     CommunicationEdge,
     CommunicationTopology,
     GroupChatCoordinator,
@@ -18,7 +18,7 @@ from noetrium.orchestration.multi_agent import (
     MultiAgentMessage,
     MultiAgentRunStatus,
 )
-from noetrium.components.reference.single_agent.tools import (
+from components.reference.single_agent.tools import (
     ToolArguments,
     ToolAuthorization,
     ToolDefinition,
@@ -101,7 +101,7 @@ def test_multi_agent_layer_delivers_only_over_declared_topology() -> None:
 def test_component_stress_retrieval_and_tool_calls_remain_bounded() -> None:
     from concurrent.futures import ThreadPoolExecutor
     from time import perf_counter
-    from noetrium.components.reference.single_agent.memory import EpisodicMemoryStore
+    from components.reference.single_agent.memory import EpisodicMemoryStore
 
     started = perf_counter()
     episodes = EpisodicMemoryStore()
@@ -163,7 +163,7 @@ def test_tool_capability_risk_is_default_deny_and_audited() -> None:
 
 
 def test_memory_namespaces_isolate_same_ids_and_vector_results() -> None:
-    from noetrium.components.reference.single_agent.memory import EpisodicMemoryStore
+    from components.reference.single_agent.memory import EpisodicMemoryStore
 
     episodes = EpisodicMemoryStore()
     episodes.put(MemoryItem("same", "alpha", namespace="paper-a"))

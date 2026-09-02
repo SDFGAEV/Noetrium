@@ -176,13 +176,13 @@ def build_architecture_report(
         architecture_index.seed_imports(
             (root / fact.path, fact.imports) for fact in profile.import_facts
         )
-        architecture_index.seed_import_edges(("noetrium_platform", "projects", "noetrium"), profile.import_edges)
+        architecture_index.seed_import_edges(("noetrium_platform", "components", "orchestration", "projects", "noetrium"), profile.import_edges)
         architecture_index.seed_import_edges(
-            ("noetrium_platform", "noetrium"),
+            ("noetrium_platform", "components", "orchestration", "noetrium"),
             (
                 edge
                 for edge in profile.import_edges
-                if edge.source_module.startswith(("noetrium_platform", "noetrium"))
+                if edge.source_module.startswith(("noetrium_platform", "components", "orchestration", "noetrium"))
             ),
         )
         source_invariant_violations = audit_source_invariants(root)

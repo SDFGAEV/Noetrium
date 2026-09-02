@@ -157,7 +157,7 @@ def scan_architecture_source_profile(
     root: Path,
     *,
     source_index: RepositorySourceIndexPort,
-    package_roots: tuple[str, ...] = ("noetrium_platform", "noetrium", "research_platform", "projects"),
+    package_roots: tuple[str, ...] = ("noetrium_platform", "components", "orchestration", "noetrium", "research_platform", "projects"),
     authority_rules: Iterable[SourceAuthorityRule] = (),
 ) -> ArchitectureSourceProfile:
     """Parse each production Python file once and emit compact audit facts.

@@ -27,7 +27,7 @@ def _python_files(base: Path) -> tuple[Path, ...]:
 
 def _weak_contract_rows() -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
-    for base in (ROOT / "noetrium", ROOT / "noetrium_platform", ROOT / "projects"):
+    for base in (ROOT / "components", ROOT / "orchestration", ROOT / "noetrium", ROOT / "noetrium_platform", ROOT / "projects"):
         for path in _python_files(base):
             for line_no, line in enumerate(
                 path.read_text(encoding="utf-8").splitlines(), 1

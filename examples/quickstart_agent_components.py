@@ -8,11 +8,11 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from noetrium.components.reference.single_agent.agent import (
+from components.reference.single_agent.agent import (
     ReferenceAgentAction, ReferenceAgentActionKind, ReferenceAgentDecision, ReferenceReActMethod,
     ReferenceToolRegistryPort,
 )
-from noetrium.components.reference.single_agent.tools import ToolArguments, ToolDefinition, ToolRegistry, ToolResult
+from components.reference.single_agent.tools import ToolArguments, ToolDefinition, ToolRegistry, ToolResult
 
 
 class Policy:

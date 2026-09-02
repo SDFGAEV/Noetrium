@@ -1,7 +1,7 @@
 """Noetrium: public package root.
 
 Import contract families from noetrium.contracts and reusable reference
-implementations from noetrium.components. The root stays inert so importing
+implementations from components. The root stays inert so importing
 the distribution never constructs a registry, runtime, provider, or process.
 """
 

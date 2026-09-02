@@ -7,7 +7,7 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from noetrium.orchestration.multi_agent import (
+from orchestration.multi_agent import (
     CommunicationEdge, CommunicationTopology, MultiAgentMessage,
     TransportBackedMultiAgentCoordinator,
 )

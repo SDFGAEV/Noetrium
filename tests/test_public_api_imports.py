@@ -11,19 +11,21 @@ class PublicAPIImportTests(unittest.TestCase):
         for module in (telemetry, forensics, model_serving, operator, prompt_runtime):
             self.assertIsNotNone(module)
 
-    def test_noetrium_public_contract_families_are_discoverable(self):
+    def test_public_contract_and_extension_layers_are_discoverable(self):
+        import components
         import noetrium
         import noetrium.adapters
-        import noetrium.components
         import noetrium.contracts
-        import noetrium.orchestration
+        import orchestration
         from noetrium.contracts import AgentGoal, JsonValue, ResearchMethodHost
+        from orchestration.multi_agent import MultiAgentCoordinator
 
         self.assertEqual(noetrium.__all__, ["__version__"])
         self.assertIsNotNone(AgentGoal)
         self.assertIsNotNone(JsonValue)
         self.assertIsNotNone(ResearchMethodHost)
-        self.assertTrue(hasattr(noetrium.orchestration, "multi_agent"))
+        self.assertIsNotNone(components.reference)
+        self.assertIsNotNone(MultiAgentCoordinator)
 
 
 if __name__ == '__main__':
