@@ -11,6 +11,7 @@ from noetrium_platform.research.experimentation.api import (
     diff_research_plans,
     resolve_research_requirements,
 )
+from noetrium_platform.research.experimentation.composition import build_experiment_runner
 from components.single_agent.agent import (
     AgentAction, AgentActionKind, AgentDecision, AgentMessage, AgentRunResult,
     AgentState, AgentStatus, PlanAndSolveAgent, ReActAgent, ReflexionAgent,
@@ -31,7 +32,7 @@ __all__ = [
     "ResearchMethodHost", "ResearchMethodHostPort", "ExperimentRunner",
     "ExperimentRunnerPort", "CompiledResearchPlan",
     "ResearchPlanDiff", "compile_research_plan", "diff_research_plans",
-    "resolve_research_requirements", "AgentAction", "AgentActionKind",
+    "resolve_research_requirements", "build_experiment_runner", "AgentAction", "AgentActionKind",
     "AgentDecision", "AgentMessage", "AgentRunResult", "AgentState", "AgentStatus",
     "PlanAndSolveAgent", "ReActAgent", "ReflexionAgent", "RegistryAgentToolPort",
     "EpisodicMemoryStore", "MemoryItem", "VectorMemoryStore", "WorkingMemory",
