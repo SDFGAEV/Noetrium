@@ -11,7 +11,7 @@ class StudyWorkflowDecouplingV126Tests(unittest.TestCase):
         self.assertIsInstance(ContextActionTrialProtocol(), ExperimentTrialProtocol)
         root = Path(__file__).resolve().parents[1]
         runtime_source = (root / "noetrium_platform" / "research" / "experimentation" / "experiment" / "runtime" / "engine.py").read_text(encoding="utf-8")
-        composition_source = (root / "noetrium_platform" / "foundation" / "kernel" / "composition" / "experiment_runtime.py").read_text(encoding="utf-8")
+        composition_source = (root / "noetrium_platform" / "composition" / "experiment_runtime.py").read_text(encoding="utf-8")
         self.assertNotIn("trial_protocol=", runtime_source)
         self.assertNotIn("participant_runtime", runtime_source)
         self.assertIn("trial_protocol", composition_source)

@@ -29,7 +29,7 @@ Git-authoritative baseline writes require an external ROLE00 record. The record 
 
 ## External reviewed migrations
 
-External Algorithm Governance approvals are loaded only when both `RESEARCH_PLATFORM_ALGORITHM_GOVERNANCE_APPROVALS` and `RESEARCH_PLATFORM_ALGORITHM_GOVERNANCE_APPROVALS_SHA256` are supplied. The approval file is SHA-256 bound, strict JSON with duplicate-field rejection, and every record carries its own canonical digest. Authority is exactly `ROLE00`; default decision is `not_approved`.
+External Algorithm Governance approvals are loaded only when both `NOETRIUM_ALGORITHM_GOVERNANCE_APPROVALS` and `NOETRIUM_ALGORITHM_GOVERNANCE_APPROVALS_SHA256` are supplied. The approval file is SHA-256 bound, strict JSON with duplicate-field rejection, and every record carries its own canonical digest. Authority is exactly `ROLE00`; default decision is `not_approved`.
 
 A lower-bound migration binds one exact symbol, candidate Git SHA/source digest, analyzer revision/implementation digest, old complexity, new complexity, rationale, and review evidence. An exact approved match may reclassify only that complexity transition from blocker to reviewed warning. It does not suppress new P0/P1 findings, risk-score regressions, unrelated symbols, or later source/analyzer revisions. Stale, malformed, rejected, or mismatched records contribute zero authority.
 

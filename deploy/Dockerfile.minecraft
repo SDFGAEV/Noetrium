@@ -8,9 +8,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
     VIRTUAL_ENV=/opt/venv \
-    PLATFORM_STATE_DIR=/var/lib/research-platform \
+    PLATFORM_STATE_DIR=/var/lib/noetrium \
     MC_DATA_DIR=/var/lib/minecraft \
-    MC_BRIDGE_DIR=/opt/research-platform/noetrium_platform/capabilities/environment/minecraft/providers/assets/mineflayer_bridge \
+    MC_BRIDGE_DIR=/opt/noetrium/noetrium_platform/capabilities/environment/minecraft/providers/assets/mineflayer_bridge \
     PATH=/opt/venv/bin:/usr/local/bin:$PATH
 
 RUN apt-get update \
@@ -25,7 +25,7 @@ RUN cd /tmp \
     && tar -xJf "node-v${NODE_VERSION}-linux-x64.tar.xz" --strip-components=1 -C /usr/local \
     && rm -f "node-v${NODE_VERSION}-linux-x64.tar.xz" SHASUMS256.txt
 
-WORKDIR /opt/research-platform
+WORKDIR /opt/noetrium
 COPY pyproject.toml README.md ./
 COPY noetrium_platform ./noetrium_platform
 COPY scripts ./scripts
@@ -35,12 +35,12 @@ RUN python3.12 -m venv "$VIRTUAL_ENV" \
     && "$VIRTUAL_ENV/bin/pip" install --upgrade pip setuptools wheel \
     && "$VIRTUAL_ENV/bin/pip" install . \
     && npm --prefix "$MC_BRIDGE_DIR" ci --omit=dev --ignore-scripts \
-    && chmod 0755 /opt/research-platform/deploy/container-entrypoint.sh
+    && chmod 0755 /opt/noetrium/deploy/container-entrypoint.sh
 
 RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin platform \
     && mkdir -p "$PLATFORM_STATE_DIR" "$MC_DATA_DIR" \
-    && chown -R platform:platform /opt/research-platform "$PLATFORM_STATE_DIR" "$MC_DATA_DIR"
+    && chown -R platform:platform /opt/noetrium "$PLATFORM_STATE_DIR" "$MC_DATA_DIR"
 
 USER platform
-ENTRYPOINT ["/opt/research-platform/deploy/container-entrypoint.sh"]
+ENTRYPOINT ["/opt/noetrium/deploy/container-entrypoint.sh"]
 CMD ["minecraft-doctor"]

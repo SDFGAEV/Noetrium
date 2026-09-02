@@ -54,8 +54,8 @@ def verify_exact_lane_runtime(
 
 
 def external_governance_baseline_approval_set() -> GovernanceBaselineApprovalSet | None:
-    path = os.environ.get("RESEARCH_PLATFORM_GOVERNANCE_BASELINE_APPROVALS", "").strip()
-    digest = os.environ.get("RESEARCH_PLATFORM_GOVERNANCE_BASELINE_APPROVALS_SHA256", "").strip()
+    path = os.environ.get("NOETRIUM_GOVERNANCE_BASELINE_APPROVALS", "").strip()
+    digest = os.environ.get("NOETRIUM_GOVERNANCE_BASELINE_APPROVALS_SHA256", "").strip()
     if bool(path) != bool(digest):
         raise ValueError("external governance baseline approval path and SHA-256 must be provided together")
     if not path:

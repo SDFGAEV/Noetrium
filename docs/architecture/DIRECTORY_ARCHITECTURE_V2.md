@@ -31,16 +31,16 @@ surfaces only when those surfaces are semantically real.
 Reusable downstream-facing method components live beside the platform:
 
 \`\`\`
-components/
-  single_agent/       agent cognition, memory, and tools
-  orchestration/      multi-agent topology and coordination
-  bridges/            adapters for external agent frameworks
+noetrium/
+  components/reference/single_agent/  reusable cognition, memory, and tools
+  orchestration/multi_agent/          multi-agent topology and coordination
+  adapters/bridges/                   adapters for external agent frameworks
 \`\`\`
 
 The dependency direction is strictly one way:
 
 \`\`\`
-downstream method -> components -> noetrium_platform
+downstream method -> noetrium.contracts / noetrium.components -> explicit injected noetrium_platform implementation
 \`\`\`
 
 Single-agent components construct or execute one agent method. Multi-agent

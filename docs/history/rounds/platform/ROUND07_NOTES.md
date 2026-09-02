@@ -5,4 +5,4 @@
 - Added recent authoritative writer queries to the disposable SQLite forensic index.
 - Added evidence-chain verification service.
 - Added exact one-click recovery coordinator: immutable plan, ordered execution, evidence per step, stop-on-first-failure, no alternate model or degradation path.
-- Added `scripts/evoctl_next.py` and a concrete debug playbook.
+- Added `scripts/noetrium_forensics.py` and a concrete debug playbook.

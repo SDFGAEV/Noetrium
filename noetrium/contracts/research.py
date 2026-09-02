@@ -9,6 +9,7 @@ from noetrium_platform.research.experimentation.api import (
     ResearchMethodHostPort,
     ResearchPlanDiff,
     ResearchStudyDefinition,
+    RunControlPort,
     compile_research_plan,
     diff_research_plans,
     resolve_research_requirements,
@@ -17,6 +18,7 @@ from noetrium_platform.research.experimentation.api import (
 __all__ = [
     "CompiledResearchPlan", "ExperimentRunner", "ExperimentRunnerPort",
     "ResearchBindingContribution", "ResearchMethodHost", "ResearchMethodHostPort",
-    "ResearchPlanDiff", "ResearchStudyDefinition", "compile_research_plan",
+    "ResearchPlanDiff", "ResearchStudyDefinition", "RunControlPort",
+    "compile_research_plan",
     "diff_research_plans", "resolve_research_requirements",
 ]

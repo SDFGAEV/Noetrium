@@ -2,7 +2,7 @@
 
 ## Debugging surface
 
-`evoctl-next debug-snapshot <forensic-root> <object-id>` now returns one read-only joined snapshot containing:
+`noetrium-forensics debug-snapshot <forensic-root> <object-id>` now returns one read-only joined snapshot containing:
 
 - exact object payload;
 - structured failure diagnosis when the object is a failure;

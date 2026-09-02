@@ -496,7 +496,7 @@ def _test_git_executable() -> str:
     import os
     import shutil
 
-    configured = os.environ.get("RESEARCH_PLATFORM_GIT_EXECUTABLE", "").strip()
+    configured = os.environ.get("NOETRIUM_GIT_EXECUTABLE", "").strip()
     executable = configured or shutil.which("git")
     if not executable:
         pytest.skip("Git executable is required for immutable source authority test")

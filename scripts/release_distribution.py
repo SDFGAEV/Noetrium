@@ -127,6 +127,24 @@ _MATERIALIZATION_SCHEMA = "noetrium.git-object-materialization.v1"
 _REGULAR_MODES = frozenset({"100644", "100755"})
 
 
+def _external_temp_parent() -> Path:
+    """Select a temporary parent that cannot be inside the source checkout.
+
+    CI and remote workstations may redirect the process temp directory into the
+    checkout. Formal release qualification must still build from an independent
+    materialized source tree, so walk upward until the candidate is outside ROOT.
+    """
+
+    candidate = Path(tempfile.gettempdir()).resolve()
+    while candidate == ROOT or ROOT in candidate.parents:
+        parent = candidate.parent
+        if parent == candidate:
+            raise RuntimeError("could not select a temporary parent outside the source tree")
+        candidate = parent
+    candidate.mkdir(parents=True, exist_ok=True)
+    return candidate
+
+
 def _git_tree_entries(sha: str) -> tuple[GitBlobEntry, ...]:
     completed = subprocess.run(
         ["git", "ls-tree", "-r", "-z", "--full-tree", sha],
@@ -233,7 +251,9 @@ def _build_distributions(
     if output.exists():
         shutil.rmtree(output)
     output.mkdir(parents=True)
-    with tempfile.TemporaryDirectory(prefix="research-release-source-") as td:
+    with tempfile.TemporaryDirectory(
+        prefix="noetrium-release-source-", dir=_external_temp_parent()
+    ) as td:
         source_root = Path(td) / "source"
         source_materialization_sha256, source_file_count = _materialize_exact_source(
             sha, source_root

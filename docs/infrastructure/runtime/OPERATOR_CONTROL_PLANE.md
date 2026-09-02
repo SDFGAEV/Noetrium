@@ -17,12 +17,12 @@ failure_id
 Commands:
 
 ```bash
-python scripts/evoctl_next.py status RUN_ROOT
-python scripts/evoctl_next.py why RUN_ROOT FAILURE_ID
-python scripts/evoctl_next.py locate RUN_ROOT OPAQUE_ID
-python scripts/evoctl_next.py timeline RUN_ROOT OPAQUE_ID --seconds 30
-python scripts/evoctl_next.py last-writer RUN_ROOT RUN_ID STATE_NAME
-python scripts/evoctl_next.py verify-evidence RUN_ROOT
+python scripts/noetrium_forensics.py status RUN_ROOT
+python scripts/noetrium_forensics.py why RUN_ROOT FAILURE_ID
+python scripts/noetrium_forensics.py locate RUN_ROOT OPAQUE_ID
+python scripts/noetrium_forensics.py timeline RUN_ROOT OPAQUE_ID --seconds 30
+python scripts/noetrium_forensics.py last-writer RUN_ROOT RUN_ID STATE_NAME
+python scripts/noetrium_forensics.py verify-evidence RUN_ROOT
 ```
 
 The control plane never silently changes a model, precision, context, prompt, method, environment, seed, workload, or acceptance rule.

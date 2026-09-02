@@ -75,7 +75,7 @@ def test_lifecycle_cli_requires_explicit_project_or_application_binding(capsys):
     assert main(["run", "run-1"]) == 2
     error = json.loads(capsys.readouterr().err)
     assert error["ok"] is False
-    assert error["error"] == "research run requires --project PATH or --application MODULE:FACTORY"
+    assert error["error"] == "noetrium run requires --project PATH or --application MODULE:FACTORY"
 
 
 def test_lifecycle_cli_delegates_to_explicit_application(capsys):

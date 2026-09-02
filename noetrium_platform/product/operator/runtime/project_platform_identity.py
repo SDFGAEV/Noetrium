@@ -28,7 +28,7 @@ def installed_platform_identity() -> InstalledPlatformIdentity:
     for entry in sorted(files, key=lambda row: str(row).replace("\\", "/")):
         relative = str(entry).replace("\\", "/")
         if not (
-            relative.startswith("noetrium_platform/")
+            relative.startswith(("noetrium/", "noetrium_platform/"))
             or (".dist-info/" in relative and relative.endswith("/METADATA"))
         ):
             continue

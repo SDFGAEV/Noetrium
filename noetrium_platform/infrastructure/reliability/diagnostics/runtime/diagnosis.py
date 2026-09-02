@@ -103,10 +103,10 @@ class FailureDiagnosisService:
             related_objects=related,
             recent_state_writers=writers,
             next_commands=(
-                f"evoctl-next locate {source} {failure_id}",
-                f"evoctl-next timeline {source} {failure_id}",
-                f"evoctl-next failure-catalog --domain {failure['failure_domain']} --code {failure['failure_code']}",
-                f"evoctl-next verify-evidence {source}",
+                f"noetrium-forensics locate {source} {failure_id}",
+                f"noetrium-forensics timeline {source} {failure_id}",
+                f"noetrium-forensics failure-catalog --domain {failure['failure_domain']} --code {failure['failure_code']}",
+                f"noetrium-forensics verify-evidence {source}",
             ),
             taxonomy=freeze_diagnostic_mapping(taxonomy),
         )

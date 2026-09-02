@@ -61,8 +61,8 @@ def _add_project_commands(subparsers) -> None:
 
 def build_research_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="research",
-        description="Canonical Research Platform product control surface",
+        prog="noetrium",
+        description="Canonical Noetrium product control surface",
     )
     parser.add_argument(
         "--application",
@@ -107,7 +107,7 @@ def _run_application(args: argparse.Namespace) -> int:
     else:
         if not args.application:
             raise ValueError(
-                f"research {args.command} requires --project PATH or --application MODULE:FACTORY"
+                f"noetrium {args.command} requires --project PATH or --application MODULE:FACTORY"
             )
         if args.target is None:
             raise ValueError("application lifecycle command requires target")

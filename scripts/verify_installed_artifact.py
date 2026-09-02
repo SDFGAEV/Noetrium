@@ -71,8 +71,8 @@ def _venv_python(root: Path) -> Path:
     return root / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 
 
-def _research_executable(root: Path) -> Path:
-    return root / ("Scripts/research.exe" if os.name == "nt" else "bin/research")
+def _noetrium_executable(root: Path) -> Path:
+    return root / ("Scripts/noetrium.exe" if os.name == "nt" else "bin/noetrium")
 
 
 def _create_venv(root: Path) -> None:
@@ -95,7 +95,7 @@ def verify_installed_artifact(artifact: Path) -> InstalledArtifactReceipt:
         work.mkdir()
         _create_venv(venv_root)
         python = _venv_python(venv_root)
-        research = _research_executable(venv_root)
+        noetrium = _noetrium_executable(venv_root)
         env = dict(os.environ)
         env.pop("PYTHONPATH", None)
         env["PYTHONNOUSERSITE"] = "1"
@@ -116,11 +116,11 @@ def verify_installed_artifact(artifact: Path) -> InstalledArtifactReceipt:
                 env=env,
             )
         )
-        commands.append(_run([str(research), "--help"], cwd=work, env=env))
+        commands.append(_run([str(noetrium), "--help"], cwd=work, env=env))
         metadata_code = (
-            "import importlib.metadata,json,noetrium_platform.api;"
+            "import importlib.metadata,json,noetrium;"
             "print(json.dumps({'version':importlib.metadata.version('noetrium'),"
-            "'module_file':noetrium_platform.api.__file__}))"
+            "'module_file':noetrium.__file__}))"
         )
         metadata_receipt = _run(
             [str(python), "-I", "-c", metadata_code],
@@ -141,7 +141,7 @@ def verify_installed_artifact(artifact: Path) -> InstalledArtifactReceipt:
             encoding="utf-8",
         )
         prefix = [
-            str(research),
+            str(noetrium),
             "--application",
             "noetrium_platform.product.operator.reference:build_reference_application",
             "--application-config",
@@ -151,7 +151,7 @@ def verify_installed_artifact(artifact: Path) -> InstalledArtifactReceipt:
             receipt = _run([*prefix, command, "installed-reference"], cwd=work, env=env)
             payload = json.loads(receipt.stdout)
             if payload.get("ok") is not True or payload.get("command") != command:
-                raise RuntimeError(f"installed research {command} returned invalid receipt")
+                raise RuntimeError(f"installed noetrium {command} returned invalid receipt")
             commands.append(receipt)
 
         return InstalledArtifactReceipt(

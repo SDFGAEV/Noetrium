@@ -440,6 +440,20 @@ def _module_in_scope(module: str, module_prefixes: Iterable[str]) -> bool:
     return any(module == prefix or module.startswith(prefix + ".") for prefix in module_prefixes)
 
 
+def _module_in_budget_scope(module: str, module_prefixes: Iterable[str]) -> bool:
+    """Account for moved composition roots without reviving kernel ownership."""
+    prefixes = tuple(module_prefixes)
+    if _module_in_scope(module, prefixes):
+        return True
+    return (
+        "noetrium_platform.foundation.kernel" in prefixes
+        and (
+            module == "noetrium_platform.composition"
+            or module.startswith("noetrium_platform.composition.")
+        )
+    )
+
+
 def _scope_owns_catalog(module_prefixes: Iterable[str]) -> bool:
     # The canonical topology/catalog is ROLE01 Governance-owned source.
     return "noetrium_platform.foundation.governance" in tuple(module_prefixes)
@@ -459,7 +473,7 @@ def scoped_architecture_complexity(
         contract_declarations=global_complexity.contract_declarations if owns_catalog else 0,
         authorities=global_complexity.authorities if owns_catalog else 0,
         import_edges=sum(
-            1 for source, _target in import_edge_pairs if _module_in_scope(str(source), prefixes)
+            1 for source, _target in import_edge_pairs if _module_in_budget_scope(str(source), prefixes)
         ),
     )
 
@@ -490,7 +504,7 @@ def source_catalog_complexity(
     catalog_paths = (
         "noetrium_platform/foundation/governance/system_registry/catalog.json",
         # Historical Git cuts predate the semantic-plane migration.
-        "noetrium_platform/governance/system_registry/catalog.json",
+        "research_platform/governance/system_registry/catalog.json",
     )
     document_text = None
     for catalog_path in catalog_paths:

@@ -83,13 +83,11 @@ def test_container_smoke_verifies_wheel_record_and_effective_identity():
     assert ".dist-info/RECORD" in script
     assert 'distribution("noetrium")' in script
     assert 'version("noetrium")' in script
-    assert 'distribution("noetrium")' not in script
-    assert 'version("noetrium")' not in script
     assert "hashlib.sha256(target.read_bytes()).digest()" in script
     assert "os.geteuid()" in script
     assert "os.getegid()" in script
     assert "installed RECORD digest mismatch" in script
-    assert script.index("installed RECORD digest mismatch") < script.index("research --help")
+    assert script.index("installed RECORD digest mismatch") < script.index("noetrium --help")
     continuation = [line for line in script.splitlines() if "build_reference_application" in line]
     assert len(continuation) == 1
     assert continuation[0].endswith("\\")

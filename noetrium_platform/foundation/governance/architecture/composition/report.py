@@ -29,8 +29,8 @@ def build_architecture_report(
         root, git_executable=git_executable
     ).index()
     if migration_approval_set is None:
-        approval_path = os.environ.get("RESEARCH_PLATFORM_ARCHITECTURE_MIGRATION_APPROVALS", "").strip()
-        approval_sha = os.environ.get("RESEARCH_PLATFORM_ARCHITECTURE_MIGRATION_APPROVALS_SHA256", "").strip()
+        approval_path = os.environ.get("NOETRIUM_ARCHITECTURE_MIGRATION_APPROVALS", "").strip()
+        approval_sha = os.environ.get("NOETRIUM_ARCHITECTURE_MIGRATION_APPROVALS_SHA256", "").strip()
         if bool(approval_path) != bool(approval_sha):
             raise ValueError("external architecture migration approval path and SHA-256 must be provided together")
         if approval_path:

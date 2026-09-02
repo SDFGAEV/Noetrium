@@ -89,6 +89,7 @@ class MultiAgentCoordinator:
             deque(initials),
             conversation_id=conversation_id,
             delivered_ids=(),
+            delivered_messages=(),
             start_round=0,
             max_rounds=max_rounds,
             max_messages=max_messages,
@@ -112,6 +113,7 @@ class MultiAgentCoordinator:
             deque(checkpoint.pending),
             conversation_id=checkpoint.conversation_id,
             delivered_ids=checkpoint.delivered_message_ids,
+            delivered_messages=checkpoint.delivered_messages,
             start_round=checkpoint.round,
             max_rounds=max_rounds,
             max_messages=max_messages,
@@ -133,14 +135,17 @@ class MultiAgentCoordinator:
         *,
         conversation_id: str,
         delivered_ids: tuple[str, ...],
+        delivered_messages: tuple[MultiAgentMessage, ...],
         start_round: int,
         max_rounds: int,
         max_messages: int,
         cancellation: MultiAgentCancellationPort | None,
     ) -> MultiAgentRunResult:
-        delivered: list[MultiAgentMessage] = []
+        delivered: list[MultiAgentMessage] = list(delivered_messages)
         receipts: list[MultiAgentDeliveryReceipt] = []
         seen = set(delivered_ids)
+        if tuple(message.message_id for message in delivered) != delivered_ids:
+            raise ValueError("multi-agent delivered transcript does not match IDs")
         scheduled = set(seen)
         scheduled.update(message.message_id for message in queue)
         rounds = start_round
@@ -153,10 +158,10 @@ class MultiAgentCoordinator:
             rounds += 1
             current = tuple(queue)
             queue.clear()
-            for message in current:
+            for position, message in enumerate(current):
                 if len(delivered) >= max_messages:
                     status = MultiAgentRunStatus.MAX_MESSAGES
-                    queue.appendleft(message)
+                    queue.extendleft(reversed(current[position:]))
                     break
                 if message.message_id in seen:
                     receipt = self._receipt(
@@ -198,6 +203,7 @@ class MultiAgentCoordinator:
                     )
                     receipts.append(receipt)
                     self._journal_record(message, receipt)
+                    queue.extendleft(reversed(current[position + 1:]))
                     break
             if status is not MultiAgentRunStatus.COMPLETED:
                 break
@@ -208,12 +214,9 @@ class MultiAgentCoordinator:
             self._topology.topology_digest,
             conversation_id,
             tuple(queue),
-            tuple(message.message_id for message in delivered) + tuple(
-                message_id for message_id in delivered_ids if message_id not in {
-                    message.message_id for message in delivered
-                }
-            ),
+            tuple(message.message_id for message in delivered),
             rounds,
+            tuple(delivered),
         )
         if self._journal is not None:
             self._journal.checkpoint(checkpoint)

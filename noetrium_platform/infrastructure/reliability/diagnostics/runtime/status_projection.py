@@ -31,7 +31,7 @@ class ForensicStatusProbe:
             HealthState.READY,
             f"authoritative ledgers verified; disposable projection fresh; unclosed_operation_invocations={len(unclosed)}",
             evidence=refs,
-            next_commands=("evoctl-next unclosed-operations RUN_ROOT",) if unclosed else (),
+            next_commands=("noetrium-forensics unclosed-operations RUN_ROOT",) if unclosed else (),
             reason_codes=(("unclosed_operation_invocations",) if unclosed else ()),
         )
 

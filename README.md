@@ -182,7 +182,7 @@ noetrium-architecture-gate
 python scripts/check_readme_i18n.py
 ```
 
-The Python distribution metadata is named `noetrium`; the current import namespace remains `noetrium_platform` while product identity and runtime contracts evolve independently.
+Downstream code imports stable contracts and reusable components from `noetrium`; `noetrium_platform` is the internal semantic-plane namespace used by platform implementations and governance tooling.
 
 <!-- readme-section:containers -->
 
@@ -216,7 +216,8 @@ docker compose -f deploy/compose.yaml -f deploy/compose.minecraft.yaml run --rm 
 
 | Path | Responsibility |
 | --- | --- |
-| `noetrium_platform/` | Reusable platform implementation and public system boundaries |
+| `noetrium/` | Stable downstream-facing facades, contracts, reference components and adapters |
+| `noetrium_platform/` | Internal semantic-plane implementation, providers and governance tooling |
 | `configs/` | Versioned configuration examples and non-secret templates |
 | `deploy/` | Container image, Compose runtime and deployment bootstrap assets |
 | `docs/` | Architecture, infrastructure, governance, status and history |
@@ -225,7 +226,7 @@ docker compose -f deploy/compose.yaml -f deploy/compose.minecraft.yaml run --rm 
 | `noetrium_platform/capabilities/environment/minecraft/` | Bundled reusable Minecraft environment provider |
 | `LICENSE` / `NOTICE` / `THIRD_PARTY_NOTICES.md` | Apache-2.0 and third-party license notices |
 
-`noetrium_platform/` is the reusable package boundary; project-specific code stays downstream.
+`noetrium/` is the stable downstream package boundary; project-specific code stays downstream. `noetrium_platform/` remains an implementation namespace and is not a project-owned extension point.
 
 <!-- readme-section:testing -->
 

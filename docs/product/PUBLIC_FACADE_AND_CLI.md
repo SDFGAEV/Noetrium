@@ -28,9 +28,9 @@ The request payload is recursively frozen at the facade boundary so callers cann
 Lifecycle commands require an explicit application factory:
 
 ```bash
-research --application my_project.operator:build_application run run-123
-research --application my_project.operator:build_application inspect run-123
-research --application my_project.operator:build_application evidence run-123
+noetrium --application my_project.operator:build_application run run-123
+noetrium --application my_project.operator:build_application inspect run-123
+noetrium --application my_project.operator:build_application evidence run-123
 ```
 
 Factories receive the optional `--application-config` path. Downstream projects use that hook to compose their own ROLE 03/04/05 bindings without exposing internal topology to users.
@@ -75,17 +75,17 @@ ROLE06 also waits for the ROLE01 PSC-03 neutral diagnostic metadata envelope ins
 
 ## Downstream project experience
 
-`research project create <project-id> <destination> --version <version>` now defaults to the Section-40/41 **author-first Level-0** profile. It binds canonical Portfolio `ProjectManifest` identity/provenance and generates paper-author modules (`methods.py`, `tasks.py`, `measurements.py`, `studies.py`) plus a public `research.py` Method Host entry point and public-boundary structural tests. It does **not** generate Participant/Model/Environment provider implementations, direct `RunControlPort` wiring, checkpoint stores, resource leases or evidence publishers.
+`noetrium project create <project-id> <destination> --version <version>` now defaults to the Section-40/41 **author-first Level-0** profile. It binds canonical Portfolio `ProjectManifest` identity/provenance and generates paper-author modules (`methods.py`, `tasks.py`, `measurements.py`, `studies.py`) plus a public `research.py` Method Host entry point and public-boundary structural tests. It does **not** generate Participant/Model/Environment provider implementations, direct `RunControlPort` wiring, checkpoint stores, resource leases or evidence publishers.
 
 Provider authors explicitly opt in with `--template provider`. That advanced template retains the public Participant/Model/Environment requirement/provider stubs and application binding seam and deliberately fails closed until real bindings are supplied. Provider-specific plumbing is therefore no longer the default New Project Experience.
 
-`research project test --project .` first builds and installs the generated downstream package into an isolated temporary `site-packages`, then runs the generated conformance suite against that installed copy with user-site and ambient `PYTHONPATH` disabled. Build/test child-process output is captured inside the product boundary so the command emits exactly one strict JSON receipt on its top-level output stream; pip or unittest chatter must never prefix or trail that receipt. A source-tree-only import is not accepted as project-test success. `research project doctor --project .` always verifies canonical manifest identity, installed Platform provenance, generated files and the downstream public-import boundary. For the author profile it additionally probes the installed public Research Method Host and typed compiler/binding seam. This makes authoring/compilation readiness explicit while runtime execution still requires an injected BindingContribution and an explicit provider/runtime application. For the provider profile it verifies typed Participant/Model/Environment diagnostics, Environment readiness and explicit application binding.
+`noetrium project test --project .` first builds and installs the generated downstream package into an isolated temporary `site-packages`, then runs the generated conformance suite against that installed copy with user-site and ambient `PYTHONPATH` disabled. Build/test child-process output is captured inside the product boundary so the command emits exactly one strict JSON receipt on its top-level output stream; pip or unittest chatter must never prefix or trail that receipt. A source-tree-only import is not accepted as project-test success. `noetrium project doctor --project .` always verifies canonical manifest identity, installed Platform provenance, generated files and the downstream public-import boundary. For the author profile it additionally probes the installed public Research Method Host and typed compiler/binding seam. This makes authoring/compilation readiness explicit while runtime execution still requires an injected BindingContribution and an explicit provider/runtime application. For the provider profile it verifies typed Participant/Model/Environment diagnostics, Environment readiness and explicit application binding.
 
 `--project` is profile-aware. The default AUTHOR profile exposes the producer-owned Research Method Host and compiles only when an explicit BindingContribution is supplied; it never searches for or generates `application.py`. The explicit PROVIDER profile may use direct application loading as a Level-2/provider-author escape hatch:
 
 ```bash
-research run --project ./provider-project run-123 --payload '{"expected_generation":0}'
-research inspect --project ./provider-project run-123
+noetrium run --project ./provider-project run-123 --payload '{"expected_generation":0}'
+noetrium inspect --project ./provider-project run-123
 ```
 
 The provider loader derives the package identity from the canonical manifest and rejects an application module that resolves outside the explicit project root. `--project` and `--application` are mutually exclusive authority sources.

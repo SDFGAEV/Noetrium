@@ -49,8 +49,8 @@ def _scanner(
 
 
 def _external_approval_set() -> AlgorithmGovernanceApprovalSet | None:
-    path = os.environ.get("RESEARCH_PLATFORM_ALGORITHM_GOVERNANCE_APPROVALS", "").strip()
-    digest = os.environ.get("RESEARCH_PLATFORM_ALGORITHM_GOVERNANCE_APPROVALS_SHA256", "").strip()
+    path = os.environ.get("NOETRIUM_ALGORITHM_GOVERNANCE_APPROVALS", "").strip()
+    digest = os.environ.get("NOETRIUM_ALGORITHM_GOVERNANCE_APPROVALS_SHA256", "").strip()
     if bool(path) != bool(digest):
         raise ValueError("external algorithm governance approval path and SHA-256 must be provided together")
     if not path:

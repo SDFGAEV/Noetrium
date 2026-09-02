@@ -247,7 +247,7 @@ _GIT_SHA_RE = re.compile(r"[0-9a-f]{40}")
 
 
 def _git_executable(value: str | Path | None) -> str:
-    configured = str(value or os.environ.get("RESEARCH_PLATFORM_GIT_EXECUTABLE", "")).strip()
+    configured = str(value or os.environ.get("NOETRIUM_GIT_EXECUTABLE", "")).strip()
     if configured:
         return configured
     discovered = shutil.which("git")

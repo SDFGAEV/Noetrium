@@ -4,7 +4,12 @@ from collections.abc import AsyncIterator, Iterator, Mapping
 from dataclasses import dataclass
 from typing import Generic, Protocol, TypeVar, runtime_checkable
 
-from noetrium_platform.foundation.kernel.kernel import ExecutionContext
+from noetrium_platform.foundation.kernel.kernel import (
+    ExecutionContext,
+    JsonObject,
+    JsonValue,
+    freeze_json,
+)
 
 from ..api.contracts import MethodProgramIdentity
 from ..api.graph import (
@@ -27,21 +32,21 @@ class LangGraphInvoker(Protocol):
 
     def invoke(
         self,
-        input_value: object,
+        input_value: JsonValue,
         *,
-        config: Mapping[str, object],
-        context: object,
+        config: JsonObject,
+        context: ExecutionContext,
         version: str,
-    ) -> object: ...
+    ) -> JsonValue: ...
 
     def stream(
         self,
-        input_value: object,
+        input_value: JsonValue,
         *,
-        config: Mapping[str, object],
-        context: object,
+        config: JsonObject,
+        context: ExecutionContext,
         version: str,
-    ) -> Iterator[object]: ...
+    ) -> Iterator[JsonValue]: ...
 
 
 @runtime_checkable
@@ -50,33 +55,41 @@ class LangGraphAsyncInvoker(Protocol):
 
     async def ainvoke(
         self,
-        input_value: object,
+        input_value: JsonValue,
         *,
-        config: Mapping[str, object],
-        context: object,
+        config: JsonObject,
+        context: ExecutionContext,
         version: str,
-    ) -> object: ...
+    ) -> JsonValue: ...
 
     def astream(
         self,
-        input_value: object,
+        input_value: JsonValue,
         *,
-        config: Mapping[str, object],
-        context: object,
+        config: JsonObject,
+        context: ExecutionContext,
         version: str,
-    ) -> AsyncIterator[object]: ...
+    ) -> AsyncIterator[JsonValue]: ...
 
 
 @dataclass(frozen=True, slots=True)
 class LangGraphInvocation:
-    input_value: object
-    config: Mapping[str, object]
-    context: object
+    input_value: JsonValue
+    config: JsonObject
+    context: ExecutionContext
     version: str = "v2"
 
     def __post_init__(self) -> None:
         if self.version not in ("v1", "v2"):
             raise ValueError("LangGraph invocation version must be v1 or v2")
+        if not isinstance(self.context, ExecutionContext):
+            raise TypeError("LangGraph invocation context must be an ExecutionContext")
+        input_value = freeze_json(self.input_value)
+        config = freeze_json(self.config)
+        if not isinstance(config, Mapping):
+            raise TypeError("LangGraph invocation config must be a JSON object")
+        object.__setattr__(self, "input_value", input_value)
+        object.__setattr__(self, "config", config)
 
 
 class LangGraphCodec(Protocol[TaskT, InputT, ResumeT, ResultT, EventT]):
@@ -86,9 +99,9 @@ class LangGraphCodec(Protocol[TaskT, InputT, ResumeT, ResultT, EventT]):
         self, request: MethodGraphRequest[TaskT, InputT, ResumeT]
     ) -> LangGraphInvocation: ...
 
-    def decode_result(self, raw: object) -> MethodGraphResult[ResultT]: ...
+    def decode_result(self, raw: JsonValue) -> MethodGraphResult[ResultT]: ...
 
-    def decode_event(self, raw: object) -> MethodGraphEvent[EventT]: ...
+    def decode_event(self, raw: JsonValue) -> MethodGraphEvent[EventT]: ...
 
 
 class LangGraphMethodProgram(

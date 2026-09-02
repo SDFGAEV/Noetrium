@@ -70,7 +70,7 @@ class ServiceOperationalStatusProbe:
             )
         elif health is HealthState.FAILED:
             next_commands = (
-                (f"evoctl-next debug-snapshot {state.last_failure_id}",)
+                (f"noetrium-forensics debug-snapshot {state.last_failure_id}",)
                 if state.last_failure_id
                 else (f"inspect exact service state and unresolved start intent for {service_id}",)
             )

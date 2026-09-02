@@ -277,7 +277,7 @@ class MinecraftServerSpec:
     host: str = "127.0.0.1"
     port: int = 25565
     level_name: str = "research-world"
-    level_seed: str = "RESEARCH_PLATFORM_FIXED_WORLD_V1"
+    level_seed: str = "NOETRIUM_FIXED_WORLD_V1"
     online_mode: bool = False
     xms: str = "512M"
     xmx: str = "2G"

@@ -1,6 +1,12 @@
 """Canonical participant and cognition contracts for downstream methods."""
 
 from noetrium_platform.capabilities.participant.agent.api import (
+    AgentIdentity,
+    AgentImplementation,
+    AgentSession,
+    AgentSnapshot,
+    AgentTurnRequest,
+    AgentTurnResult,
     AgentActionExecutorPort,
     AgentActionSequence,
     AgentActionStep,
@@ -37,6 +43,8 @@ from noetrium_platform.capabilities.participant.agent.api import (
 )
 
 __all__ = [
+    "AgentIdentity", "AgentImplementation", "AgentSession", "AgentSnapshot",
+    "AgentTurnRequest", "AgentTurnResult",
     "AgentActionExecutorPort", "AgentActionSequence", "AgentActionStep",
     "AgentActionSummary", "AgentCognitionError", "AgentCompletionPort",
     "AgentDiagnosticsPort", "AgentEvidencePort", "AgentGoal",

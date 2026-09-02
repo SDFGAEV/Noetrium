@@ -51,10 +51,10 @@ class TriagePlanService:
         )
         source = self.evidence.source_ref
         steps: list[TriageStep] = [
-            TriageStep(1, "taxonomy", "Confirm stable error semantics and taxonomy version.", f"evoctl-next failure-catalog --domain {domain} --code {code}"),
-            TriageStep(2, "evidence_integrity", "Verify authoritative evidence before trusting projections.", f"evoctl-next verify-evidence {source}"),
-            TriageStep(3, "exact_location", "Locate the exact failure object and execution identity.", f"evoctl-next locate {source} {failure_id}"),
-            TriageStep(4, "joined_debug_snapshot", "Join timeline, causal refs, state writers and nearby telemetry.", f"evoctl-next debug-snapshot {source} {failure_id}"),
+            TriageStep(1, "taxonomy", "Confirm stable error semantics and taxonomy version.", f"noetrium-forensics failure-catalog --domain {domain} --code {code}"),
+            TriageStep(2, "evidence_integrity", "Verify authoritative evidence before trusting projections.", f"noetrium-forensics verify-evidence {source}"),
+            TriageStep(3, "exact_location", "Locate the exact failure object and execution identity.", f"noetrium-forensics locate {source} {failure_id}"),
+            TriageStep(4, "joined_debug_snapshot", "Join timeline, causal refs, state writers and nearby telemetry.", f"noetrium-forensics debug-snapshot {source} {failure_id}"),
         ]
         existing = {step.check for step in steps}
         next_order = 5
@@ -65,19 +65,19 @@ class TriagePlanService:
             missing: tuple[str, ...]
             if check in {"timeline", "index-status"}:
                 command = (
-                    f"evoctl-next timeline {source} {failure_id}"
+                    f"noetrium-forensics timeline {source} {failure_id}"
                     if check == "timeline"
-                    else f"evoctl-next index-status {source}"
+                    else f"noetrium-forensics index-status {source}"
                 )
                 missing = ()
             elif check == "debug-snapshot":
-                command = f"evoctl-next debug-snapshot {source} {failure_id}"
+                command = f"noetrium-forensics debug-snapshot {source} {failure_id}"
                 missing = ()
             elif check == "verify-evidence":
-                command = f"evoctl-next verify-evidence {source}"
+                command = f"noetrium-forensics verify-evidence {source}"
                 missing = ()
             elif check == "failure-catalog":
-                command = f"evoctl-next failure-catalog --domain {domain} --code {code}"
+                command = f"noetrium-forensics failure-catalog --domain {domain} --code {code}"
                 missing = ()
             elif check == "last-writer":
                 command = None

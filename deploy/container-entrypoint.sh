@@ -19,7 +19,7 @@ import noetrium_platform
 print(f"noetrium_platform_import={noetrium_platform.__name__}")
 print(f"noetrium_platform_version={version('noetrium')}")
 PY
-  research --help >/dev/null
+  noetrium --help >/dev/null
   noetrium-manage --help >/dev/null
   noetrium-architecture-gate --help >/dev/null 2>&1 || true
   mkdir -p "$STATE_DIR"

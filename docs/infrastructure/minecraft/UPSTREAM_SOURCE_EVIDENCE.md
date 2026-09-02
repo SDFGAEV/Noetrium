@@ -14,7 +14,7 @@ This evidence is the source lock for Minecraft provider changes. The cached arch
 
 The locked Mineflayer API exposes separate entity lifecycle events including `entitySpawn`, `itemDrop`, and `playerCollect(collector, collected)`. The official API also defines `bot.nearestEntity(predicate)` as nearest matching-entity selection. The provider uses these semantics only as observations/selection meaning: it does not hide an unbounded global entity scan behind that helper. Drop association remains action-local and bounded; a transport/event occurrence by itself is not durable external-effect certainty.
 
-The locked connection lifecycle forwards client error/end state to bot lifecycle events. Upstream promise/timeout helpers are process-local and do not provide crash-durable intent, exactly-once execution, or action reconciliation. Agent Research Platform therefore owns the durable action-recovery journal and must preserve `UNKNOWN` when durable external-effect evidence is absent or corrupt.
+The locked connection lifecycle forwards client error/end state to bot lifecycle events. Upstream promise/timeout helpers are process-local and do not provide crash-durable intent, exactly-once execution, or action reconciliation. Noetrium therefore owns the durable action-recovery journal and must preserve `UNKNOWN` when durable external-effect evidence is absent or corrupt.
 
 ## Local extension and non-degradation rule
 

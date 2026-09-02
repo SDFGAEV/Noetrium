@@ -261,7 +261,7 @@ async function command (msg) {
   }
   if (cmd === 'quit') {
     ack(cmd, {}, requestId)
-    if (bot) bot.quit('Research Platform bridge shutdown')
+    if (bot) bot.quit('Noetrium bridge shutdown')
     setTimeout(() => process.exit(0), 20)
     return
   }

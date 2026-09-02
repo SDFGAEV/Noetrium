@@ -56,7 +56,7 @@ class ModelDeploymentStatusProbe:
                 for reason in reasons
             ),
             evidence=tuple(refs),
-            next_commands=(f"evoctl-next debug-service {dep_id}",) if reasons else (),
+            next_commands=(f"noetrium-forensics debug-service {dep_id}",) if reasons else (),
             reason_codes=tuple(reasons),
         )
 

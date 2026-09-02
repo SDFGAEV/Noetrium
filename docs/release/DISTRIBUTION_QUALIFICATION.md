@@ -10,8 +10,8 @@ The command fails unless the Git worktree is clean. It materializes one exact so
 
 Each installed artifact must:
 
-- import `noetrium_platform.api` from the isolated environment's `site-packages`;
-- expose the installed `research` console script;
+- import the public `noetrium` package from the isolated environment's `site-packages`;
+- expose the installed `noetrium` console script;
 - execute the historical Operator smoke lifecycle `run -> inspect -> stop -> resume -> reconcile -> evidence` successfully;
 - preserve that synthetic smoke state across command processes.
 
@@ -77,7 +77,7 @@ python scripts/verify_npe_cleanroom.py <qualified-wheel-or-sdist> \
   --output npe-clean-room.json
 ```
 
-The verifier creates a fresh virtual environment and workspace, removes ambient `PYTHONPATH/PYTHONHOME`, installs only the supplied artifact, and proves `noetrium_platform.api` resolves inside that verification environment. It then runs the installed `research project create`, `project doctor`, and generated `project test` surfaces. `project test` itself builds and installs the generated downstream package into an isolated temporary install root before executing its contract suite, so checkout/src-only import success cannot satisfy NPE. Machine JSON is parsed from the complete command output; bounded stdout/stderr tails remain diagnostic-only and are never the authority for NPE state. Public-import-boundary readiness is taken from the typed doctor receipt.
+The verifier creates a fresh virtual environment and workspace, removes ambient `PYTHONPATH/PYTHONHOME`, installs only the supplied artifact, and proves `noetrium` resolves inside that verification environment. It then runs the installed `noetrium project create`, `project doctor`, and generated `project test` surfaces. `project test` itself builds and installs the generated downstream package into an isolated temporary install root before executing its contract suite, so checkout/src-only import success cannot satisfy NPE. Machine JSON is parsed from the complete command output; bounded stdout/stderr tails remain diagnostic-only and are never the authority for NPE state. Public-import-boundary readiness is taken from the typed doctor receipt.
 
 The receipt schema is `noetrium.npe-clean-room.v2` and records the generated template profile. `npe_verified` remains false unless the complete Section-37/40 acceptance sequence passes. The default installed-artifact path must be `template_profile=author`; it may not fall back to provider-first scaffolding. The verifier requires the installed author template to expose the producer-owned public Research Method Host and typed compiler/binding seam. It must not manufacture an Operator-side compiler or reference lifecycle; runtime execution remains blocked until explicit provider/runtime bindings are supplied.
 

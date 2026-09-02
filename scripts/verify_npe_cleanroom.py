@@ -61,8 +61,8 @@ def _venv_python(root: Path) -> Path:
     return root / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 
 
-def _research_executable(root: Path) -> Path:
-    return root / ("Scripts/research.exe" if os.name == "nt" else "bin/research")
+def _noetrium_executable(root: Path) -> Path:
+    return root / ("Scripts/noetrium.exe" if os.name == "nt" else "bin/noetrium")
 
 def _create_venv(root: Path) -> bool:
     try:
@@ -219,7 +219,7 @@ def verify_npe_cleanroom(artifact: Path) -> NpeCleanRoomReceipt:
                 blockers=["PYTHON_VENV_UNAVAILABLE"],
             )
         python = _venv_python(venv_root)
-        research = _research_executable(venv_root)
+        noetrium = _noetrium_executable(venv_root)
         env = dict(os.environ)
         env.pop("PYTHONPATH", None)
         env.pop("PYTHONHOME", None)
@@ -236,9 +236,9 @@ def verify_npe_cleanroom(artifact: Path) -> NpeCleanRoomReceipt:
             return _blocked_receipt(artifact, commands=commands, blockers=["ARTIFACT_INSTALL_FAILED"])
 
         metadata_code = (
-            "import importlib.metadata,json,noetrium_platform.api;"
+            "import importlib.metadata,json,noetrium;"
             "print(json.dumps({'version':importlib.metadata.version('noetrium'),"
-            "'module_file':noetrium_platform.api.__file__}))"
+            "'module_file':noetrium.__file__}))"
         )
         metadata = _run(
             "installed-metadata",
@@ -281,7 +281,7 @@ def verify_npe_cleanroom(artifact: Path) -> NpeCleanRoomReceipt:
             )
 
         create_argv = [
-            str(research), "project", "create", "npe-reference", str(project),
+            str(noetrium), "project", "create", "npe-reference", str(project),
             "--version", "0.0.1",
         ]
         create = _run("project-create", create_argv, cwd=work, env=env)
@@ -302,7 +302,7 @@ def verify_npe_cleanroom(artifact: Path) -> NpeCleanRoomReceipt:
 
         doctor = _run(
             "project-doctor",
-            [str(research), "project", "doctor", "--project", str(project)],
+            [str(noetrium), "project", "doctor", "--project", str(project)],
             cwd=work,
             env=env,
         )
@@ -311,7 +311,7 @@ def verify_npe_cleanroom(artifact: Path) -> NpeCleanRoomReceipt:
 
         generated_tests = _run(
             "project-test",
-            [str(research), "project", "test", "--project", str(project)],
+            [str(noetrium), "project", "test", "--project", str(project)],
             cwd=work,
             env=env,
         )

@@ -45,7 +45,7 @@ def render_server_properties(spec: MinecraftServerSpec, *, rcon_password: str | 
         "level-name": spec.level_name,
         "level-seed": spec.level_seed,
         "max-players": 4,
-        "motd": "Research Platform Minecraft Environment",
+        "motd": "Noetrium Minecraft Environment",
         "online-mode": spec.online_mode,
         "pvp": False,
         "simulation-distance": 6,

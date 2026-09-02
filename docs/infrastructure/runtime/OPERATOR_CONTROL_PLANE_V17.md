@@ -1,6 +1,6 @@
 # Operator Control Plane v17
 
-The operator surface is one read-mostly control plane: `evoctl-next`.
+The operator surface is one read-mostly control plane: `noetrium-forensics`.
 
 Core commands:
 

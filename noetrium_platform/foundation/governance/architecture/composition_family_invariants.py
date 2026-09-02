@@ -7,7 +7,7 @@ from .source_scan import SourceInvariantViolation, imports, violation
 
 def audit_composition_family_firewall(root: Path) -> list[SourceInvariantViolation]:
     rows: list[SourceInvariantViolation] = []
-    composition = root / "noetrium_platform" / "foundation" / "kernel" / "composition"
+    composition = root / "noetrium_platform" / "composition"
     checks = (
         (composition / "context_action.py", "composition_context_action_firewall", (
             "noetrium_platform.capabilities.participant.agent.api", "noetrium_platform.capabilities.participant.capability.api", "noetrium_platform.composition.agent_turn",

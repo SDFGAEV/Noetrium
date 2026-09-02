@@ -62,6 +62,7 @@ class _OptimizationRaw:
 
 
 _LEGACY_PLANE_MODULES = {
+    "artifact": "evidence.artifact",
     "platform": "foundation.kernel",
     "governance": "foundation.governance",
     "scope": "foundation.scope",
@@ -76,13 +77,18 @@ _LEGACY_PLANE_MODULES = {
     "participant": "capabilities.participant",
     "environment": "capabilities.environment",
     "data": "evidence.data",
-    "artifact": "evidence.artifact",
     "observability": "evidence.observability",
     "operator": "product.operator",
 }
 
 
 def _canonical_module_name(module: str) -> str:
+    # Historical Git cuts used the research_platform root and flat semantic
+    # planes; normalize them before applying the current semantic-plane map.
+    if module == "research_platform":
+        module = "noetrium_platform"
+    elif module.startswith("research_platform."):
+        module = "noetrium_platform." + module[len("research_platform."):]
     if module == "noetrium_platform":
         return "noetrium_platform"
     prefix = "noetrium_platform."
@@ -151,7 +157,7 @@ def scan_architecture_source_profile(
     root: Path,
     *,
     source_index: RepositorySourceIndexPort,
-    package_roots: tuple[str, ...] = ("noetrium_platform", "noetrium_platform", "projects"),
+    package_roots: tuple[str, ...] = ("noetrium_platform", "research_platform", "projects"),
     authority_rules: Iterable[SourceAuthorityRule] = (),
 ) -> ArchitectureSourceProfile:
     """Parse each production Python file once and emit compact audit facts.

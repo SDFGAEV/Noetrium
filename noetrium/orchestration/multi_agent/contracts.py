@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Protocol
 
-from noetrium.contracts.json import canonical_digest
+from noetrium.contracts.json import canonical_digest, require_sha256
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -159,8 +159,7 @@ class MultiAgentDeliveryReceipt:
     receipt_id: str = field(init=False)
 
     def __post_init__(self) -> None:
-        if type(self.message_id) is not str or len(self.message_id) != 64:
-            raise ValueError("multi-agent receipt message_id must be SHA-256")
+        require_sha256(self.message_id, "multi-agent receipt message_id")
         if any(type(value) is not str or not value.strip() for value in (self.sender, self.recipient)):
             raise ValueError("multi-agent receipt endpoints must be non-empty")
         if not isinstance(self.status, MultiAgentDeliveryStatus):
@@ -193,21 +192,36 @@ class MultiAgentCheckpoint:
     pending: tuple[MultiAgentMessage, ...]
     delivered_message_ids: tuple[str, ...]
     round: int
+    delivered_messages: tuple[MultiAgentMessage, ...] = ()
     checkpoint_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
         if self.schema_version != "multi-agent-checkpoint.v1":
             raise ValueError("unsupported multi-agent checkpoint schema")
-        if type(self.topology_digest) is not str or len(self.topology_digest) != 64:
-            raise ValueError("multi-agent checkpoint topology digest is invalid")
+        require_sha256(self.topology_digest, "multi-agent checkpoint topology_digest")
         if type(self.conversation_id) is not str or not self.conversation_id.strip():
             raise ValueError("multi-agent checkpoint conversation_id is required")
         if type(self.pending) is not tuple or any(type(row) is not MultiAgentMessage for row in self.pending):
             raise TypeError("multi-agent checkpoint pending messages are invalid")
-        if type(self.delivered_message_ids) is not tuple or any(
-            type(row) is not str or len(row) != 64 for row in self.delivered_message_ids
+        if any(row.conversation_id != self.conversation_id for row in self.pending):
+            raise ValueError("multi-agent checkpoint pending messages cross conversation")
+        if type(self.delivered_messages) is not tuple or any(
+            type(row) is not MultiAgentMessage for row in self.delivered_messages
         ):
-            raise TypeError("multi-agent checkpoint delivered IDs are invalid")
+            raise TypeError("multi-agent checkpoint delivered messages are invalid")
+        if any(row.conversation_id != self.conversation_id for row in self.delivered_messages):
+            raise ValueError("multi-agent checkpoint delivered messages cross conversation")
+        expected_ids = tuple(row.message_id for row in self.delivered_messages)
+        if type(self.delivered_message_ids) is not tuple or self.delivered_message_ids != expected_ids:
+            raise ValueError("multi-agent checkpoint delivered IDs do not match transcript")
+        if any(
+            type(row) is not str or require_sha256(row, "multi-agent checkpoint delivered ID") is None
+            for row in self.delivered_message_ids
+        ):
+            raise ValueError("multi-agent checkpoint delivered IDs are invalid")
+        all_ids = self.delivered_message_ids + tuple(row.message_id for row in self.pending)
+        if len(all_ids) != len(set(all_ids)):
+            raise ValueError("multi-agent checkpoint transcript and pending IDs must be unique")
         if type(self.round) is not int or isinstance(self.round, bool) or self.round < 0:
             raise ValueError("multi-agent checkpoint round must be non-negative")
         object.__setattr__(
@@ -218,6 +232,7 @@ class MultiAgentCheckpoint:
                 "topology_digest": self.topology_digest,
                 "conversation_id": self.conversation_id,
                 "pending": self.pending,
+                "delivered_messages": self.delivered_messages,
                 "delivered_message_ids": self.delivered_message_ids,
                 "round": self.round,
             }),
@@ -250,8 +265,7 @@ class MultiAgentRunResult:
     error: str | None = None
 
     def __post_init__(self) -> None:
-        if type(self.topology_digest) is not str or len(self.topology_digest) != 64:
-            raise ValueError("multi-agent result topology digest is invalid")
+        require_sha256(self.topology_digest, "multi-agent result topology_digest")
         if type(self.messages) is not tuple or any(type(row) is not MultiAgentMessage for row in self.messages):
             raise TypeError("multi-agent result messages are invalid")
         if type(self.rounds) is not int or self.rounds < 0:
@@ -266,6 +280,10 @@ class MultiAgentRunResult:
             raise TypeError("multi-agent result checkpoint is invalid")
         if self.error is not None and type(self.error) is not str:
             raise TypeError("multi-agent result error must be string or None")
+        if self.status is MultiAgentRunStatus.COMPLETED and not self.terminated:
+            raise ValueError("completed multi-agent result must be terminated")
+        if self.status is MultiAgentRunStatus.FAILED and not self.error:
+            raise ValueError("failed multi-agent result requires an error")
 
 
 __all__ = [

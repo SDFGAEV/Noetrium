@@ -59,7 +59,7 @@ class InterprocessFileLock:
 
     def _windows_mutex_name(self) -> str:
         identity = self._canonical_windows_path_identity(self.path).encode("utf-8", "surrogatepass")
-        return "Local\\ResearchPlatformLock-" + hashlib.sha256(identity).hexdigest()
+        return "Local\\NoetriumLock-" + hashlib.sha256(identity).hexdigest()
 
     def __enter__(self) -> "InterprocessFileLock":
         self.path.parent.mkdir(parents=True, exist_ok=True)

@@ -63,7 +63,7 @@ class RuntimeTransactionStatusProbe:
                 "do not mutate runtime state from the status path",
             )
         elif health is HealthState.FAILED:
-            next_commands = ("evoctl-next status", "evoctl-next recovery-status")
+            next_commands = ("noetrium-forensics status", "noetrium-forensics recovery-status")
         else:
             next_commands = ()
         return SubsystemSnapshot(

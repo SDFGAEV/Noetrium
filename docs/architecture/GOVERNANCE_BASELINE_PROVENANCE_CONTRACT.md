@@ -28,7 +28,7 @@ Baseline migration must preserve the frozen business comparison source. A proven
 
 ## External approval transport
 
-The shared ROLE00 approval set is supplied out-of-repository through `RESEARCH_PLATFORM_GOVERNANCE_BASELINE_APPROVALS` together with `RESEARCH_PLATFORM_GOVERNANCE_BASELINE_APPROVALS_SHA256`. Supplying only one is invalid. Git discovery for exact source authority uses the existing `RESEARCH_PLATFORM_GIT_EXECUTABLE` route when required.
+The shared ROLE00 approval set is supplied out-of-repository through `NOETRIUM_GOVERNANCE_BASELINE_APPROVALS` together with `NOETRIUM_GOVERNANCE_BASELINE_APPROVALS_SHA256`. Supplying only one is invalid. Git discovery for exact source authority uses the existing `NOETRIUM_GIT_EXECUTABLE` route when required.
 
 ## Historical baseline cutover command
 

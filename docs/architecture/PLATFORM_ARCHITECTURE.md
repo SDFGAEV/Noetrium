@@ -1,4 +1,4 @@
-# Platform Architecture — Contract-Driven Research Platform
+# Platform Architecture — Contract-Driven Noetrium
 
 ## Goal
 

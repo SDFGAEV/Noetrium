@@ -6,19 +6,19 @@ ARG PLATFORM_SOURCE_SHA=unknown
 ARG PLATFORM_WHEEL_SHA256=unknown
 ARG PLATFORM_DISTRIBUTION_EVIDENCE_SHA256=unknown
 LABEL org.opencontainers.image.revision="${PLATFORM_SOURCE_SHA}" \
-      org.opencontainers.image.research-platform.wheel.sha256="${PLATFORM_WHEEL_SHA256}" \
-      org.opencontainers.image.research-platform.distribution-evidence.sha256="${PLATFORM_DISTRIBUTION_EVIDENCE_SHA256}"
+      org.opencontainers.image.noetrium.wheel.sha256="${PLATFORM_WHEEL_SHA256}" \
+      org.opencontainers.image.noetrium.distribution-evidence.sha256="${PLATFORM_DISTRIBUTION_EVIDENCE_SHA256}"
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
-    PLATFORM_STATE_DIR=/var/lib/research-platform \
-    PLATFORM_EMBEDDED_WHEEL=/opt/research-platform-artifact/noetrium_platform.whl
+    PLATFORM_STATE_DIR=/var/lib/noetrium \
+    PLATFORM_EMBEDDED_WHEEL=/opt/noetrium-artifact/noetrium_platform.whl
 
-WORKDIR /opt/research-platform
+WORKDIR /opt/noetrium
 COPY *.whl /tmp/wheelhouse/
-COPY container-entrypoint.sh /usr/local/bin/research-platform-entrypoint
+COPY container-entrypoint.sh /usr/local/bin/noetrium-entrypoint
 
 RUN wheel="$(find /tmp/wheelhouse -maxdepth 1 -type f -name '*.whl' -print)" \
     && test "$(find /tmp/wheelhouse -maxdepth 1 -type f -name '*.whl' | wc -l)" -eq 1 \
@@ -28,12 +28,12 @@ RUN wheel="$(find /tmp/wheelhouse -maxdepth 1 -type f -name '*.whl' -print)" \
     && cp "$wheel" "$PLATFORM_EMBEDDED_WHEEL" \
     && rm -rf /tmp/wheelhouse \
     && chmod 0444 "$PLATFORM_EMBEDDED_WHEEL" \
-    && chmod 0755 /usr/local/bin/research-platform-entrypoint
+    && chmod 0755 /usr/local/bin/noetrium-entrypoint
 
 RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin platform \
     && mkdir -p "$PLATFORM_STATE_DIR" \
-    && chown -R platform:platform /opt/research-platform "$PLATFORM_STATE_DIR"
+    && chown -R platform:platform /opt/noetrium "$PLATFORM_STATE_DIR"
 
 USER platform
-ENTRYPOINT ["/usr/local/bin/research-platform-entrypoint"]
+ENTRYPOINT ["/usr/local/bin/noetrium-entrypoint"]
 CMD ["doctor"]

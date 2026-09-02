@@ -243,7 +243,7 @@ def test_scientific_environment_generation_excludes_operational_endpoint_but_bin
 def test_minecraft_agent_username_matches_protocol_contract() -> None:
     assert MinecraftAgentSpec(username="ResearchBot").username == "ResearchBot"
     with pytest.raises(ValueError, match=r"\[A-Za-z0-9_\]\{3,16\}"):
-        MinecraftAgentSpec(username="ResearchPlatformBot")
+        MinecraftAgentSpec(username="NoetriumResearchBot")
     with pytest.raises(ValueError, match=r"\[A-Za-z0-9_\]\{3,16\}"):
         MinecraftAgentSpec(username="research bot")
 

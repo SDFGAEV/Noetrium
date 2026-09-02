@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
+from threading import RLock
 from typing import Callable, Protocol
 
 from noetrium.contracts.json import JsonValue, canonical_digest, freeze_json
@@ -31,9 +32,15 @@ class ToolArguments:
             type(row) is not tuple or len(row) != 2 for row in self.values
         ):
             raise TypeError("tool argument values must be key/value tuples")
-        keys = [row[0] for row in self.values]
-        if any(type(key) is not str or not key.strip() for key in keys) or len(keys) != len(set(keys)):
-            raise ValueError("tool argument keys must be unique non-empty strings")
+        normalized = []
+        for key, value in self.values:
+            if type(key) is not str or not key.strip():
+                raise ValueError("tool argument keys must be non-empty strings")
+            normalized.append((key, freeze_json(value)))
+        keys = [key for key, _value in normalized]
+        if len(keys) != len(set(keys)):
+            raise ValueError("tool argument keys must be unique")
+        object.__setattr__(self, "values", tuple(sorted(normalized)))
 
     def as_mapping(self) -> dict[str, JsonValue]:
         return dict(self.values)
@@ -59,6 +66,8 @@ class ToolDefinition:
             for value in (self.name, self.description, self.input_schema_id, self.sandbox_profile)
         ):
             raise ValueError("tool definition text fields must be non-empty strings")
+        if type(self.capability_id) is not str:
+            raise TypeError("tool definition capability_id must be a string")
         if not isinstance(self.risk_class, ToolRiskClass):
             raise TypeError("tool definition risk_class is invalid")
         if self.risk_class is ToolRiskClass.HIGH_RISK and not self.capability_id.strip():
@@ -87,10 +96,17 @@ class ToolAuthorization:
     approval_id: str = ""
 
     def __post_init__(self) -> None:
+        if (
+            type(self.capability_id) is not str
+            or type(self.reason) is not str
+            or type(self.approved) is not bool
+            or type(self.approval_id) is not str
+        ):
+            raise TypeError("tool authorization fields are invalid")
         if not self.capability_id.strip() or not self.reason.strip():
             raise ValueError("tool authorization capability and reason are required")
-        if type(self.approved) is not bool or type(self.approval_id) is not str:
-            raise TypeError("tool authorization fields are invalid")
+        if self.approved and not self.approval_id.strip():
+            raise ValueError("approved tool authorization requires an approval_id")
 
 
 class ToolAuthorizationPort(Protocol):
@@ -157,17 +173,21 @@ class ToolRegistry:
         self._handlers: dict[str, tuple[ToolDefinition, ToolHandler]] = {}
         self._authorization = authorization
         self._audit = audit
+        self._lock = RLock()
 
     def register(self, definition: ToolDefinition, handler: ToolHandler) -> None:
         if type(definition) is not ToolDefinition or not callable(handler):
             raise TypeError("tool registry requires a ToolDefinition and callable handler")
-        if definition.name in self._handlers:
-            raise ValueError(f"tool already registered: {definition.name}")
-        self._handlers[definition.name] = (definition, handler)
+        with self._lock:
+            if definition.name in self._handlers:
+                raise ValueError(f"tool already registered: {definition.name}")
+            self._handlers[definition.name] = (definition, handler)
 
     def definitions(self) -> tuple[ToolDefinition, ...]:
+        with self._lock:
+            values = tuple(self._handlers.values())
         return tuple(
-            row[0] for row in sorted(self._handlers.values(), key=lambda row: row[0].name)
+            row[0] for row in sorted(values, key=lambda row: row[0].name)
         )
 
     def invoke(self, name: str, arguments: ToolArguments) -> ToolResult:
@@ -175,7 +195,8 @@ class ToolRegistry:
             raise ValueError("tool name must be non-empty")
         if type(arguments) is not ToolArguments:
             raise TypeError("tool invocation requires ToolArguments")
-        entry = self._handlers.get(name)
+        with self._lock:
+            entry = self._handlers.get(name)
         if entry is None:
             return ToolResult(name, False, "", f"unknown tool: {name}")
         definition, handler = entry
@@ -200,9 +221,12 @@ class ToolRegistry:
             return None
         if self._authorization is None:
             return "high-risk tool denied: explicit authorization is required"
-        authorization = self._authorization.review(definition, arguments)
+        try:
+            authorization = self._authorization.review(definition, arguments)
+        except Exception as exc:
+            return f"high-risk tool denied: authorization failed ({type(exc).__name__})"
         if type(authorization) is not ToolAuthorization:
-            raise TypeError("tool authorization returned an invalid decision")
+            return "high-risk tool denied: authorization returned an invalid decision"
         if not authorization.approved:
             return f"high-risk tool denied: {authorization.reason}"
         if authorization.capability_id != definition.capability_id:

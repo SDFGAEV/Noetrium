@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p=argparse.ArgumentParser(prog="evoctl-next",description="Research Platform unified operator control plane")
+    p=argparse.ArgumentParser(prog="noetrium-forensics",description="Noetrium unified operator control plane")
     sub=p.add_subparsers(dest="command",required=True)
     def forensic(name,help):
         sp=sub.add_parser(name,help=help); sp.add_argument("root",type=Path,help="forensic run root"); return sp

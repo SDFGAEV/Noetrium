@@ -38,9 +38,15 @@ class MemoryItem:
                 raise ValueError("memory embedding must contain finite numbers")
         if type(self.metadata) is not tuple or any(type(row) is not tuple or len(row) != 2 for row in self.metadata):
             raise TypeError("memory metadata must be key/value tuples")
-        keys = [row[0] for row in self.metadata]
-        if any(type(key) is not str or not key.strip() for key in keys) or len(keys) != len(set(keys)):
-            raise ValueError("memory metadata keys must be unique non-empty strings")
+        normalized_metadata = []
+        for key, value in self.metadata:
+            if type(key) is not str or not key.strip():
+                raise ValueError("memory metadata keys must be non-empty strings")
+            normalized_metadata.append((key, freeze_json(value)))
+        keys = [key for key, _value in normalized_metadata]
+        if len(keys) != len(set(keys)):
+            raise ValueError("memory metadata keys must be unique")
+        object.__setattr__(self, "metadata", tuple(sorted(normalized_metadata)))
         object.__setattr__(self, "item_digest", canonical_digest({"namespace": self.namespace, "memory_id": self.memory_id, "content": self.content, "tags": self.tags, "embedding": self.embedding, "metadata": self.metadata}))
 
 class WorkingMemory:
@@ -92,6 +98,8 @@ class EpisodicMemoryStore:
             return item
 
     def get(self, memory_id: str, *, namespace: str = "default") -> MemoryItem:
+        if type(memory_id) is not str or not memory_id.strip():
+            raise ValueError("episodic memory memory_id must be non-empty")
         if type(namespace) is not str or not namespace.strip():
             raise ValueError("episodic memory namespace must be non-empty")
         with self._lock:
@@ -144,19 +152,29 @@ class VectorMemoryStore:
             self._norms[key] = math.sqrt(sum(float(value) ** 2 for value in item.embedding))
             return item
 
-    def search(self, query: tuple[float, ...], *, limit: int = 10) -> tuple[tuple[MemoryItem, float], ...]:
+    def search(
+        self,
+        query: tuple[float, ...],
+        *,
+        limit: int = 10,
+        namespace: str | None = None,
+    ) -> tuple[tuple[MemoryItem, float], ...]:
         if type(query) is not tuple or len(query) != self._dimension:
             raise ValueError("vector memory query dimension mismatch")
         if any(isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)) for value in query):
             raise ValueError("vector memory query must contain finite numbers")
         if type(limit) is not int or not 1 <= limit <= 10_000:
             raise ValueError("vector memory limit must be in [1, 10000]")
+        if namespace is not None and (type(namespace) is not str or not namespace.strip()):
+            raise ValueError("vector memory namespace must be non-empty when present")
         norm = math.sqrt(sum(float(value) ** 2 for value in query))
         if norm == 0:
             raise ValueError("vector memory query cannot be zero")
         with self._lock:
             scored = []
             for item in self._items.values():
+                if namespace is not None and item.namespace != namespace:
+                    continue
                 assert item.embedding is not None
                 item_norm = self._norms[(item.namespace, item.memory_id)]
                 score = 0.0 if item_norm == 0 else sum(float(a) * float(b) for a, b in zip(query, item.embedding)) / (norm * item_norm)

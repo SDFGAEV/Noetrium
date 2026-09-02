@@ -4,7 +4,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Generic, Protocol, TypeVar, runtime_checkable
 
-from noetrium_platform.foundation.kernel.kernel import ExecutionContext
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext, JsonValue, freeze_json
 
 from .contracts import MethodProgramIdentity
 
@@ -37,7 +37,7 @@ class MethodGraphRequest(Generic[TaskT, InputT, ResumeT]):
 class MethodGraphInterrupt:
     interrupt_id: str
     node: str
-    payload: object
+    payload: JsonValue
 
     def __post_init__(self) -> None:
         if any(
@@ -45,6 +45,7 @@ class MethodGraphInterrupt:
             for value in (self.interrupt_id, self.node)
         ):
             raise ValueError("method graph interrupt identity fields are required")
+        object.__setattr__(self, "payload", freeze_json(self.payload))
 
 
 @dataclass(frozen=True, slots=True)
