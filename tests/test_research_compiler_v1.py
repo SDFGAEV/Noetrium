@@ -8,6 +8,7 @@ from research_platform.experimentation.api import (
     ResearchCapabilityBinding,
     ResearchParticipantBinding,
     ResearchParticipantRequirement,
+    ResearchMethodHost,
     compile_research_plan,
     diff_research_plans,
     resolve_research_requirements,
@@ -213,6 +214,14 @@ def _definition(
 def _compile(definition: ResearchStudyDefinition, *, provider_id: str = "provider-v1"):
     _, resolution, binding = _resolved_binding(definition, provider_id=provider_id)
     return compile_research_plan(definition, resolution, binding)
+
+
+def test_public_method_host_matches_direct_compiler() -> None:
+    definition = _definition()
+    manifest, _, binding = _resolved_binding(definition)
+    hosted = ResearchMethodHost().compile_method(definition, manifest, binding)
+    assert hosted == _compile(definition)
+
 
 def test_compiler_expands_factor_seed_repetition_task_matrix_and_schedule() -> None:
     plan = _compile(_definition())

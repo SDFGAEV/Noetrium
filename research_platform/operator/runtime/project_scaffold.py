@@ -53,6 +53,30 @@ def _author_module(kind: str) -> str:
     return f'''"""Paper-author {kind} definitions.\n\nKeep paper-specific semantics here. The Platform compiler/binding layer consumes\nauthor definitions through public contracts once the producer handoff is available.\nDo not import Platform runtime/provider implementation modules from this file.\n"""\n\n__all__: tuple[str, ...] = ()\n'''
 
 
+def _author_research_module() -> str:
+    return '''from research_platform.experimentation.api import (
+    ResearchBindingContribution,
+    ResearchMethodHost,
+    ResearchMethodHostPort,
+    ResearchStudyDefinition,
+)
+from research_platform.portfolio.api import ProjectManifest
+
+METHOD_HOST: ResearchMethodHostPort = ResearchMethodHost()
+
+
+def compile_method(
+    definition: ResearchStudyDefinition,
+    project_manifest: ProjectManifest,
+    binding: ResearchBindingContribution,
+):
+    return METHOD_HOST.compile_method(definition, project_manifest, binding)
+
+
+__all__ = ["METHOD_HOST", "compile_method"]
+'''
+
+
 def _requirements_module(request: ProjectCreateRequest) -> str:
     agent_digest = hashlib.sha256(
         f"{request.project_id}:{request.version}:agent".encode("utf-8")
@@ -83,7 +107,7 @@ def _application_module() -> str:
 
 
 def _author_test_module(package: str) -> str:
-    return f'''import unittest\nfrom pathlib import Path\n\nfrom research_platform.portfolio.api import ProjectIdentity, decode_project_manifest_bytes\nfrom {package}.project import PROJECT_IDENTITY\nimport {package}.methods\nimport {package}.tasks\nimport {package}.measurements\nimport {package}.studies\n\nROOT = Path(__file__).resolve().parents[1]\n\n\nclass GeneratedAuthorProjectTests(unittest.TestCase):\n    def test_manifest_identity_matches_public_project_identity(self):\n        manifest = decode_project_manifest_bytes((ROOT / {_MANIFEST_PATH!r}).read_bytes())\n        self.assertIsInstance(PROJECT_IDENTITY, ProjectIdentity)\n        self.assertEqual(manifest.project.identity, PROJECT_IDENTITY)\n\n    def test_author_modules_import_without_provider_plumbing(self):\n        self.assertFalse((ROOT / "src" / {package!r} / "participant_provider.py").exists())\n        self.assertFalse((ROOT / "src" / {package!r} / "model_provider.py").exists())\n        self.assertFalse((ROOT / "src" / {package!r} / "environment_provider.py").exists())\n        self.assertFalse((ROOT / "src" / {package!r} / "application.py").exists())\n\n\nif __name__ == "__main__":\n    unittest.main()\n'''
+    return f'''import unittest\nfrom pathlib import Path\n\nfrom research_platform.portfolio.api import ProjectIdentity, decode_project_manifest_bytes\nfrom {package}.project import PROJECT_IDENTITY\nfrom {package}.research import METHOD_HOST, compile_method\nimport {package}.methods\nimport {package}.tasks\nimport {package}.measurements\nimport {package}.studies\n\nROOT = Path(__file__).resolve().parents[1]\n\n\nclass GeneratedAuthorProjectTests(unittest.TestCase):\n    def test_manifest_identity_matches_public_project_identity(self):\n        manifest = decode_project_manifest_bytes((ROOT / {_MANIFEST_PATH!r}).read_bytes())\n        self.assertIsInstance(PROJECT_IDENTITY, ProjectIdentity)\n        self.assertEqual(manifest.project.identity, PROJECT_IDENTITY)\n\n    def test_author_modules_import_without_provider_plumbing(self):\n        self.assertFalse((ROOT / "src" / {package!r} / "participant_provider.py").exists())\n        self.assertFalse((ROOT / "src" / {package!r} / "model_provider.py").exists())\n        self.assertFalse((ROOT / "src" / {package!r} / "environment_provider.py").exists())\n        self.assertFalse((ROOT / "src" / {package!r} / "application.py").exists())\n\n\nif __name__ == "__main__":\n    unittest.main()\n'''
 
 
 def _provider_test_module(package: str) -> str:
@@ -92,7 +116,7 @@ def _provider_test_module(package: str) -> str:
 
 def _readme(project_id: str, profile: ProjectTemplateProfile) -> str:
     if profile is ProjectTemplateProfile.AUTHOR:
-        return f'''# {project_id}\n\nThis is the Level-0 paper-author scaffold.\n\nEdit `methods.py`, `tasks.py`, `measurements.py`, and `studies.py`. Standard Participant/Model/Environment/RunControl/checkpoint/resource/evidence wiring is intentionally absent from project code and must be supplied by Platform producer contracts.\n\nRun `research project doctor --project .` to see exact producer blockers and `research project test --project .` for structural/public-boundary conformance.\n'''
+        return f'''# {project_id}\n\nThis is the Level-0 paper-author scaffold.\n\nEdit `methods.py`, `tasks.py`, `measurements.py`, and `studies.py`. Use `research.py` as the public Method Host entry point: it compiles typed author facts with an injected ProjectManifest and BindingContribution. Provider, runtime, checkpoint, resource, and evidence authorities remain outside the author project.\n\nRun `research project doctor --project .` to verify the public compiler/binding seam and `research project test --project .` for structural/public-boundary conformance.\n'''
     return f'''# {project_id}\n\nThis is the explicit Level-2 provider-author scaffold.\n\nIt exposes Participant/Model/Environment provider stubs and direct RunControl application binding through public Platform contracts. Every stub fails closed until implemented.\n\nNormal paper authors should use the default `author` template instead.\n'''
 
 
@@ -112,6 +136,7 @@ def _scaffold_files(request: ProjectCreateRequest) -> tuple[dict[str, bytes], st
     if request.template_profile is ProjectTemplateProfile.AUTHOR:
         for kind in ("methods", "tasks", "measurements", "studies"):
             text_files[f"src/{package}/{kind}.py"] = _author_module(kind)
+        text_files[f"src/{package}/research.py"] = _author_research_module()
         text_files["tests/test_generated_author_project.py"] = _author_test_module(package)
     else:
         text_files[f"src/{package}/requirements.py"] = _requirements_module(request)

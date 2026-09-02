@@ -30,6 +30,17 @@ from research_platform.portfolio.api import (
 _MANIFEST_PATH = "project.manifest.json"
 _PACKAGE = re.compile(r"[a-z][a-z0-9_]*")
 _PROVIDER_PROBE_TIMEOUT_S = 30
+_AUTHOR_PROBE_TIMEOUT_S = 30
+_AUTHOR_PROBE_SCRIPT = r'''
+from research_platform.experimentation.api import ResearchMethodHostPort
+from __PACKAGE__.research import METHOD_HOST, compile_method
+
+if not isinstance(METHOD_HOST, ResearchMethodHostPort):
+    raise TypeError("author Method Host does not implement ResearchMethodHostPort")
+if not callable(compile_method):
+    raise TypeError("author research module must export compile_method")
+print("ready")
+'''
 _PROVIDER_PROBE_SCRIPT = r'''
 import json
 
@@ -192,6 +203,29 @@ def _diagnostic_codes(rows: object) -> tuple[str, ...]:
         if error:
             codes.append(code)
     return tuple(codes)
+
+
+def _author_readiness(root: Path, package: str) -> tuple[bool, str]:
+    if not _PACKAGE.fullmatch(package):
+        return False, "invalid project package identity"
+    script = _AUTHOR_PROBE_SCRIPT.replace("__PACKAGE__", package)
+    command = isolated_script_command(script, project_src=root / "src")
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=root,
+            env=isolated_environment(),
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+            timeout=_AUTHOR_PROBE_TIMEOUT_S,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False, "author Method Host probe could not complete"
+    if completed.returncode != 0 or completed.stdout.strip() != "ready":
+        return False, "author Method Host public contract probe failed closed"
+    return True, "ready"
 
 
 def _provider_readiness(root: Path, package: str) -> tuple[bool, str, bool, str, bool, str]:
@@ -357,6 +391,7 @@ def doctor_project(project_root: Path) -> ProjectDoctorReport:
     author_files = () if not package else (
         f"src/{package}/methods.py", f"src/{package}/tasks.py",
         f"src/{package}/measurements.py", f"src/{package}/studies.py",
+        f"src/{package}/research.py",
         "tests/test_generated_author_project.py",
     )
     provider_files = () if not package else (
@@ -396,10 +431,14 @@ def doctor_project(project_root: Path) -> ProjectDoctorReport:
     ))
 
     if profile is ProjectTemplateProfile.AUTHOR:
+        if files_ok:
+            author_ready, author_detail = _author_readiness(root, package)
+        else:
+            author_ready, author_detail = False, "author template files are incomplete"
         checks.append(_check(
-            "level0_standard_bindings", False,
-            "producer-owned author compiler and standard bindings are not yet available",
-            "install a Platform release with producer-owned Level-0 compiler and standard bindings; do not add provider/runtime plumbing to the author project",
+            "level0_standard_bindings", author_ready,
+            "Level-0 Research Method Host and typed compiler/binding seam are available",
+            "resolve author Method Host readiness: " + author_detail,
         ))
     elif profile is ProjectTemplateProfile.PROVIDER:
         if files_ok:

@@ -46,8 +46,9 @@ def load_project_application(
     ), None)
     if profile is ProjectTemplateProfile.AUTHOR:
         raise ValueError(
-            "author project lifecycle requires the producer-owned Research Compiler "
-            "and standard bindings; direct project application loading is provider-only"
+            "author project exposes the public Research Method Host, not a runtime "
+            "application; compile_method requires an injected BindingContribution, "
+            "and execution requires an explicit provider/runtime application"
         )
     if profile is not ProjectTemplateProfile.PROVIDER:
         raise ValueError("project template revision is unsupported for lifecycle routing")

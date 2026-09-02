@@ -142,9 +142,9 @@ def test_project_doctor_rejects_manifest_and_private_import_drift(
     assert initial_checks["project_manifest"] is ProjectDoctorDisposition.PASS
     assert initial_checks["manifest_identity"] is ProjectDoctorDisposition.PASS
     assert initial_checks["public_import_boundary"] is ProjectDoctorDisposition.PASS
-    assert initial_checks["level0_standard_bindings"] is ProjectDoctorDisposition.BLOCKED
+    assert initial_checks["level0_standard_bindings"] is ProjectDoctorDisposition.PASS
     level0 = next(row for row in initial.checks if row.check_id == "level0_standard_bindings")
-    assert level0.summary == "producer-owned author compiler and standard bindings are not yet available"
+    assert level0.summary == "Level-0 Research Method Host and typed compiler/binding seam are available"
     assert "participant_provider_readiness" not in initial_checks
 
     manifest_path = root / "project.manifest.json"
@@ -294,12 +294,12 @@ def test_project_cli_create_and_doctor_fail_closed(
     assert created["result"]["template_profile"] == "author"
     assert created["result"]["manifest_semantic_digest"]
 
-    assert main(["project", "doctor", "--project", str(root)]) == 4
-    diagnosed = json.loads(capsys.readouterr().err)
+    assert main(["project", "doctor", "--project", str(root)]) == 0
+    diagnosed = json.loads(capsys.readouterr().out)
     checks = {row["check_id"]: row["disposition"] for row in diagnosed["result"]["checks"]}
     assert diagnosed["result"]["template_profile"] == "author"
     assert checks["project_manifest"] == "pass"
-    assert checks["level0_standard_bindings"] == "blocked"
+    assert checks["level0_standard_bindings"] == "pass"
     assert "participant_provider_readiness" not in checks
 
 def test_project_cli_loads_explicit_project_application_and_defaults_target(
@@ -348,8 +348,8 @@ def test_author_project_lifecycle_route_is_compiler_blocked_not_application_driv
     assert main(["run", "--project", str(root)]) == 2
     error = json.loads(capsys.readouterr().err)
     assert error["ok"] is False
-    assert "Research Compiler" in error["error"]
-    assert "provider-only" in error["error"]
+    assert "Research Method Host" in error["error"]
+    assert "BindingContribution" in error["error"]
 
 
 def test_project_cli_rejects_ambiguous_application_source(

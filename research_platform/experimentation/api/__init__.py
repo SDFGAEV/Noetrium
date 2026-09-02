@@ -13,6 +13,7 @@ from .research_compiler import (
     CompiledResearchPlan, ResearchPlanDiff, compile_research_plan,
     diff_research_plans, resolve_research_requirements,
 )
+from .method_host import ResearchMethodHost, ResearchMethodHostPort
 from .construction import (
     ProjectIdentityProjection,
     ProjectManifestProjection,
@@ -60,6 +61,8 @@ __all__ = [
     "compile_research_plan",
     "ResearchPlanDiff",
     "CompiledResearchPlan",
+    "ResearchMethodHost",
+    "ResearchMethodHostPort",
     "StudyIntervention",
     "StudyFactorSpec",
     "ResearchStudyDefinition",
