@@ -1,5 +1,6 @@
-"""Deterministic reference single-agent, memory, and tool components."""
+"""Canonical namespace for reusable single-agent components.
 
-from . import agent, memory, tools
+Import agent, memory, or tools explicitly to keep downstream startup narrow.
+"""
 
 __all__ = ["agent", "memory", "tools"]

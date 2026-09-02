@@ -7,7 +7,7 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from noetrium.adapters.bridges import (
+from components.reference.bridges import (
     LangGraphDecisionAdapter, reference_state_mapping,
 )
 from components.reference.single_agent.agent import (

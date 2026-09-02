@@ -91,7 +91,7 @@ Noetrium is deliberately broader than an agent workflow library: experiment desi
 - Public authoring surface — `noetrium.contracts` and `noetrium.platform` expose stable identities, ports, specifications, and project-facing operations.
 - Study compilation — `ExperimentRunSpec`, `ResearchStudyDefinition`, and `CompiledResearchPlan` make experiment intent explicit before any run starts.
 - Run authority — `ExperimentRunApplication` owns lifecycle decisions; checkpoint, resume, reconcile, and evidence paths remain explicit and inspectable.
-- Reusable method layers — `noetrium.components` provides reference single-agent building blocks, while `noetrium.orchestration` provides higher-level multi-agent topology and delivery policy.
+- Reusable method layers — `components` provides reference single-agent building blocks, while `orchestration` provides higher-level multi-agent topology and delivery policy.
 - Provider seams — models, environments, resources, processes, servers, and toolchains bind through typed ports instead of hidden global discovery.
 - Durable artifacts — `RunArtifactStore` records manifests, sequence, digests, lineage, raw facts, retention, and replayable evidence.
 - Effect-safe recovery — external effects carry receipts and certainty; an unresolved effect stays `UNKNOWN` until reconciliation proves the outcome.
@@ -158,7 +158,7 @@ noetrium
 | Provider or integration | typed model, environment, resource, process, or server provider | port contracts, composition, readiness, and recovery semantics |
 | Multi-agent behavior | topology, node policy, message delivery, and coordination rules | orchestration primitives and run authority |
 
-Use `noetrium.contracts`, `noetrium.platform`, `noetrium.components`, and `noetrium.orchestration` as the supported project-facing surfaces. `noetrium_platform` is the internal semantic-plane implementation namespace, not a downstream extension API. The platform must not import a downstream project to decide scientific meaning or deployment policy.
+Use `noetrium.contracts`, `noetrium.platform`, `components`, and `orchestration` as the supported project-facing surfaces. `noetrium_platform` is the internal semantic-plane implementation namespace, not a downstream extension API. The platform must not import a downstream project to decide scientific meaning or deployment policy.
 
 <!-- readme-section:quick-start -->
 

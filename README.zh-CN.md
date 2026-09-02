@@ -91,7 +91,7 @@ Noetrium 刻意比 Agent workflow library 更宽：实验设计、模型/环境 
 - 公共 authoring surface — `noetrium.contracts` 与 `noetrium.platform` 暴露稳定的 identity、port、specification 和项目接口。
 - Study 编译 — `ExperimentRunSpec`、`ResearchStudyDefinition` 与 `CompiledResearchPlan` 让实验意图在运行前明确化。
 - Run authority — `ExperimentRunApplication` 负责 lifecycle 决策；checkpoint、resume、reconcile 与 evidence 路径都显式且可检查。
-- 可复用 method 层 — `noetrium.components` 提供 reference single-agent building blocks，`noetrium.orchestration` 提供更高层的 multi-agent topology 与 delivery policy。
+- 可复用 method 层 — `components` 提供 reference single-agent building blocks，`orchestration` 提供更高层的 multi-agent topology 与 delivery policy。
 - Provider 接缝 — model、environment、resource、process、server 与 toolchain 通过 typed port 绑定，不依赖隐藏的全局发现。
 - 持久 Artifact — `RunArtifactStore` 记录 manifest、sequence、digest、lineage、raw fact、retention 与可 replay 的 evidence。
 - Effect-safe recovery — 外部 effect 携带 receipt 与 certainty；未解决的 effect 在 reconciliation 证明结果前保持 `UNKNOWN`。
@@ -158,7 +158,7 @@ noetrium
 | Provider 或 integration | typed model、environment、resource、process 或 server provider | port contract、composition、readiness 与 recovery 语义 |
 | Multi-agent 行为 | topology、node policy、message delivery 与 coordination rule | orchestration primitive 与 run authority |
 
-使用 `noetrium.contracts`、`noetrium.platform`、`noetrium.components` 与 `noetrium.orchestration` 作为项目接口。`noetrium_platform` 是内部 semantic-plane implementation namespace，不是下游 extension API。平台不能反向 import 下游项目来决定科学语义或部署策略。
+使用 `noetrium.contracts`、`noetrium.platform`、`components` 与 `orchestration` 作为项目接口。`noetrium_platform` 是内部 semantic-plane implementation namespace，不是下游 extension API。平台不能反向 import 下游项目来决定科学语义或部署策略。
 
 <!-- readme-section:quick-start -->
 

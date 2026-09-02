@@ -11,7 +11,7 @@ from collections.abc import Mapping
 from typing import Protocol
 
 from noetrium.contracts.json import JsonValue, strict_json_loads
-from components.reference.single_agent.agent import (
+from ..single_agent.agent import (
     ReferenceAgentAction,
     ReferenceAgentActionKind,
     ReferenceAgentDecision,

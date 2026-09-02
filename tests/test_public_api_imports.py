@@ -14,7 +14,7 @@ class PublicAPIImportTests(unittest.TestCase):
     def test_public_contract_and_extension_layers_are_discoverable(self):
         import components
         import noetrium
-        import noetrium.adapters
+        import components.reference
         import noetrium.contracts
         import orchestration
         from noetrium.contracts import AgentGoal, JsonValue, ResearchMethodHost

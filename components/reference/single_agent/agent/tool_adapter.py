@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from noetrium.contracts.json import JsonValue
 
-from components.reference.single_agent.tools import ToolArguments, ToolRegistry
+from ..tools import ToolArguments, ToolRegistry
 from .contracts import (
     ReferenceAgentAction,
     ReferenceAgentActionKind,

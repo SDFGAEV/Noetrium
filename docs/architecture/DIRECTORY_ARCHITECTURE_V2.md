@@ -9,7 +9,7 @@ only when it has one semantic owner and a real public contract.
 The implementation package is named noetrium_platform. A package named
 platform would collide with Python's standard-library platform module.
 noetrium is the minimal distribution metadata facade; public contract families
-are imported explicitly from noetrium.contracts and noetrium.adapters.
+are imported explicitly from noetrium.contracts and components.reference.bridges.
 
 ## Semantic planes
 
@@ -29,25 +29,26 @@ surfaces are semantically real.
 
     components/
       reference/single_agent/  reusable single-agent methods, memory, tools
+      reference/bridges/       foreign-framework and model adapters
     orchestration/
       multi_agent/             topology, communication and coordination
     noetrium/
       contracts/               stable public contract facades
-      adapters/                optional framework and model integrations
+      platform.py              thin platform composition facade
 
 ## Ownership and dependency direction
 
 The dependency direction is strictly one way:
 
     downstream method -> components / orchestration
-                       -> noetrium.contracts / noetrium.adapters
+                       -> noetrium.contracts
                        -> explicit injected noetrium_platform implementation
 
 The platform owns authority, identity, canonicalization, state, effects,
 artifacts, execution context, recovery, and evidence. Components own reusable
 single-agent mechanisms. Orchestration owns multi-agent topology and message
-coordination. noetrium exposes stable contract and adapter entry points but
-does not become a second runtime or authority registry.
+coordination. noetrium exposes stable contract entry points but does not
+become a second runtime or authority registry.
 
 Single-agent components execute one method. Multi-agent orchestration is a
 higher layer: it coordinates agent nodes, messages, groups, debates, hierarchy,

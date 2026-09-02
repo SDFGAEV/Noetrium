@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from components.reference.single_agent.agent import (
+from ..single_agent.agent import (
     ReferenceAgentDecision,
     ReferenceAgentState,
 )
@@ -14,7 +14,7 @@ from noetrium_platform.capabilities.model.serving.endpoint.api import (
 )
 from noetrium_platform.foundation.kernel.kernel import ExecutionContext
 
-from .bridges.adapters import normalize_foreign_decision
+from .frameworks import normalize_foreign_decision
 
 
 class ReferenceModelRequestFactoryPort(Protocol):

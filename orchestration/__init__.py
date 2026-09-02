@@ -1,9 +1,6 @@
-"""Public orchestration contracts for reusable multi-agent coordination.
+"""Canonical root for reusable multi-agent orchestration.
 
-The package exposes only explicit coordinator wiring; it never creates a
-registry, runtime, provider, or process during import.
+Concrete coordinators are imported explicitly from orchestration.multi_agent.
 """
-
-from . import multi_agent
 
 __all__ = ["multi_agent"]

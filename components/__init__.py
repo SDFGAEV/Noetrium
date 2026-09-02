@@ -1,9 +1,6 @@
-"""Canonical reusable component layer for downstream agent research.
+"""Canonical root for reusable Noetrium component layers.
 
-The component layer depends on public Noetrium contracts and platform ports;
-it does not own platform authority or application-specific experiments.
+Concrete implementations are imported explicitly from subpackages.
 """
-
-from . import reference
 
 __all__ = ["reference"]

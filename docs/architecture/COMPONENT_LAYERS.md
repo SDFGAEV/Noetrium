@@ -18,7 +18,7 @@ Noetrium is intentionally split into three dependency tiers:
 The dependency direction is one-way:
 
 downstream project -> components / orchestration
-                   -> noetrium.contracts / noetrium.adapters
+                   -> noetrium.contracts
                    -> explicit injected noetrium_platform implementation
 
 noetrium_platform never imports root extensions, and no root extension owns a
