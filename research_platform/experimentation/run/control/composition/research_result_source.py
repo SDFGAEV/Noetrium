@@ -12,7 +12,6 @@ from research_platform.data.query.api import (
     ResearchSourceSnapshot,
 )
 from research_platform.data.query.api.identity import source_cut
-from research_platform.data.query.cross.providers._common import matches_query
 from research_platform.experimentation.run.control.api import (
     RunControlAction,
     RunControlError,
@@ -23,6 +22,13 @@ from research_platform.experimentation.run.control.api import (
     RunControlTarget,
 )
 from research_platform.scope.api import ScopeIdentity, ScopeKind
+
+
+def _matches_query(record: ResearchResultRecord, query: ResearchResultQuery) -> bool:
+    if query.kinds and record.reference.kind not in query.kinds:
+        return False
+    dimensions = {item.kind: item for item in record.dimensions}
+    return all(dimensions.get(item.kind) == item for item in query.dimensions)
 
 
 class RunControlResearchResultSource:
@@ -130,7 +136,7 @@ class RunControlResearchResultSource:
             )
         selected = tuple(
             sorted(
-                (record for record in records if matches_query(record, query)),
+                (record for record in records if _matches_query(record, query)),
                 key=lambda row: (row.reference.kind.value, row.reference.result_id),
             )
         )
