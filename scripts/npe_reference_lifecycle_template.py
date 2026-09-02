@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 import tempfile
 
-from noetrium.contracts.json import canonical_digest
+from noetrium.contracts.json import canonical_digest, thaw_json
 from noetrium.contracts.research import (
     EvidenceBundleReceipt,
     RunArtifactKind,
@@ -337,18 +337,19 @@ def main(argv: list[str] | None = None) -> int:
         "ok": True,
         "action": result.action.value,
         "state": result.state,
-        "payload": result.payload,
+        "payload": thaw_json(result.payload),
     }, sort_keys=True))
     return 0
 
 
 if __name__ == "__main__":
     try:
-        raise SystemExit(main())
+        exit_code = main()
     except BaseException as exc:
         print(json.dumps({
             "error": type(exc).__name__,
             "message": str(exc),
             "ok": False,
         }, sort_keys=True))
-        raise SystemExit(1)
+        exit_code = 1
+    raise SystemExit(exit_code)

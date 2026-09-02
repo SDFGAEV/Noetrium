@@ -208,7 +208,10 @@ def _reference_project_package(project: Path) -> str | None:
     packages = tuple(
         candidate.name
         for candidate in src.iterdir()
-        if candidate.is_dir() and not candidate.is_symlink()
+        if candidate.is_dir()
+        and not candidate.is_symlink()
+        and candidate.name != "__pycache__"
+        and not candidate.name.endswith(".egg-info")
     ) if src.is_dir() else ()
     return packages[0] if len(packages) == 1 else None
 
