@@ -413,7 +413,7 @@ def test_implementation_text_digest_normalizes_only_line_endings(tmp_path: Path)
         repository_source_scope_text_digest,
     )
 
-    target = tmp_path / "noetrium_platform" / "governance" / "algorithm" / "x.py"
+    target = tmp_path / "noetrium_platform" / "foundation" / "governance" / "algorithm" / "x.py"
     target.parent.mkdir(parents=True)
     target.write_bytes(b"def f():\r\n    return 1\r\n")
     crlf = RepositorySourceTree(tmp_path).index()

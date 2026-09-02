@@ -12,6 +12,8 @@ from noetrium_platform.product.operator.api import (
     ResearchOperationFailure,
     ResearchRequest,
     ResearchResult,
+    ProjectTestStage,
+    ProjectTestStageReceipt,
 )
 
 __all__ = [
@@ -21,4 +23,6 @@ __all__ = [
     "ResearchOperationFailure",
     "ResearchRequest",
     "ResearchResult",
+    "ProjectTestStage",
+    "ProjectTestStageReceipt",
 ]

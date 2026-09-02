@@ -107,6 +107,7 @@ def test_packaged_catalog_is_the_single_topology_declaration_authority():
     topology_source = (
         Path(__file__).parents[1]
         / "noetrium_platform"
+        / "foundation"
         / "governance"
         / "system_registry"
         / "api"
@@ -131,7 +132,7 @@ def test_standard_shaped_systems_cannot_bypass_catalog_authority():
 
 
 def test_registered_package_authority_cannot_point_to_missing_source(tmp_path, monkeypatch):
-    catalog = tmp_path / "noetrium_platform" / "governance" / "system_registry" / "catalog.json"
+    catalog = tmp_path / "noetrium_platform" / "foundation" / "governance" / "system_registry" / "catalog.json"
     catalog.parent.mkdir(parents=True)
     catalog.write_text("{}\n", encoding="utf-8")
     descriptor = next(row for row in system_catalog() if row.identity.key == "scope")
@@ -143,8 +144,8 @@ def test_registered_package_authority_cannot_point_to_missing_source(tmp_path, m
 
 
 def test_new_standard_shaped_system_is_fail_closed_until_registered(tmp_path):
-    package = tmp_path / "noetrium_platform" / "governance" / "rogue"
-    for path in (tmp_path / "noetrium_platform", tmp_path / "noetrium_platform" / "governance", package):
+    package = tmp_path / "noetrium_platform" / "foundation" / "governance" / "rogue"
+    for path in (tmp_path / "noetrium_platform", tmp_path / "noetrium_platform" / "foundation" / "governance", package):
         path.mkdir(parents=True, exist_ok=True)
         (path / "__init__.py").write_text("", encoding="utf-8")
     for plane in ("api", "runtime", "providers", "composition"):

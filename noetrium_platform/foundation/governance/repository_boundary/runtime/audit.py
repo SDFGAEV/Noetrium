@@ -148,7 +148,9 @@ def _downstream_import_kind(module: str) -> DownstreamImportKind:
     # The foundation plane contains stable cross-domain contracts. Capability,
     # research, evidence, infrastructure, and product contracts remain qualified
     # extension/provider APIs, even when their leaf path contains api.
-    if len(parts) >= 3 and (parts[2] == "api" or parts[1] in {"foundation", "product"}):
+    if len(parts) >= 3 and parts[2] == "api":
+        return DownstreamImportKind.COMMON_PLATFORM_API
+    if len(parts) >= 4 and parts[1] in {"foundation", "product"} and parts[3] == "api":
         return DownstreamImportKind.COMMON_PLATFORM_API
     if len(parts) >= 4 and "api" in parts[3:]:
         return DownstreamImportKind.PROVIDER_DEVELOPMENT_API

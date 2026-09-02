@@ -603,7 +603,7 @@ def test_no_degradation_standalone_fails_closed_on_malformed_json(tmp_path: Path
 def test_source_invariant_paths_use_canonical_posix_identity(tmp_path: Path) -> None:
     from noetrium_platform.foundation.governance.architecture.source_scan import violation
 
-    source = tmp_path / "noetrium_platform" / "execution" / "admission" / "api" / "boundary.py"
+    source = tmp_path / "noetrium_platform" / "research" / "execution" / "admission" / "api" / "boundary.py"
     row = violation(tmp_path, source, "test", 1, "detail")
     assert row.path == "noetrium_platform/research/execution/admission/api/boundary.py"
 

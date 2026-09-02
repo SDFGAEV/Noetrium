@@ -404,7 +404,7 @@ def test_lane_implementation_digest_covers_lane_source_bytes(tmp_path: Path) -> 
     from noetrium_platform.foundation.governance.providers import RepositorySourceTree
     from noetrium_platform.foundation.governance.runtime import governance_lane_implementation_digest
 
-    source = tmp_path / "noetrium_platform" / "governance" / "concurrency" / "runtime" / "x.py"
+    source = tmp_path / "noetrium_platform" / "foundation" / "governance" / "concurrency" / "runtime" / "x.py"
     source.parent.mkdir(parents=True)
     source.write_text("VALUE = 1\n", encoding="utf-8")
     first = governance_lane_implementation_digest(
@@ -422,7 +422,7 @@ def test_lane_implementation_digest_is_line_ending_independent(tmp_path: Path) -
     from noetrium_platform.foundation.governance.providers import RepositorySourceTree
     from noetrium_platform.foundation.governance.runtime import governance_lane_implementation_digest
 
-    source = tmp_path / "noetrium_platform" / "governance" / "performance" / "runtime" / "x.py"
+    source = tmp_path / "noetrium_platform" / "foundation" / "governance" / "performance" / "runtime" / "x.py"
     source.parent.mkdir(parents=True)
     source.write_bytes(b"VALUE = 1\r\n")
     crlf = governance_lane_implementation_digest(

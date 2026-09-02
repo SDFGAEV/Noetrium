@@ -61,7 +61,7 @@ class FailureCatalogSourceAudit:
                         builds.append((d,c,s,rel))
                         try:self.catalog.require(d,c,s)
                         except KeyError:errors.append(f'unregistered literal build_failure taxonomy: {(d,c,s)} at {rel}:{node.lineno}')
-                    if rel_posix != 'reliability/failure/api/factory.py':
+                    if rel_posix != 'infrastructure/reliability/failure/api/factory.py':
                         where=f'{rel}:{node.lineno}'
                         free_form.append(where)
                         errors.append(f'free-form build_failure bypasses FailureSpec authority at {where}')
