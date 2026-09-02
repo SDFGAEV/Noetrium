@@ -11,7 +11,7 @@ from research_platform.data.query.api import (
     ResearchResultQuery,
     ResearchSourceDisposition,
 )
-from research_platform.data.query.cross.providers import RunControlResearchResultSource
+from research_platform.experimentation.run.control.composition import RunControlResearchResultSource
 from research_platform.experimentation.run.api import RunArtifactKind, RunArtifactSnapshotReceipt
 from research_platform.experimentation.run.control.api import (
     RunControlAction,
