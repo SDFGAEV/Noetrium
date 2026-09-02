@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections import OrderedDict
+from threading import RLock
+
 from noetrium_platform.evidence.data.query.api import (
     ResearchDimension,
     ResearchDimensionKind,
@@ -45,6 +48,8 @@ class StudyResearchResultSource:
             raise TypeError("study result source scope must be ScopeIdentity")
         self._read_port = read_port
         self._scope = scope
+        self._projection_cache: OrderedDict[str, tuple[ResearchResultRecord, ...]] = OrderedDict()
+        self._projection_cache_lock = RLock()
 
     @staticmethod
     def _matches(record: ResearchResultRecord, query: ResearchResultQuery) -> bool:
@@ -194,21 +199,44 @@ class StudyResearchResultSource:
                 lineage=trial_lineage.get(measurement.record_digest, ()),
             ))
         return records
+    def _all_records(
+        self, snapshot: StudyResearchReadSnapshot
+    ) -> tuple[ResearchResultRecord, ...]:
+        """Project one immutable producer snapshot once for concurrent read queries."""
+
+        cache_key = snapshot.snapshot_digest
+        with self._projection_cache_lock:
+            cached = self._projection_cache.pop(cache_key, None)
+            if cached is not None:
+                self._projection_cache[cache_key] = cached
+                return cached
+
+            trial_records, trial_lineage = self._trial_records(snapshot)
+            records = self._task_records(snapshot)
+            records.extend(trial_records)
+            records.extend(self._measurement_records(snapshot, trial_lineage))
+            if len({row.reference for row in records}) != len(records):
+                raise RuntimeError("study research source produced duplicate result references")
+            projected = tuple(sorted(
+                records,
+                key=lambda row: (
+                    row.reference.kind.value,
+                    row.reference.result_id,
+                ),
+            ))
+            self._projection_cache[cache_key] = projected
+            while len(self._projection_cache) > 2:
+                self._projection_cache.popitem(last=False)
+            return projected
+
     def snapshot(self, query: ResearchResultQuery) -> ResearchSourceSnapshot:
         snapshot = self._snapshot()
-        trial_records, trial_lineage = self._trial_records(snapshot)
-        records = self._task_records(snapshot)
-        records.extend(trial_records)
-        records.extend(self._measurement_records(snapshot, trial_lineage))
-        if len({row.reference for row in records}) != len(records):
-            raise RuntimeError("study research source produced duplicate result references")
-        selected = tuple(sorted(
-            (row for row in records if self._matches(row, query)),
-            key=lambda row: (
-                row.reference.kind.value,
-                row.reference.result_id,
-            ),
-        ))
+        records = self._all_records(snapshot)
+        selected = (
+            records
+            if not query.kinds and not query.dimensions
+            else tuple(row for row in records if self._matches(row, query))
+        )
         return ResearchSourceSnapshot(
             source_id=self.source_id,
             cut=source_cut(self.source_id, query, selected),

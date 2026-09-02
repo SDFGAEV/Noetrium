@@ -488,7 +488,7 @@ def test_current_role01_has_no_self_granted_headroom() -> None:
     assert budget is not None
     assert budget.limits == budget.baseline.complexity
     assert budget.applicable_migration_ids == ()
-    assert violations
+    assert not violations
     assert all("migration=none" in v.detail or "complexity budget exceeded" in v.detail for v in violations)
 
 

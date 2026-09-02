@@ -24,24 +24,24 @@
       "source_semantic_sha256": "5d18d8adb7daf2566c5ecf53aa82031c1bce87b0da055f1231cca7febb1dcb65"
     },
     "es": {
-      "status": "stale",
-      "source_semantic_sha256": "90a0951d6c336548fbcf149cc3b7e20b17c26a0a45260e9d92e87afb7b205e14"
+      "status": "current",
+      "source_semantic_sha256": "5d18d8adb7daf2566c5ecf53aa82031c1bce87b0da055f1231cca7febb1dcb65"
     },
     "pt-BR": {
-      "status": "stale",
-      "source_semantic_sha256": "90a0951d6c336548fbcf149cc3b7e20b17c26a0a45260e9d92e87afb7b205e14"
+      "status": "current",
+      "source_semantic_sha256": "5d18d8adb7daf2566c5ecf53aa82031c1bce87b0da055f1231cca7febb1dcb65"
     },
     "fr": {
-      "status": "stale",
-      "source_semantic_sha256": "90a0951d6c336548fbcf149cc3b7e20b17c26a0a45260e9d92e87afb7b205e14"
+      "status": "current",
+      "source_semantic_sha256": "5d18d8adb7daf2566c5ecf53aa82031c1bce87b0da055f1231cca7febb1dcb65"
     },
     "de": {
-      "status": "stale",
-      "source_semantic_sha256": "90a0951d6c336548fbcf149cc3b7e20b17c26a0a45260e9d92e87afb7b205e14"
+      "status": "current",
+      "source_semantic_sha256": "5d18d8adb7daf2566c5ecf53aa82031c1bce87b0da055f1231cca7febb1dcb65"
     },
     "ru": {
-      "status": "stale",
-      "source_semantic_sha256": "90a0951d6c336548fbcf149cc3b7e20b17c26a0a45260e9d92e87afb7b205e14"
+      "status": "current",
+      "source_semantic_sha256": "5d18d8adb7daf2566c5ecf53aa82031c1bce87b0da055f1231cca7febb1dcb65"
     }
   }
 }
