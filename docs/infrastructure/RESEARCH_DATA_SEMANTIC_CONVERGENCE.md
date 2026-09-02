@@ -70,6 +70,6 @@ Resolved in the consumed ROLE01 producer:
 Open producer/governance dependencies are recorded outside the repository under `outputs/reports/role05/`:
 
 - `CSR-ROLE05-ROLE01-PSC05-DATA-ARTIFACT-CONTENT-REFERENCE-20260831`: ROLE01 `2a22a6e7` now declares the typed Data -> Artifact dependency; official ROLE05 ancestry consumption is sequencing-blocked only by the still-unpushed ROLE03 producer union. Artifact already publishes the immutable identity and resolver.
-- `CSR-ROLE05-ROLE03-UNIFIED-RESEARCH-RESULT-READ-PROJECTION-20260831`: publish stable ROLE03 Run/Trial/Task/Measurement/Evidence read authority so ROLE05 can adapt it into the unified read-only federation.
+- `CSR-ROLE05-ROLE03-UNIFIED-RESEARCH-RESULT-READ-PROJECTION-20260831`: ROLE03 now publishes typed read authority for Run/Evidence through `RunControlResearchResultSource`; Trial/Task/Measurement still require their producer-owned read ports before ROLE05 can close the unified read-only federation.
 
 Until those producer decisions land, `run`, `task`, `action`, `observation`, `measurement`, and `evidence` result kinds remain explicitly representable but unsupported sources return typed `NO_SOURCE_CAPABILITY` gaps. ROLE05 does not create a private Run/Measurement registry or restore generic leaf authority.

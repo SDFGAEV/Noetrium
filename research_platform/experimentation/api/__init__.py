@@ -22,6 +22,7 @@ from .construction import (
 from research_platform.experimentation.run.control.api import (
     RunControlAction,
     RunControlPort,
+    RunControlRecordKind,
     RunControlReceipt,
     RunControlReceiptReference,
     RunControlRequest,
@@ -81,6 +82,7 @@ __all__ = [
     "ProjectRunDefinition",
     "RunControlAction",
     "RunControlPort",
+    "RunControlRecordKind",
     "RunControlReceipt",
     "RunControlReceiptReference",
     "RunControlRequest",

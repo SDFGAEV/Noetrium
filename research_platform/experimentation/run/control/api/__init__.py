@@ -13,6 +13,7 @@ from .contracts import (
     RunControlNotFound,
     RunControlPhase,
     RunControlProjection,
+    RunControlRecordKind,
     RunControlPort,
     RunControlReceipt,
     RunControlReceiptReference,
