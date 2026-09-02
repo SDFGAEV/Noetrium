@@ -90,7 +90,10 @@ class SystemDescriptor:
     shape: tuple[str, ...] = STANDARD_SYSTEM_SHAPE
 
     def __post_init__(self) -> None:
-        platform_prefix = self.package_prefix.startswith("noetrium_platform")
+        platform_prefix = (
+            self.package_prefix == "noetrium_platform"
+            or self.package_prefix.startswith("noetrium_platform.")
+        )
         component_prefix = self.identity.system_id == "components" and (
             self.package_prefix == "components" or self.package_prefix.startswith("components.")
         )

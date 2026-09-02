@@ -18,7 +18,7 @@ from typing import Iterable
 from noetrium_platform.foundation.governance.api import RepositorySourceIndexPort
 
 from .hotspots import ModuleHotspot
-from .import_graph import ImportEdge, _resolve_relative, module_name
+from .import_graph import ImportEdge, _module_in_roots, _resolve_relative, module_name
 from .optimization import (
     IO_NAMES,
     LOCK_NAMES,
@@ -61,49 +61,8 @@ class _OptimizationRaw:
     long_functions: int
 
 
-_LEGACY_PLANE_MODULES = {
-    "artifact": "evidence.artifact",
-    "platform": "foundation.kernel",
-    "governance": "foundation.governance",
-    "scope": "foundation.scope",
-    "portfolio": "foundation.portfolio",
-    "resource": "infrastructure.resources",
-    "runtime": "infrastructure.lifecycle",
-    "reliability": "infrastructure.reliability",
-    "execution": "research.execution",
-    "experimentation": "research.experimentation",
-    "scientific": "research.scientific",
-    "model": "capabilities.model",
-    "participant": "capabilities.participant",
-    "environment": "capabilities.environment",
-    "data": "evidence.data",
-    "observability": "evidence.observability",
-    "operator": "product.operator",
-}
-
-
-def _canonical_module_name(module: str) -> str:
-    # Historical Git cuts used the research_platform root and flat semantic
-    # planes; normalize them before applying the current semantic-plane map.
-    if module == "research_platform":
-        module = "noetrium_platform"
-    elif module.startswith("research_platform."):
-        module = "noetrium_platform." + module[len("research_platform."):]
-    if module == "noetrium_platform":
-        return "noetrium_platform"
-    prefix = "noetrium_platform."
-    if not module.startswith(prefix):
-        return module
-    parts = module[len(prefix):].split(".", 1)
-    plane = _LEGACY_PLANE_MODULES.get(parts[0])
-    if plane is None:
-        return "noetrium_platform." + module[len(prefix):]
-    suffix = "." + parts[1] if len(parts) == 2 else ""
-    return "noetrium_platform." + plane + suffix
-
-
 def _scan_seams(root: Path, path: Path, tree: ast.AST, nodes: tuple[ast.AST, ...]) -> list[SeamEdge]:
-    module = _canonical_module_name(module_name(root, path))
+    module = module_name(root, path)
     rel = path.relative_to(root).as_posix()
     out: list[SeamEdge] = []
     for node in getattr(tree, "body", ()):
@@ -157,7 +116,7 @@ def scan_architecture_source_profile(
     root: Path,
     *,
     source_index: RepositorySourceIndexPort,
-    package_roots: tuple[str, ...] = ("noetrium_platform", "components", "orchestration", "noetrium", "research_platform", "projects"),
+    package_roots: tuple[str, ...] = ("noetrium_platform", "components", "orchestration", "noetrium", "projects"),
     authority_rules: Iterable[SourceAuthorityRule] = (),
 ) -> ArchitectureSourceProfile:
     """Parse each production Python file once and emit compact audit facts.
@@ -190,7 +149,7 @@ def scan_architecture_source_profile(
         tree = source_index.python_tree(source.relative_path, sha256=source.sha256)
         parsed += 1
         nodes = tuple(ast.walk(tree))
-        module = _canonical_module_name(module_name(root, path))
+        module = module_name(root, path)
         rel = source.relative_path
 
         raw_imports: list[tuple[str, int]] = []
@@ -200,8 +159,8 @@ def scan_architecture_source_profile(
                 raw_imports.extend((alias.name, node.lineno) for alias in node.names)
                 for alias in node.names:
                     aliases[alias.asname or alias.name.split(".")[0]] = alias.name
-                    target_name = _canonical_module_name(alias.name)
-                    if target_name.startswith(package_roots):
+                    target_name = alias.name
+                    if _module_in_roots(target_name, package_roots):
                         edges.append(ImportEdge(module, target_name, rel, node.lineno))
             elif isinstance(node, ast.ImportFrom):
                 raw_imports.append((node.module or "", node.lineno))
@@ -218,8 +177,7 @@ def scan_architecture_source_profile(
                     if node.level
                     else (node.module or "")
                 )
-                target = _canonical_module_name(target)
-                if target.startswith(package_roots):
+                if _module_in_roots(target, package_roots):
                     edges.append(ImportEdge(module, target, rel, node.lineno))
         import_facts.append(SourceImportFact(rel, tuple(raw_imports)))
 

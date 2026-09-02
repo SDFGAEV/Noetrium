@@ -36,6 +36,19 @@ class LayerViolation:
     reason: str
 
 
+def _module_in_roots(module: str, roots: tuple[str, ...]) -> bool:
+    """Match package roots on module boundaries, never by raw prefix."""
+
+    return any(module == root or module.startswith(root + ".") for root in roots)
+
+
+def _prefix_matches(module: str, prefix: str) -> bool:
+    """Match an architecture-rule prefix on a Python module boundary."""
+
+    normalized = prefix.rstrip(".")
+    return module == normalized or module.startswith(normalized + ".")
+
+
 def module_name(root: Path, path: Path) -> str:
     rel=path.relative_to(root).with_suffix("")
     parts=list(rel.parts)
@@ -54,7 +67,7 @@ def _resolve_relative(source: str, level: int, module: str | None, *, source_is_
     return ".".join(base)
 
 
-def scan_imports(root: Path, package_roots: tuple[str,...]=( "noetrium_platform", "components", "orchestration", "noetrium", "projects")) -> tuple[ImportEdge,...]:
+def scan_imports(root: Path, package_roots: tuple[str, ...] = ("noetrium_platform", "components", "orchestration", "noetrium", "projects")) -> tuple[ImportEdge, ...]:
     cached = cached_import_edges(package_roots)
     if cached is not None:
         return tuple(cached)
@@ -68,10 +81,10 @@ def scan_imports(root: Path, package_roots: tuple[str,...]=( "noetrium_platform"
             for node in source_nodes(path):
                 if isinstance(node,ast.Import):
                     for alias in node.names:
-                        if alias.name.startswith(package_roots): edges.append(ImportEdge(src,alias.name,path.relative_to(root).as_posix(),node.lineno))
+                        if _module_in_roots(alias.name, package_roots): edges.append(ImportEdge(src,alias.name,path.relative_to(root).as_posix(),node.lineno))
                 elif isinstance(node,ast.ImportFrom):
                     target=_resolve_relative(src,node.level,node.module,source_is_package=path.name=="__init__.py") if node.level else (node.module or "")
-                    if target.startswith(package_roots): edges.append(ImportEdge(src,target,path.relative_to(root).as_posix(),node.lineno))
+                    if _module_in_roots(target, package_roots): edges.append(ImportEdge(src,target,path.relative_to(root).as_posix(),node.lineno))
     return tuple(edges)
 
 
@@ -79,7 +92,7 @@ def audit_import_rules(edges: tuple[ImportEdge,...], rules: tuple[ImportRule,...
     out=[]
     for edge in edges:
         for rule in rules:
-            if edge.source_module.startswith(rule.source_prefix) and edge.target_module.startswith(rule.target_prefix):
+            if _prefix_matches(edge.source_module, rule.source_prefix) and _prefix_matches(edge.target_module, rule.target_prefix):
                 out.append(ImportViolation(edge,rule.reason))
     return tuple(out)
 
@@ -164,6 +177,12 @@ def package_cycles(edges: tuple[ImportEdge,...], depth: int=2) -> tuple[tuple[st
 
 
 DEFAULT_IMPORT_RULES=(
+    ImportRule("components", "orchestration", "component layer cannot depend upward on orchestration"),
+    ImportRule("noetrium", "components", "facade cannot own or import reusable components"),
+    ImportRule("noetrium", "orchestration", "facade cannot own or import orchestration"),
+    ImportRule("noetrium_platform", "components", "platform cannot depend on downstream components"),
+    ImportRule("noetrium_platform", "orchestration", "platform cannot depend on downstream orchestration"),
+    ImportRule("orchestration", "components", "orchestration cannot reach into component implementations"),
     ImportRule("noetrium_platform.capabilities.model.request.api","noetrium_platform.capabilities.model.request.runtime","Model Request API cannot depend on its runtime implementation"),
     ImportRule("noetrium_platform.capabilities.model.request.api","noetrium_platform.capabilities.model.request.prompt.runtime","Model Request API cannot depend on Prompt OS implementation"),
     ImportRule("noetrium_platform.research.execution.capability.api","noetrium_platform.research.execution.capability.runtime","Capability API cannot depend on capability runtime implementation"),

@@ -501,28 +501,19 @@ def source_catalog_complexity(
     *,
     import_edges: int,
 ) -> ArchitectureComplexity:
-    catalog_paths = (
-        "noetrium_platform/foundation/governance/system_registry/catalog.json",
-        # Historical Git cuts predate the semantic-plane migration.
-        "research_platform/governance/system_registry/catalog.json",
-    )
-    document_text = None
-    for catalog_path in catalog_paths:
-        try:
-            document_text = source_index.text(catalog_path)
-        except KeyError:
-            continue
-        break
-    if document_text is None:
+    catalog_path = "noetrium_platform/foundation/governance/system_registry/catalog.json"
+    try:
+        document_text = source_index.text(catalog_path)
+    except KeyError as exc:
         raise ArchitectureBudgetProvenanceError(
-            "historical system catalog is absent from the immutable source cut"
-        )
+            "canonical system catalog is absent from the immutable source cut"
+        ) from exc
     document = json.loads(document_text)
     if not isinstance(document, dict):
-        raise ArchitectureBudgetProvenanceError("historical system catalog is not an object")
+        raise ArchitectureBudgetProvenanceError("canonical system catalog is not an object")
     rows = tuple(document.values())
     if any(not isinstance(row, dict) for row in rows):
-        raise ArchitectureBudgetProvenanceError("historical system catalog contains non-object rows")
+        raise ArchitectureBudgetProvenanceError("canonical system catalog contains non-object rows")
     return ArchitectureComplexity(
         top_level_systems=sum(row.get("parent") is None for row in rows),
         subsystems=sum(row.get("parent") is not None for row in rows),

@@ -1,3 +1,4 @@
+import importlib
 import unittest
 
 
@@ -26,6 +27,28 @@ class PublicAPIImportTests(unittest.TestCase):
         self.assertIsNotNone(ResearchMethodHost)
         self.assertIsNotNone(components.reference)
         self.assertIsNotNone(MultiAgentCoordinator)
+
+    def test_removed_extension_aliases_are_not_importable(self):
+        for module_name in (
+            "noetrium" + suffix
+            for suffix in (".adapters", ".components", ".orchestration")
+        ):
+            with self.assertRaises(ModuleNotFoundError):
+                importlib.import_module(module_name)
+
+    def test_system_descriptor_uses_package_boundaries(self):
+        from noetrium_platform.foundation.governance.system_registry.api import (
+            SystemDescriptor,
+            SystemIdentity,
+            SystemLayer,
+        )
+
+        with self.assertRaises(ValueError):
+            SystemDescriptor(
+                identity=SystemIdentity("platform"),
+                layer=SystemLayer.PLATFORM,
+                package_prefix="noetrium_platform_shadow",
+            )
 
 
 if __name__ == '__main__':
