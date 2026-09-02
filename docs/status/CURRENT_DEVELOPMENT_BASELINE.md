@@ -1,20 +1,20 @@
 # Current Development Baseline
 
 **Baseline date:** 2026-08-28
-**Platform version:** 0.43.1
+**Platform version:** 0.44.0
 **Repository role:** reusable upstream platform
 
 This document is the current development truth for the generic Noetrium repository. Concrete research methods, benchmark tasks, project-specific environment composition, model selections, machine inventories, experiment matrices, and scientific results are downstream-owned. Reusable first-party environment providers may remain upstream; Minecraft is bundled.
 
 ## Repository boundary
 
-The reusable package boundary is `noetrium_platform/`. Packaging publishes only `noetrium_platform*`; the upstream must import, test, build, release, and run its generic doctor without any `projects/` tree or project-owned environment/provider package. Approved bundled providers are governed explicitly by the repository-boundary allowlist.
+The reusable package boundary is `noetrium_platform/` plus the dependency-light `noetrium/` reference-component namespace. Packaging publishes both `noetrium_platform*` and `noetrium*`; the upstream must import, test, build, release, and run its generic doctor without any `projects/` tree or project-owned environment/provider package. Approved bundled providers are governed explicitly by the repository-boundary allowlist.
 
 The enforceable split contract is [`../architecture/DOWNSTREAM_PROJECT_REPOSITORY_CONTRACT.md`](../architecture/DOWNSTREAM_PROJECT_REPOSITORY_CONTRACT.md) and `scripts/platform_repository_boundary.py`.
 
 ## Platform ownership
 
-The upstream owns generic contracts and runtime systems for experiment identity, participants, agents, methods, environments, models, prompts, services, processes, servers, artifacts, storage, recovery, observability, governance, testing, and release control.
+The upstream owns generic contracts and runtime systems for experiment identity, participants, agents, methods, environments, models, prompts, services, processes, servers, artifacts, storage, recovery, observability, governance, testing, and release control. The `noetrium/` namespace provides reusable reference methods, durable memory, framework bridges, transport-backed coordination, and model-endpoint adapters; it does not own platform authority or project semantics.
 
 Concrete downstream behavior binds through public contracts and may add scientific methods, benchmark adapters, environment providers, model profiles, deployment inventory, application CLIs, and result/evidence interpretation without becoming an upstream dependency.
 
@@ -35,9 +35,9 @@ Repository test identity is explicit: `tests/__init__.py` prevents third-party t
 
 The generic Docker image stays lightweight. Minecraft is a bundled upstream provider with an opt-in `Dockerfile.minecraft` / Compose overlay rather than forcing Java and Node into every platform deployment.
 
-The 0.43.1 Minecraft candidate image passed `minecraft-doctor` on Linux with Python 3.12.3, Java 21.0.12, Node 22.22.2, npm 10.9.7, Mineflayer 4.37.1, pathfinder 2.4.5, pvp 1.3.2 and vec3 0.1.8. Its bridge suite passed 14/14 tests; image id `sha256:75661da87c84f474869c66a24ded79a26a8adaacf87321766221d7a8fe663cc8`.
+The historical 0.43.1 Minecraft candidate image passed `minecraft-doctor` on Linux with Python 3.12.3, Java 21.0.12, Node 22.22.2, npm 10.9.7, Mineflayer 4.37.1, pathfinder 2.4.5, pvp 1.3.2 and vec3 0.1.8. Its bridge suite passed 14/14 tests; image id `sha256:75661da87c84f474869c66a24ded79a26a8adaacf87321766221d7a8fe663cc8`.
 
-Version 0.43.0 established the repository-extraction boundary; 0.43.1 corrects that split by restoring the reusable Minecraft provider to upstream while keeping benchmark/scientific composition downstream. A release is authoritative only when the release subsystem regenerates `RELEASE_MANIFEST.json`, `RELEASE_EVIDENCE.json`, and `RELEASE_AUTHORITY.json` from the exact source tree and the final repository-boundary/package verification gates pass.
+Version 0.43.0 established the repository-extraction boundary; 0.43.1 corrected that split by restoring the reusable Minecraft provider to upstream while keeping benchmark/scientific composition downstream. A release is authoritative only when the release subsystem regenerates `RELEASE_MANIFEST.json`, `RELEASE_EVIDENCE.json`, and `RELEASE_AUTHORITY.json` from the exact source tree and the final repository-boundary/package verification gates pass.
 
 ## Release qualification contract
 

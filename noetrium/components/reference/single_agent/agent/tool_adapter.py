@@ -3,7 +3,11 @@ from __future__ import annotations
 from noetrium.contracts.json import JsonValue
 
 from noetrium.components.reference.single_agent.tools import ToolArguments, ToolRegistry
-from .contracts import ReferenceAgentObservation
+from .contracts import (
+    ReferenceAgentAction,
+    ReferenceAgentActionKind,
+    ReferenceAgentObservation,
+)
 
 
 class ReferenceToolRegistryPort:
@@ -14,14 +18,22 @@ class ReferenceToolRegistryPort:
             raise TypeError("registry tool port requires ToolRegistry")
         self._registry = registry
 
+    def invoke_action(self, action: ReferenceAgentAction) -> ReferenceAgentObservation:
+        if action.kind is not ReferenceAgentActionKind.TOOL:
+            raise ValueError("registry tool port accepts tool actions only")
+        result = self._registry.invoke(action.name, ToolArguments(action.arguments))
+        return ReferenceAgentObservation(
+            action.action_digest,
+            result.error or result.content,
+            result.success,
+            result_digest=result.result_digest,
+        )
+
     def invoke(
         self, name: str, arguments: tuple[tuple[str, JsonValue], ...]
     ) -> ReferenceAgentObservation:
-        result = self._registry.invoke(name, ToolArguments(arguments))
-        return ReferenceAgentObservation(
-            result.result_digest,
-            result.error or result.content,
-            result.success,
+        return self.invoke_action(
+            ReferenceAgentAction(ReferenceAgentActionKind.TOOL, name, arguments)
         )
 
 

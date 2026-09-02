@@ -297,7 +297,7 @@ class OpenAICompatibleModelEndpoint(ModelEndpointPort):
         if not isinstance(response.body, Mapping):
             raise ModelEndpointError("model endpoint response body must be an object")
         choices = response.body.get("choices")
-        if not isinstance(choices, tuple) or len(choices) != 1 or not isinstance(choices[0], Mapping):
+        if not isinstance(choices, (tuple, list)) or len(choices) != 1 or not isinstance(choices[0], Mapping):
             raise ModelEndpointError("model endpoint response must contain exactly one choice")
         choice = choices[0]
         message = choice.get("message")

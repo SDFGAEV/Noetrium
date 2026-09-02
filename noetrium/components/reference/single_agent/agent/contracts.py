@@ -6,11 +6,13 @@ accept downstream policies, model clients, and tool ports through narrow seams.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Protocol
 
 from noetrium.contracts.json import JsonValue, canonical_digest, freeze_json
+from noetrium_platform.foundation.kernel.kernel import EffectReceipt
 
 
 class ReferenceAgentStatus(StrEnum):
@@ -67,7 +69,7 @@ class ReferenceAgentState:
 class ReferenceAgentAction:
     kind: ReferenceAgentActionKind
     name: str
-    arguments: tuple[tuple[str, JsonValue], ...] = ()
+    arguments: Mapping[str, JsonValue] | tuple[tuple[str, JsonValue], ...] = ()
     content: str = ""
     action_digest: str = field(init=False)
 
@@ -76,15 +78,44 @@ class ReferenceAgentAction:
             raise ValueError("agent action kind/name are invalid")
         if type(self.content) is not str:
             raise TypeError("agent action content must be string")
-        if type(self.arguments) is not tuple or any(type(row) is not tuple or len(row) != 2 for row in self.arguments):
-            raise TypeError("agent action arguments must be key/value tuples")
-        keys = [row[0] for row in self.arguments]
+        raw_arguments = (
+            tuple(self.arguments.items())
+            if isinstance(self.arguments, Mapping)
+            else self.arguments
+        )
+        if type(raw_arguments) is not tuple or any(
+            type(row) is not tuple or len(row) != 2 for row in raw_arguments
+        ):
+            raise TypeError("agent action arguments must be a mapping or key/value tuples")
+        keys = [row[0] for row in raw_arguments]
         if any(type(key) is not str or not key.strip() for key in keys) or len(keys) != len(set(keys)):
             raise ValueError("agent action argument keys must be unique non-empty strings")
-        object.__setattr__(self, "action_digest", canonical_digest({"kind": self.kind.value, "name": self.name, "arguments": self.arguments, "content": self.content}))
+        normalized_arguments = tuple(
+            sorted((key, freeze_json(value)) for key, value in raw_arguments)
+        )
+        object.__setattr__(self, "arguments", normalized_arguments)
+        object.__setattr__(self, "action_digest", canonical_digest({"kind": self.kind.value, "name": self.name, "arguments": normalized_arguments, "content": self.content}))
+
+    @classmethod
+    def from_mapping(
+        cls,
+        kind: ReferenceAgentActionKind,
+        name: str,
+        arguments: Mapping[str, JsonValue] | None = None,
+        *,
+        content: str = "",
+    ) -> "ReferenceAgentAction":
+        values = {} if arguments is None else arguments
+        if not isinstance(values, Mapping):
+            raise TypeError("agent action arguments must be a mapping")
+        return cls(kind, name, tuple(sorted((key, freeze_json(value)) for key, value in values.items())), content)
 
     def argument_values(self) -> dict[str, JsonValue]:
         return {key: freeze_json(value) for key, value in self.arguments}
+
+    @property
+    def arguments_mapping(self) -> Mapping[str, JsonValue]:
+        return self.argument_values()
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +123,10 @@ class ReferenceAgentObservation:
     action_digest: str
     content: str
     success: bool
+    capability_id: str | None = None
+    result_digest: str | None = None
+    artifacts: tuple[str, ...] = ()
+    effect_receipt: EffectReceipt | None = None
     observation_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -99,7 +134,23 @@ class ReferenceAgentObservation:
             raise ValueError("agent observation action_digest must be SHA-256")
         if type(self.content) is not str or type(self.success) is not bool:
             raise TypeError("agent observation content/success types are invalid")
-        object.__setattr__(self, "observation_digest", canonical_digest({"action_digest": self.action_digest, "content": self.content, "success": self.success}))
+        if self.capability_id is not None and (type(self.capability_id) is not str or not self.capability_id.strip()):
+            raise ValueError("agent observation capability_id must be non-empty when present")
+        if self.result_digest is not None and (type(self.result_digest) is not str or len(self.result_digest) != 64):
+            raise ValueError("agent observation result_digest must be SHA-256 when present")
+        if type(self.artifacts) is not tuple or any(type(item) is not str or not item.strip() for item in self.artifacts):
+            raise TypeError("agent observation artifacts must be non-empty strings")
+        if self.effect_receipt is not None and not isinstance(self.effect_receipt, EffectReceipt):
+            raise TypeError("agent observation effect_receipt must be EffectReceipt")
+        object.__setattr__(self, "observation_digest", canonical_digest({
+            "action_digest": self.action_digest,
+            "content": self.content,
+            "success": self.success,
+            "capability_id": self.capability_id,
+            "result_digest": self.result_digest,
+            "artifacts": self.artifacts,
+            "effect_receipt": self.effect_receipt,
+        }))
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,6 +167,7 @@ class ReferenceAgentRunResult:
     answer: str | None
     state: ReferenceAgentState
     error: str | None = None
+    tool_observations: tuple[ReferenceAgentObservation, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.status, ReferenceAgentStatus) or type(self.state) is not ReferenceAgentState:
@@ -124,6 +176,10 @@ class ReferenceAgentRunResult:
             raise TypeError("agent run result answer must be string or None")
         if self.error is not None and type(self.error) is not str:
             raise TypeError("agent run result error must be string or None")
+        if type(self.tool_observations) is not tuple or any(
+            type(item) is not ReferenceAgentObservation for item in self.tool_observations
+        ):
+            raise TypeError("agent run result tool_observations must contain observations")
         if self.status is ReferenceAgentStatus.COMPLETED and not self.answer:
             raise ValueError("completed agent run requires an answer")
 
@@ -134,6 +190,10 @@ class ReferenceAgentDecisionPort(Protocol):
 
 class ReferenceAgentToolPort(Protocol):
     def invoke(self, name: str, arguments: tuple[tuple[str, JsonValue], ...]) -> ReferenceAgentObservation: ...
+
+
+class ReferenceAgentActionToolPort(Protocol):
+    def invoke_action(self, action: ReferenceAgentAction) -> ReferenceAgentObservation: ...
 
 
 class ReferenceAgentReflectionPort(Protocol):
@@ -149,7 +209,7 @@ class ReferenceAgentSolverPort(Protocol):
 
 
 __all__ = [
-    "ReferenceAgentAction", "ReferenceAgentActionKind", "ReferenceAgentDecision", "ReferenceAgentDecisionPort",
+    "ReferenceAgentAction", "ReferenceAgentActionKind", "ReferenceAgentActionToolPort", "ReferenceAgentDecision", "ReferenceAgentDecisionPort",
     "ReferenceAgentMessage", "ReferenceAgentObservation", "ReferenceAgentPlannerPort", "ReferenceAgentReflectionPort",
     "ReferenceAgentRunResult", "ReferenceAgentSolverPort", "ReferenceAgentState", "ReferenceAgentStatus", "ReferenceAgentToolPort",
 ]

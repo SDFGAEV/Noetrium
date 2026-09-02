@@ -19,11 +19,11 @@ class Policy:
     def decide(self, state):
         if state.step == 0:
             return ReferenceAgentDecision(
-                ReferenceAgentAction(
+                ReferenceAgentAction.from_mapping(
                     ReferenceAgentActionKind.TOOL,
                     "lookup",
-                    (("query", state.task),),
-                    "look up the task",
+                    {"query": state.task},
+                    content="look up the task",
                 )
             )
         return ReferenceAgentDecision(ReferenceAgentAction(ReferenceAgentActionKind.FINAL, "answer", content="reused component"))

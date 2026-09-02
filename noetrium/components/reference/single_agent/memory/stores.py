@@ -5,7 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import math
 from threading import RLock
-from typing import Protocol
+from typing import Protocol, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .persistence import MemoryPersistencePort
 
 from noetrium.contracts.json import JsonValue, canonical_digest, freeze_json
 
@@ -52,11 +55,18 @@ class MemoryItem:
 class WorkingMemory:
     """Bounded recency memory; state is immutable at every returned boundary."""
 
-    def __init__(self, *, capacity: int = 32) -> None:
+    def __init__(
+        self,
+        *,
+        capacity: int = 32,
+        persistence: "MemoryPersistencePort | None" = None,
+    ) -> None:
         if type(capacity) is not int or capacity <= 0:
             raise ValueError("working memory capacity must be positive")
         self._capacity = capacity
-        self._items: tuple[MemoryItem, ...] = ()
+        self._persistence = persistence
+        loaded = () if persistence is None else persistence.load("working")
+        self._items: tuple[MemoryItem, ...] = tuple(loaded[-capacity:])
         self._lock = RLock()
 
     @property
@@ -72,6 +82,8 @@ class WorkingMemory:
                 if (row.namespace, row.memory_id) != (item.namespace, item.memory_id)
             )
             self._items = (retained + (item,))[-self._capacity:]
+            if self._persistence is not None:
+                self._persistence.replace("working", self._items)
             return self._items
 
     def items(self) -> tuple[MemoryItem, ...]:
@@ -82,8 +94,12 @@ class WorkingMemory:
 class EpisodicMemoryStore:
     """Thread-safe append/upsert store with deterministic lexical retrieval."""
 
-    def __init__(self) -> None:
-        self._items: dict[tuple[str, str], MemoryItem] = {}
+    def __init__(self, *, persistence: "MemoryPersistencePort | None" = None) -> None:
+        self._persistence = persistence
+        self._items: dict[tuple[str, str], MemoryItem] = {
+            (item.namespace, item.memory_id): item
+            for item in (() if persistence is None else persistence.load("episodic"))
+        }
         self._lock = RLock()
 
     def put(self, item: MemoryItem) -> MemoryItem:
@@ -95,7 +111,13 @@ class EpisodicMemoryStore:
             if previous is not None and previous.item_digest != item.item_digest:
                 raise ValueError("episodic memory identity collision")
             self._items[key] = item
+            if self._persistence is not None:
+                self._persistence.replace("episodic", tuple(self._items.values()))
             return item
+
+    def items(self) -> tuple[MemoryItem, ...]:
+        with self._lock:
+            return tuple(sorted(self._items.values(), key=lambda row: (row.namespace, row.memory_id)))
 
     def get(self, memory_id: str, *, namespace: str = "default") -> MemoryItem:
         if type(memory_id) is not str or not memory_id.strip():
@@ -126,12 +148,24 @@ class EpisodicMemoryStore:
 class VectorMemoryStore:
     """Dependency-free deterministic vector retrieval with replace-by-identity."""
 
-    def __init__(self, *, dimension: int) -> None:
+    def __init__(
+        self,
+        *,
+        dimension: int,
+        persistence: "MemoryPersistencePort | None" = None,
+    ) -> None:
         if type(dimension) is not int or dimension <= 0:
             raise ValueError("vector memory dimension must be positive")
         self._dimension = dimension
+        self._persistence = persistence
         self._items: dict[tuple[str, str], MemoryItem] = {}
         self._norms: dict[tuple[str, str], float] = {}
+        for item in (() if persistence is None else persistence.load("vector")):
+            if item.embedding is None or len(item.embedding) != dimension:
+                raise ValueError("persisted vector memory embedding dimension mismatch")
+            key = (item.namespace, item.memory_id)
+            self._items[key] = item
+            self._norms[key] = math.sqrt(sum(float(value) ** 2 for value in item.embedding))
         self._lock = RLock()
 
     @property
@@ -150,7 +184,27 @@ class VectorMemoryStore:
                 raise ValueError("vector memory identity collision")
             self._items[key] = item
             self._norms[key] = math.sqrt(sum(float(value) ** 2 for value in item.embedding))
+            if self._persistence is not None:
+                self._persistence.replace("vector", tuple(self._items.values()))
             return item
+
+    def upsert_text(
+        self,
+        memory_id: str,
+        content: str,
+        *,
+        embedder: MemoryEmbedderPort,
+        tags: tuple[str, ...] = (),
+        metadata: tuple[tuple[str, JsonValue], ...] = (),
+        namespace: str = "default",
+    ) -> MemoryItem:
+        embedding = embedder.embed(content)
+        item = MemoryItem(memory_id, content, tags, tuple(embedding), metadata, namespace)
+        return self.upsert(item)
+
+    def items(self) -> tuple[MemoryItem, ...]:
+        with self._lock:
+            return tuple(sorted(self._items.values(), key=lambda row: (row.namespace, row.memory_id)))
 
     def search(
         self,

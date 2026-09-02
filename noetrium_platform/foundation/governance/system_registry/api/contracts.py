@@ -28,6 +28,7 @@ class SystemLayer(StrEnum):
     GOVERNANCE = "governance"
     OPERATOR = "operator"
     COMPOSITION = "composition"
+    COMPONENTS = "components"
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -88,8 +89,10 @@ class SystemDescriptor:
     shape: tuple[str, ...] = STANDARD_SYSTEM_SHAPE
 
     def __post_init__(self) -> None:
-        if not self.package_prefix.startswith("noetrium_platform"):
-            raise ValueError("system package_prefix must be inside noetrium_platform")
+        platform_prefix = self.package_prefix.startswith("noetrium_platform")
+        reference_prefix = self.identity.system_id == "components" and self.package_prefix.startswith("noetrium.components")
+        if not platform_prefix and not reference_prefix:
+            raise ValueError("system package_prefix must be inside noetrium_platform or the registered noetrium.components namespace")
 
     @property
     def parent_key(self) -> str | None:

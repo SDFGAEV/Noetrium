@@ -2629,6 +2629,27 @@
     ],
     "components": []
   },
+  "components": {
+    "authority": "reference_component_library",
+    "must_not_own": "platform authority mutation, project semantics, provider credentials or scientific result acceptance",
+    "owns": "reusable agent methods, memory, tool, bridge and multi-agent reference components",
+    "package_prefix": "noetrium.components",
+    "parent": null,
+    "shape": [
+      "api",
+      "runtime",
+      "providers",
+      "composition"
+    ],
+    "requires": [
+      "platform"
+    ],
+    "provides": [
+      "reference.agent.components",
+      "reference.agent.runtime.bridge"
+    ],
+    "components": []
+  },
   "scope": {
     "authority": "scope_tree",
     "must_not_own": "business metadata and runtime state",

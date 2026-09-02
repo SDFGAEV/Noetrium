@@ -1,3 +1,4 @@
+from .persistence import MemoryPersistencePort, SQLiteMemoryPersistence
 from .stores import (
     EpisodicMemoryStore,
     MemoryEmbedderPort,
@@ -8,6 +9,8 @@ from .stores import (
 
 __all__ = [
     "EpisodicMemoryStore",
+    "MemoryPersistencePort",
+    "SQLiteMemoryPersistence",
     "MemoryEmbedderPort",
     "MemoryItem",
     "VectorMemoryStore",

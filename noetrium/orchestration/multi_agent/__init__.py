@@ -11,6 +11,10 @@ from .contracts import (
     MultiAgentRunResult,
     MultiAgentRunStatus,
 )
+from .transport import (
+    MultiAgentMembershipPort, MultiAgentTransportPort,
+    TransportBackedMultiAgentCoordinator,
+)
 from .orchestration import (
     DebateCoordinator,
     GroupChatCoordinator,
@@ -34,4 +38,7 @@ __all__ = [
     "GroupChatCoordinator",
     "HierarchicalCoordinator",
     "MultiAgentCoordinator",
+    "MultiAgentMembershipPort",
+    "MultiAgentTransportPort",
+    "TransportBackedMultiAgentCoordinator",
 ]

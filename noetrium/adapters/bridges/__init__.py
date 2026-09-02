@@ -1,5 +1,10 @@
 from .adapters import (
     AutoGenDecisionAdapter,
+    ForeignDecisionConverterPort,
+    ForeignStateConverterPort,
+    LangGraphToolNodeAdapter,
+    normalize_foreign_decision,
+    reference_state_mapping,
     AutoGenRunnable,
     CrewAIDecisionAdapter,
     CrewAIRunnable,
@@ -9,5 +14,7 @@ from .adapters import (
 
 __all__ = [
     "AutoGenDecisionAdapter", "AutoGenRunnable", "CrewAIDecisionAdapter",
-    "CrewAIRunnable", "LangGraphDecisionAdapter", "LangGraphRunnable",
+    "CrewAIRunnable", "ForeignDecisionConverterPort", "ForeignStateConverterPort",
+    "LangGraphDecisionAdapter", "LangGraphRunnable", "LangGraphToolNodeAdapter",
+    "normalize_foreign_decision", "reference_state_mapping",
 ]
