@@ -1,4 +1,4 @@
-from noetrium_platform.foundation.kernel.composition.experiment_runtime import build_experiment_runtime
+from noetrium_platform.composition.experiment_runtime import build_experiment_runtime
 from tests_support import FakeParticipantResolver
 from tests_support import EmptyWorkflowSurfaceFactory, context_action_spec
 import unittest

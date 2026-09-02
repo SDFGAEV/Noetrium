@@ -10,7 +10,7 @@ import tempfile
 import unittest
 
 from noetrium_platform.infrastructure.reliability.forensics.runtime.diagnostic_adapter import ForensicDiagnosticEvidence
-from noetrium_platform.foundation.kernel.composition.service_crash_failure import service_crash_failure
+from noetrium_platform.composition.service_crash_failure import service_crash_failure
 from noetrium_platform.foundation.kernel.kernel import ExecutionContext
 from tests._concurrency_support import segmented_byte_capture
 from noetrium_platform.infrastructure.reliability.primitives import CrashEvidence

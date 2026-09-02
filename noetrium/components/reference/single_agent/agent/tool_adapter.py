@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from noetrium_platform.foundation.kernel.kernel import JsonValue
+from noetrium.contracts.json import JsonValue
 
-from components.single_agent.tools import ToolArguments, ToolRegistry
-from .contracts import AgentObservation
+from noetrium.components.reference.single_agent.tools import ToolArguments, ToolRegistry
+from .contracts import ReferenceAgentObservation
 
 
-class RegistryAgentToolPort:
+class ReferenceToolRegistryPort:
     """Adapter from the reusable ToolRegistry to the ReAct tool port."""
 
     def __init__(self, registry: ToolRegistry) -> None:
@@ -16,13 +16,13 @@ class RegistryAgentToolPort:
 
     def invoke(
         self, name: str, arguments: tuple[tuple[str, JsonValue], ...]
-    ) -> AgentObservation:
+    ) -> ReferenceAgentObservation:
         result = self._registry.invoke(name, ToolArguments(arguments))
-        return AgentObservation(
+        return ReferenceAgentObservation(
             result.result_digest,
             result.error or result.content,
             result.success,
         )
 
 
-__all__ = ["RegistryAgentToolPort"]
+__all__ = ["ReferenceToolRegistryPort"]

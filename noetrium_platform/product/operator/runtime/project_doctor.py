@@ -315,7 +315,7 @@ def _template_profile(revision: str | None) -> ProjectTemplateProfile | None:
 def doctor_project(project_root: Path) -> ProjectDoctorReport:
     root = project_root.expanduser().absolute()
     checks: list[ProjectDoctorCheck] = []
-    marker = root / ".research-platform-template"
+    marker = root / ".noetrium-template"
     marker_value = marker.read_text(encoding="utf-8").strip() if marker.is_file() else None
     profile = _template_profile(marker_value)
     checks.append(_check(
@@ -363,11 +363,11 @@ def doctor_project(project_root: Path) -> ProjectDoctorReport:
     ))
 
     platform = installed_platform_identity()
-    dependency_ok = dependencies == (f"research-platform=={platform.version}",)
+    dependency_ok = dependencies == (f"noetrium=={platform.version}",)
     checks.append(_check(
         "platform_version", dependency_ok,
-        f"project pins installed research-platform {platform.version}",
-        "regenerate with the installed qualified research-platform artifact",
+        f"project pins installed noetrium {platform.version}",
+        "regenerate with the installed qualified noetrium artifact",
     ))
     provenance_ok = bool(
         manifest is not None

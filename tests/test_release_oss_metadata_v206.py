@@ -12,7 +12,7 @@ from scripts import release_distribution as distribution
 
 _METADATA = (
     b"Metadata-Version: 2.4\n"
-    b"Name: research-platform\n"
+    b"Name: noetrium\n"
     b"Version: 0.43.1\n"
     b"License-Expression: Apache-2.0\n"
     b"License-File: LICENSE\n"

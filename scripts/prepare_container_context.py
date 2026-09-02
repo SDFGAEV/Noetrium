@@ -13,7 +13,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 _SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
-_DISTRIBUTION_SCHEMA = "research-platform.distribution-release.v4"
+_DISTRIBUTION_SCHEMA = "noetrium.distribution-release.v4"
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,7 +71,7 @@ def _load_distribution_evidence(path: Path, *, expected_source_sha: str) -> tupl
         raise ValueError("distribution build source identity is invalid")
     if build_command.get("cwd_mode") != "external-git-object-database":
         raise ValueError("distribution build did not use raw Git object source")
-    if build_command.get("source_materialization_schema") != "research-platform.git-object-materialization.v1":
+    if build_command.get("source_materialization_schema") != "noetrium.git-object-materialization.v1":
         raise ValueError("distribution source materialization schema is invalid")
     materialization_digest = build_command.get("source_materialization_sha256")
     if not isinstance(materialization_digest, str) or not _SHA256_RE.fullmatch(materialization_digest):
@@ -150,7 +150,7 @@ def prepare_container_context(
     (output / "Dockerfile").write_bytes(dockerfile_raw)
     (output / "container-entrypoint.sh").write_bytes(entrypoint_raw)
     receipt = ContainerContextReceipt(
-        schema="research-platform.container-build-context.v1",
+        schema="noetrium.container-build-context.v1",
         source_sha=source_sha,
         source_tree_sha256=tree_digest,
         distribution_evidence_sha256=evidence_digest,

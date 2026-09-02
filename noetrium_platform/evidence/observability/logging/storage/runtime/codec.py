@@ -8,7 +8,7 @@ from noetrium_platform.evidence.observability.logging.record.api import LogLevel
 from noetrium_platform.foundation.scope.api import ScopeIdentity, ScopeKind
 
 
-LOG_RECORD_SCHEMA_VERSION = "research-platform.log-record.v1"
+LOG_RECORD_SCHEMA_VERSION = "noetrium.log-record.v1"
 
 
 def _reject_json_constant(value: str) -> object:

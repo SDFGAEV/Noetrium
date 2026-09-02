@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from noetrium_platform.infrastructure.lifecycle.host.api import OperatingSystemFamily
-from noetrium_platform.foundation.kernel.composition.platform_meta import build_in_memory_platform_meta
+from noetrium_platform.composition.platform_meta import build_in_memory_platform_meta
 from noetrium_platform.infrastructure.lifecycle.host.composition import compose_local_host
 from noetrium_platform.foundation.scope.path.api import (
     PathFlavor,

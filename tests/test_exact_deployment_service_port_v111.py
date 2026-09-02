@@ -10,7 +10,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from noetrium_platform.foundation.kernel.composition.model_deployments import freeze_model_deployment_set
+from noetrium_platform.composition.model_deployments import freeze_model_deployment_set
 from noetrium_platform.foundation.kernel.kernel.identity import ImmutableModelIdentity
 from noetrium_platform.capabilities.model.serving.api.qualified_deployment import QualificationCertificate, QualifiedDeploymentManifest, ResourceEnvelope, RoleModelAssignment, RoleModelManifest
 from noetrium_platform.capabilities.model.serving.api.placement import DeploymentPlacement

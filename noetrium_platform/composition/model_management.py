@@ -58,7 +58,7 @@ from noetrium_platform.infrastructure.lifecycle.service.runtime.state_storage im
 
 from noetrium_platform.infrastructure.lifecycle.service.composition import compose_local_process_backend, build_service_supervisor
 from noetrium_platform.infrastructure.lifecycle.host.composition import HostComposition, compose_local_host
-from noetrium_platform.foundation.kernel.composition.platform_meta import build_in_memory_platform_meta
+from noetrium_platform.composition.platform_meta import build_in_memory_platform_meta
 
 
 @dataclass(frozen=True, slots=True)

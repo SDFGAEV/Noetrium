@@ -108,7 +108,7 @@ ROLE 01 owns one project identity/manifest authority for downstream onboarding:
 
 `noetrium_platform.foundation.portfolio.project.api` is only a leaf projection of those exact same types. It must not define a second `ProjectDefinition`/manifest identity model.
 
-The manifest wire schema is `research-platform.project-manifest.v1`. The document contains an exact field set plus `semantic_digest`; the digest is computed from the semantic payload without the digest field. Strict decoding rejects unsupported schema versions, duplicate JSON keys, unknown fields, malformed field types, non-canonical identities/digests, non-finite JSON values, and semantic digest drift.
+The manifest wire schema is `noetrium.project-manifest.v1`. The document contains an exact field set plus `semantic_digest`; the digest is computed from the semantic payload without the digest field. Strict decoding rejects unsupported schema versions, duplicate JSON keys, unknown fields, malformed field types, non-canonical identities/digests, non-finite JSON values, and semantic digest drift.
 
 Project-owned facts are kept separate from Platform capability truth:
 

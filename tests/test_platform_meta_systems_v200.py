@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from noetrium_platform.foundation.kernel.composition.platform_meta import build_in_memory_platform_meta
+from noetrium_platform.composition.platform_meta import build_in_memory_platform_meta
 from noetrium_platform.evidence.data.dataset.api import DatasetIdentity, DatasetQuery, DatasetVersion
 from noetrium_platform.foundation.governance.architecture.system_graphs import declared_subsystem_graph, declared_system_graph
 from noetrium_platform.infrastructure.resources.compute.api import ComputeGPU, ComputeHost, ComputeRequirement

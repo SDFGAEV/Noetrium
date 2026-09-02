@@ -206,7 +206,7 @@ class SSHGitBundleRepositorySynchronizer:
         bundle_ref = _require_local_git(self._local_commands, source, request)
         target = posixpath.join(self._repository_root, request.repository_name)
         bundle_path = target + ".staging-" + request.revision[:12]
-        with tempfile.TemporaryDirectory(prefix="research-platform-git-bundle-") as temporary:
+        with tempfile.TemporaryDirectory(prefix="noetrium-git-bundle-") as temporary:
             bundle = Path(temporary) / f"{request.repository_name}-{request.revision}.bundle"
             created = self._run_local_git(source, ("bundle", "create", str(bundle), bundle_ref))
             if created.returncode != 0 or not bundle.is_file():

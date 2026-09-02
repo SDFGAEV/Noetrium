@@ -16,29 +16,29 @@ from noetrium_platform.infrastructure.lifecycle.session.providers import (
 def _environment(root: Path) -> dict[str, str]:
     prefix = server_environment_prefix("server-a")
     return {
-        f"{prefix}_PLATFORM_ROOT": "/srv/research-platform",
-        f"{prefix}_RELEASE_ROOT": "/srv/research-platform/releases",
-        f"{prefix}_OPERATOR_CWD": "/srv/research-platform",
-        f"{prefix}_REPOSITORY_ROOT": "/srv/research-platform/repositories",
+        f"{prefix}_PLATFORM_ROOT": "/srv/noetrium",
+        f"{prefix}_RELEASE_ROOT": "/srv/noetrium/releases",
+        f"{prefix}_OPERATOR_CWD": "/srv/noetrium",
+        f"{prefix}_REPOSITORY_ROOT": "/srv/noetrium/repositories",
         f"{prefix}_OPERATOR_SHELL": "/usr/bin/bash",
         f"{prefix}_OPERATOR_SHELL_ARGS": "-il",
         f"{prefix}_REMOTE_ENV": "/usr/bin/env",
         f"{prefix}_SHA256SUM": "/usr/bin/sha256sum",
-        f"{prefix}_PYTHON": "/srv/research-platform/envs/sem/bin/python",
+        f"{prefix}_PYTHON": "/srv/noetrium/envs/sem/bin/python",
         f"{prefix}_PYTHON_SHA256": "c" * 64,
         f"{prefix}_PYTHON_PACKAGES_SHA256": "b" * 64,
-        f"{prefix}_NODE": "/srv/research-platform/toolchains/node/bin/node",
+        f"{prefix}_NODE": "/srv/noetrium/toolchains/node/bin/node",
         f"{prefix}_NODE_SHA256": "d" * 64,
-        f"{prefix}_JAVA": "/srv/research-platform/toolchains/java/bin/java",
+        f"{prefix}_JAVA": "/srv/noetrium/toolchains/java/bin/java",
         f"{prefix}_JAVA_SHA256": "e" * 64,
-        f"{prefix}_PLATFORM_MANAGE": "/srv/research-platform/envs/sem/bin/research-platform-manage",
+        f"{prefix}_PLATFORM_MANAGE": "/srv/noetrium/envs/sem/bin/noetrium-manage",
         f"{prefix}_PLATFORM_MANAGE_SHA256": "f" * 64,
         f"{prefix}_TMUX": "/usr/local/bin/tmux",
         f"{prefix}_TMUX_SHA256": "a" * 64,
-        f"{prefix}_TMUX_SERVER_LABEL": "research-platform",
+        f"{prefix}_TMUX_SERVER_LABEL": "noetrium",
         f"{prefix}_TMUX_CONFIG": "/dev/null",
         f"{prefix}_TMUX_SOCKET_DIRECTORY": "/tmp",
-        f"{prefix}_SESSION_NAME": "research-platform-shell",
+        f"{prefix}_SESSION_NAME": "noetrium-shell",
         f"{prefix}_LOCAL_BINDING_ROOT": str(root),
         f"{prefix}_REMOTE_HOME": "/data/users/ubuntu",
         f"{prefix}_REMOTE_PATH": "/usr/local/bin:/usr/bin:/bin",
@@ -57,8 +57,8 @@ def test_remote_profile_materializes_one_non_secret_runtime_identity(tmp_path: P
     profile = ServerRemoteProfile.from_environment(
         "server-a", environ=_environment(tmp_path)
     )
-    assert profile.platform_root == "/srv/research-platform"
-    assert profile.repository_root == "/srv/research-platform/repositories"
+    assert profile.platform_root == "/srv/noetrium"
+    assert profile.repository_root == "/srv/noetrium/repositories"
     assert profile.session_environment == (
         ("HOME", "/data/users/ubuntu"),
         ("LANG", "C.UTF-8"),
@@ -112,7 +112,7 @@ def test_remote_tmux_runner_uses_argv_shaped_command_without_local_shell(tmp_pat
         base_environment={"HOME": "/home/ubuntu", "PATH": "/usr/bin"},
     )
     result = runner.run(
-        ("/usr/local/bin/tmux", "-L", "research-platform", "has-session", "-t", "=shell"),
+        ("/usr/local/bin/tmux", "-L", "noetrium", "has-session", "-t", "=shell"),
         environment={"LC_ALL": "C"},
         effect="observation",
     )
@@ -138,7 +138,7 @@ def test_remote_tmux_runner_marks_session_mutations_for_server_recovery() -> Non
         base_environment={},
     )
     runner.run(
-        ("/usr/local/bin/tmux", "-f", "/dev/null", "-L", "research-platform", "new-session", "-d"),
+        ("/usr/local/bin/tmux", "-f", "/dev/null", "-L", "noetrium", "new-session", "-d"),
         environment={},
         effect="mutation",
     )
@@ -162,7 +162,7 @@ def test_remote_tmux_control_attests_binary_and_allocates_tty(tmp_path: Path) ->
         Connection(),
         tmux_executable="/usr/local/bin/tmux",
         binary_identity_digest="a" * 64,
-        server_label="research-platform",
+        server_label="noetrium",
         config_file="/dev/null",
         socket_directory="/tmp",
         remote_env_executable="/usr/bin/env",
@@ -170,5 +170,5 @@ def test_remote_tmux_control_attests_binary_and_allocates_tty(tmp_path: Path) ->
         session_environment=(("HOME", "/home/ubuntu"), ("PATH", "/usr/bin")),
     )
     assert control.identity_verified
-    assert control.attach_argv("research-platform-shell")[1] == "-tt"
+    assert control.attach_argv("noetrium-shell")[1] == "-tt"
     assert captured[0][2] == "observation"

@@ -32,14 +32,14 @@ Deployment qualification starts from read-only host capability facts and produce
 The generic operator flow is:
 
 ```bash
-research-platform-manage --config <management-config> deployment qualify \
+noetrium-manage --config <management-config> deployment qualify \
   --model-id <model-id> \
   --model-path <verified-model-path>
 
-research-platform-manage --config <management-config> deployment apply-qualification <plan-digest> \
+noetrium-manage --config <management-config> deployment apply-qualification <plan-digest> \
   --environment-id <managed-runtime-id>
 
-research-platform-manage --config <management-config> deployment runtime-qualify <application-digest>
+noetrium-manage --config <management-config> deployment runtime-qualify <application-digest>
 ```
 
 Exact CLI fields depend on the selected provider capabilities; downstream repositories own the actual values.

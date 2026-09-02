@@ -44,7 +44,7 @@ def test_repository_sync_uses_profile_owned_root_and_pinned_checkout() -> None:
 
     synchronizer = SSHGitRepositorySynchronizer(
         Connection(),
-        repository_root="/data/research-platform",
+        repository_root="/data/noetrium",
         profile_digest="p" * 64,
     )
     receipt = synchronizer.sync(
@@ -66,7 +66,7 @@ def test_repository_sync_uses_profile_owned_root_and_pinned_checkout() -> None:
     assert "http.lowSpeedTime=60" in command
     assert "checkout --detach" in command
     assert REVISION in command
-    assert receipt.target_path == "/data/research-platform/noetrium"
+    assert receipt.target_path == "/data/noetrium/noetrium"
     assert receipt.profile_digest == "p" * 64
 
 
@@ -92,7 +92,7 @@ def test_repository_status_reads_only_the_profile_owned_checkout() -> None:
             )
 
     synchronizer = SSHGitRepositorySynchronizer(
-        Connection(), repository_root="/data/research-platform"
+        Connection(), repository_root="/data/noetrium"
     )
     status = synchronizer.inspect("noetrium", staging_revision=REVISION)
     assert status.exists is True
@@ -127,7 +127,7 @@ def test_repository_status_without_staging_revision_does_not_probe_target_as_sta
             )
 
     status = SSHGitRepositorySynchronizer(
-        Connection(), repository_root="/data/research-platform/repositories"
+        Connection(), repository_root="/data/noetrium/repositories"
     ).inspect("noetrium")
     assert status.staging_exists is False
     assert status.staging_kind == "absent"
@@ -152,7 +152,7 @@ def test_repository_status_distinguishes_a_non_git_target_directory() -> None:
             )
 
     status = SSHGitRepositorySynchronizer(
-        Connection(), repository_root="/data/research-platform/repositories"
+        Connection(), repository_root="/data/noetrium/repositories"
     ).inspect("noetrium", staging_revision=REVISION)
     assert status.exists is False
     assert status.target_kind == "directory"
@@ -176,7 +176,7 @@ def test_repository_sync_preserves_structured_transport_failure() -> None:
             )
 
     synchronizer = SSHGitRepositorySynchronizer(
-        Connection(), repository_root="/data/research-platform"
+        Connection(), repository_root="/data/noetrium"
     )
     import pytest
 

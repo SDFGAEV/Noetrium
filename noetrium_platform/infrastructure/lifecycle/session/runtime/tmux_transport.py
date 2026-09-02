@@ -31,7 +31,7 @@ class TmuxPersistentSessionControl:
         self,
         *,
         tmux_executable: str = "/usr/bin/tmux",
-        server_label: str = "research-platform",
+        server_label: str = "noetrium",
         config_file: str = "/dev/null",
         environment_executable: str = "/usr/bin/env",
         socket_directory: str = "/tmp",

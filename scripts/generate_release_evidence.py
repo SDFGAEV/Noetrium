@@ -29,9 +29,9 @@ from noetrium_platform.foundation.governance.release.runtime.authority import pu
 from noetrium_platform.foundation.governance.release.runtime.freeze_lock import ReleaseFreezeBusy, ReleaseFreezeLock
 from noetrium_platform.foundation.governance.release.runtime.generation import ReleaseEvidenceCoordinator
 from noetrium_platform.foundation.governance.release.runtime.regression_state import default_regression_state_path
-from noetrium_platform.foundation.kernel.composition.release_quality import ReleaseQualityEvidenceProvider
+from noetrium_platform.composition.release_quality import ReleaseQualityEvidenceProvider
 from noetrium_platform.foundation.kernel.concurrency.api import ConcurrencyBudget, TaskGroupPort
-from noetrium_platform.foundation.kernel.composition.concurrency import build_execution_concurrency_runtime
+from noetrium_platform.composition.concurrency import build_execution_concurrency_runtime
 from release_regression import run_release_regression
 
 

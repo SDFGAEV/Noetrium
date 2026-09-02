@@ -10,24 +10,24 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Protocol
 
-from noetrium_platform.foundation.kernel.kernel import JsonValue, canonical_digest, freeze_json
+from noetrium.contracts.json import JsonValue, canonical_digest, freeze_json
 
 
-class AgentStatus(StrEnum):
+class ReferenceAgentStatus(StrEnum):
     ACTIVE = "active"
     COMPLETED = "completed"
     FAILED = "failed"
     MAX_STEPS = "max_steps"
 
 
-class AgentActionKind(StrEnum):
+class ReferenceAgentActionKind(StrEnum):
     TOOL = "tool"
     FINAL = "final"
     CONTINUE = "continue"
 
 
 @dataclass(frozen=True, slots=True)
-class AgentMessage:
+class ReferenceAgentMessage:
     role: str
     content: str
     name: str | None = None
@@ -42,19 +42,19 @@ class AgentMessage:
 
 
 @dataclass(frozen=True, slots=True)
-class AgentState:
+class ReferenceAgentState:
     task: str
-    messages: tuple[AgentMessage, ...] = ()
-    scratchpad: tuple[AgentMessage, ...] = ()
+    messages: tuple[ReferenceAgentMessage, ...] = ()
+    scratchpad: tuple[ReferenceAgentMessage, ...] = ()
     step: int = 0
 
     def __post_init__(self) -> None:
         if type(self.task) is not str or not self.task.strip():
             raise ValueError("agent state task must be non-empty")
-        if type(self.messages) is not tuple or any(type(row) is not AgentMessage for row in self.messages):
-            raise TypeError("agent state messages must contain AgentMessage")
-        if type(self.scratchpad) is not tuple or any(type(row) is not AgentMessage for row in self.scratchpad):
-            raise TypeError("agent state scratchpad must contain AgentMessage")
+        if type(self.messages) is not tuple or any(type(row) is not ReferenceAgentMessage for row in self.messages):
+            raise TypeError("agent state messages must contain ReferenceAgentMessage")
+        if type(self.scratchpad) is not tuple or any(type(row) is not ReferenceAgentMessage for row in self.scratchpad):
+            raise TypeError("agent state scratchpad must contain ReferenceAgentMessage")
         if type(self.step) is not int or isinstance(self.step, bool) or self.step < 0:
             raise ValueError("agent state step must be a non-negative integer")
 
@@ -64,15 +64,15 @@ class AgentState:
 
 
 @dataclass(frozen=True, slots=True)
-class AgentAction:
-    kind: AgentActionKind
+class ReferenceAgentAction:
+    kind: ReferenceAgentActionKind
     name: str
     arguments: tuple[tuple[str, JsonValue], ...] = ()
     content: str = ""
     action_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
-        if not isinstance(self.kind, AgentActionKind) or type(self.name) is not str or not self.name.strip():
+        if not isinstance(self.kind, ReferenceAgentActionKind) or type(self.name) is not str or not self.name.strip():
             raise ValueError("agent action kind/name are invalid")
         if type(self.content) is not str:
             raise TypeError("agent action content must be string")
@@ -88,7 +88,7 @@ class AgentAction:
 
 
 @dataclass(frozen=True, slots=True)
-class AgentObservation:
+class ReferenceAgentObservation:
     action_digest: str
     content: str
     success: bool
@@ -103,53 +103,53 @@ class AgentObservation:
 
 
 @dataclass(frozen=True, slots=True)
-class AgentDecision:
-    action: AgentAction
+class ReferenceAgentDecision:
+    action: ReferenceAgentAction
     reasoning: str = ""
 
     def __post_init__(self) -> None:
-        if type(self.action) is not AgentAction or type(self.reasoning) is not str:
+        if type(self.action) is not ReferenceAgentAction or type(self.reasoning) is not str:
             raise TypeError("agent decision fields are invalid")
 @dataclass(frozen=True, slots=True)
-class AgentRunResult:
-    status: AgentStatus
+class ReferenceAgentRunResult:
+    status: ReferenceAgentStatus
     answer: str | None
-    state: AgentState
+    state: ReferenceAgentState
     error: str | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.status, AgentStatus) or type(self.state) is not AgentState:
+        if not isinstance(self.status, ReferenceAgentStatus) or type(self.state) is not ReferenceAgentState:
             raise TypeError("agent run result fields are invalid")
         if self.answer is not None and type(self.answer) is not str:
             raise TypeError("agent run result answer must be string or None")
         if self.error is not None and type(self.error) is not str:
             raise TypeError("agent run result error must be string or None")
-        if self.status is AgentStatus.COMPLETED and not self.answer:
+        if self.status is ReferenceAgentStatus.COMPLETED and not self.answer:
             raise ValueError("completed agent run requires an answer")
 
 
-class AgentDecisionPort(Protocol):
-    def decide(self, state: AgentState) -> AgentDecision: ...
+class ReferenceAgentDecisionPort(Protocol):
+    def decide(self, state: ReferenceAgentState) -> ReferenceAgentDecision: ...
 
 
-class AgentToolPort(Protocol):
-    def invoke(self, name: str, arguments: tuple[tuple[str, JsonValue], ...]) -> AgentObservation: ...
+class ReferenceAgentToolPort(Protocol):
+    def invoke(self, name: str, arguments: tuple[tuple[str, JsonValue], ...]) -> ReferenceAgentObservation: ...
 
 
-class AgentReflectionPort(Protocol):
-    def reflect(self, state: AgentState, result: AgentRunResult) -> AgentMessage: ...
+class ReferenceAgentReflectionPort(Protocol):
+    def reflect(self, state: ReferenceAgentState, result: ReferenceAgentRunResult) -> ReferenceAgentMessage: ...
 
 
-class AgentPlannerPort(Protocol):
+class ReferenceAgentPlannerPort(Protocol):
     def plan(self, task: str) -> tuple[str, ...]: ...
 
 
-class AgentSolverPort(Protocol):
-    def solve(self, task: str, plan: tuple[str, ...]) -> AgentRunResult: ...
+class ReferenceAgentSolverPort(Protocol):
+    def solve(self, task: str, plan: tuple[str, ...]) -> ReferenceAgentRunResult: ...
 
 
 __all__ = [
-    "AgentAction", "AgentActionKind", "AgentDecision", "AgentDecisionPort",
-    "AgentMessage", "AgentObservation", "AgentPlannerPort", "AgentReflectionPort",
-    "AgentRunResult", "AgentSolverPort", "AgentState", "AgentStatus", "AgentToolPort",
+    "ReferenceAgentAction", "ReferenceAgentActionKind", "ReferenceAgentDecision", "ReferenceAgentDecisionPort",
+    "ReferenceAgentMessage", "ReferenceAgentObservation", "ReferenceAgentPlannerPort", "ReferenceAgentReflectionPort",
+    "ReferenceAgentRunResult", "ReferenceAgentSolverPort", "ReferenceAgentState", "ReferenceAgentStatus", "ReferenceAgentToolPort",
 ]

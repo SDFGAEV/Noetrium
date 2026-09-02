@@ -243,12 +243,12 @@ class EmptyWorkflowSurfaceFactory:
 
 
 def context_action_runtime(methods, environments, **kwargs):
-    from noetrium_platform.foundation.kernel.composition.context_action import compose_context_action_runtime
+    from noetrium_platform.composition.context_action import compose_context_action_runtime
     return compose_context_action_runtime(CompositeParticipantResolver(methods, environments), **kwargs)
 
 
 def agent_turn_runtime(agents, **kwargs):
-    from noetrium_platform.foundation.kernel.composition.agent_turn import compose_agent_turn_runtime
+    from noetrium_platform.composition.agent_turn import compose_agent_turn_runtime
     capability = kwargs.pop("capability_plugins", None)
     runtime = kwargs.pop("runtime_plugins", None)
     resolver = CompositeParticipantResolver(agents, capability, runtime)
@@ -438,7 +438,7 @@ def default_method_composition_ports():
     """Build test method ports through the same explicit system boundary as production."""
 
     from noetrium_platform.capabilities.participant.method.composition import compose_default_method_system
-    from noetrium_platform.foundation.kernel.composition.platform_meta import build_in_memory_platform_meta
+    from noetrium_platform.composition.platform_meta import build_in_memory_platform_meta
 
     meta = build_in_memory_platform_meta()
     return compose_default_method_system(planner=meta.capability_composition).ports

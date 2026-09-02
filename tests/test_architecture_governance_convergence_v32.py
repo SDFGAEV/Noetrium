@@ -536,7 +536,7 @@ def test_git_source_cut_is_pinned_against_worktree_and_head_changes(tmp_path: Pa
 def test_release_quality_consumers_receive_one_frozen_source_index(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import noetrium_platform.foundation.kernel.composition.release_quality as quality_module
+    import noetrium_platform.composition.release_quality as quality_module
 
     sentinel = object()
     seen: list[object] = []
@@ -928,7 +928,7 @@ def _role01_source(relative: str) -> str:
 
 
 def test_platform_runtime_builder_consumes_trial_contract() -> None:
-    source = _role01_source("noetrium_platform/foundation/kernel/composition/experiment_runtime.py")
+    source = _role01_source("noetrium_platform/composition/experiment_runtime.py")
     tree = ast.parse(source)
     functions = {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
     for name in ("build_experiment_runtime_components", "build_experiment_runtime"):
@@ -942,8 +942,8 @@ def test_platform_runtime_builder_consumes_trial_contract() -> None:
 
 
 def test_platform_default_compositions_inject_trial_protocols() -> None:
-    agent = _role01_source("noetrium_platform/foundation/kernel/composition/agent_turn.py")
-    context = _role01_source("noetrium_platform/foundation/kernel/composition/context_action.py")
+    agent = _role01_source("noetrium_platform/composition/agent_turn.py")
+    context = _role01_source("noetrium_platform/composition/context_action.py")
     assert "AgentTurnTrialProtocol" in agent and "trial_protocol=AgentTurnTrialProtocol()" in agent
     assert "ContextActionTrialProtocol" in context and "trial_protocol=ContextActionTrialProtocol()" in context
     assert "StudyWorkflow" not in agent + context

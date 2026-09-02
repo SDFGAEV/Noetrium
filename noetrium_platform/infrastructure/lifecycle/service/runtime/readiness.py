@@ -137,7 +137,7 @@ class HttpEndpointReadinessProbe:
                     f"GET {path} HTTP/1.1\r\n"
                     f"Host: {host_header}\r\n"
                     "Connection: close\r\n"
-                    "User-Agent: research-platform-readiness/1\r\n\r\n"
+                    "User-Agent: noetrium-readiness/1\r\n\r\n"
                 ).encode("ascii", errors="strict")
                 writer.write(request)
                 await writer.drain()

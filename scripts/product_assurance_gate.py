@@ -134,9 +134,9 @@ def evaluate(*, full: bool, include_architecture: bool = True) -> ProductAssuran
     source_sha, branch, source_tree_sha256, source_clean = _source_identity()
     if full and not source_clean:
         return ProductAssuranceReceipt(
-            schema="research-platform.product-assurance-gate.v3",
+            schema="noetrium.product-assurance-gate.v3",
             generated_at_utc=datetime.now(timezone.utc).isoformat(),
-            repository="agent-research-platform-system",
+            repository="agent-noetrium-system",
             branch=branch,
             source_sha=source_sha,
             source_tree_sha256=source_tree_sha256,
@@ -181,7 +181,7 @@ def evaluate(*, full: bool, include_architecture: bool = True) -> ProductAssuran
                                 tempfile.gettempdir(),
                             )
                         )
-                        / "research-platform-product-assurance-full"
+                        / "noetrium-product-assurance-full"
                     ),
                 ],
             )
@@ -206,9 +206,9 @@ def evaluate(*, full: bool, include_architecture: bool = True) -> ProductAssuran
         and identity_consistent
     )
     return ProductAssuranceReceipt(
-        schema="research-platform.product-assurance-gate.v3",
+        schema="noetrium.product-assurance-gate.v3",
         generated_at_utc=datetime.now(timezone.utc).isoformat(),
-        repository="agent-research-platform-system",
+        repository="agent-noetrium-system",
         branch=branch,
         source_sha=source_sha,
         source_tree_sha256=source_tree_sha256,

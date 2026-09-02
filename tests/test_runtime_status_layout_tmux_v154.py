@@ -5,7 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from noetrium_platform.foundation.kernel.composition.runtime_status_config import load_runtime_status_layout
+from noetrium_platform.composition.runtime_status_config import load_runtime_status_layout
 from noetrium_platform.foundation.kernel.concurrency.composition import build_concurrency_runtime
 from noetrium_platform.infrastructure.lifecycle.session.runtime import default_persistent_session_backend_registry
 

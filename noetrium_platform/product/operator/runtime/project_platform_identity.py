@@ -14,15 +14,15 @@ class InstalledPlatformIdentity:
 
 def installed_platform_identity() -> InstalledPlatformIdentity:
     try:
-        distribution = importlib.metadata.distribution("research-platform")
+        distribution = importlib.metadata.distribution("noetrium")
     except importlib.metadata.PackageNotFoundError as exc:
-        raise RuntimeError("research-platform distribution metadata is unavailable") from exc
+        raise RuntimeError("noetrium distribution metadata is unavailable") from exc
     version = str(distribution.version).strip()
     if not version:
-        raise RuntimeError("research-platform distribution version is unavailable")
+        raise RuntimeError("noetrium distribution version is unavailable")
     files = tuple(distribution.files or ())
     if not files:
-        raise RuntimeError("research-platform distribution file inventory is unavailable")
+        raise RuntimeError("noetrium distribution file inventory is unavailable")
     digest = hashlib.sha256()
     observed = 0
     for entry in sorted(files, key=lambda row: str(row).replace("\\", "/")):
@@ -41,7 +41,7 @@ def installed_platform_identity() -> InstalledPlatformIdentity:
         digest.update(b"\0")
         observed += 1
     if observed == 0:
-        raise RuntimeError("research-platform distribution contains no readable package files")
+        raise RuntimeError("noetrium distribution contains no readable package files")
     return InstalledPlatformIdentity(version, digest.hexdigest())
 
 

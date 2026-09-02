@@ -19,13 +19,13 @@ def audit_composition_root_imports(root: Path) -> list[SourceInvariantViolation]
         if path == package / "composition" / "__init__.py":
             continue
         text = source_text(path)
-        if "noetrium_platform.foundation.kernel.composition" not in text and "from noetrium_platform import composition" not in text:
+        if "noetrium_platform.composition" not in text and "from noetrium_platform import composition" not in text:
             continue
         tree = source_tree(path)
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:
-                    if alias.name == "noetrium_platform.foundation.kernel.composition":
+                    if alias.name == "noetrium_platform.composition":
                         rows.append(violation(root, path, "composition_root_import_firewall", node.lineno, "production code imports composition root instead of an exact composition submodule"))
             elif isinstance(node, ast.ImportFrom) and node.module == "noetrium_platform":
                 if any(alias.name == "composition" for alias in node.names):

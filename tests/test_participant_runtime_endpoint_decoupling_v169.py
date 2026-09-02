@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from noetrium_platform.foundation.kernel.composition.experiment_runtime import build_experiment_runtime
+from noetrium_platform.composition.experiment_runtime import build_experiment_runtime
 from dataclasses import dataclass
 from typing import get_type_hints
 
 import pytest
 
-from noetrium_platform.foundation.kernel.composition.participants.generic import generic_participant_adapter
+from noetrium_platform.composition.participants.generic import generic_participant_adapter
 from noetrium_platform.capabilities.participant.core.api.contracts import (
     ParticipantImplementationIdentity,
     ParticipantRuntimeBinding,

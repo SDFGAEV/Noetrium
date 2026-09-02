@@ -43,7 +43,7 @@ def test_composition_root_may_bind_concrete_runtime() -> None:
         root = Path(td)
         _write(
             root,
-            "noetrium_platform/foundation/kernel/composition/example.py",
+            "noetrium_platform/composition/example.py",
             "from noetrium_platform.infrastructure.reliability.diagnostics.runtime import FailureDiagnosisService\n",
         )
         assert audit_cross_subsystem_concrete_dependencies(root) == []

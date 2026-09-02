@@ -77,7 +77,7 @@ def test_diagnostic_marks_old_profile_uncertainty_as_actionable() -> None:
 
 def test_diagnostic_joins_exact_health_and_session_without_command_side_effects() -> None:
     session = ServerSessionDiagnostic(
-        "research-platform-shell",
+        "noetrium-shell",
         "drift",
         "controller command differs",
         reason_code="controller_command_drift",

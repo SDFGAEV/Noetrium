@@ -41,7 +41,7 @@ def test_repository_command_uses_exact_checkout_and_mutation_observation() -> No
 
     runner = SSHGitRepositoryCommandRunner(
         Connection(),
-        repository_root="/data/research-platform",
+        repository_root="/data/noetrium",
         profile_digest="p" * 64,
     )
     receipt = runner.run(
@@ -58,9 +58,9 @@ def test_repository_command_uses_exact_checkout_and_mutation_observation() -> No
     assert str(effect) == "mutation"
     assert f"expected={REVISION}" in command
     assert "cd \"$cwd\"" in command
-    assert receipt.target_path == "/data/research-platform/noetrium"
+    assert receipt.target_path == "/data/noetrium/noetrium"
     assert receipt.working_directory == (
-        "/data/research-platform/noetrium/components/example"
+        "/data/noetrium/noetrium/components/example"
     )
     assert receipt.succeeded is True
     assert receipt.profile_digest == "p" * 64

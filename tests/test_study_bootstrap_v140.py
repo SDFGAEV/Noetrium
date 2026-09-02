@@ -8,8 +8,8 @@ from noetrium_platform.infrastructure.reliability.effect.api import PreparedEffe
 from pathlib import Path
 import tempfile
 
-from noetrium_platform.foundation.kernel.composition.operation import build_operation_executor
-from noetrium_platform.foundation.kernel.composition.operation_forensics import OperationForensicFailureSink
+from noetrium_platform.composition.operation import build_operation_executor
+from noetrium_platform.composition.operation_forensics import OperationForensicFailureSink
 from noetrium_platform.infrastructure.reliability.effect.api import EffectIntent
 from noetrium_platform.capabilities.environment.runtime.api import ActionRequest, action_request_digest
 from noetrium_platform.foundation.kernel.kernel import ComponentIdentity, ExecutionContext, OperationRequest

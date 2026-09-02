@@ -36,7 +36,7 @@ def _audit_study_definition_boundary(root: Path) -> list[SourceInvariantViolatio
     forbidden = (
         "noetrium_platform.capabilities.participant",
         "noetrium_platform.research.execution",
-        "noetrium_platform.foundation.kernel.composition",
+        "noetrium_platform.composition",
         "noetrium_platform.infrastructure.lifecycle",
         "noetrium_platform.capabilities.model",
     )
@@ -60,7 +60,7 @@ def _audit_experiment_runtime_boundary(root: Path) -> list[SourceInvariantViolat
         "noetrium_platform.capabilities.participant.definition.runtime",
         "noetrium_platform.capabilities.participant.binding.runtime",
         "noetrium_platform.capabilities.participant.session.runtime",
-        "noetrium_platform.foundation.kernel.composition",
+        "noetrium_platform.composition",
     )
     for path in _python_files(experiment):
         for module, line in imports(path):

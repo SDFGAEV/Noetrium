@@ -199,7 +199,7 @@ def test_project_manifest_decoder_rejects_unknown_nonfinite_and_digest_drift() -
             decode_project_manifest_document(document)
 
     document = dict(project_manifest_document(manifest))
-    document["schema"] = "research-platform.project-manifest.v999"
+    document["schema"] = "noetrium.project-manifest.v999"
     with pytest.raises(ProjectManifestDecodeError, match="unsupported project manifest schema"):
         decode_project_manifest_document(document)
 

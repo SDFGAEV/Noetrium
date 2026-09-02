@@ -82,7 +82,7 @@ def test_full_assurance_binds_source_and_uses_external_basetemp(monkeypatch):
     index = full_argv.index("--basetemp")
     expected_temp_root = os.environ.get("RUNNER_TEMP", assurance.tempfile.gettempdir())
     assert str(expected_temp_root) in full_argv[index + 1]
-    assert "research-platform-product-assurance-full" in full_argv[index + 1]
+    assert "noetrium-product-assurance-full" in full_argv[index + 1]
 
 
 def test_full_assurance_blocks_dirty_source_before_commands(monkeypatch):

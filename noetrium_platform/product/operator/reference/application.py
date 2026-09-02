@@ -16,7 +16,7 @@ from noetrium_platform.foundation.kernel.kernel.durability import (
     encode_checksummed_document,
 )
 
-_SCHEMA = "research-platform.operator-reference.v1"
+_SCHEMA = "noetrium.operator-reference.v1"
 _STATE_FIELDS = frozenset({"target", "phase", "generation", "events"})
 _EVENT_FIELDS = frozenset({"sequence", "action", "phase", "generation"})
 _EVENT_ACTIONS = frozenset(

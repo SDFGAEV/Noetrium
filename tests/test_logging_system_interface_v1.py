@@ -10,7 +10,7 @@ from noetrium_platform.evidence.observability.logging.composition import (
 from noetrium_platform.evidence.observability.logging.context.api import DiagnosticAddress
 from noetrium_platform.evidence.observability.logging.record.api import ExceptionDescriptorPort, LogLevel
 from noetrium_platform.evidence.observability.logging.storage.runtime import InMemoryLogStore
-from noetrium_platform.foundation.kernel.composition.platform_meta import build_in_memory_platform_meta
+from noetrium_platform.composition.platform_meta import build_in_memory_platform_meta
 from noetrium_platform.foundation.kernel.kernel import canonical_digest
 from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE
 

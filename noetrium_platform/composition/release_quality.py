@@ -8,7 +8,7 @@ import os
 from noetrium_platform.foundation.governance.api import RepositorySourceIndexPort
 from noetrium_platform.foundation.governance.release.api import ReleaseQualityEvidence
 from noetrium_platform.foundation.kernel.concurrency.api import ConcurrencyBudget, Deadline, ExecutionLaneKind, ExecutionSpec, TaskGroupPort
-from noetrium_platform.foundation.kernel.composition.concurrency import build_execution_concurrency_runtime
+from noetrium_platform.composition.concurrency import build_execution_concurrency_runtime
 
 
 _PARALLEL_FILE_THRESHOLD = 256

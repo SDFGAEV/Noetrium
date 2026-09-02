@@ -49,7 +49,7 @@ libraries, GPU model/memory/compute capability, selected Python bootstrap
 support, model `config.json`, and the requested backend package indexes.
 
 ```bash
-research-platform-manage --config configs/runtime_management.json \
+noetrium-manage --config configs/runtime_management.json \
   deployment qualify \
   --model-id MODEL_ID \
   --model-path /models/MODEL_ID \
@@ -76,10 +76,10 @@ Use `configs/runtime_management.example.json` as a starting point. Every cross-a
 Initialize and inspect:
 
 ```bash
-research-platform-manage --config configs/runtime_management.json dirs init
-research-platform-manage --config configs/runtime_management.json dirs show
-research-platform-manage --config configs/runtime_management.json dirs stats model_artifacts
-research-platform-manage --config configs/runtime_management.json summary
+noetrium-manage --config configs/runtime_management.json dirs init
+noetrium-manage --config configs/runtime_management.json dirs show
+noetrium-manage --config configs/runtime_management.json dirs stats model_artifacts
+noetrium-manage --config configs/runtime_management.json summary
 ```
 
 `summary` is intentionally lightweight: it reports top-level entry counts and filesystem capacity without recursively walking every model/environment/log file. Deep recursive accounting happens only in explicit `dirs stats`, `dirs entries`, or `model stats` commands.
@@ -87,17 +87,17 @@ research-platform-manage --config configs/runtime_management.json summary
 Workspaces:
 
 ```bash
-research-platform-manage --config configs/runtime_management.json \
+noetrium-manage --config configs/runtime_management.json \
   dirs workspace-create study-run-001 --category study --owner downstream-project
-research-platform-manage --config configs/runtime_management.json \
+noetrium-manage --config configs/runtime_management.json \
   dirs workspace-list --category study
 ```
 
 Find the largest top-level entries without changing anything:
 
 ```bash
-research-platform-manage --config configs/runtime_management.json dirs entries model_artifacts --limit 20
-research-platform-manage --config configs/runtime_management.json dirs entries logs --limit 20
+noetrium-manage --config configs/runtime_management.json dirs entries model_artifacts --limit 20
+noetrium-manage --config configs/runtime_management.json dirs entries logs --limit 20
 ```
 
 Only cache/temp support automatic `dirs clean`; scientific state/release/model directories are never accepted by that command.
@@ -107,7 +107,7 @@ Only cache/temp support automatic `dirs clean`; scientific state/release/model d
 Create a regular venv using a selected base interpreter:
 
 ```bash
-research-platform-manage --config configs/runtime_management.json \
+noetrium-manage --config configs/runtime_management.json \
   env create serving-main --backend venv --python /usr/bin/python3.11 --tag serving --tag gpu
 ```
 
@@ -116,32 +116,32 @@ Environment tags are management metadata and may be used to group large server i
 Create conda/mamba prefixes:
 
 ```bash
-research-platform-manage --config configs/runtime_management.json \
+noetrium-manage --config configs/runtime_management.json \
   env create serving-conda --backend conda --python-version 3.11
 
-research-platform-manage --config configs/runtime_management.json \
+noetrium-manage --config configs/runtime_management.json \
   env create serving-mamba --backend mamba --python-version 3.11
 ```
 
 Register an existing prefix without copying it. Registered prefixes are marked `external`; removing them from the manager removes only registry metadata. Environments created by the manager are marked `managed` and their directory is owned by the manager. Environment assets live under `python_environments`, while the single management registry lives under `state/python-environments`; there is no second `_registered` namespace.
 
 ```bash
-research-platform-manage --config configs/runtime_management.json \
+noetrium-manage --config configs/runtime_management.json \
   env register shared-serving /opt/venvs/serving --backend venv
 ```
 
 Install requirements, install individual packages, inspect packages, or execute directly inside a managed environment:
 
 ```bash
-research-platform-manage --config configs/runtime_management.json \
+noetrium-manage --config configs/runtime_management.json \
   env install serving-main requirements-serving.txt
-research-platform-manage --config configs/runtime_management.json \
+noetrium-manage --config configs/runtime_management.json \
   env pip-install serving-main backend-package extension-package
-research-platform-manage --config configs/runtime_management.json \
+noetrium-manage --config configs/runtime_management.json \
   env packages serving-main
-research-platform-manage --config configs/runtime_management.json \
+noetrium-manage --config configs/runtime_management.json \
   env run serving-main -m pip check
-research-platform-manage --config configs/runtime_management.json \
+noetrium-manage --config configs/runtime_management.json \
   env command serving-main -m python_module
 ```
 
@@ -150,7 +150,7 @@ research-platform-manage --config configs/runtime_management.json \
 Reference an existing weights directory:
 
 ```bash
-research-platform-manage --config configs/runtime_management.json \
+noetrium-manage --config configs/runtime_management.json \
   model add model-local /data/models/MODEL --family example-family
 ```
 
@@ -166,9 +166,9 @@ symlink    create a platform-owned symlink to the original path
 Examples:
 
 ```bash
-research-platform-manage --config configs/runtime_management.json \
+noetrium-manage --config configs/runtime_management.json \
   model add model-copy /data/models/MODEL --mode copy --family example-family
-research-platform-manage --config configs/runtime_management.json \
+noetrium-manage --config configs/runtime_management.json \
   model add model-link /data/models/MODEL --mode symlink --family example-family
 ```
 
@@ -177,19 +177,19 @@ For multi-hundred-GB weights, `reference` and `symlink` avoid unnecessary data m
 Managed assets can be placed on named storage pools. `model_artifacts` is the `default` pool; additional NVMe/archive/NAS roots are configured explicitly under `model_storage_pools` and never inferred from another path.
 
 ```bash
-research-platform-manage --config configs/runtime_management.json model pools
-research-platform-manage --config configs/runtime_management.json \
+noetrium-manage --config configs/runtime_management.json model pools
+noetrium-manage --config configs/runtime_management.json \
   model add model-fast /data/staging/MODEL --mode move --pool nvme --tag online
-research-platform-manage --config configs/runtime_management.json \
+noetrium-manage --config configs/runtime_management.json \
   model fetch model-archive provider/MODEL --backend huggingface --pool archive
 ```
 
 Inspect disk size and deployment references only when needed; these recursive scans are deliberately not run by every normal status call:
 
 ```bash
-research-platform-manage --config configs/runtime_management.json model inspect model-local
-research-platform-manage --config configs/runtime_management.json model stats model-local
-research-platform-manage --config configs/runtime_management.json model refs model-local
+noetrium-manage --config configs/runtime_management.json model inspect model-local
+noetrium-manage --config configs/runtime_management.json model stats model-local
+noetrium-manage --config configs/runtime_management.json model refs model-local
 ```
 
 The registry is operational metadata. It is not a qualification certificate.
@@ -197,8 +197,8 @@ The registry is operational metadata. It is not a qualification certificate.
 Model acquisition is a separate source backend. The default local composition provides a Hugging Face CLI backend; a failed partial download remains unregistered and may be resumed with the same command.
 
 ```bash
-research-platform-manage --config configs/runtime_management.json model sources
-research-platform-manage --config configs/runtime_management.json \
+noetrium-manage --config configs/runtime_management.json model sources
+noetrium-manage --config configs/runtime_management.json \
   model fetch model-fetched provider/MODEL --backend huggingface --revision main --family example-family
 ```
 
@@ -208,7 +208,7 @@ For large resumable acquisitions, the source contract can expose the
 Hugging Face worker count without changing model identity:
 
 ```bash
-research-platform-manage --config configs/runtime_management.json \
+noetrium-manage --config configs/runtime_management.json \
   model fetch model-fetched provider/MODEL --backend huggingface --revision main \
   --max-workers 24
 ```
@@ -230,7 +230,7 @@ Old registry records are not silently upgraded. An operator must provide the
 missing interpreter identity and observed Python version explicitly:
 
 ```bash
-research-platform-manage --config configs/runtime_management.json \
+noetrium-manage --config configs/runtime_management.json \
   env migrate-legacy legacy-serving \
   --python /data/platform/envs/legacy-serving/bin/python \
   --python-version 3.11.15
@@ -274,34 +274,34 @@ Placeholders currently supported in argv:
 Register a deployment:
 
 ```bash
-research-platform-manage --config configs/runtime_management.json \
+noetrium-manage --config configs/runtime_management.json \
   deployment put-json configs/model_deployment.example.json
 ```
 
 Operate it:
 
 ```bash
-research-platform-manage --config configs/runtime_management.json deployment start model-deployment-0
-research-platform-manage --config configs/runtime_management.json deployment status model-deployment-0
-research-platform-manage --config configs/runtime_management.json deployment restart model-deployment-0
-research-platform-manage --config configs/runtime_management.json deployment stop model-deployment-0
+noetrium-manage --config configs/runtime_management.json deployment start model-deployment-0
+noetrium-manage --config configs/runtime_management.json deployment status model-deployment-0
+noetrium-manage --config configs/runtime_management.json deployment restart model-deployment-0
+noetrium-manage --config configs/runtime_management.json deployment stop model-deployment-0
 ```
 
 GPU management exposes both desired assignments and a best-effort live NVIDIA view. Live `nvidia-smi` data is observational only and never blocks start/reconcile:
 
 ```bash
-research-platform-manage --config configs/runtime_management.json deployment gpu
-research-platform-manage --config configs/runtime_management.json deployment gpu-conflicts
-research-platform-manage --config configs/runtime_management.json deployment gpu-runtime
+noetrium-manage --config configs/runtime_management.json deployment gpu
+noetrium-manage --config configs/runtime_management.json deployment gpu-conflicts
+noetrium-manage --config configs/runtime_management.json deployment gpu-runtime
 ```
 
 Fleet operations are isolated per deployment, so one missing model/environment is reported as `MISSING` without aborting management of the remaining fleet:
 
 ```bash
-research-platform-manage --config configs/runtime_management.json deployment status-all
-research-platform-manage --config configs/runtime_management.json deployment reconcile
-research-platform-manage --config configs/runtime_management.json deployment start-all
-research-platform-manage --config configs/runtime_management.json deployment stop-all
+noetrium-manage --config configs/runtime_management.json deployment status-all
+noetrium-manage --config configs/runtime_management.json deployment reconcile
+noetrium-manage --config configs/runtime_management.json deployment start-all
+noetrium-manage --config configs/runtime_management.json deployment stop-all
 ```
 
 ## Tags, selectors, and desired-state controller
@@ -309,10 +309,10 @@ research-platform-manage --config configs/runtime_management.json deployment sto
 Deployments can carry tags and can be selected by tag/model/engine/Python environment. This is intended for fleets such as `online`, `batch`, `batch`, or `gpu-a100`.
 
 ```bash
-research-platform-manage --config configs/runtime_management.json deployment list --tag online
-research-platform-manage --config configs/runtime_management.json deployment desire model-deployment-0 running
-research-platform-manage --config configs/runtime_management.json deployment desire-all running --tag online
-research-platform-manage --config configs/runtime_management.json deployment desire-all stopped --env old-serving-env
+noetrium-manage --config configs/runtime_management.json deployment list --tag online
+noetrium-manage --config configs/runtime_management.json deployment desire model-deployment-0 running
+noetrium-manage --config configs/runtime_management.json deployment desire-all running --tag online
+noetrium-manage --config configs/runtime_management.json deployment desire-all stopped --env old-serving-env
 ```
 
 `desire` and `desire-all` change only management desired state. They do **not** immediately issue process effects. The reconcile controller converges actual runtime state to those declarations.
@@ -320,8 +320,8 @@ research-platform-manage --config configs/runtime_management.json deployment des
 The controller itself is a foreground, backend-neutral process:
 
 ```bash
-research-platform-manage --config configs/runtime_management.json controller run --interval-seconds 10
-research-platform-manage --config configs/runtime_management.json controller status
+noetrium-manage --config configs/runtime_management.json controller run --interval-seconds 10
+noetrium-manage --config configs/runtime_management.json controller status
 ```
 
 On a server, host the foreground command in the existing persistent-session layer (tmux by default), systemd, a container supervisor, or another scheduler. Model management does not import tmux-specific code. Controller status persists the PID, heartbeat, cycle count, and most recent deployment results for operator inspection.

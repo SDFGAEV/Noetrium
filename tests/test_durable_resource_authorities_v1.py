@@ -4,7 +4,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
 
-from noetrium_platform.foundation.kernel.composition.platform_meta import build_durable_platform_meta
+from noetrium_platform.composition.platform_meta import build_durable_platform_meta
 from noetrium_platform.infrastructure.resources.allocation.api import EndpointAllocationRequest, EndpointProbeResult, NetworkEndpoint
 from noetrium_platform.infrastructure.resources.providers import SQLiteEndpointAllocationStore
 from noetrium_platform.infrastructure.resources.allocation.runtime import AtomicEndpointAllocator

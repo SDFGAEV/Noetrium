@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from noetrium_platform.evidence.observability.status.api import PlatformStatus
-from noetrium_platform.foundation.kernel.composition.diagnostic_io import build_runtime_recovery_plan
+from noetrium_platform.composition.diagnostic_io import build_runtime_recovery_plan
 
 
 def render_runtime_recovery_plan(status: PlatformStatus) -> dict[str, object]:

@@ -212,7 +212,7 @@ class AdoptiumMetadataResolver(TemurinMetadataResolverPort):
         self,
         *,
         opener: ArtifactHttpOpener | None = None,
-        user_agent: str = "research-platform-java-toolchain/1",
+        user_agent: str = "noetrium-java-toolchain/1",
     ) -> None:
         if not user_agent.strip():
             raise ValueError("Java runtime user agent must be non-empty")

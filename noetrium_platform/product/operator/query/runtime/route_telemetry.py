@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from noetrium_platform.foundation.kernel.composition.diagnostic_io import query_metrics, summarize_metrics
+from noetrium_platform.composition.diagnostic_io import query_metrics, summarize_metrics
 
 
 def route_telemetry(args: object):

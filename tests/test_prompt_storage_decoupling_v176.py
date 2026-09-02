@@ -4,7 +4,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from noetrium_platform.foundation.kernel.composition.prompt_registry import build_durable_prompt_registry
+from noetrium_platform.composition.prompt_registry import build_durable_prompt_registry
 from noetrium_platform.capabilities.model.request.prompt.runtime import (
     PromptPromotionEvidence,
     PromptQualification,

@@ -112,7 +112,7 @@ def main() -> int:
         "schema_version": 2,
         "snapshot_kind": "development",
         "snapshot_manifest_note": "DEVELOPMENT_SNAPSHOT_MANIFEST.sha256 is the byte-level authority for this development snapshot; it excludes itself but includes DEVELOPMENT_SNAPSHOT_METADATA.json.",
-        "source_root_name": f"research-platform-snapshot-{platform_version}",
+        "source_root_name": f"noetrium-snapshot-{platform_version}",
         "test_file_count": len(test_files),
         "tests_collected": None,
     }

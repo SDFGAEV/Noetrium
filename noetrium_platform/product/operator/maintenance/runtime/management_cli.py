@@ -6,9 +6,9 @@ from pathlib import Path
 import sys
 
 from noetrium_platform.capabilities.environment.python.api import EnvironmentCommandResult
-from noetrium_platform.foundation.kernel.composition.model_management import build_local_management_plane
+from noetrium_platform.composition.model_management import build_local_management_plane
 from noetrium_platform.foundation.kernel.concurrency.api import TaskFailurePolicy, TaskGroupPort
-from noetrium_platform.foundation.kernel.composition.concurrency import build_execution_concurrency_runtime
+from noetrium_platform.composition.concurrency import build_execution_concurrency_runtime
 from noetrium_platform.infrastructure.resources.directory.api import DirectoryLayout
 from noetrium_platform.foundation.kernel.kernel.errors import describe_exception
 from noetrium_platform.product.operator.api.json_rendering import render_json
@@ -56,7 +56,7 @@ def _load_context(config_path: Path, task_group: TaskGroupPort) -> ManagementCom
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="research-platform-manage")
+    parser = argparse.ArgumentParser(prog="noetrium-manage")
     parser.add_argument("--config", required=True, type=Path)
     groups = parser.add_subparsers(dest="group", required=True)
     register_all(groups)

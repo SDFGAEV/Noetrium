@@ -14,7 +14,7 @@ _LABEL_RE = re.compile(r"^[A-Za-z0-9_.-]{1,96}$")
 @dataclass(frozen=True, slots=True)
 class TmuxCommandCodec:
     executable: str = "/usr/bin/tmux"
-    server_label: str = "research-platform"
+    server_label: str = "noetrium"
     config_file: str = "/dev/null"
     environment_executable: str = "/usr/bin/env"
 

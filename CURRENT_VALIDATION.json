@@ -57,6 +57,6 @@
   },
   "platform_version": "0.43.1",
   "repository_role": "reusable-upstream-platform",
-  "schema_version": "research-platform.current-validation.v1",
+  "schema_version": "noetrium.current-validation.v1",
   "status": "SOURCE_VALIDATED"
 }

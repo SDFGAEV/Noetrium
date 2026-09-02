@@ -12,7 +12,7 @@ from noetrium_platform.capabilities.participant.definition.runtime.catalog impor
 from noetrium_platform.capabilities.participant.binding.runtime import LocalParticipantResolver
 from noetrium_platform.capabilities.participant.session.runtime.runtime_catalog import ParticipantSessionRuntimeCatalog
 from noetrium_platform.capabilities.participant.session.runtime.runtime_endpoint import LocalParticipantRuntimeEndpoint
-from noetrium_platform.foundation.kernel.composition.context_action import compose_context_action_runtime
+from noetrium_platform.composition.context_action import compose_context_action_runtime
 
 
 class MSession:

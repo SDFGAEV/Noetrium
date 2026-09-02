@@ -24,7 +24,7 @@ from noetrium_platform.infrastructure.lifecycle.server.identity.providers import
     SSHServerFileTransfer,
 )
 from noetrium_platform.infrastructure.lifecycle.host.providers import LocalOperatingSystemRoute
-from noetrium_platform.foundation.kernel.composition.platform_meta import build_in_memory_platform_meta
+from noetrium_platform.composition.platform_meta import build_in_memory_platform_meta
 from noetrium_platform.infrastructure.lifecycle.host.composition import compose_local_host
 from noetrium_platform.infrastructure.lifecycle.server.identity.composition import (
     compose_environment_server_identity,
@@ -332,18 +332,18 @@ def test_health_parses_machine_facts_from_one_remote_command() -> None:
 def test_managed_health_verifies_python_package_identity() -> None:
     package_digest = "b" * 64
     specification = ServerRuntimeHealthSpec(
-        platform_root="/srv/research-platform",
-        release_root="/srv/research-platform/releases",
-        repository_root="/srv/research-platform/repositories",
+        platform_root="/srv/noetrium",
+        release_root="/srv/noetrium/releases",
+        repository_root="/srv/noetrium/repositories",
         remote_home="/home/ubuntu",
-        python_executable="/srv/research-platform/envs/sem/bin/python",
+        python_executable="/srv/noetrium/envs/sem/bin/python",
         python_binary_sha256="c" * 64,
         python_packages_sha256=package_digest,
         node_executable="/srv/toolchains/node/bin/node",
         node_binary_sha256="d" * 64,
         java_executable="/srv/toolchains/java/bin/java",
         java_binary_sha256="e" * 64,
-        platform_management_executable="/srv/research-platform/bin/research-platform-manage",
+        platform_management_executable="/srv/noetrium/bin/noetrium-manage",
         platform_management_binary_sha256="f" * 64,
         tmux_executable="/usr/local/bin/tmux",
         sha256sum_executable="/usr/bin/sha256sum",
@@ -360,10 +360,10 @@ def test_managed_health_verifies_python_package_identity() -> None:
             "python_packages_status=0\n"
             "inotify_watch_authority=available\n"
             f"python_packages_digest={package_digest}  -\n"
-            "python_binary_digest=" + "c" * 64 + "  /srv/research-platform/envs/sem/bin/python\n"
+            "python_binary_digest=" + "c" * 64 + "  /srv/noetrium/envs/sem/bin/python\n"
             "node_binary_digest=" + "d" * 64 + "  /srv/toolchains/node/bin/node\n"
             "java_binary_digest=" + "e" * 64 + "  /srv/toolchains/java/bin/java\n"
-            "platform_management_binary_digest=" + "f" * 64 + "  /srv/research-platform/bin/research-platform-manage\n"
+            "platform_management_binary_digest=" + "f" * 64 + "  /srv/noetrium/bin/noetrium-manage\n"
             "tmux_digest=" + "a" * 64 + "  /usr/local/bin/tmux\n"
             "remote_home=present\nplatform_root=present\nrelease_root=present\nrepository_root=present\n"
             "python_executable=present\nnode_executable=present\njava_executable=present\n"
@@ -392,18 +392,18 @@ def test_managed_health_verifies_python_package_identity() -> None:
 
 def test_managed_health_preserves_empty_transport_output_as_health_mismatch() -> None:
     specification = ServerRuntimeHealthSpec(
-        platform_root="/srv/research-platform",
-        release_root="/srv/research-platform/releases",
-        repository_root="/srv/research-platform/repositories",
+        platform_root="/srv/noetrium",
+        release_root="/srv/noetrium/releases",
+        repository_root="/srv/noetrium/repositories",
         remote_home="/home/ubuntu",
-        python_executable="/srv/research-platform/envs/sem/bin/python",
+        python_executable="/srv/noetrium/envs/sem/bin/python",
         python_binary_sha256="c" * 64,
         python_packages_sha256="b" * 64,
         node_executable="/srv/toolchains/node/bin/node",
         node_binary_sha256="d" * 64,
         java_executable="/srv/toolchains/java/bin/java",
         java_binary_sha256="e" * 64,
-        platform_management_executable="/srv/research-platform/bin/research-platform-manage",
+        platform_management_executable="/srv/noetrium/bin/noetrium-manage",
         platform_management_binary_sha256="f" * 64,
         tmux_executable="/usr/local/bin/tmux",
         sha256sum_executable="/usr/bin/sha256sum",

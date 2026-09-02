@@ -3,7 +3,7 @@ import tempfile
 import unittest
 import zipfile
 
-from noetrium_platform.foundation.kernel.composition.release_quality import build_release_quality_evidence
+from noetrium_platform.composition.release_quality import build_release_quality_evidence
 from noetrium_platform.foundation.governance.providers import RepositorySourceTree
 from noetrium_platform.foundation.governance.release.runtime.evidence import build_release_evidence
 from noetrium_platform.foundation.governance.release.runtime.manifest import build_release_manifest

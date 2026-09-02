@@ -8,7 +8,7 @@ from noetrium_platform.capabilities.model.request.prompt.runtime import (
     default_block_policies, default_prompt_specs,
 )
 from noetrium_platform.capabilities.model.request.prompt.api import PromptTraceStage
-from noetrium_platform.foundation.kernel.composition.prompt_trace_observability import PromptTelemetryObserver
+from noetrium_platform.composition.prompt_trace_observability import PromptTelemetryObserver
 from tests._concurrency_support import raw_observation_lake
 from noetrium_platform.evidence.observability.telemetry.metric.composition import build_default_registry
 from noetrium_platform.evidence.observability.telemetry.metric.runtime import TelemetryStore

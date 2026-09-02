@@ -1,44 +1,15 @@
-"""Discoverable public entrypoint for the Noetrium research platform."""
+"""Noetrium: public package root.
 
-from noetrium_platform.research.experimentation.api import (
-    ResearchMethodHost,
-    ResearchMethodHostPort,
-    ExperimentRunner,
-    ExperimentRunnerPort,
-    CompiledResearchPlan,
-    ResearchPlanDiff,
-    compile_research_plan,
-    diff_research_plans,
-    resolve_research_requirements,
-)
-from noetrium_platform.research.experimentation.composition import build_experiment_runner
-from components.single_agent.agent import (
-    AgentAction, AgentActionKind, AgentDecision, AgentMessage, AgentRunResult,
-    AgentState, AgentStatus, PlanAndSolveAgent, ReActAgent, ReflexionAgent,
-    RegistryAgentToolPort,
-)
-from components.single_agent.memory import EpisodicMemoryStore, MemoryItem, VectorMemoryStore, WorkingMemory
-from components.single_agent.tools import ToolArguments, ToolDefinition, ToolRegistry, ToolResult
-from components.bridges import (
-    AutoGenDecisionAdapter, CrewAIDecisionAdapter, LangGraphDecisionAdapter,
-)
-from components.orchestration.multi_agent import (
-    CommunicationEdge, CommunicationTopology, DebateCoordinator,
-    GroupChatCoordinator, HierarchicalCoordinator, MultiAgentCoordinator,
-    MultiAgentMessage, MultiAgentRunResult,
-)
+Import contract families from noetrium.contracts and reusable reference
+implementations from noetrium.components. The root stays inert so importing
+the distribution never constructs a registry, runtime, provider, or process.
+"""
 
-__all__ = [
-    "ResearchMethodHost", "ResearchMethodHostPort", "ExperimentRunner",
-    "ExperimentRunnerPort", "CompiledResearchPlan",
-    "ResearchPlanDiff", "compile_research_plan", "diff_research_plans",
-    "resolve_research_requirements", "build_experiment_runner", "AgentAction", "AgentActionKind",
-    "AgentDecision", "AgentMessage", "AgentRunResult", "AgentState", "AgentStatus",
-    "PlanAndSolveAgent", "ReActAgent", "ReflexionAgent", "RegistryAgentToolPort",
-    "EpisodicMemoryStore", "MemoryItem", "VectorMemoryStore", "WorkingMemory",
-    "ToolArguments", "ToolDefinition", "ToolRegistry", "ToolResult",
-    "AutoGenDecisionAdapter", "CrewAIDecisionAdapter", "LangGraphDecisionAdapter",
-    "CommunicationEdge", "CommunicationTopology", "DebateCoordinator",
-    "GroupChatCoordinator", "HierarchicalCoordinator", "MultiAgentCoordinator",
-    "MultiAgentMessage", "MultiAgentRunResult",
-]
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    __version__ = version("noetrium")
+except PackageNotFoundError:
+    __version__ = "0+local"
+
+__all__ = ["__version__"]

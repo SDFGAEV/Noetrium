@@ -14,9 +14,9 @@ _SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _ACTIONS = ("run", "inspect", "stop", "resume", "reconcile", "evidence")
 _MARKER = "CONTAINER_PRODUCT_SMOKE="
-_WHEEL_LABEL = "org.opencontainers.image.research-platform.wheel.sha256"
+_WHEEL_LABEL = "org.opencontainers.image.noetrium.wheel.sha256"
 _DISTRIBUTION_LABEL = (
-    "org.opencontainers.image.research-platform.distribution-evidence.sha256"
+    "org.opencontainers.image.noetrium.distribution-evidence.sha256"
 )
 
 
@@ -271,7 +271,7 @@ def verify_container_image(
         raise RuntimeError("container installed wheel RECORD was not verified")
 
     return ContainerVerificationReceipt(
-        schema="research-platform.container-verification.v3",
+        schema="noetrium.container-verification.v3",
         qualification_scope="operator-smoke-only",
         npe_verified=False,
         operator_smoke_actions=tuple(_ACTIONS),

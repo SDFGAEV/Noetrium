@@ -67,7 +67,7 @@ def _tmux_factory(
     timeout = float(options.get("command_timeout_s", "5.0"))
     return TmuxPersistentSessionControl(
         tmux_executable=options.get("tmux_executable", "/usr/bin/tmux"),
-        server_label=options.get("server_label", "research-platform"),
+        server_label=options.get("server_label", "noetrium"),
         socket_directory=options.get("tmpdir", "/tmp"),
         binary_identity_digest=options.get("binary_identity_digest"),
         command_timeout_s=timeout,

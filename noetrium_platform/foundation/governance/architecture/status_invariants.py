@@ -61,7 +61,7 @@ def audit_status_invariants(root: Path) -> list[SourceInvariantViolation]:
         "noetrium_platform.infrastructure.reliability.forensics",
         "noetrium_platform.infrastructure.reliability.diagnostics.runtime",
         "noetrium_platform.product.operator",
-        "noetrium_platform.foundation.kernel.composition",
+        "noetrium_platform.composition",
     )
     for path in sorted(status_runtime.glob("*.py")) if status_runtime.exists() else ():
         for module, line in imports(path):

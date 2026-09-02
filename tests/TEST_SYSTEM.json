@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "system_id": "research-platform-test-system",
+  "system_id": "noetrium-test-system",
   "description": "Hierarchical test taxonomy and executable gates for the platform.",
   "levels": [
     {

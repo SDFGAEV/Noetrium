@@ -15,7 +15,7 @@ class FakeConnection:
     def execute(self, command: str, *, interactive: bool = False, effect=None) -> ServerCommandResult:
         del interactive
         self.commands.append((command, effect))
-        release = "/srv/research-platform/releases/" + "a" * 64
+        release = "/srv/noetrium/releases/" + "a" * 64
         return ServerCommandResult(
             "server-a",
             command,
@@ -27,7 +27,7 @@ class FakeConnection:
 
 def test_remote_release_directory_is_verified_through_observation_port() -> None:
     connection = FakeConnection()
-    layout = ServerReleaseLayout("/srv/research-platform")
+    layout = ServerReleaseLayout("/srv/noetrium")
     provider = SSHServerReleaseDirectory(connection, layout)
     expected = layout.release_path("a" * 64)
     assert provider.require_release_dir("a" * 64) == expected
@@ -40,7 +40,7 @@ def test_remote_release_directory_failure_is_fail_closed() -> None:
 
     provider = SSHServerReleaseDirectory(
         FakeConnection(success=False),
-        ServerReleaseLayout("/srv/research-platform"),
+        ServerReleaseLayout("/srv/noetrium"),
     )
     try:
         provider.require_release_dir("a" * 64)

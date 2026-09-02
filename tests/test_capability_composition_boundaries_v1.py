@@ -17,7 +17,7 @@ def test_capability_graph_is_architecture_policy_not_outer_platform_composition(
     root = Path(__file__).resolve().parents[1]
     assert (root / "noetrium_platform/foundation/governance/architecture/api/capability_composition.py").is_file()
     assert (root / "noetrium_platform/foundation/governance/architecture/runtime/capability_composition.py").is_file()
-    assert not (root / "noetrium_platform/foundation/kernel/composition/capability_graph.py").exists()
+    assert not (root / "noetrium_platform/composition/capability_graph.py").exists()
 
 
 def test_runtime_cannot_import_or_construct_composition_metadata() -> None:

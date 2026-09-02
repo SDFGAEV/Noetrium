@@ -56,7 +56,7 @@ def request(tmp_path: Path) -> ServerReleaseDeploymentRequest:
     return ServerReleaseDeploymentRequest(
         release_digest="a" * 64,
         local_package=package,
-        layout=ServerReleaseLayout("/srv/research-platform"),
+        layout=ServerReleaseLayout("/srv/noetrium"),
     )
 
 
@@ -68,8 +68,8 @@ def test_release_publisher_uploads_verifies_and_publishes_atomically(tmp_path: P
     receipt = publisher.publish(request(tmp_path))
 
     assert receipt.uploaded
-    assert receipt.remote_archive == "/srv/research-platform/incoming/" + "a" * 64 + ".zip"
-    assert receipt.remote_release_dir == "/srv/research-platform/releases/" + "a" * 64
+    assert receipt.remote_archive == "/srv/noetrium/incoming/" + "a" * 64 + ".zip"
+    assert receipt.remote_release_dir == "/srv/noetrium/releases/" + "a" * 64
     assert len(connection.commands) == 2
     assert len(transfer.calls) == 1
     assert transfer.calls[0][1] == receipt.remote_archive + ".part"
@@ -110,13 +110,13 @@ def test_release_publisher_stops_at_transfer_failure_without_finalization(tmp_pa
 
 def test_release_layout_rejects_relative_or_root_target() -> None:
     with pytest.raises(ValueError, match="absolute POSIX"):
-        ServerReleaseLayout("srv/research-platform")
+        ServerReleaseLayout("srv/noetrium")
     with pytest.raises(ValueError, match="filesystem root"):
         ServerReleaseLayout("/")
 
 
 def test_release_layout_separates_upload_part_from_authoritative_archive() -> None:
-    layout = ServerReleaseLayout("/srv/research-platform")
+    layout = ServerReleaseLayout("/srv/noetrium")
     digest = "a" * 64
     assert layout.upload_path(digest).endswith(f"{digest}.zip.part")
     assert layout.upload_path(digest) != layout.archive_path(digest)

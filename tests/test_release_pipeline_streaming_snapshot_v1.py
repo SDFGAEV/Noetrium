@@ -60,7 +60,7 @@ def _write_authorities(root: Path) -> None:
 def test_pipeline_does_not_rerun_quality_during_packaging(monkeypatch) -> None:
     # Packaging consumes already-generated clean evidence.  Static analyzers must
     # not execute a second time at this stage.
-    import noetrium_platform.foundation.kernel.composition.release_quality as quality_module
+    import noetrium_platform.composition.release_quality as quality_module
 
     def forbidden(*_args, **_kwargs):
         raise AssertionError("quality analyzer must not run during packaging")

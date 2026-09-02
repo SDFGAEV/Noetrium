@@ -85,7 +85,7 @@ class TmuxTransportIdentityTests(unittest.TestCase):
             binary_identity_digest="6" * 64,
             runner=Runner(),
         )
-        self.assertEqual(control.commands.argv("list-sessions")[:5], (TEST_TMUX_EXECUTABLE, "-f", "/dev/null", "-L", "research-platform"))
+        self.assertEqual(control.commands.argv("list-sessions")[:5], (TEST_TMUX_EXECUTABLE, "-f", "/dev/null", "-L", "noetrium"))
 
     def test_production_bootstrap_rejects_unverified_tmux_binary(self):
         with TemporaryDirectory() as td:
@@ -116,7 +116,7 @@ class TmuxTransportIdentityTests(unittest.TestCase):
         class MissingSocketRunner:
             def run(self, argv, *, environment, effect="unknown"):
                 del effect
-                return TmuxCommandResult(1, "", "error connecting to /tmp/tmux-1000/research-platform (No such file or directory)")
+                return TmuxCommandResult(1, "", "error connecting to /tmp/tmux-1000/noetrium (No such file or directory)")
 
         control = TmuxPersistentSessionControl(
             tmux_executable=TEST_TMUX_EXECUTABLE,

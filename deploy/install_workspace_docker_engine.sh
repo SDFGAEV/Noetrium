@@ -15,8 +15,8 @@ ARCH="$(uname -m)"
 
 case "$(uname -r)" in
   *microsoft*|*Microsoft*|*WSL*)
-    RUNTIME_DIR="${WSL_DOCKER_RUNTIME_DIR:-/tmp/research-platform-docker}"
-    DATA_DIR="${WSL_DOCKER_DATA_ROOT:-/tmp/research-platform-docker-data}"
+    RUNTIME_DIR="${WSL_DOCKER_RUNTIME_DIR:-/tmp/noetrium-docker}"
+    DATA_DIR="${WSL_DOCKER_DATA_ROOT:-/tmp/noetrium-docker-data}"
     ;;
   *)
     RUNTIME_DIR="$ENGINE_DIR/run"

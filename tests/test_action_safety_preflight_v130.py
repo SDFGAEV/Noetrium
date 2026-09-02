@@ -8,8 +8,8 @@ from pathlib import Path
 import tempfile
 import pytest
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
-from noetrium_platform.foundation.kernel.composition.operation_forensics import OperationForensicFailureSink
-from noetrium_platform.foundation.kernel.composition.context_action import context_action_failure_classifier_chain
+from noetrium_platform.composition.operation_forensics import OperationForensicFailureSink
+from noetrium_platform.composition.context_action import context_action_failure_classifier_chain
 from noetrium_platform.infrastructure.reliability.effect.runtime import SQLiteEffectIntentJournal
 from noetrium_platform.capabilities.environment.runtime.api import EnvironmentIdentity, Observation
 from noetrium_platform.foundation.kernel.kernel import OperationExecutor, OperationFailure

@@ -19,7 +19,7 @@ from noetrium_platform.foundation.kernel.kernel import (
 from noetrium_platform.foundation.scope.api import ScopeIdentity, ScopeKind
 
 
-PROJECT_MANIFEST_SCHEMA = "research-platform.project-manifest.v1"
+PROJECT_MANIFEST_SCHEMA = "noetrium.project-manifest.v1"
 _TOKEN = re.compile(r"[a-z][a-z0-9_.-]*")
 _VERSION = re.compile(r"[0-9A-Za-z][0-9A-Za-z._+-]*")
 

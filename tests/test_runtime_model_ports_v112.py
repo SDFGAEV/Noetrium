@@ -16,7 +16,7 @@ from noetrium_platform.capabilities.model.serving.api.qualified_deployment impor
 from noetrium_platform.capabilities.model.serving.api.placement import DeploymentPlacement
 from noetrium_platform.capabilities.model.stack.api import ModelArtifactClosure, ModelStackSpec, RuntimeBuildIdentity
 from noetrium_platform.capabilities.model.serving.api import ServiceHeartbeat
-from noetrium_platform.foundation.kernel.composition.model_deployments import freeze_model_deployment_set
+from noetrium_platform.composition.model_deployments import freeze_model_deployment_set
 from noetrium_platform.research.execution.runtime.manager.heartbeat_storage import FileServiceHeartbeatStore
 from noetrium_platform.research.execution.runtime.manager import FrozenDeploymentVerificationPort, HeartbeatRuntimeQualificationVerifier
 

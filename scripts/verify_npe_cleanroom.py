@@ -179,7 +179,7 @@ def _blocked_receipt(
     public_import_boundary_passed: bool = False,
 ) -> NpeCleanRoomReceipt:
     return NpeCleanRoomReceipt(
-        schema="research-platform.npe-clean-room.v2",
+        schema="noetrium.npe-clean-room.v2",
         artifact_name=artifact.name,
         artifact_sha256=_sha256_file(artifact),
         artifact_size=artifact.stat().st_size,

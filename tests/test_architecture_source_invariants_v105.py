@@ -94,7 +94,7 @@ class ArchitectureSourceInvariantsV105Tests(unittest.TestCase):
 
     def test_composition_families_cannot_cross_import_specialized_domains(self):
         with tempfile.TemporaryDirectory() as td:
-            root=Path(td); composition=root/'noetrium_platform/foundation/kernel/composition'; composition.mkdir(parents=True)
+            root=Path(td); composition=root/'noetrium_platform/composition'; composition.mkdir(parents=True)
             (composition/'context_action.py').write_text(
                 'from noetrium_platform.capabilities.participant.agent.api import AgentSession\n', encoding='utf-8'
             )
@@ -108,7 +108,7 @@ class ArchitectureSourceInvariantsV105Tests(unittest.TestCase):
 
     def test_participant_bridge_cannot_import_unrelated_specialized_abi(self):
         with tempfile.TemporaryDirectory() as td:
-            root=Path(td); participants=root/'noetrium_platform/foundation/kernel/composition/participants'; participants.mkdir(parents=True)
+            root=Path(td); participants=root/'noetrium_platform/composition/participants'; participants.mkdir(parents=True)
             (participants/'method.py').write_text(
                 'from noetrium_platform.capabilities.participant.agent.api import AgentSession\n', encoding='utf-8'
             )
@@ -118,7 +118,7 @@ class ArchitectureSourceInvariantsV105Tests(unittest.TestCase):
     def test_production_code_cannot_import_composition_root(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td); package=root/'noetrium_platform'; package.mkdir(parents=True)
-            (package/'bad.py').write_text('import noetrium_platform.foundation.kernel.composition\n', encoding='utf-8')
+            (package/'bad.py').write_text('import noetrium_platform.composition\n', encoding='utf-8')
             rows=audit_source_invariants(root)
             self.assertTrue(any(x.invariant=='composition_root_import_firewall' for x in rows))
 

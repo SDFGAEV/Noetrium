@@ -6,7 +6,7 @@ from .source_scan import SourceInvariantViolation, imports, violation
 
 
 _ORCHESTRATION_PREFIXES = (
-    "noetrium_platform.foundation.kernel.composition",
+    "noetrium_platform.composition",
     "noetrium_platform.capabilities.participant.session.runtime",
     "noetrium_platform.research.execution.runtime.manager",
     "noetrium_platform.infrastructure.lifecycle.session.runtime",

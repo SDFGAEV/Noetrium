@@ -123,7 +123,7 @@ class GitBlobEntry:
     path: str
 
 
-_MATERIALIZATION_SCHEMA = "research-platform.git-object-materialization.v1"
+_MATERIALIZATION_SCHEMA = "noetrium.git-object-materialization.v1"
 _REGULAR_MODES = frozenset({"100644", "100755"})
 
 
@@ -287,14 +287,14 @@ def _spdx_document(*, sha: str, version: str, artifacts: tuple[Path, ...]) -> di
         "spdxVersion": "SPDX-2.3",
         "dataLicense": "CC0-1.0",
         "SPDXID": "SPDXRef-DOCUMENT",
-        "name": f"research-platform-{version}",
-        "documentNamespace": f"https://spdx.org/spdxdocs/research-platform-{sha}",
+        "name": f"noetrium-{version}",
+        "documentNamespace": f"https://spdx.org/spdxdocs/noetrium-{sha}",
         "creationInfo": {
             "created": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "creators": ["Tool: research-platform-release-distribution"],
+            "creators": ["Tool: noetrium-release-distribution"],
         },
         "packages": [{
-            "name": "research-platform",
+            "name": "noetrium",
             "SPDXID": "SPDXRef-Package",
             "versionInfo": version,
             "downloadLocation": "NOASSERTION",
@@ -340,10 +340,10 @@ def build_distribution_release(output: Path) -> dict:
         for path in (wheel, sdist, sbom_path, checksums_path)
     }
     evidence = {
-        "schema": "research-platform.distribution-release.v4",
+        "schema": "noetrium.distribution-release.v4",
         "manifest_source": "external-git-object-database",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
-        "repository": "agent-research-platform-system",
+        "repository": "agent-noetrium-system",
         "branch": branch,
         "source_sha": sha,
         "source_tree_sha256": manifest.source_tree_sha256,

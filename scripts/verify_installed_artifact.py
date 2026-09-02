@@ -155,7 +155,7 @@ def verify_installed_artifact(artifact: Path) -> InstalledArtifactReceipt:
             commands.append(receipt)
 
         return InstalledArtifactReceipt(
-            schema="research-platform.installed-artifact-verification.v2",
+            schema="noetrium.installed-artifact-verification.v2",
             qualification_scope="operator-smoke-only",
             npe_verified=False,
             operator_smoke_actions=("run", "inspect", "stop", "resume", "reconcile", "evidence"),

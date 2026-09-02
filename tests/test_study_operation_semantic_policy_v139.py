@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
-from noetrium_platform.foundation.kernel.composition.operation_forensics import OperationForensicFailureSink
+from noetrium_platform.composition.operation_forensics import OperationForensicFailureSink
 from noetrium_platform.foundation.kernel.kernel import ComponentIdentity, ExecutionContext, OperationExecutor, OperationStatus
 from noetrium_platform.research.execution.workflow.runtime import KernelOperationDispatcher
 

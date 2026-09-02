@@ -6,8 +6,8 @@ from contextlib import contextmanager
 
 from noetrium_platform.foundation.kernel.kernel import canonical_digest
 from noetrium_platform.foundation.kernel.concurrency.api import TaskGroupPort
-from noetrium_platform.foundation.kernel.composition.concurrency import build_execution_concurrency_runtime
-from noetrium_platform.foundation.kernel.composition.platform_meta import build_in_memory_platform_meta
+from noetrium_platform.composition.concurrency import build_execution_concurrency_runtime
+from noetrium_platform.composition.platform_meta import build_in_memory_platform_meta
 from noetrium_platform.infrastructure.lifecycle.host.composition import compose_local_host
 from noetrium_platform.infrastructure.lifecycle.server.composition import (
     ServerManagementComposition,

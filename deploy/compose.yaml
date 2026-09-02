@@ -1,21 +1,21 @@
-name: research-platform
+name: noetrium
 
 services:
   platform-runtime:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
-    image: ${PLATFORM_IMAGE:-research-platform:local}
+    image: ${PLATFORM_IMAGE:-noetrium:local}
     init: true
     restart: "no"
     environment:
-      PLATFORM_STATE_DIR: /var/lib/research-platform
+      PLATFORM_STATE_DIR: /var/lib/noetrium
     volumes:
       - type: bind
         source: ${PLATFORM_HOST_DATA_ROOT:-./.runtime}/platform-state
-        target: /var/lib/research-platform
+        target: /var/lib/noetrium
     healthcheck:
-      test: ["CMD", "/opt/research-platform/deploy/container-entrypoint.sh", "doctor"]
+      test: ["CMD", "/opt/noetrium/deploy/container-entrypoint.sh", "doctor"]
       interval: 30s
       timeout: 10s
       retries: 3

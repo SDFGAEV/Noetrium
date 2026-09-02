@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from noetrium_platform.foundation.kernel.composition.diagnostic_io import open_diagnostic_evidence, verify_crash_bundle_artifact
-from noetrium_platform.foundation.kernel.composition.runtime_status import build_runtime_status_service
-from noetrium_platform.foundation.kernel.composition.runtime_status_config import load_runtime_status_layout
-from noetrium_platform.foundation.kernel.composition.concurrency import build_execution_concurrency_runtime
+from noetrium_platform.composition.diagnostic_io import open_diagnostic_evidence, verify_crash_bundle_artifact
+from noetrium_platform.composition.runtime_status import build_runtime_status_service
+from noetrium_platform.composition.runtime_status_config import load_runtime_status_layout
+from noetrium_platform.composition.concurrency import build_execution_concurrency_runtime
 
 from .failure_catalog import FailureCatalogView
 from .recovery_inspect import read_recovery_state

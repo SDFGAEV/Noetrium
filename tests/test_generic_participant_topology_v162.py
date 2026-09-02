@@ -1,5 +1,5 @@
 from __future__ import annotations
-from noetrium_platform.foundation.kernel.composition.experiment_runtime import build_experiment_runtime
+from noetrium_platform.composition.experiment_runtime import build_experiment_runtime
 from tests_support import participant
 
 from dataclasses import replace

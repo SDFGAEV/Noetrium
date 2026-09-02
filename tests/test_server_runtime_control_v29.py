@@ -9,7 +9,7 @@ import tempfile
 import unittest
 import hashlib
 
-from noetrium_platform.foundation.kernel.composition.model_deployments import freeze_model_deployment_set
+from noetrium_platform.composition.model_deployments import freeze_model_deployment_set
 from noetrium_platform.foundation.kernel.kernel.identity import ImmutableModelIdentity
 from noetrium_platform.capabilities.model.serving.api.qualified_deployment import (
     QualificationCertificate, QualifiedDeploymentManifest, ResourceEnvelope,
@@ -20,7 +20,7 @@ from noetrium_platform.capabilities.model.serving.api.inventory import (
     CPUInventory, CPUNode, GPUInventory, HostLimits, MemoryInventory, MountInventory, RuntimeInventory, HostInventory,
 )
 from noetrium_platform.capabilities.model.serving.providers.host_verification_storage import DirectoryHostInventoryEvidenceStore
-from noetrium_platform.foundation.kernel.composition.host_runtime_verification import HostInventoryRuntimeVerification
+from noetrium_platform.composition.host_runtime_verification import HostInventoryRuntimeVerification
 from noetrium_platform.capabilities.model.stack.api import ModelArtifactClosure, RuntimeBuildIdentity, ModelStackSpec
 from noetrium_platform.capabilities.model.serving.api import FrozenDeploymentSet
 from noetrium_platform.capabilities.model.serving.api.host_verification import build_host_inventory_receipt

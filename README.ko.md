@@ -178,7 +178,7 @@ plan_consistent=true
 ### 3. Checkout 검증
 
 ```bash
-research-platform-architecture-gate
+noetrium-architecture-gate
 python scripts/check_readme_i18n.py
 ```
 

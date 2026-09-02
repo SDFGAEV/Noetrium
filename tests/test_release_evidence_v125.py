@@ -11,7 +11,7 @@ from noetrium_platform.foundation.governance.release.runtime.evidence import (
     write_release_evidence,
 )
 from noetrium_platform.foundation.governance.release.runtime.manifest import build_release_manifest
-from noetrium_platform.foundation.kernel.composition.release_quality import build_release_quality_evidence
+from noetrium_platform.composition.release_quality import build_release_quality_evidence
 from noetrium_platform.foundation.governance.providers import RepositorySourceTree
 from noetrium_platform.foundation.governance.release.runtime.packager import ReleasePackager
 

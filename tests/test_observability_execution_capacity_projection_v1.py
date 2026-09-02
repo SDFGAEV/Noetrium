@@ -14,7 +14,7 @@ from noetrium_platform.evidence.observability.diagnostic.snapshot.runtime import
 )
 from noetrium_platform.evidence.observability.telemetry.metric.composition import build_default_registry
 from noetrium_platform.evidence.observability.telemetry.metric.runtime import project_execution_capacity_metrics
-from noetrium_platform.foundation.kernel.composition.execution_observability import build_execution_capacity_facts
+from noetrium_platform.composition.execution_observability import build_execution_capacity_facts
 from noetrium_platform.foundation.kernel.concurrency.api import (
     ConcurrencyTopologySnapshot,
     ExecutionLaneKind,

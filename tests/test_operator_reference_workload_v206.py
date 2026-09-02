@@ -76,7 +76,7 @@ def test_reference_workload_is_exercisable_through_installed_cli_shape(capsys):
 
 def _write_valid_checksum_state(app, target: str, payload: dict) -> None:
     app._path(target).write_bytes(
-        encode_checksummed_document("research-platform.operator-reference.v1", payload)
+        encode_checksummed_document("noetrium.operator-reference.v1", payload)
     )
 
 

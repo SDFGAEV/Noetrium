@@ -83,9 +83,9 @@ _LEGACY_PLANE_MODULES = {
 
 
 def _canonical_module_name(module: str) -> str:
-    if module == "research_platform":
+    if module == "noetrium_platform":
         return "noetrium_platform"
-    prefix = "research_platform."
+    prefix = "noetrium_platform."
     if not module.startswith(prefix):
         return module
     parts = module[len(prefix):].split(".", 1)
@@ -151,7 +151,7 @@ def scan_architecture_source_profile(
     root: Path,
     *,
     source_index: RepositorySourceIndexPort,
-    package_roots: tuple[str, ...] = ("noetrium_platform", "research_platform", "projects"),
+    package_roots: tuple[str, ...] = ("noetrium_platform", "noetrium_platform", "projects"),
     authority_rules: Iterable[SourceAuthorityRule] = (),
 ) -> ArchitectureSourceProfile:
     """Parse each production Python file once and emit compact audit facts.

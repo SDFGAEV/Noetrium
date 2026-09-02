@@ -12,7 +12,7 @@ def audit_service_api_invariants(root: Path) -> list[SourceInvariantViolation]:
         "noetrium_platform.infrastructure.lifecycle.service.runtime",
         "noetrium_platform.research.execution.runtime.manager",
         "noetrium_platform.research.experimentation.study",
-        "noetrium_platform.foundation.kernel.composition",
+        "noetrium_platform.composition",
         "noetrium_platform.infrastructure.reliability.forensics",
         "noetrium_platform.product.operator",
     )

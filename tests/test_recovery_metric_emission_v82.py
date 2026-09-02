@@ -8,7 +8,7 @@ from tests._concurrency_support import telemetry_backend
 from noetrium_platform.foundation.kernel.kernel import ExecutionContext
 from noetrium_platform.capabilities.model.serving.api import RecoveryStep
 from noetrium_platform.capabilities.model.serving.runtime import DurableExactRecoveryRunner
-from noetrium_platform.foundation.kernel.composition.model_recovery_observability import MetricDurableRecoveryObserver
+from noetrium_platform.composition.model_recovery_observability import MetricDurableRecoveryObserver
 from noetrium_platform.capabilities.model.serving.providers.recovery_storage import FileDurableRecoveryStore
 from noetrium_platform.evidence.observability.telemetry.metric.composition import build_default_registry
 from noetrium_platform.evidence.observability.telemetry.metric.runtime import TelemetryStore

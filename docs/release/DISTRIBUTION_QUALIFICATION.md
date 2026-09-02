@@ -32,8 +32,8 @@ docker build \
   --build-arg PLATFORM_SOURCE_SHA="$GIT_SHA" \
   --build-arg PLATFORM_WHEEL_SHA256="$WHEEL_SHA256" \
   --build-arg PLATFORM_DISTRIBUTION_EVIDENCE_SHA256="$DISTRIBUTION_EVIDENCE_SHA256" \
-  -t "research-platform:$GIT_SHA" <context-dir>
-python scripts/verify_container_image.py "research-platform:$GIT_SHA" \
+  -t "noetrium:$GIT_SHA" <context-dir>
+python scripts/verify_container_image.py "noetrium:$GIT_SHA" \
   --expected-source-sha "$GIT_SHA" \
   --expected-wheel-sha256 "$WHEEL_SHA256" \
   --expected-distribution-evidence-sha256 "$DISTRIBUTION_EVIDENCE_SHA256" \
@@ -79,6 +79,6 @@ python scripts/verify_npe_cleanroom.py <qualified-wheel-or-sdist> \
 
 The verifier creates a fresh virtual environment and workspace, removes ambient `PYTHONPATH/PYTHONHOME`, installs only the supplied artifact, and proves `noetrium_platform.api` resolves inside that verification environment. It then runs the installed `research project create`, `project doctor`, and generated `project test` surfaces. `project test` itself builds and installs the generated downstream package into an isolated temporary install root before executing its contract suite, so checkout/src-only import success cannot satisfy NPE. Machine JSON is parsed from the complete command output; bounded stdout/stderr tails remain diagnostic-only and are never the authority for NPE state. Public-import-boundary readiness is taken from the typed doctor receipt.
 
-The receipt schema is `research-platform.npe-clean-room.v2` and records the generated template profile. `npe_verified` remains false unless the complete Section-37/40 acceptance sequence passes. The default installed-artifact path must be `template_profile=author`; it may not fall back to provider-first scaffolding. The verifier requires the installed author template to expose the producer-owned public Research Method Host and typed compiler/binding seam. It must not manufacture an Operator-side compiler or reference lifecycle; runtime execution remains blocked until explicit provider/runtime bindings are supplied.
+The receipt schema is `noetrium.npe-clean-room.v2` and records the generated template profile. `npe_verified` remains false unless the complete Section-37/40 acceptance sequence passes. The default installed-artifact path must be `template_profile=author`; it may not fall back to provider-first scaffolding. The verifier requires the installed author template to expose the producer-owned public Research Method Host and typed compiler/binding seam. It must not manufacture an Operator-side compiler or reference lifecycle; runtime execution remains blocked until explicit provider/runtime bindings are supplied.
 
 The current clean-room receipt is intentionally fail-closed while the ROLE02/03/04/05 standard composition and ROLE05 public reference Environment route remain unresolved. ROLE 06 is not `READY_FOR_REVIEW` until one exact installed release produces `npe_verified=true` on Windows and Server2/Linux, including fresh-process lifecycle/recovery/evidence plus the Section-40/41 URE/semantic-convergence acceptance battery. Legacy `noetrium_platform.product.operator.reference` smoke evidence cannot satisfy that authority.

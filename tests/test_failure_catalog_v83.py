@@ -7,7 +7,7 @@ from noetrium_platform.infrastructure.reliability.failure.api import DEFAULT_FAI
 
 from noetrium_platform.infrastructure.reliability.forensics.runtime import FailureCatalogSourceAudit
 from noetrium_platform.infrastructure.reliability.primitives import CrashClass
-from noetrium_platform.foundation.kernel.composition.service_crash_failure import SERVICE_CRASH_FAILURE_CODES
+from noetrium_platform.composition.service_crash_failure import SERVICE_CRASH_FAILURE_CODES
 
 
 class FailureCatalogV83Tests(unittest.TestCase):

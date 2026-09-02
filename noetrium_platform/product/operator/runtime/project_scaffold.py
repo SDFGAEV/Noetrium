@@ -42,7 +42,7 @@ def _manifest(request: ProjectCreateRequest, platform_version: str, artifact_dig
 
 
 def _pyproject(request: ProjectCreateRequest, package: str, platform_version: str) -> str:
-    return f'''[build-system]\nrequires = ["setuptools>=69"]\nbuild-backend = "setuptools.build_meta"\n\n[project]\nname = "{request.project_id}"\nversion = "{request.version}"\nrequires-python = ">=3.11"\ndependencies = ["research-platform=={platform_version}"]\n\n[tool.setuptools.packages.find]\nwhere = ["src"]\ninclude = ["{package}*"]\n'''
+    return f'''[build-system]\nrequires = ["setuptools>=69"]\nbuild-backend = "setuptools.build_meta"\n\n[project]\nname = "{request.project_id}"\nversion = "{request.version}"\nrequires-python = ">=3.11"\ndependencies = ["noetrium=={platform_version}"]\n\n[tool.setuptools.packages.find]\nwhere = ["src"]\ninclude = ["{package}*"]\n'''
 
 
 def _project_module(request: ProjectCreateRequest) -> str:
@@ -127,7 +127,7 @@ def _scaffold_files(request: ProjectCreateRequest) -> tuple[dict[str, bytes], st
     package = project_package_name(request.project_id)
     revision = project_template_revision(request.template_profile)
     text_files = {
-        ".research-platform-template": revision + "\n",
+        ".noetrium-template": revision + "\n",
         "README.md": _readme(request.project_id, request.template_profile),
         "pyproject.toml": _pyproject(request, package, platform.version),
         f"src/{package}/__init__.py": "from .project import PROJECT_IDENTITY\n\n__all__ = [\"PROJECT_IDENTITY\"]\n",
@@ -175,7 +175,7 @@ def _verify_existing(root: Path, files: dict[str, bytes]) -> None:
 
 def _write_new_project(root: Path, files: dict[str, bytes]) -> None:
     root.mkdir(parents=False, exist_ok=False)
-    marker = ".research-platform-template"
+    marker = ".noetrium-template"
     ordered = [name for name in sorted(files) if name != marker]
     if marker in files:
         ordered.append(marker)

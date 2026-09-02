@@ -22,7 +22,7 @@ def _audit_error_api_firewall(root: Path) -> list[SourceInvariantViolation]:
         "noetrium_platform.evidence.observability",
         "noetrium_platform.foundation.governance",
         "noetrium_platform.product.operator",
-        "noetrium_platform.foundation.kernel.composition",
+        "noetrium_platform.composition",
     )
     rows: list[SourceInvariantViolation] = []
     for path in sorted(api.rglob("*.py")):

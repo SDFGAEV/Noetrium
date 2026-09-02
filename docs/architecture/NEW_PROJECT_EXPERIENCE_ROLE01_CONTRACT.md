@@ -10,7 +10,7 @@ There is no new Project top-level system. Project identity and manifest truth ar
 
 The canonical common-path module is `noetrium_platform.foundation.portfolio.api`. `ProjectIdentity` identifies one versioned project. `ProjectManifest` groups project metadata, explicit capability binding inputs, project-owned method requirements, content-addressed configuration references, and study references.
 
-The wire codec is strict and digest-bound. `encode_project_manifest()` emits canonical UTF-8 JSON for schema `research-platform.project-manifest.v1`; `decode_project_manifest_bytes()` rejects duplicate keys and invalid/non-finite JSON before typed decoding; `decode_project_manifest_document()` rejects unknown fields and verifies `semantic_digest` against the canonical semantic payload.
+The wire codec is strict and digest-bound. `encode_project_manifest()` emits canonical UTF-8 JSON for schema `noetrium.project-manifest.v1`; `decode_project_manifest_bytes()` rejects duplicate keys and invalid/non-finite JSON before typed decoding; `decode_project_manifest_document()` rejects unknown fields and verifies `semantic_digest` against the canonical semantic payload.
 
 `template_revision` is a digest-bound product input, not a Portfolio compatibility authority. ROLE 01 validates only that the recorded revision is canonical non-empty text and preserves it exactly; ROLE 06 owns scaffold/template revision values and decides whether a recorded revision is supported by the installed product. Unknown future template revisions therefore remain decodable by Portfolio and must be accepted or rejected by the ROLE 06 product layer.
 

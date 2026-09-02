@@ -49,7 +49,7 @@ from noetrium_platform.foundation.kernel.concurrency.api import (
     TaskContextPort,
     TaskGroupPort,
 )
-from noetrium_platform.foundation.kernel.composition.concurrency import build_execution_concurrency_runtime
+from noetrium_platform.composition.concurrency import build_execution_concurrency_runtime
 
 
 # Kept only for backwards-compatible diagnostics/tests.  Release evidence no

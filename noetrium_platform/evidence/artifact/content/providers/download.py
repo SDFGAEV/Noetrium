@@ -75,7 +75,7 @@ def _close_response(response: ArtifactHttpResponse, *, primary: BaseException | 
 class HttpArtifactAcquirer(ArtifactAcquisitionPort):
     """Streaming HTTP artifact provider with atomic publication and digest proof."""
 
-    def __init__(self, *, opener: HttpOpener | None = None, user_agent: str = "research-platform-artifact/1") -> None:
+    def __init__(self, *, opener: HttpOpener | None = None, user_agent: str = "noetrium-artifact/1") -> None:
         if not user_agent.strip():
             raise ValueError("artifact user agent must be non-empty")
         self._opener = opener or _default_opener

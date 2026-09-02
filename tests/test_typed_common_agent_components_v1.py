@@ -1,36 +1,36 @@
 from __future__ import annotations
 
-from components.single_agent.agent import (
-    AgentAction,
-    AgentActionKind,
-    AgentDecision,
-    AgentMessage,
-    AgentStatus,
-    ReActAgent,
-    RegistryAgentToolPort,
+from noetrium.components.reference.single_agent.agent import (
+    ReferenceAgentAction,
+    ReferenceAgentActionKind,
+    ReferenceAgentDecision,
+    ReferenceAgentMessage,
+    ReferenceAgentStatus,
+    ReferenceReActMethod,
+    ReferenceToolRegistryPort,
 )
-from components.single_agent.memory import MemoryItem, VectorMemoryStore, WorkingMemory
-from components.orchestration.multi_agent import (
+from noetrium.components.reference.single_agent.memory import MemoryItem, VectorMemoryStore, WorkingMemory
+from noetrium.orchestration.multi_agent import (
     CommunicationEdge,
     CommunicationTopology,
     MultiAgentCoordinator,
     MultiAgentMessage,
 )
-from components.single_agent.tools import ToolArguments, ToolDefinition, ToolRegistry, ToolResult
+from noetrium.components.reference.single_agent.tools import ToolArguments, ToolDefinition, ToolRegistry, ToolResult
 
 
 class _Policy:
     def decide(self, state):
         if state.step == 0:
-            return AgentDecision(
-                AgentAction(
-                    AgentActionKind.TOOL,
+            return ReferenceAgentDecision(
+                ReferenceAgentAction(
+                    ReferenceAgentActionKind.TOOL,
                     "echo",
                     (("value", "observed"),),
                     "use echo",
                 )
             )
-        return AgentDecision(AgentAction(AgentActionKind.FINAL, "answer", content="done"))
+        return ReferenceAgentDecision(ReferenceAgentAction(ReferenceAgentActionKind.FINAL, "answer", content="done"))
 
 
 def test_react_is_importable_and_tool_registry_is_explicit() -> None:
@@ -39,8 +39,8 @@ def test_react_is_importable_and_tool_registry_is_explicit() -> None:
         ToolDefinition("echo", "return text", "tool.echo.v1"),
         lambda arguments: ToolResult("echo", True, arguments.as_mapping()["value"]),
     )
-    result = ReActAgent(_Policy(), RegistryAgentToolPort(registry)).run("task", max_steps=3)
-    assert result.status is AgentStatus.COMPLETED
+    result = ReferenceReActMethod(_Policy(), ReferenceToolRegistryPort(registry)).run("task", max_steps=3)
+    assert result.status is ReferenceAgentStatus.COMPLETED
     assert result.answer == "done"
     assert registry.definitions()[0].name == "echo"
 
@@ -65,7 +65,13 @@ class _Node:
         if message.turn >= 2:
             return ()
         target = "worker" if self.name == "manager" else "manager"
-        return (MultiAgentMessage(self.name, target, f"reply:{message.content}", message.turn + 1),)
+        return (MultiAgentMessage(
+            self.name,
+            target,
+            f"reply:{message.content}",
+            message.turn + 1,
+            causal_parent_ids=(message.message_id,),
+        ),)
 
 
 def test_multi_agent_layer_delivers_only_over_declared_topology() -> None:
@@ -86,7 +92,7 @@ def test_multi_agent_layer_delivers_only_over_declared_topology() -> None:
 def test_component_stress_retrieval_and_tool_calls_remain_bounded() -> None:
     from concurrent.futures import ThreadPoolExecutor
     from time import perf_counter
-    from components.single_agent.memory import EpisodicMemoryStore
+    from noetrium.components.reference.single_agent.memory import EpisodicMemoryStore
 
     started = perf_counter()
     episodes = EpisodicMemoryStore()

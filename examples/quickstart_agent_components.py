@@ -8,25 +8,25 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from components.single_agent.agent import (
-    AgentAction, AgentActionKind, AgentDecision, ReActAgent,
-    RegistryAgentToolPort,
+from noetrium.components.reference.single_agent.agent import (
+    ReferenceAgentAction, ReferenceAgentActionKind, ReferenceAgentDecision, ReferenceReActMethod,
+    ReferenceToolRegistryPort,
 )
-from components.single_agent.tools import ToolArguments, ToolDefinition, ToolRegistry, ToolResult
+from noetrium.components.reference.single_agent.tools import ToolArguments, ToolDefinition, ToolRegistry, ToolResult
 
 
 class Policy:
     def decide(self, state):
         if state.step == 0:
-            return AgentDecision(
-                AgentAction(
-                    AgentActionKind.TOOL,
+            return ReferenceAgentDecision(
+                ReferenceAgentAction(
+                    ReferenceAgentActionKind.TOOL,
                     "lookup",
                     (("query", state.task),),
                     "look up the task",
                 )
             )
-        return AgentDecision(AgentAction(AgentActionKind.FINAL, "answer", content="reused component"))
+        return ReferenceAgentDecision(ReferenceAgentAction(ReferenceAgentActionKind.FINAL, "answer", content="reused component"))
 
 
 def main() -> None:
@@ -35,7 +35,7 @@ def main() -> None:
         ToolDefinition("lookup", "deterministic lookup", "lookup.v1"),
         lambda args: ToolResult("lookup", True, f"found:{args.as_mapping()['query']}"),
     )
-    result = ReActAgent(Policy(), RegistryAgentToolPort(registry)).run("hello", max_steps=4)
+    result = ReferenceReActMethod(Policy(), ReferenceToolRegistryPort(registry)).run("hello", max_steps=4)
     print(result.status.value, result.answer)
 
 

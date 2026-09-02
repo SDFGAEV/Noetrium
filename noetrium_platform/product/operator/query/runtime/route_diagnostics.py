@@ -4,7 +4,7 @@ from argparse import Namespace
 from dataclasses import asdict
 
 from noetrium_platform.infrastructure.reliability.diagnostics.api import DiagnosticEvidencePort
-from noetrium_platform.foundation.kernel.composition.diagnostic_io import (
+from noetrium_platform.composition.diagnostic_io import (
     build_causal_graph,
     build_debug_snapshot,
     build_diagnostic_status,

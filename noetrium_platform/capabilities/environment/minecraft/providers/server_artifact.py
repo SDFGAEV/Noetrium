@@ -73,7 +73,7 @@ class OfficialMinecraftServerArtifactProvider:
         acquirer: ArtifactAcquisitionPort,
         *,
         metadata_opener: ArtifactHttpOpener | None = None,
-        user_agent: str = "research-platform-minecraft-artifact/1",
+        user_agent: str = "noetrium-minecraft-artifact/1",
     ) -> None:
         if not user_agent.strip():
             raise ValueError("Minecraft artifact user agent must be non-empty")

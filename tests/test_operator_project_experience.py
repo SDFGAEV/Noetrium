@@ -126,7 +126,7 @@ def test_project_create_rejects_incomplete_crash_residue_without_repair(
         project_scaffold.create_project(ProjectCreateRequest("demo-project", "0.1.0", root))
 
     assert partial.read_text(encoding="utf-8") == "partial crash residue\n"
-    assert not (root / ".research-platform-template").exists()
+    assert not (root / ".noetrium-template").exists()
 
 
 def test_project_doctor_rejects_manifest_and_private_import_drift(
@@ -166,7 +166,7 @@ def test_project_doctor_rejects_unknown_manifest_template(
     project_scaffold.create_project(ProjectCreateRequest("demo-project", "0.1.0", root))
     manifest_path = root / "project.manifest.json"
     manifest = decode_project_manifest_bytes(manifest_path.read_bytes())
-    future = replace(manifest, template_revision="research-platform.project-template.v999")
+    future = replace(manifest, template_revision="noetrium.project-template.v999")
     manifest_path.write_bytes(encode_project_manifest(future))
 
     report = project_doctor.doctor_project(root)

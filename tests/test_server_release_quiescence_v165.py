@@ -4,7 +4,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from noetrium_platform.foundation.kernel.composition.release_quiescence import (
+from noetrium_platform.composition.release_quiescence import (
     PersistentSessionReleaseConsumerProbe,
     RecoveryLeaseReleaseConsumerProbe,
 )

@@ -7,8 +7,8 @@ import unittest
 
 from tests._concurrency_support import telemetry_backend
 from noetrium_platform.foundation.kernel.kernel import ExecutionContext
-from noetrium_platform.foundation.kernel.composition.runtime_observability import MetricRuntimeObserver
-from noetrium_platform.foundation.kernel.composition.model_deployments import freeze_model_deployment_set
+from noetrium_platform.composition.runtime_observability import MetricRuntimeObserver
+from noetrium_platform.composition.model_deployments import freeze_model_deployment_set
 from noetrium_platform.capabilities.model.serving.api.qualified_deployment import RoleModelAssignment, RoleModelManifest
 from noetrium_platform.research.execution.runtime.manager import (
     ExactRuntimeController,

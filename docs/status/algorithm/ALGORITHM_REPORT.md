@@ -63,7 +63,7 @@
 | 61 | O(N log N) | `noetrium_platform/foundation/governance/release/runtime/package_verification.py::verify_release_package` | complexity-review |
 | 61 | O(N^2) | `noetrium_platform/infrastructure/reliability/forensics/runtime/catalog_audit.py::FailureCatalogSourceAudit.run` | nested-loop, io-in-loop |
 | 60 | O(N^2) | `noetrium_platform/research/experimentation/experiment/api/tasks.py::validate_task_graph` | nested-loop |
-| 60 | O(N^2) | `noetrium_platform/foundation/kernel/composition/execution_observability.py::build_execution_capacity_facts` | nested-loop |
+| 60 | O(N^2) | `noetrium_platform/composition/execution_observability.py::build_execution_capacity_facts` | nested-loop |
 | 59 | O(N^2) | `noetrium_platform/foundation/governance/algorithm/runtime/diff.py::diff_snapshots` | nested-loop |
 | 59 | O(N^3+) | `noetrium_platform/foundation/governance/architecture/capability_composition_invariants.py::audit_capability_composition_boundaries` | deep-nested-loop |
 | 59 | O(N^3+) | `noetrium_platform/foundation/governance/architecture/import_graph.py::scan_imports` | deep-nested-loop |

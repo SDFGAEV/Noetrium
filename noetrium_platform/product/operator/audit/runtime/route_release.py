@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from noetrium_platform.foundation.kernel.composition.release_verification import verify_source_tree_release
+from noetrium_platform.composition.release_verification import verify_source_tree_release
 
 
 def route_release(args: object):

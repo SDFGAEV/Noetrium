@@ -141,7 +141,7 @@ def package_cycles(edges: tuple[ImportEdge,...], depth: int=2) -> tuple[tuple[st
         # for all ordinary packages and synthetic tests.
         if depth == 2 and name.startswith("noetrium_platform.foundation.kernel.kernel"):
             return "noetrium_platform.foundation"
-        if depth == 2 and name.startswith("noetrium_platform.foundation.kernel.composition"):
+        if depth == 2 and name.startswith("noetrium_platform.composition"):
             return "noetrium_platform.composition"
         return ".".join(name.split(".")[:depth])
 

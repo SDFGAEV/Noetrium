@@ -8356,197 +8356,197 @@
       "size": 490
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/__init__.py",
+      "path": "noetrium_platform/composition/__init__.py",
       "sha256": "24c4183e304369d37702f106db4fba2f615a63b6919370a6b48c4714dc4526c2",
       "size": 196
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/agent_turn.py",
+      "path": "noetrium_platform/composition/agent_turn.py",
       "sha256": "0e18d108b426445e3f4b93864d37d95bb8479bf79bc886c554ff497cb50e3f2e",
       "size": 3921
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/concurrency.py",
+      "path": "noetrium_platform/composition/concurrency.py",
       "sha256": "3bbb77e3ad5c1bbf5684ce4fd51f6036e78480ee23b2f785688477c56148dc55",
       "size": 4578
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/context_action.py",
+      "path": "noetrium_platform/composition/context_action.py",
       "sha256": "81d90ef1aadb64ae23e0d63bda43444d86871b55fd98218734c2b5cdb9f5cb96",
       "size": 3055
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/diagnostic_io.py",
+      "path": "noetrium_platform/composition/diagnostic_io.py",
       "sha256": "a050631dd0d2d53a54daa8e52746c305d6704b3830017b07944af1d2d6282625",
       "size": 5589
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/execution_observability.py",
+      "path": "noetrium_platform/composition/execution_observability.py",
       "sha256": "e49e296b6c40f21d94bca97a1b3ef50cdd8ca0ef431aef79205116660157d61b",
       "size": 4572
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/experiment_runtime.py",
+      "path": "noetrium_platform/composition/experiment_runtime.py",
       "sha256": "1ed33166b8414d1a3902b90df29b8d65c1e8db491eba7a3045371bb5f1ed0cd9",
       "size": 4978
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/host_runtime_verification.py",
+      "path": "noetrium_platform/composition/host_runtime_verification.py",
       "sha256": "7e46abdd487c4c8f96372da939cf8664a08212fa839083dad71177a09cfd1f75",
       "size": 2111
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/method_telemetry_sink.py",
+      "path": "noetrium_platform/composition/method_telemetry_sink.py",
       "sha256": "4d65d46c5265cce753bb136954cb9c777f408eccd52d2b22f63288fe1555e201",
       "size": 909
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/model_deployments.py",
+      "path": "noetrium_platform/composition/model_deployments.py",
       "sha256": "11fcc0cae59fb66abe5ae085afdb5d6b8ee9173f3883ef233074ec101883ff27",
       "size": 1438
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/model_management.py",
+      "path": "noetrium_platform/composition/model_management.py",
       "sha256": "831e28281def32972b4d8d2c9cc517dc46ba16de115a3ebccdf10e8e906e7fb8",
       "size": 10093
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/model_recovery_observability.py",
+      "path": "noetrium_platform/composition/model_recovery_observability.py",
       "sha256": "52391d4ea20f82c476f161de9212b8e5e7abbe04c0658279bd0c78f7c2e74756",
       "size": 2209
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/model_requests.py",
+      "path": "noetrium_platform/composition/model_requests.py",
       "sha256": "1c616fb70d6832e53e597cad6b00778a4cf1571a179425e47031a1c58d25a8f5",
       "size": 787
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/operation.py",
+      "path": "noetrium_platform/composition/operation.py",
       "sha256": "e139e2476cefcddbc0cb4ce8aed813de2bf66d5f7601b537f57c6ac4a6795861",
       "size": 1467
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/operation_forensics.py",
+      "path": "noetrium_platform/composition/operation_forensics.py",
       "sha256": "1cda72fc263fcdd96050f22aaad4eaa8b243b53bb7985b84f63de4426d6439a7",
       "size": 6077
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/platform_meta.py",
+      "path": "noetrium_platform/composition/platform_meta.py",
       "sha256": "263ffde602cbe2031964d4e23d42a5b63c4de4fca19453c1f908702f32c0ad7e",
       "size": 5601
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/prompt_registry.py",
+      "path": "noetrium_platform/composition/prompt_registry.py",
       "sha256": "57006490af7a1a5d1f7b00b6d6a5496e7f87e60f0a23e341e5e8e9caa5ac95b5",
       "size": 1181
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/prompt_trace_observability.py",
+      "path": "noetrium_platform/composition/prompt_trace_observability.py",
       "sha256": "aff06d1527602a2059e6b35f66d48b3fd30f08a539c9c6b3708a128a57757979",
       "size": 4272
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/release_pipeline.py",
+      "path": "noetrium_platform/composition/release_pipeline.py",
       "sha256": "0e185d1bd4f488db7f64b4929ceb39bece2f7cf45c37d2c404f5c8f6190e58eb",
       "size": 315
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/release_quality.py",
+      "path": "noetrium_platform/composition/release_quality.py",
       "sha256": "60c4e9d2d8a3446437608222531b56a35565d4bfe07aaa2bdf2ded460ca6025d",
       "size": 9409
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/release_quality_worker.py",
+      "path": "noetrium_platform/composition/release_quality_worker.py",
       "sha256": "78a178cb62434c68b8bc1cdc39270b0c5ecb50480ad9ebeb29f1cd15d974eaa8",
       "size": 865
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/release_quiescence.py",
+      "path": "noetrium_platform/composition/release_quiescence.py",
       "sha256": "7b74399476e1de46c011dae8067ce818c64567bf4ba80aa205a6cdf7a2180c28",
       "size": 2668
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/release_verification.py",
+      "path": "noetrium_platform/composition/release_verification.py",
       "sha256": "a375bfc2adfec7c06be34762cdce4d143aa77df1ff2beb55e3e8cad758289366",
       "size": 667
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/runtime_observability.py",
+      "path": "noetrium_platform/composition/runtime_observability.py",
       "sha256": "e25954502d7932b7e660c85fbd6a9ab2b2e3977e9e2766516b2aab1c8ef7b129",
       "size": 3353
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/runtime_status.py",
+      "path": "noetrium_platform/composition/runtime_status.py",
       "sha256": "b48a6c213110eaa657e63f5ad905dd039daa31cf74f63ae7d7577c74c15e0b0e",
       "size": 3759
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/runtime_status_config.py",
+      "path": "noetrium_platform/composition/runtime_status_config.py",
       "sha256": "d7980f9328d2ae84cf7392f8f911d6a760ea9c80efc5c10f195f48c7220cc67f",
       "size": 1901
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/runtime_status_contracts.py",
+      "path": "noetrium_platform/composition/runtime_status_contracts.py",
       "sha256": "1fec339c90c274f1924bfea87139a13fe6270483381713a60e9d1c8e59a65681",
       "size": 1421
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/service_crash.py",
+      "path": "noetrium_platform/composition/service_crash.py",
       "sha256": "57574800c09d7d39dae5ebbd94408435c667a06a6a64ac783688e6e7a0637313",
       "size": 4447
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/service_crash_contracts.py",
+      "path": "noetrium_platform/composition/service_crash_contracts.py",
       "sha256": "0d60435e3c788cc126c79e86f926d8dd185b649acee8c96462ac61cad67493a7",
       "size": 1062
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/service_crash_failure.py",
+      "path": "noetrium_platform/composition/service_crash_failure.py",
       "sha256": "9f9dd88fc0ea6d2d4d88cffd0035e5510aeaac75c8a2a3ea5fbca200e8120cb7",
       "size": 3354
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/service_crash_store.py",
+      "path": "noetrium_platform/composition/service_crash_store.py",
       "sha256": "5f36a57692ba09a10f31d53702719be3d948ee3379dab636c8c04d99e25f529e",
       "size": 1882
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/system_catalog.py",
+      "path": "noetrium_platform/composition/system_catalog.py",
       "sha256": "2c8707f30ca3195ce80e8812aac84841890dcc1a7d32f967e18c96207af123dd",
       "size": 578
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/participants/__init__.py",
+      "path": "noetrium_platform/composition/participants/__init__.py",
       "sha256": "e7f12cb50c03263805259ca3da864aa9a8fe0dcba9edc9d9221faafd09a4df74",
       "size": 116
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/participants/agent.py",
+      "path": "noetrium_platform/composition/participants/agent.py",
       "sha256": "7293b5a72eb93549571c44420583aaa64d5aab6b3da895167625a96cf5078d54",
       "size": 3029
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/participants/base.py",
+      "path": "noetrium_platform/composition/participants/base.py",
       "sha256": "7039ee51db060c1c5769e5aa3bdd88ca4127278ad3101b6cfee0f74baf2bb4f0",
       "size": 4346
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/participants/capability.py",
+      "path": "noetrium_platform/composition/participants/capability.py",
       "sha256": "8f25479de2e6d3e2111512d32639da27de5af1c71f0e2d6eda9e163f7e8c6167",
       "size": 2411
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/participants/environment.py",
+      "path": "noetrium_platform/composition/participants/environment.py",
       "sha256": "cff0038279b5e5da7aeb88099c84cf6cd80eb14671e1cbfa7e04da68534c6c9e",
       "size": 2340
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/participants/generic.py",
+      "path": "noetrium_platform/composition/participants/generic.py",
       "sha256": "4af9b0e462f33362d848206e78b6661202fe8eeb7ae497bd5f6aa31f2c53b85c",
       "size": 2080
     },
     {
-      "path": "noetrium_platform/foundation/kernel/composition/participants/method.py",
+      "path": "noetrium_platform/composition/participants/method.py",
       "sha256": "e8199afbf422ea349a107623746485183aabb11e1dac456cf41625a7d461a1d4",
       "size": 3082
     },

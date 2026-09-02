@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-ROOT=/opt/research-platform
+ROOT=/opt/noetrium
 PACKAGE_ROOT="$(python -c 'from pathlib import Path; import noetrium_platform; print(Path(noetrium_platform.__file__).resolve().parent)')"
-STATE_DIR="${PLATFORM_STATE_DIR:-/var/lib/research-platform}"
+STATE_DIR="${PLATFORM_STATE_DIR:-/var/lib/noetrium}"
 
 die() {
   echo "container-entrypoint: $*" >&2
@@ -20,8 +20,8 @@ print(f"noetrium_platform_import={noetrium_platform.__name__}")
 print(f"noetrium_platform_version={version('noetrium')}")
 PY
   research --help >/dev/null
-  research-platform-manage --help >/dev/null
-  research-platform-architecture-gate --help >/dev/null 2>&1 || true
+  noetrium-manage --help >/dev/null
+  noetrium-architecture-gate --help >/dev/null 2>&1 || true
   mkdir -p "$STATE_DIR"
   test -w "$STATE_DIR"
   echo "platform_state_dir=$STATE_DIR writable=true"
@@ -59,7 +59,7 @@ case "${1:-doctor}" in
     ;;
   verify)
     doctor
-    exec research-platform-architecture-gate
+    exec noetrium-architecture-gate
     ;;
   shell)
     shift

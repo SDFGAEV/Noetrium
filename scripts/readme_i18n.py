@@ -138,7 +138,7 @@ def _write_state(root: Path, source_digest: str | None = None) -> None:
             status = "current" if stamp == digest else "stale"
         translations[row["locale"]] = {"status": status, "source_semantic_sha256": stamp}
     state = {
-        "schema": "agent-research-platform.readme-translation-state.v1",
+        "schema": "agent-noetrium.readme-translation-state.v1",
         "source_locale": manifest["default"],
         "source_semantic_sha256": digest,
         "translations": translations,

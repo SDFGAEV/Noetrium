@@ -490,7 +490,7 @@ def source_catalog_complexity(
     catalog_paths = (
         "noetrium_platform/foundation/governance/system_registry/catalog.json",
         # Historical Git cuts predate the semantic-plane migration.
-        "research_platform/governance/system_registry/catalog.json",
+        "noetrium_platform/governance/system_registry/catalog.json",
     )
     document_text = None
     for catalog_path in catalog_paths:

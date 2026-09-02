@@ -28,7 +28,7 @@ def _inspect(*, revision: str = SHA, wheel: str = WHEEL_SHA,
              distribution: str = DIST_SHA, user: str = "platform") -> list[dict]:
     return [{
         "Id": "sha256:" + "d" * 64,
-        "RepoDigests": ["research-platform@test-digest"],
+        "RepoDigests": ["noetrium@test-digest"],
         "Config": {
             "Labels": {
                 "org.opencontainers.image.revision": revision,
@@ -57,7 +57,7 @@ def _smoke(*, uid: int = 10001, gid: int = 10001,
 def _fake_outputs(inspect_document: list[dict], smoke: dict):
     outputs = iter((
         json.dumps(inspect_document),
-        "Python 3.12.10\nplatform_state_dir=/var/lib/research-platform writable=true\n",
+        "Python 3.12.10\nplatform_state_dir=/var/lib/noetrium writable=true\n",
         container._MARKER + json.dumps(smoke) + "\n",
     ))
     return lambda argv: (_receipt(argv), next(outputs))
@@ -83,8 +83,8 @@ def test_container_smoke_verifies_wheel_record_and_effective_identity():
     assert ".dist-info/RECORD" in script
     assert 'distribution("noetrium")' in script
     assert 'version("noetrium")' in script
-    assert 'distribution("research-platform")' not in script
-    assert 'version("research-platform")' not in script
+    assert 'distribution("noetrium")' not in script
+    assert 'version("noetrium")' not in script
     assert "hashlib.sha256(target.read_bytes()).digest()" in script
     assert "os.geteuid()" in script
     assert "os.getegid()" in script
@@ -102,7 +102,7 @@ def test_container_verifier_rejects_source_revision_drift(monkeypatch):
     monkeypatch.setattr(container, "_run", _fake_outputs(_inspect(revision="e" * 40), _smoke()))
     with pytest.raises(RuntimeError, match="source revision"):
         container.verify_container_image(
-            "research-platform:test", expected_source_sha=SHA,
+            "noetrium:test", expected_source_sha=SHA,
             expected_wheel_sha256=WHEEL_SHA,
             expected_distribution_evidence_sha256=DIST_SHA,
         )
@@ -111,7 +111,7 @@ def test_container_verifier_rejects_forged_wheel_label(monkeypatch):
     monkeypatch.setattr(container, "_run", _fake_outputs(_inspect(wheel="f" * 64), _smoke()))
     with pytest.raises(RuntimeError, match="wheel digest label"):
         container.verify_container_image(
-            "research-platform:test", expected_source_sha=SHA,
+            "noetrium:test", expected_source_sha=SHA,
             expected_wheel_sha256=WHEEL_SHA,
             expected_distribution_evidence_sha256=DIST_SHA,
         )
@@ -123,7 +123,7 @@ def test_container_verifier_rejects_distribution_receipt_drift(monkeypatch):
     )
     with pytest.raises(RuntimeError, match="distribution evidence label"):
         container.verify_container_image(
-            "research-platform:test", expected_source_sha=SHA,
+            "noetrium:test", expected_source_sha=SHA,
             expected_wheel_sha256=WHEEL_SHA,
             expected_distribution_evidence_sha256=DIST_SHA,
         )
@@ -133,7 +133,7 @@ def test_container_verifier_rejects_declared_root_runtime_user(monkeypatch):
     monkeypatch.setattr(container, "_run", _fake_outputs(_inspect(user="root"), _smoke()))
     with pytest.raises(RuntimeError, match="declare root"):
         container.verify_container_image(
-            "research-platform:test", expected_source_sha=SHA,
+            "noetrium:test", expected_source_sha=SHA,
             expected_wheel_sha256=WHEEL_SHA,
             expected_distribution_evidence_sha256=DIST_SHA,
         )
@@ -142,7 +142,7 @@ def test_container_verifier_rejects_effective_root_even_when_config_user_is_plat
     monkeypatch.setattr(container, "_run", _fake_outputs(_inspect(), _smoke(uid=0, gid=0)))
     with pytest.raises(RuntimeError, match="effective uid/gid"):
         container.verify_container_image(
-            "research-platform:test", expected_source_sha=SHA,
+            "noetrium:test", expected_source_sha=SHA,
             expected_wheel_sha256=WHEEL_SHA,
             expected_distribution_evidence_sha256=DIST_SHA,
         )
@@ -152,7 +152,7 @@ def test_container_verifier_rejects_unverified_installed_record(monkeypatch):
     monkeypatch.setattr(container, "_run", _fake_outputs(_inspect(), _smoke(verified=0)))
     with pytest.raises(RuntimeError, match="RECORD"):
         container.verify_container_image(
-            "research-platform:test", expected_source_sha=SHA,
+            "noetrium:test", expected_source_sha=SHA,
             expected_wheel_sha256=WHEEL_SHA,
             expected_distribution_evidence_sha256=DIST_SHA,
         )
@@ -161,11 +161,11 @@ def test_container_verifier_rejects_unverified_installed_record(monkeypatch):
 def test_container_verifier_returns_distribution_bound_receipt(monkeypatch):
     monkeypatch.setattr(container, "_run", _fake_outputs(_inspect(), _smoke()))
     result = container.verify_container_image(
-        "research-platform:test", expected_source_sha=SHA,
+        "noetrium:test", expected_source_sha=SHA,
         expected_wheel_sha256=WHEEL_SHA,
         expected_distribution_evidence_sha256=DIST_SHA,
     )
-    assert result.schema == "research-platform.container-verification.v3"
+    assert result.schema == "noetrium.container-verification.v3"
     assert result.qualification_scope == "operator-smoke-only"
     assert result.npe_verified is False
     assert result.operator_smoke_actions == ("run", "inspect", "stop", "resume", "reconcile", "evidence")
@@ -188,7 +188,7 @@ def _write_distribution_evidence(
         "build_command": {
             "source_sha": SHA,
             "cwd_mode": "external-git-object-database",
-            "source_materialization_schema": "research-platform.git-object-materialization.v1",
+            "source_materialization_schema": "noetrium.git-object-materialization.v1",
             "source_materialization_sha256": "9" * 64,
             "source_materialization_file_count": 3000,
         },

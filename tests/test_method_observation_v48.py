@@ -1,4 +1,4 @@
-from noetrium_platform.foundation.kernel.composition.method_telemetry_sink import RawLakeMethodObservationSink
+from noetrium_platform.composition.method_telemetry_sink import RawLakeMethodObservationSink
 from pathlib import Path
 import json, tempfile, unittest
 

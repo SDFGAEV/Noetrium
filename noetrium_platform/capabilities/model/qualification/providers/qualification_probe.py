@@ -170,7 +170,7 @@ class LocalDeploymentCapabilityProbe(DeploymentCapabilityProbePort):
         # their immutable index pages and metadata can be shared safely within
         # one qualification request. The cache is ephemeral and scoped to this
         # request, so it cannot turn stale network content into persisted fact.
-        with tempfile.TemporaryDirectory(prefix="research-platform-qualification-") as raw_cache_dir:
+        with tempfile.TemporaryDirectory(prefix="noetrium-qualification-") as raw_cache_dir:
             cache_dir = Path(raw_cache_dir)
             for package in sorted(packages):
                 for index_url in index_urls:
