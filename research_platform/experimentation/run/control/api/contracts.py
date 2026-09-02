@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, ClassVar, Protocol
+
+from research_platform.platform.kernel import canonical_digest
 
 from research_platform.execution.decision.cycle_identity import DecisionCycleIdentity
 from research_platform.experimentation.run.identity.api import RunIdentity
@@ -251,6 +253,29 @@ class RunOutcomeProjection:
 
 
 @dataclass(frozen=True, slots=True)
+class RunControlReceiptReference:
+    """Stable semantic reference for one complete RunControlReceipt."""
+
+    SCHEMA_VERSION: ClassVar[str] = "run-control.receipt.v1"
+    schema_version: str
+    run_id: str
+    record_sequence: int
+    receipt_digest: str
+
+    def __post_init__(self) -> None:
+        if self.schema_version != self.SCHEMA_VERSION:
+            raise ValueError("run control receipt reference schema is unsupported")
+        _require_text(self.run_id, "run control receipt reference run_id")
+        if type(self.record_sequence) is not int or self.record_sequence <= 0:
+            raise ValueError("run control receipt reference sequence must be positive")
+        _require_sha256(self.receipt_digest, "run control receipt reference digest")
+
+    @property
+    def key(self) -> str:
+        return f"{self.run_id}:{self.record_sequence}:{self.receipt_digest}"
+
+
+@dataclass(frozen=True, slots=True)
 class RunControlReceipt:
     action: RunControlAction
     run_id: str
@@ -311,6 +336,39 @@ class RunControlReceipt:
         event = self.control_event_receipt
         if event.run_id != self.run_id or event.control_generation != self.control_generation or event.phase is not self.phase:
             raise ValueError("run control receipt does not match its authoritative control event")
+
+    @property
+    def schema_version(self) -> str:
+        return RunControlReceiptReference.SCHEMA_VERSION
+
+    @property
+    def receipt_digest(self) -> str:
+        return canonical_digest({
+            "schema_version": self.schema_version,
+            "action": self.action.value,
+            "run_id": self.run_id,
+            "run_identity_digest": self.run_identity_digest,
+            "run_manifest_digest": self.run_manifest_digest,
+            "phase": self.phase.value,
+            "control_generation": self.control_generation,
+            "latest_checkpoint_id": self.latest_checkpoint_id,
+            "checkpoint_manifest_digest": self.checkpoint_manifest_digest,
+            "evidence_bundle_receipt": (
+                self.evidence_bundle_receipt.digest
+                if self.evidence_bundle_receipt is not None else None
+            ),
+            "outcomes": self.outcomes,
+            "control_event_receipt": self.control_event_receipt,
+        })
+
+    @property
+    def reference(self) -> RunControlReceiptReference:
+        return RunControlReceiptReference(
+            self.schema_version,
+            self.run_id,
+            self.control_event_receipt.record_sequence,
+            self.receipt_digest,
+        )
 
 
 @dataclass(frozen=True, slots=True)

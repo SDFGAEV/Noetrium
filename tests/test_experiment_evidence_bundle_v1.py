@@ -327,6 +327,9 @@ def test_evidence_bundle_receipt_preserves_typed_finalized_manifest_identity() -
     assert receipt.manifest_ref == "evidence/episode-1/manifest.json"
     assert receipt.manifest_sha256 == SHA_A
     assert receipt.manifest_artifact_receipt is manifest_artifact
+    assert len(receipt.digest) == 64
+    same_receipt = EvidenceBundleReceipt(**valid)
+    assert receipt.digest == same_receipt.digest
     with pytest.raises(ValueError):
         EvidenceBundleReceipt(**{**valid, "bundle_id": "../escape"})
     with pytest.raises(ValueError):

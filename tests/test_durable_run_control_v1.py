@@ -245,6 +245,9 @@ def test_run_inspect_restart_reconstructs_identical_authority(tmp_path: Path) ->
     run = first.execute(RunControlRequest(RunControlAction.RUN, _target(fx, 0)))
     assert run.phase is RunControlPhase.RUNNING
     assert run.control_generation == 1
+    assert run.schema_version == "run-control.receipt.v1"
+    assert len(run.receipt_digest) == 64
+    assert run.reference.receipt_digest == run.receipt_digest
 
     restarted = _controller(tmp_path, fx)
     inspected = restarted.execute(RunControlRequest(RunControlAction.INSPECT, _target(fx, 1)))

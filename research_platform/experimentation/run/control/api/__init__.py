@@ -15,6 +15,7 @@ from .contracts import (
     RunControlProjection,
     RunControlPort,
     RunControlReceipt,
+    RunControlReceiptReference,
     RunControlReconciliationPort,
     RunControlRequest,
     RunControlStaleGeneration,

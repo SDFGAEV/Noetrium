@@ -208,6 +208,17 @@ class EvidenceBundleReceipt:
     def manifest_sha256(self) -> str:
         return self.manifest_artifact_receipt.content_sha256
 
+    @property
+    def digest(self) -> str:
+        """Digest of the complete finalized evidence receipt identity."""
+        return canonical_digest({
+            "schema_version": EVIDENCE_BUNDLE_SCHEMA_VERSION,
+            "bundle_id": self.bundle_id,
+            "run_id": self.run_id,
+            "run_manifest_digest": self.run_manifest_digest,
+            "manifest_artifact_receipt": self.manifest_artifact_receipt,
+        })
+
 
 
 __all__ = [

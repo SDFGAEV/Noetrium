@@ -69,7 +69,7 @@ This closes the ROLE 06 consumer side of `CSR-06-GENERIC-RUN-LIFECYCLE-OPERATOR-
 
 ## Section 42 receipt-authority dependency
 
-The common product envelope must eventually preserve producer-owned receipt contract identity/version and an immutable receipt/content reference; ROLE06 must not invent those semantics from a status string. The current ROLE03 `RunControlReceipt` exposes a typed authoritative `RunControlEventReceipt.event_digest` and independent outcome projections, but it does not yet expose a producer-owned semantic contract version or a digest/reference for the complete receipt. Until that producer handoff lands, `ResearchResult` remains a product projection and is **not** treated as a Section-42 claim-grade receipt envelope. The dependency is tracked by `CSR-06-ROLE03-URE-RUN-CONTROL-RECEIPT-IDENTITY-20260831`.
+The common product envelope must preserve producer-owned receipt contract identity/version and an immutable receipt/content reference; ROLE06 must not invent those semantics from a status string. ROLE03 `RunControlReceipt` now exposes the typed schema version `run-control.receipt.v1`, a complete `receipt_digest`, and a stable `RunControlReceiptReference` bound to the authoritative event sequence. The receipt still does not claim task or scientific validity. `ResearchResult` remains a product projection until the ROLE03 read-source adapter is consumed by ROLE05.
 
 ROLE06 also waits for the ROLE01 PSC-03 neutral diagnostic metadata envelope instead of creating a competing diagnostic taxonomy.
 
