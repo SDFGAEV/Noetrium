@@ -11,6 +11,7 @@ from .contracts import (
     MultiAgentRunResult,
     MultiAgentRunStatus,
 )
+from .journal import SQLiteMultiAgentJournal
 from .transport import (
     MultiAgentMembershipPort, MultiAgentTransportPort,
     TransportBackedMultiAgentCoordinator,
@@ -41,4 +42,5 @@ __all__ = [
     "MultiAgentMembershipPort",
     "MultiAgentTransportPort",
     "TransportBackedMultiAgentCoordinator",
+    "SQLiteMultiAgentJournal",
 ]

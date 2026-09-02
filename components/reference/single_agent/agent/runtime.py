@@ -129,12 +129,10 @@ class PlatformCapabilityToolPort:
             self._content(result.payload),
             True,
             capability_id=capability_id,
-            result_digest=result.digest(),
-            artifacts=result.artifacts,
-            effect_receipt=result.effect,
+            capability_result=result,
         )
 
-    def invoke(self, name: str, arguments: tuple[tuple[str, JsonValue], ...]) -> ReferenceAgentObservation:
+    def invoke(self, name: str, arguments: Mapping[str, JsonValue]) -> ReferenceAgentObservation:
         action = ReferenceAgentAction(ReferenceAgentActionKind.TOOL, name, arguments)
         return self.invoke_action(action)
 class JsonlReferenceAgentProgress(ReferenceAgentProgressPort):

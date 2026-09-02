@@ -68,6 +68,7 @@ class ReferenceReActMethod:
             result_digest=observation.result_digest,
             artifacts=observation.artifacts,
             effect_receipt=observation.effect_receipt,
+            capability_result=observation.capability_result,
         )
 
     def _failed(
@@ -117,7 +118,13 @@ class ReferenceReActMethod:
             except Exception as exc:
                 return self._failed(task, state, context, exc, observations)
             if type(decision) is not ReferenceAgentDecision:
-                raise TypeError("agent policy must return ReferenceAgentDecision")
+                return self._failed(
+                    task,
+                    state,
+                    context,
+                    TypeError("agent policy must return ReferenceAgentDecision"),
+                    observations,
+                )
             action = decision.action
             reasoning = decision.reasoning or action.content
             messages = state.messages + (ReferenceAgentMessage("assistant", reasoning),)
@@ -127,7 +134,20 @@ class ReferenceReActMethod:
                 payload={"kind": action.kind.value, "name": action.name, "arguments": action.arguments, "reasoning": reasoning},
             ), context)
             if action.kind is ReferenceAgentActionKind.FINAL:
+                if not action.content.strip():
+                    return self._failed(
+                        task,
+                        state,
+                        context,
+                        ValueError("final agent action requires non-empty content"),
+                        observations,
+                    )
                 final_state = ReferenceAgentState(task, messages=messages, scratchpad=state.scratchpad, step=state.step + 1)
+                self._emit(ReferenceAgentEvent(
+                    "completed", context.run_id if context else "local", final_state.step,
+                    final_state.digest, action_digest=action.action_digest,
+                    payload={"answer": action.content},
+                ), context)
                 self._checkpoint(final_state, context)
                 return ReferenceAgentRunResult(ReferenceAgentStatus.COMPLETED, action.content, final_state, tool_observations=tuple(observations))
             if action.kind is ReferenceAgentActionKind.TOOL:
@@ -168,10 +188,22 @@ class ReferenceReActMethod:
                 )
                 self._checkpoint(state, context)
                 continue
-            raise RuntimeError("unsupported ReAct action kind")
+            return self._failed(
+                task,
+                state,
+                context,
+                RuntimeError("unsupported ReAct action kind"),
+                observations,
+            )
+        error = f"ReAct reached max_steps={max_steps}"
+        self._emit(ReferenceAgentEvent(
+            "max_steps", context.run_id if context else "local", state.step,
+            state.digest, payload={"max_steps": max_steps},
+        ), context)
+        self._checkpoint(state, context)
         return ReferenceAgentRunResult(
             ReferenceAgentStatus.MAX_STEPS, None, state,
-            error=f"ReAct reached max_steps={max_steps}",
+            error=error,
             tool_observations=tuple(observations),
         )
 
@@ -204,23 +236,129 @@ class ReferenceReflexionMethod:
             if latest.status is ReferenceAgentStatus.COMPLETED:
                 return latest
             reflection = self._reflector.reflect(latest.state, latest)
-            reflected_task = f"{task}\\nReflection:\\n{reflection.content}"
+            reflected_task = f"{task}\nReflection:\n{reflection.content}"
             latest = self._base.run(reflected_task, max_steps=max_steps, context=context)
         return latest
 
 
 class ReferencePlanAndSolveMethod:
-    """Two-phase planning/solving method with a replaceable solver."""
+    """Two-phase planning/solving method with durable lifecycle hooks."""
 
-    def __init__(self, planner: ReferenceAgentPlannerPort, solver: ReferenceAgentSolverPort) -> None:
+    def __init__(
+        self,
+        planner: ReferenceAgentPlannerPort,
+        solver: ReferenceAgentSolverPort,
+        *,
+        progress: ReferenceAgentProgressPort | None = None,
+    ) -> None:
+        if not callable(getattr(planner, "plan", None)):
+            raise TypeError("Plan-and-Solve planner must implement plan()")
+        if not callable(getattr(solver, "solve", None)):
+            raise TypeError("Plan-and-Solve solver must implement solve()")
         self._planner = planner
         self._solver = solver
+        self._progress = progress or NullReferenceAgentProgress()
 
-    def run(self, task: str) -> ReferenceAgentRunResult:
-        plan = self._planner.plan(task)
-        if type(plan) is not tuple or not plan or any(type(step) is not str or not step.strip() for step in plan):
-            raise ValueError("Plan-and-Solve planner must return non-empty string steps")
-        return self._solver.solve(task, plan)
+    def _checkpoint(self, state: ReferenceAgentState, context: ExecutionContext | None) -> None:
+        if context is not None:
+            self._progress.checkpoint(state, context=context)
+
+    def _emit(self, event: ReferenceAgentEvent, context: ExecutionContext | None) -> None:
+        if context is not None:
+            self._progress.emit(event, context=context)
+
+    def _failed(
+        self,
+        task: str,
+        state: ReferenceAgentState,
+        context: ExecutionContext | None,
+        error: Exception,
+    ) -> ReferenceAgentRunResult:
+        message = f"{type(error).__name__}: {error}"
+        self._emit(
+            ReferenceAgentEvent(
+                "failed",
+                context.run_id if context else "local",
+                state.step,
+                state.digest,
+                payload={"error": message},
+            ),
+            context,
+        )
+        self._checkpoint(state, context)
+        return ReferenceAgentRunResult(
+            ReferenceAgentStatus.FAILED,
+            None,
+            state,
+            error=message,
+        )
+
+    def run(
+        self,
+        task: str,
+        *,
+        context: ExecutionContext | None = None,
+    ) -> ReferenceAgentRunResult:
+        if context is not None and not isinstance(context, ExecutionContext):
+            raise TypeError("Plan-and-Solve context must be an ExecutionContext")
+        state = ReferenceAgentState(
+            task,
+            messages=(ReferenceAgentMessage("user", task),),
+        )
+        self._checkpoint(state, context)
+        run_id = context.run_id if context else "local"
+        self._emit(ReferenceAgentEvent("plan_started", run_id, 0, state.digest), context)
+        try:
+            plan = self._planner.plan(task)
+            if (
+                type(plan) is not tuple
+                or not plan
+                or any(type(step) is not str or not step.strip() for step in plan)
+            ):
+                raise ValueError(
+                    "Plan-and-Solve planner must return non-empty string steps"
+                )
+            planned_state = ReferenceAgentState(
+                task,
+                messages=state.messages
+                + (ReferenceAgentMessage("planner", "\n".join(plan)),),
+                scratchpad=tuple(ReferenceAgentMessage("plan", step) for step in plan),
+                step=1,
+            )
+            self._emit(
+                ReferenceAgentEvent(
+                    "plan_completed",
+                    run_id,
+                    planned_state.step,
+                    planned_state.digest,
+                    payload={"steps": plan},
+                ),
+                context,
+            )
+            self._checkpoint(planned_state, context)
+            state = planned_state
+            result = self._solver.solve(task, plan)
+            if type(result) is not ReferenceAgentRunResult:
+                raise TypeError("Plan-and-Solve solver must return ReferenceAgentRunResult")
+            if result.state.task != task:
+                raise ValueError("Plan-and-Solve solver changed the task identity")
+            self._emit(
+                ReferenceAgentEvent(
+                    "solve_completed",
+                    run_id,
+                    result.state.step,
+                    result.state.digest,
+                    payload={
+                        "status": result.status.value,
+                        "answer": result.answer,
+                    },
+                ),
+                context,
+            )
+            self._checkpoint(result.state, context)
+            return result
+        except Exception as exc:
+            return self._failed(task, state, context, exc)
 
 
 __all__ = ["ReferencePlanAndSolveMethod", "ReferenceReActMethod", "ReferenceReflexionMethod"]

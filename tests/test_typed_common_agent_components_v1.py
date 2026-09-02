@@ -5,9 +5,14 @@ from components.reference.single_agent.agent import (
     ReferenceAgentActionKind,
     ReferenceAgentDecision,
     ReferenceAgentMessage,
+    ReferenceAgentRunResult,
+    ReferenceAgentState,
     ReferenceAgentStatus,
+    PlatformCapabilityToolPort,
+    ReferencePlanAndSolveMethod,
     ReferenceReActMethod,
     ReferenceToolRegistryPort,
+    JsonlReferenceAgentProgress,
 )
 from components.reference.single_agent.memory import MemoryItem, VectorMemoryStore, WorkingMemory
 from orchestration.multi_agent import (
@@ -35,7 +40,7 @@ class _Policy:
                 ReferenceAgentAction(
                     ReferenceAgentActionKind.TOOL,
                     "echo",
-                    (("value", "observed"),),
+                    {"value": "observed"},
                     "use echo",
                 )
             )
@@ -242,3 +247,135 @@ def test_multi_agent_cancellation_leaves_a_resumable_checkpoint() -> None:
     assert result.terminated is False
     assert result.checkpoint is not None
     assert result.checkpoint.pending == (initial,)
+
+
+def test_action_arguments_are_mapping_only_and_digest_stable() -> None:
+    first = ReferenceAgentAction(
+        ReferenceAgentActionKind.TOOL,
+        "search",
+        {"query": "agent", "limit": 3},
+    )
+    second = ReferenceAgentAction.from_mapping(
+        ReferenceAgentActionKind.TOOL,
+        "search",
+        {"limit": 3, "query": "agent"},
+    )
+    assert first.arguments_mapping == {"query": "agent", "limit": 3}
+    assert first.action_digest == second.action_digest
+
+
+def test_plan_and_solve_emits_durable_lifecycle() -> None:
+    from tempfile import TemporaryDirectory
+    from pathlib import Path
+    from noetrium_platform.foundation.kernel.kernel import ExecutionContext
+
+    class Planner:
+        def plan(self, task):
+            return ("inspect", f"answer {task}")
+
+    class Solver:
+        def solve(self, task, plan):
+            return ReferenceAgentRunResult(
+                ReferenceAgentStatus.COMPLETED,
+                "done",
+                ReferenceAgentState(
+                    task,
+                    messages=(ReferenceAgentMessage("solver", "done"),),
+                    scratchpad=tuple(ReferenceAgentMessage("plan", step) for step in plan),
+                    step=2,
+                ),
+            )
+
+    with TemporaryDirectory() as directory:
+        progress = JsonlReferenceAgentProgress(Path(directory) / "agent.jsonl")
+        context = ExecutionContext("run-1", "trace-1", "span-1")
+        result = ReferencePlanAndSolveMethod(
+            Planner(), Solver(), progress=progress
+        ).run("task", context=context)
+        assert result.status is ReferenceAgentStatus.COMPLETED
+        restored = progress.latest_state("run-1")
+        assert restored is not None
+        assert restored.task == "task"
+        assert restored.step == 2
+
+
+def test_graph_checkpoint_history_survives_restart_and_supports_time_travel() -> None:
+    from pathlib import Path
+    from tempfile import TemporaryDirectory
+    from components.reference.graph import SQLiteGraphCheckpointer, StateGraph
+
+    with TemporaryDirectory() as directory:
+        path = Path(directory) / "graph.sqlite3"
+        checkpointer = SQLiteGraphCheckpointer(path)
+        try:
+            graph = StateGraph()
+            graph.add_node("increment", lambda state: {"count": state.get("count", 0) + 1})
+            graph.set_entry_point("increment")
+            compiled = graph.compile(checkpointer=checkpointer)
+            compiled.invoke({"count": 0}, thread_id="thread-1")
+            history = compiled.history("thread-1")
+            assert len(history) == 2
+            first = history[0]
+        finally:
+            checkpointer.close()
+
+        reopened = SQLiteGraphCheckpointer(path)
+        try:
+            assert reopened.load_checkpoint(first.checkpoint_id) == first
+            assert len(reopened.history("thread-1")) == 2
+        finally:
+            reopened.close()
+
+
+def test_platform_capability_observation_keeps_typed_result() -> None:
+    from noetrium_platform.capabilities.participant.capability.api import (
+        CapabilityDescriptor,
+        CapabilityResult,
+    )
+    from noetrium_platform.foundation.kernel.kernel import ExecutionContext
+
+    class Capabilities:
+        def describe(self, capability_id):
+            return CapabilityDescriptor(capability_id, "v1", "request", "result")
+
+        def invoke(self, request):
+            return CapabilityResult(request.capability_id, {"ok": True})
+
+    observation = PlatformCapabilityToolPort(
+        Capabilities(), ExecutionContext("run", "trace", "span")
+    ).invoke("echo", {"value": 1})
+    assert isinstance(observation.capability_result, CapabilityResult)
+    assert observation.result_digest == observation.capability_result.digest()
+    assert observation.capability_id == "echo"
+
+
+def test_multi_agent_sqlite_journal_resumes_after_restart() -> None:
+    from tempfile import TemporaryDirectory
+    from pathlib import Path
+    from orchestration.multi_agent import SQLiteMultiAgentJournal
+
+    topology = CommunicationTopology(
+        ("manager", "worker"),
+        (CommunicationEdge("manager", "worker"), CommunicationEdge("worker", "manager")),
+    )
+    initial = MultiAgentMessage("manager", "worker", "task", 0)
+    with TemporaryDirectory() as directory:
+        path = Path(directory) / "multi-agent.sqlite3"
+        journal = SQLiteMultiAgentJournal(path)
+        first = MultiAgentCoordinator(
+            topology,
+            {"manager": _Node("manager"), "worker": _Node("worker")},
+            journal=journal,
+        )
+        paused = first.run(initial, max_rounds=4, max_messages=1)
+        assert paused.status is MultiAgentRunStatus.MAX_MESSAGES
+        journal.close()
+
+        reopened = SQLiteMultiAgentJournal(path)
+        resumed = MultiAgentCoordinator(
+            topology,
+            {"manager": _Node("manager"), "worker": _Node("worker")},
+            journal=reopened,
+        ).resume_from_journal("default", max_rounds=4)
+        assert resumed.status is MultiAgentRunStatus.COMPLETED
+        reopened.close()

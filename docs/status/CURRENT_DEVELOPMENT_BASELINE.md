@@ -1,6 +1,6 @@
 # Current Development Baseline
 
-**Baseline date:** 2026-08-28
+**Baseline date:** 2026-09-02
 **Platform version:** 0.44.0
 **Repository role:** reusable upstream platform
 
@@ -8,20 +8,19 @@ This document is the current development truth for the generic Noetrium reposito
 
 ## Repository boundary
 
-The reusable package boundary is `noetrium_platform/` plus the dependency-light `noetrium/` reference-component namespace. Packaging publishes both `noetrium_platform*` and `noetrium*`; the upstream must import, test, build, release, and run its generic doctor without any `projects/` tree or project-owned environment/provider package. Approved bundled providers are governed explicitly by the repository-boundary allowlist.
+The reusable package boundary is `noetrium_platform/` plus the root-level `components/` and `orchestration/` extension layers. The `noetrium/` package contains only narrow contracts and platform facades. Packaging publishes `noetrium_platform*`, `components*`, `orchestration*`, and `noetrium*`; the upstream must import, test, build, release, and run its generic doctor without any `projects/` tree or project-owned environment/provider package. Approved bundled providers are governed explicitly by the repository-boundary allowlist.
 
 The enforceable split contract is [`../architecture/DOWNSTREAM_PROJECT_REPOSITORY_CONTRACT.md`](../architecture/DOWNSTREAM_PROJECT_REPOSITORY_CONTRACT.md) and `scripts/platform_repository_boundary.py`.
 
 ## Platform ownership
 
-The upstream owns generic contracts and runtime systems for experiment identity, participants, agents, methods, environments, models, prompts, services, processes, servers, artifacts, storage, recovery, observability, governance, testing, and release control. The `noetrium/` namespace provides reusable reference methods, durable memory, framework bridges, transport-backed coordination, and model-endpoint adapters; it does not own platform authority or project semantics.
+The upstream owns generic contracts and runtime systems for experiment identity, participants, agents, methods, environments, models, prompts, services, processes, servers, artifacts, storage, recovery, observability, governance, testing, and release control. The root `components/` and `orchestration/` layers provide reusable reference methods, durable memory, framework bridges, transport-backed coordination, and model-endpoint adapters; `noetrium/` remains limited to narrow contracts and platform facades and does not own platform authority or project semantics.
 
 Concrete downstream behavior binds through public contracts and may add scientific methods, benchmark adapters, environment providers, model profiles, deployment inventory, application CLIs, and result/evidence interpretation without becoming an upstream dependency.
 
 ## Current source validation
 
-The frozen source-validation pass on 2026-08-28 completed with **1083 passed, 6 skipped, 0 failed, 0 errors, and 4 subtests passed**.
-Algorithm governance scanned **5732 symbols / 348 candidates**. Concurrency governance scanned **286 hotspots / 1 finding / 0 blocker debt**. Performance governance scanned **76 hotspots / 88 findings / 0 blocker debt**. Architecture and test-system source gates pass.
+The current component-boundary validation on 2026-09-02 completed with **18 passed, 0 failed, and 0 errors** across public-import, agent-component, capability-bridge, graph-recovery, and multi-agent-journal tests. Public contract audit reported **0 legacy paths, 0 initializer violations, and 0 weak contracts**; architecture import audit reported **4889 edges, 0 violations, and 0 cycles**. The larger source-validation figures below are retained as historical evidence for the pre-component-expansion tree.
 
 The three source inventories explicitly exclude `.server-state`, so local controller state, audit clones, transfer staging, and forensic scratch files cannot contaminate platform governance evidence.
 

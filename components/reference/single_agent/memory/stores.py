@@ -112,7 +112,7 @@ class EpisodicMemoryStore:
                 raise ValueError("episodic memory identity collision")
             self._items[key] = item
             if self._persistence is not None:
-                self._persistence.replace("episodic", tuple(self._items.values()))
+                self._persistence.upsert("episodic", item)
             return item
 
     def items(self) -> tuple[MemoryItem, ...]:
@@ -185,7 +185,7 @@ class VectorMemoryStore:
             self._items[key] = item
             self._norms[key] = math.sqrt(sum(float(value) ** 2 for value in item.embedding))
             if self._persistence is not None:
-                self._persistence.replace("vector", tuple(self._items.values()))
+                self._persistence.upsert("vector", item)
             return item
 
     def upsert_text(

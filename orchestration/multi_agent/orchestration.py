@@ -36,9 +36,9 @@ class MultiAgentCoordinator:
             raise ValueError("coordinator nodes must exactly match topology")
         if journal is not None and any(
             not callable(getattr(journal, name, None))
-            for name in ("record", "checkpoint")
+            for name in ("record", "checkpoint", "latest_checkpoint")
         ):
-            raise TypeError("multi-agent journal must implement record/checkpoint")
+            raise TypeError("multi-agent journal must implement record/checkpoint/latest_checkpoint")
         self._topology = topology
         self._nodes = dict(nodes)
         self._journal = journal
@@ -115,6 +115,28 @@ class MultiAgentCoordinator:
             delivered_ids=checkpoint.delivered_message_ids,
             delivered_messages=checkpoint.delivered_messages,
             start_round=checkpoint.round,
+            max_rounds=max_rounds,
+            max_messages=max_messages,
+            cancellation=cancellation,
+        )
+
+    def resume_from_journal(
+        self,
+        conversation_id: str,
+        *,
+        max_rounds: int,
+        max_messages: int = 10_000,
+        cancellation: MultiAgentCancellationPort | None = None,
+    ) -> MultiAgentRunResult:
+        if type(conversation_id) is not str or not conversation_id.strip():
+            raise ValueError("multi-agent conversation_id must be non-empty")
+        if self._journal is None:
+            raise RuntimeError("multi-agent journal is required for journal resume")
+        checkpoint = self._journal.latest_checkpoint(conversation_id)
+        if checkpoint is None:
+            raise KeyError(f"no checkpoint for conversation: {conversation_id}")
+        return self.resume(
+            checkpoint,
             max_rounds=max_rounds,
             max_messages=max_messages,
             cancellation=cancellation,

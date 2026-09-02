@@ -43,6 +43,6 @@ the same public host, or replace the full loop without editing Platform source.
 A novel component should remain downstream when it is scientific novelty; only
 generic reusable mechanisms belong in components.
 
-These deterministic reference components provide in-memory defaults plus crash-durable SQLite adapters. A
+These deterministic reference components provide in-memory defaults plus crash-durable SQLite adapters. Agent progress is an append-only event/checkpoint stream; graph execution exposes checkpoint history and exact-snapshot replay; multi-agent coordination can persist its transcript and resume from a SQLite journal. A
 claim-grade project binds Platform artifact/evidence ports around them
 and records the exact component/source/configuration identities.

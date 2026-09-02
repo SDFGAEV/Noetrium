@@ -252,6 +252,8 @@ class MultiAgentJournalPort(Protocol):
 
     def checkpoint(self, checkpoint: MultiAgentCheckpoint) -> None: ...
 
+    def latest_checkpoint(self, conversation_id: str) -> MultiAgentCheckpoint | None: ...
+
 
 @dataclass(frozen=True, slots=True)
 class MultiAgentRunResult:

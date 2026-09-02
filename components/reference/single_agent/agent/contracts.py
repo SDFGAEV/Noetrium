@@ -12,6 +12,7 @@ from enum import StrEnum
 from typing import Protocol
 
 from noetrium.contracts.json import JsonValue, canonical_digest, freeze_json
+from noetrium_platform.capabilities.participant.capability.api import CapabilityResult
 from noetrium_platform.foundation.kernel.kernel import EffectReceipt
 
 
@@ -69,7 +70,7 @@ class ReferenceAgentState:
 class ReferenceAgentAction:
     kind: ReferenceAgentActionKind
     name: str
-    arguments: Mapping[str, JsonValue] | tuple[tuple[str, JsonValue], ...] = ()
+    arguments: Mapping[str, JsonValue] = field(default_factory=dict)
     content: str = ""
     action_digest: str = field(init=False)
 
@@ -78,23 +79,18 @@ class ReferenceAgentAction:
             raise ValueError("agent action kind/name are invalid")
         if type(self.content) is not str:
             raise TypeError("agent action content must be string")
-        raw_arguments = (
-            tuple(self.arguments.items())
-            if isinstance(self.arguments, Mapping)
-            else self.arguments
-        )
-        if type(raw_arguments) is not tuple or any(
-            type(row) is not tuple or len(row) != 2 for row in raw_arguments
-        ):
-            raise TypeError("agent action arguments must be a mapping or key/value tuples")
+        if not isinstance(self.arguments, Mapping):
+            raise TypeError("agent action arguments must be a mapping")
+        raw_arguments = tuple(self.arguments.items())
         keys = [row[0] for row in raw_arguments]
         if any(type(key) is not str or not key.strip() for key in keys) or len(keys) != len(set(keys)):
             raise ValueError("agent action argument keys must be unique non-empty strings")
-        normalized_arguments = tuple(
-            sorted((key, freeze_json(value)) for key, value in raw_arguments)
-        )
-        object.__setattr__(self, "arguments", normalized_arguments)
-        object.__setattr__(self, "action_digest", canonical_digest({"kind": self.kind.value, "name": self.name, "arguments": normalized_arguments, "content": self.content}))
+        normalized_arguments = {
+            key: freeze_json(value) for key, value in raw_arguments
+        }
+        frozen_arguments = freeze_json(normalized_arguments)
+        object.__setattr__(self, "arguments", frozen_arguments)
+        object.__setattr__(self, "action_digest", canonical_digest({"kind": self.kind.value, "name": self.name, "arguments": frozen_arguments, "content": self.content}))
 
     @classmethod
     def from_mapping(
@@ -108,10 +104,10 @@ class ReferenceAgentAction:
         values = {} if arguments is None else arguments
         if not isinstance(values, Mapping):
             raise TypeError("agent action arguments must be a mapping")
-        return cls(kind, name, tuple(sorted((key, freeze_json(value)) for key, value in values.items())), content)
+        return cls(kind, name, values, content)
 
     def argument_values(self) -> dict[str, JsonValue]:
-        return {key: freeze_json(value) for key, value in self.arguments}
+        return dict(self.arguments)
 
     @property
     def arguments_mapping(self) -> Mapping[str, JsonValue]:
@@ -127,6 +123,7 @@ class ReferenceAgentObservation:
     result_digest: str | None = None
     artifacts: tuple[str, ...] = ()
     effect_receipt: EffectReceipt | None = None
+    capability_result: CapabilityResult | None = None
     observation_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -142,6 +139,22 @@ class ReferenceAgentObservation:
             raise TypeError("agent observation artifacts must be non-empty strings")
         if self.effect_receipt is not None and not isinstance(self.effect_receipt, EffectReceipt):
             raise TypeError("agent observation effect_receipt must be EffectReceipt")
+        if self.capability_result is not None:
+            if not isinstance(self.capability_result, CapabilityResult):
+                raise TypeError("agent observation capability_result must be CapabilityResult")
+            if self.capability_id is not None and self.capability_id != self.capability_result.capability_id:
+                raise ValueError("agent observation capability identity disagrees with capability_result")
+            result_digest = self.capability_result.digest()
+            if self.result_digest is not None and self.result_digest != result_digest:
+                raise ValueError("agent observation result_digest disagrees with capability_result")
+            if self.artifacts and self.artifacts != self.capability_result.artifacts:
+                raise ValueError("agent observation artifacts disagree with capability_result")
+            if self.effect_receipt is not None and self.effect_receipt != self.capability_result.effect:
+                raise ValueError("agent observation effect disagrees with capability_result")
+            object.__setattr__(self, "capability_id", self.capability_result.capability_id)
+            object.__setattr__(self, "result_digest", result_digest)
+            object.__setattr__(self, "artifacts", self.capability_result.artifacts)
+            object.__setattr__(self, "effect_receipt", self.capability_result.effect)
         object.__setattr__(self, "observation_digest", canonical_digest({
             "action_digest": self.action_digest,
             "content": self.content,
@@ -150,6 +163,7 @@ class ReferenceAgentObservation:
             "result_digest": self.result_digest,
             "artifacts": self.artifacts,
             "effect_receipt": self.effect_receipt,
+            "capability_result": self.capability_result,
         }))
 
 
@@ -189,7 +203,7 @@ class ReferenceAgentDecisionPort(Protocol):
 
 
 class ReferenceAgentToolPort(Protocol):
-    def invoke(self, name: str, arguments: tuple[tuple[str, JsonValue], ...]) -> ReferenceAgentObservation: ...
+    def invoke(self, name: str, arguments: Mapping[str, JsonValue]) -> ReferenceAgentObservation: ...
 
 
 class ReferenceAgentActionToolPort(Protocol):

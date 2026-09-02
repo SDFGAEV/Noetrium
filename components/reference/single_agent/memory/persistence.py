@@ -18,6 +18,8 @@ class MemoryPersistencePort(Protocol):
 
     def load(self, plane: str) -> tuple[MemoryItem, ...]: ...
 
+    def upsert(self, plane: str, item: MemoryItem) -> None: ...
+
     def replace(self, plane: str, items: tuple[MemoryItem, ...]) -> None: ...
 
     def close(self) -> None: ...
@@ -88,6 +90,23 @@ class SQLiteMemoryPersistence(MemoryPersistencePort):
                 raise ValueError(f"memory persistence digest mismatch: {item.memory_id}")
             items.append(item)
         return tuple(items)
+
+    def upsert(self, plane: str, item: MemoryItem) -> None:
+        if type(plane) is not str or not plane.strip():
+            raise ValueError("memory persistence plane must be non-empty")
+        if type(item) is not MemoryItem:
+            raise TypeError("memory persistence item must be MemoryItem")
+        with self._lock:
+            self._connection.execute(
+                "INSERT INTO memory_items "
+                "(plane, namespace, memory_id, item_digest, content, tags_json, embedding_json, metadata_json) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(plane, namespace, memory_id) DO UPDATE SET "
+                "item_digest=excluded.item_digest, content=excluded.content, "
+                "tags_json=excluded.tags_json, embedding_json=excluded.embedding_json, "
+                "metadata_json=excluded.metadata_json",
+                (plane, *self._row(item)),
+            )
 
     def replace(self, plane: str, items: tuple[MemoryItem, ...]) -> None:
         if type(plane) is not str or not plane.strip():
