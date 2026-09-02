@@ -7,6 +7,7 @@ from pathlib import Path, PurePosixPath
 import re
 import shutil
 import subprocess
+import sys
 from typing import Iterable
 
 from research_platform.governance.api import (
@@ -182,7 +183,10 @@ class RepositorySourceIndex:
         trees: dict[str, ast.Module] = {}
         for blob in snapshot.documents(suffixes={".py"}):
             try:
-                trees[blob.relative_path] = ast.parse(blob.text, filename=blob.relative_path)
+                trees[blob.relative_path] = _parse_python_source(
+                    blob.text,
+                    filename=blob.relative_path,
+                )
             except SyntaxError as exc:
                 raise RepositorySourceIncompleteError((RepositorySourceFailure(
                     RepositorySourceFailureKind.PYTHON_PARSE,
@@ -262,6 +266,43 @@ def _git_object_failure(detail: str) -> RepositorySourceIncompleteError:
         ".",
         detail,
     ),))
+
+
+_PEP695_TYPE_ALIAS_RE = re.compile(
+    r"^(?P<indent>[ \t]*)type[ \t]+(?P<name>[A-Za-z_]\w*)"
+    r"(?:\[[^\r\n]*\])?(?P<spacing>[ \t]*=)",
+    re.MULTILINE,
+)
+
+
+def _parse_python_source(text: str, *, filename: str) -> ast.Module:
+    """Parse source while allowing 3.11 to inspect older PEP 695 snapshots.
+
+    Git-bound governance must preserve the original bytes, but a Python 3.11
+    runner cannot parse the ``type Alias = ...`` statement introduced in 3.12.
+    The compatibility projection only rewrites that declaration to an ordinary
+    assignment for AST consumers; source identity and all non-compatibility
+    syntax remain fail-closed.
+    """
+
+    try:
+        return ast.parse(text, filename=filename)
+    except SyntaxError as original:
+        if sys.version_info >= (3, 12):
+            raise
+        projected = _PEP695_TYPE_ALIAS_RE.sub(
+            lambda match: (
+                f"{match.group('indent')}{match.group('name')}"
+                f"{match.group('spacing')}"
+            ),
+            text,
+        )
+        if projected == text:
+            raise
+        try:
+            return ast.parse(projected, filename=filename)
+        except SyntaxError:
+            raise original
 
 
 class GitRepositorySourceTree:
