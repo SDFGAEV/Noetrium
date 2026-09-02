@@ -8,7 +8,7 @@ abstract: >-
   Noetrium is rigorous, evidence-driven infrastructure for reproducible
   AI-agent research across experiments, agents, models, environments,
   recovery, observability, artifacts, and verification.
-version: "0.43.1"
+version: "0.44.0"
 license: Apache-2.0
 repository-code: "https://github.com/SDFGAEV/noetrium"
 url: "https://github.com/SDFGAEV/noetrium"

@@ -21,7 +21,7 @@
 
 <!-- readme-locale:en -->
 
-<!-- readme-source-sha256:46893869b272c492a24acee68c7bbcd3e5e94757b15877d90e9d19d9c5327ba7 -->
+<!-- readme-source-sha256:0c48e1e6a1e691e3db05ff293643242c16b560f881393df54f57ce253064a1f9 -->
 
 <p align="center">
   <strong>Build agents. Run experiments. Verify results.</strong><br>
@@ -90,10 +90,6 @@ Noetrium is deliberately broader than an agent workflow library: experiment desi
 - Reliability — classified failures, effect certainty, reconciliation, replay, incidents and fail-closed recovery.
 - Observability — structured logs, events, metrics, traces, diagnostics, projections and health signals.
 - Governance — architecture, dependency, algorithm, concurrency, performance, forensic, release and no-degradation gates.
-
-### Reusable method components
-
-The sibling `components/` package is the practical method layer: `components.agent` provides ReAct, Reflexion and Plan-and-Solve; `components.memory` provides bounded working, episodic and vector memory; and `components.tools` provides an explicit typed Tool Registry. `components.multi_agent` is a higher tier for explicit GroupChat, Debate and Hierarchical topologies. All components depend one-way on the Platform, while downstream projects can replace only the novel policy/component or the whole method. See [`docs/architecture/COMPONENT_LAYERS.md`](docs/architecture/COMPONENT_LAYERS.md).
 
 <!-- readme-section:architecture -->
 
