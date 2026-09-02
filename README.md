@@ -21,7 +21,7 @@
 
 <!-- readme-locale:en -->
 
-<!-- readme-source-sha256:5d18d8adb7daf2566c5ecf53aa82031c1bce87b0da055f1231cca7febb1dcb65 -->
+<!-- readme-source-sha256:74a850fb4b71a9b952e2155b201943b01f657d96149c345c2086c11368ec780b -->
 
 <p align="center">
   <strong>Build agents. Run experiments. Verify results.</strong><br>
@@ -47,16 +47,24 @@
 
 ## Overview
 
-Noetrium is research infrastructure for long-running AI-agent experiments where execution alone is not enough: you need to know exactly what ran, under which bindings, what survived failure, and what evidence supports the result.
+Noetrium is an open-source upstream platform for building, running, and verifying long-running AI-agent research. It gives downstream projects a small set of typed, explicit, inspectable seams for identity, binding, execution, effects, checkpoints, artifacts, recovery, and evidence.
 
-It spans agents, models, environments, experiments, artifacts, recovery, observability, and governance without forcing project-specific scientific meaning into the platform.
+It sits between an agent method and a claim-grade experiment. Noetrium owns reusable infrastructure and authority; a downstream project owns the method, tasks, scientific protocol, metrics, and conclusions.
 
-**Use Noetrium when you need:**
+**Noetrium provides:**
 
-- reproducible experiment identity across variants, seeds, models, and environments;
-- recovery that preserves effect certainty instead of guessing after crashes;
-- evidence and lineage tied back to exact source and runtime identities;
-- governance gates that can fail closed before publication or release.
+- reproducible identities across studies, variants, repetitions, models, environments, and source revisions;
+- explicit contracts and replaceable providers instead of hidden global discovery;
+- lifecycle, effect receipts, checkpoints, resume, reconciliation, artifact lineage, and release evidence;
+- observability and governance that make failures, unknowns, and publication boundaries inspectable.
+
+**A downstream project provides:**
+
+- the research method, task suite, benchmark semantics, metrics, and experiment matrix;
+- project-owned provider bindings, deployment inventory, credentials, and scientific interpretation;
+- the claims and evidence policy appropriate to its paper, product, or internal study.
+
+Noetrium deliberately does not contain paper-specific cognition, downstream experiment code, deployment secrets, or scientific conclusions.
 
 <!-- readme-section:why -->
 
@@ -74,22 +82,21 @@ Most agent frameworks focus on how agents act or collaborate. Noetrium focuses o
 | [OpenHands](https://github.com/All-Hands-AI/OpenHands) | AI-driven software development | General research infrastructure across agents, models, and environments |
 | **Noetrium** | Reproducible AI-agent research infrastructure | The research-systems layer itself |
 
-Noetrium is deliberately broader than an agent workflow library: experiment design, model and environment identity, runtime effects, checkpoints, evidence, and release authority are treated as one research-systems problem.
+Noetrium is deliberately broader than an agent workflow library: experiment design, model and environment identity, runtime effects, checkpoints, evidence, and release authority are treated as one research-systems problem. Existing orchestration frameworks can remain inside a downstream method or provider; Noetrium supplies the surrounding identity, lifecycle, and evidence boundary.
 
 <!-- readme-section:capabilities -->
 
 ## Core capabilities
 
-- Recursive architecture — explicit ownership, narrow public APIs, typed ports, composition-time provider binding.
-- Experiment infrastructure — study, run, branch, task, variant, workload, checkpoint, resume and reproducibility identities.
-- Agent runtime — participant, capability, action, memory, workflow and execution boundaries without hidden global lookup.
-- Model infrastructure — catalogues, revisions, qualification, serving identities, request envelopes and prompt bindings.
-- Environment infrastructure — specification, lifecycle, readiness, observation, effects, snapshots and recovery.
-- Process/server runtime — supervision, sessions, toolchains, remote execution, lifecycle control and journals.
-- Durable data/artifacts — checksummed state, WAL recovery, lineage, retention and content-addressed evidence.
-- Reliability — classified failures, effect certainty, reconciliation, replay, incidents and fail-closed recovery.
-- Observability — structured logs, events, metrics, traces, diagnostics, projections and health signals.
-- Governance — architecture, dependency, algorithm, concurrency, performance, forensic, release and no-degradation gates.
+- Public authoring surface — `noetrium.contracts` and `noetrium.platform` expose stable identities, ports, specifications, and project-facing operations.
+- Study compilation — `ExperimentRunSpec`, `ResearchStudyDefinition`, and `CompiledResearchPlan` make experiment intent explicit before any run starts.
+- Run authority — `ExperimentRunApplication` owns lifecycle decisions; checkpoint, resume, reconcile, and evidence paths remain explicit and inspectable.
+- Reusable method layers — `noetrium.components` provides reference single-agent building blocks, while `noetrium.orchestration` provides higher-level multi-agent topology and delivery policy.
+- Provider seams — models, environments, resources, processes, servers, and toolchains bind through typed ports instead of hidden global discovery.
+- Durable artifacts — `RunArtifactStore` records manifests, sequence, digests, lineage, raw facts, retention, and replayable evidence.
+- Effect-safe recovery — external effects carry receipts and certainty; an unresolved effect stays `UNKNOWN` until reconciliation proves the outcome.
+- Observability and governance — structured events, diagnostics, projections, forensics, architecture, concurrency, performance, release, and no-degradation gates make the system auditable.
+- Long-running environments — world cut, branch, snapshot, checkpoint, and resume semantics support recoverable stateful providers, including the bundled Minecraft integration.
 
 <!-- readme-section:architecture -->
 
@@ -110,9 +117,17 @@ flowchart LR
     H --> I["Verify"]
 ```
 
-Every transition is expected to preserve identity or produce evidence about why it changed. Composition, Execution, and Observation remain separate authority planes; runtime code receives narrow injected ports instead of discovering providers globally.
+Every transition is expected to preserve identity or produce evidence about why it changed. The platform is intentionally split into three authority planes:
 
-Durable state has one owner, and uncertain external effects remain `UNKNOWN` until reconciliation proves otherwise.
+| Plane | Owns | Does not own |
+| --- | --- | --- |
+| Composition | study definitions, explicit bindings, provider selection, and port wiring | durable run truth or scientific conclusions |
+| Runtime | lifecycle, action execution, effect receipts, checkpoints, recovery, and generation fencing | observation projections or scientific interpretation |
+| Observation + evidence | events, diagnostics, artifact manifests, sequence/digest/lineage, forensics, and release proof | command authority or hidden state mutation |
+
+An `ExperimentRunSpec` is compiled into an immutable plan and applied through an `ExperimentRunApplication`; a `StudyMatrixExecutor` schedules units through explicit `StudyUnitExecutionPort` implementations. The MC and non-MC paths may bind different execution ports while preserving the same identity and evidence discipline.
+
+Long-running providers use world cut, branch, snapshot, checkpoint, and resume semantics where applicable. Durable state has one owner, and uncertain external effects remain `UNKNOWN` until reconciliation proves otherwise.
 
 `noetrium_platform/foundation/governance/system_registry/catalog.json`
 
@@ -120,7 +135,7 @@ Durable state has one owner, and uncertain external effects remain `UNKNOWN` unt
 
 ## Platform vs. downstream projects
 
-This repository is an independent reusable platform package. Research methods, task suites, project-specific environment composition, experiment matrices, model choices, deployment inventories and scientific interpretation belong downstream.
+This repository is an independent upstream platform package. A downstream project should be able to replace its method, task suite, experiment matrix, providers, or deployment policy without editing platform internals.
 
 ```text
 noetrium
@@ -136,7 +151,14 @@ noetrium
        └── project evidence and results
 ```
 
-Downstream code consumes public platform contracts and provides project-owned implementations; the platform must not import a downstream project to decide scientific meaning or deployment policy.
+| You are changing... | Implement downstream... | Reuse from Noetrium... |
+| --- | --- | --- |
+| Research method | policy, method host, tools, memory, and prompts | reference components and lifecycle contracts |
+| Task or benchmark | task suite, dataset adapter, metrics, and scientific protocol | study/run identity, execution ports, artifacts, and evidence |
+| Provider or integration | typed model, environment, resource, process, or server provider | port contracts, composition, readiness, and recovery semantics |
+| Multi-agent behavior | topology, node policy, message delivery, and coordination rules | orchestration primitives and run authority |
+
+Use `noetrium.contracts`, `noetrium.platform`, `noetrium.components`, and `noetrium.orchestration` as the supported project-facing surfaces. `noetrium_platform` is the internal semantic-plane implementation namespace, not a downstream extension API. The platform must not import a downstream project to decide scientific meaning or deployment policy.
 
 <!-- readme-section:quick-start -->
 
@@ -144,7 +166,7 @@ Downstream code consumes public platform contracts and provides project-owned im
 
 ## Quick start
 
-The first example is deterministic and requires no API key, model endpoint, or external service.
+The first example is deterministic and requires no API key, model endpoint, or external service. It is a platform-compilation smoke test; the public component-reuse example is shown in `examples/quickstart_agent_components.py` and documented in `examples/README.md`.
 
 ### 1. Clone and install
 
@@ -164,7 +186,7 @@ python -m pip install -e ".[test]"
 python examples/quickstart_experiment_plan.py
 ```
 
-The example freezes a scientific protocol, binds explicit provider identities, compiles an immutable plan, and verifies its digest.
+This example freezes a scientific protocol, binds explicit provider identities, compiles an immutable plan, and verifies its digest. It demonstrates the compilation seam; a downstream method can keep its own policy and use the same run/study contracts.
 
 ```text
 study=noetrium-quickstart
@@ -182,7 +204,7 @@ noetrium-architecture-gate
 python scripts/check_readme_i18n.py
 ```
 
-Downstream code imports stable contracts and reusable components from `noetrium`; `noetrium_platform` is the internal semantic-plane namespace used by platform implementations and governance tooling.
+Downstream code imports stable contracts and reusable components from `noetrium`; do not treat `noetrium_platform` as a project extension API. For an author-first project scaffold, use `noetrium project create <project-id> <destination> --version <version>`, then run `noetrium project doctor --project <destination>` and `noetrium project test --project <destination>` before adding project-owned providers or methods.
 
 <!-- readme-section:containers -->
 
@@ -216,17 +238,17 @@ docker compose -f deploy/compose.yaml -f deploy/compose.minecraft.yaml run --rm 
 
 | Path | Responsibility |
 | --- | --- |
-| `noetrium/` | Stable downstream-facing facades, contracts, reference components and adapters |
-| `noetrium_platform/` | Internal semantic-plane implementation, providers and governance tooling |
+| `noetrium/` | Public facade, contracts, reference single-agent components, and multi-agent orchestration |
+| `noetrium_platform/` | Internal semantic-plane implementation, providers, and governance tooling; not a downstream extension API |
 | `configs/` | Versioned configuration examples and non-secret templates |
-| `deploy/` | Container image, Compose runtime and deployment bootstrap assets |
-| `docs/` | Architecture, infrastructure, governance, status and history |
-| `scripts/` | Thin operator, audit, release and maintenance entry points |
+| `deploy/` | Container image, Compose runtime, and deployment bootstrap assets |
+| `docs/` | Architecture, infrastructure, governance, status, and history |
+| `scripts/` | Thin operator, audit, release, and maintenance entry points |
 | `tests/` | Hierarchical regression and contract tests |
 | `noetrium_platform/capabilities/environment/minecraft/` | Bundled reusable Minecraft environment provider |
 | `LICENSE` / `NOTICE` / `THIRD_PARTY_NOTICES.md` | Apache-2.0 and third-party license notices |
 
-`noetrium/` is the stable downstream package boundary; project-specific code stays downstream. `noetrium_platform/` remains an implementation namespace and is not a project-owned extension point.
+Treat `noetrium/` as the supported downstream package boundary. Project-specific code stays downstream, and internal implementation details under `noetrium_platform/` may change behind the public contracts.
 
 <!-- readme-section:testing -->
 
@@ -243,6 +265,8 @@ python scripts/public_contract_audit.py
 python scripts/no_degradation_audit.py
 python scripts/check_readme_i18n.py
 ```
+
+For focused checks, the installed console scripts include `noetrium-repository-boundary`, `noetrium-concurrency`, and `noetrium-performance`; use `python scripts/verify_release_evidence.py` to validate the source, manifest, evidence, and authority bindings for a release.
 
 A historical green result does not prove the current tree. Re-run the gates that matter for the exact revision you intend to publish or deploy.
 
@@ -261,13 +285,15 @@ The repository uses a hierarchical test taxonomy so every test belongs to an exp
 7. Observation is not authority.
 8. Performance changes preserve semantics.
 9. Documentation moves with implementation.
-10. Projects stay downstream.
+10. Downstream projects own scientific meaning and deployment policy.
 
 <!-- readme-section:extending -->
 
 ## Extending the platform
 
 Add a capability at the smallest owning boundary. Prefer a new provider when the public contract already exists; add a new contract only when the capability itself is new.
+
+A practical extension sequence is: select or define the public contract, implement the provider or component in the owning project, bind it explicitly during composition, record the resulting identity and evidence, then exercise recovery and reconciliation paths. This keeps a replaceable downstream method from becoming coupled to platform internals.
 
 ```text
 <system>/
@@ -302,7 +328,7 @@ Start with the documentation index.
 - [Current status](docs/status/README.md)
 - [Engineering history](docs/history/README.md)
 
-Architecture documents define reusable ownership and contracts; status documents describe the current development tree; history preserves evidence for the state that existed when it was written.
+Architecture documents define reusable ownership and contracts; status documents describe the current development tree; history preserves evidence for the state that existed when it was written. For implementation orientation, read `docs/architecture/COMPONENT_LAYERS.md` for the public component tiers and `docs/product/PUBLIC_FACADE_AND_CLI.md` for project authoring, doctor, and test flows.
 
 <!-- readme-section:security -->
 
@@ -351,11 +377,11 @@ Third-party components remain governed by their own licenses; see THIRD_PARTY_NO
 
 ## Development status
 
-The platform is under active architecture and runtime development.
+Noetrium 0.44.0 is the current released platform baseline. The project is still under active architecture and runtime development, so downstream consumers should pin an exact revision and verify its evidence before relying on it.
 
-For production, publication or scientific claims, re-run the relevant gates and inspect release evidence bound to the exact source revision rather than relying on an old green result.
+Noetrium is not a hosted agent product or a turnkey scientific benchmark. Downstream projects bind their own methods, providers, protocols, and claims; this repository supplies the reusable contracts, runtime authority, and evidence machinery around them.
 
-Historical changes are intentionally kept out of this README; use `docs/history/` for immutable engineering records.
+For production, publication, or scientific claims, re-run the relevant gates and inspect release evidence bound to the exact source revision rather than relying on an old green result. Historical changes are intentionally kept out of this README; use `docs/history/` for immutable engineering records.
 
 The current development truth is `docs/status/CURRENT_DEVELOPMENT_BASELINE.md`; release and scientific claims must be bound to exact evidence for the revision being evaluated.
 

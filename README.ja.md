@@ -21,7 +21,7 @@
 
 <!-- readme-locale:ja -->
 
-<!-- readme-source-sha256:5d18d8adb7daf2566c5ecf53aa82031c1bce87b0da055f1231cca7febb1dcb65 -->
+<!-- readme-source-sha256:74a850fb4b71a9b952e2155b201943b01f657d96149c345c2086c11368ec780b -->
 
 <p align="center">
   <strong>Agent を構築する。実験を走らせる。結果を検証する。</strong><br>
@@ -38,7 +38,7 @@
 
 <p align="center">
   <a href="https://www.python.org/"><img alt="Python >=3.11" src="https://img.shields.io/badge/Python-%3E%3D3.11-3776AB?logo=python&logoColor=white"></a>
-  <a href="pyproject.toml"><img alt="Version 0.43.1" src="https://img.shields.io/badge/version-0.43.1-blue"></a>
+  <a href="pyproject.toml"><img alt="Version 0.44.0" src="https://img.shields.io/badge/version-0.44.0-blue"></a>
   <a href="docs/architecture/PLATFORM_ARCHITECTURE.md"><img alt="Contract-driven architecture" src="https://img.shields.io/badge/architecture-contract--driven-6f42c1"></a>
   <a href="LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-green"></a>
 </p>
@@ -182,7 +182,7 @@ noetrium-architecture-gate
 python scripts/check_readme_i18n.py
 ```
 
-Python distribution metadata の名前は `noetrium` です。現在の import namespace は `noetrium_platform` のままで、product identity と runtime contract は独立して進化します。
+下流コードは `noetrium` から安定した contract と再利用可能な component を import します。`noetrium_platform` はプロジェクト拡張 API として扱わないでください。author-first のプロジェクト骨格を生成するには `noetrium project create <project-id> <destination> --version <version>` を使い、その後 `noetrium project doctor --project <destination>` と `noetrium project test --project <destination>` を実行してから、プロジェクト固有の provider や method を追加します。
 
 <!-- readme-section:containers -->
 
@@ -216,7 +216,8 @@ docker compose -f deploy/compose.yaml -f deploy/compose.minecraft.yaml run --rm 
 
 | Path | Responsibility |
 | --- | --- |
-| `noetrium_platform/` | 再利用可能なプラットフォーム実装と公開システム境界 |
+| `noetrium/` | 公開 facade、contract、reference single-agent component、multi-agent orchestration |
+| `noetrium_platform/` | 内部 semantic-plane implementation、provider、governance tooling。下流の extension API ではない |
 | `configs/` | バージョン管理された設定例と非機密テンプレート |
 | `deploy/` | コンテナイメージ、Compose runtime、deployment bootstrap |
 | `docs/` | Architecture、infrastructure、governance、status、history 文書 |
@@ -225,7 +226,7 @@ docker compose -f deploy/compose.yaml -f deploy/compose.minecraft.yaml run --rm 
 | `noetrium_platform/capabilities/environment/minecraft/` | 再利用可能な Minecraft environment provider |
 | `LICENSE` / `NOTICE` / `THIRD_PARTY_NOTICES.md` | Apache-2.0 と第三者ライセンス通知 |
 
-`noetrium_platform/` is the reusable package boundary; project-specific code stays downstream.
+`noetrium/` を下流向けのサポート対象 package boundary として扱ってください。`noetrium_platform/` は内部実装 namespace であり、プロジェクト固有コードは downstream に置きます。
 
 <!-- readme-section:testing -->
 

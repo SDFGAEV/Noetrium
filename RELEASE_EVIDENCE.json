@@ -13,7 +13,7 @@
   "performance_source_digest": "76156c2e4467963066911d0e6996a6ad0c779d6060a901d5996fe1310a0e2fb7",
   "platform_code_version": "0.44.0",
   "python_requires": ">=3.11",
-  "regression_plan_sha256": "93f705ae2be54b94ac4a394d39aba89ea3416827f299c4cba9c68dd394e5fd09",
+  "regression_plan_sha256": "1a6fec4c1509c2fbe6c5c78700257dfb05bc9373d78f308ee23f2c240f6fb250",
   "regression_runtime_sha256": "cd5167e00e37f9dbbc9a0c5487ba9f073e3ac03d8306718a4c4f86e64149b51a",
   "regression_shard_count": 43,
   "regression_test_inventory_sha256": "07cb03ae7a4139a70c40b59be9e9b71bcbfb78ba07cf76117d638a08a7a904e3",
@@ -21,8 +21,8 @@
   "regression_tests_passed": 2647,
   "regression_tests_skipped": 10,
   "release_file_count": 3081,
-  "release_manifest_digest": "e0fbcc0c31ccc72afb8a062b17c612e9c98672575559f52172d27a40719c8a80",
+  "release_manifest_digest": "7e4db9d73bbd7749d65c0dc80452d55833cd96bccee4fd7f900b28a37a97426d",
   "schema_version": 5,
   "silent_failure_findings": 0,
-  "source_tree_sha256": "5b14cedd9488c34c17616a6e89985ffd4c01870659df829982149d098fbfc096"
+  "source_tree_sha256": "ec5091baf532dab2c3cc422961fc6e4f2ceb34a10a06907671ded2fe6f3998ca"
 }

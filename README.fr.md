@@ -21,7 +21,7 @@
 
 <!-- readme-locale:fr -->
 
-<!-- readme-source-sha256:5d18d8adb7daf2566c5ecf53aa82031c1bce87b0da055f1231cca7febb1dcb65 -->
+<!-- readme-source-sha256:74a850fb4b71a9b952e2155b201943b01f657d96149c345c2086c11368ec780b -->
 
 <p align="center">
   <strong>Construisez des agents. Exécutez des expériences. Vérifiez les résultats.</strong><br>
@@ -38,7 +38,7 @@
 
 <p align="center">
   <a href="https://www.python.org/"><img alt="Python >=3.11" src="https://img.shields.io/badge/Python-%3E%3D3.11-3776AB?logo=python&logoColor=white"></a>
-  <a href="pyproject.toml"><img alt="Version 0.43.1" src="https://img.shields.io/badge/version-0.43.1-blue"></a>
+  <a href="pyproject.toml"><img alt="Version 0.44.0" src="https://img.shields.io/badge/version-0.44.0-blue"></a>
   <a href="docs/architecture/PLATFORM_ARCHITECTURE.md"><img alt="Contract-driven architecture" src="https://img.shields.io/badge/architecture-contract--driven-6f42c1"></a>
   <a href="LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-green"></a>
 </p>
@@ -182,7 +182,7 @@ noetrium-architecture-gate
 python scripts/check_readme_i18n.py
 ```
 
-Le metadata de distribution Python s’appelle `noetrium` ; l’import namespace actuel reste `noetrium_platform` tandis que product identity et runtime contracts évoluent indépendamment.
+Le code downstream importe les contracts stables et les components réutilisables depuis `noetrium` ; ne traitez pas `noetrium_platform` comme une API d’extension de projet. Pour générer un squelette de projet author-first, utilisez `noetrium project create <project-id> <destination> --version <version>`, puis exécutez `noetrium project doctor --project <destination>` et `noetrium project test --project <destination>` avant d’ajouter vos propres providers ou methods.
 
 <!-- readme-section:containers -->
 
@@ -216,7 +216,8 @@ docker compose -f deploy/compose.yaml -f deploy/compose.minecraft.yaml run --rm 
 
 | Path | Responsibility |
 | --- | --- |
-| `noetrium_platform/` | Implémentation réutilisable et frontières publiques des systèmes |
+| `noetrium/` | Facade publique, contracts, components reference single-agent et orchestration multi-agent |
+| `noetrium_platform/` | Implémentation interne du semantic plane, providers et governance tooling ; pas une API d’extension downstream |
 | `configs/` | Exemples de configuration versionnés et modèles sans secrets |
 | `deploy/` | Image conteneur, runtime Compose et bootstrap de déploiement |
 | `docs/` | Documentation architecture, infrastructure, governance, status et history |
@@ -225,7 +226,7 @@ docker compose -f deploy/compose.yaml -f deploy/compose.minecraft.yaml run --rm 
 | `noetrium_platform/capabilities/environment/minecraft/` | Provider d'environnement Minecraft réutilisable |
 | `LICENSE` / `NOTICE` / `THIRD_PARTY_NOTICES.md` | Avis Apache-2.0 et licences tierces |
 
-`noetrium_platform/` is the reusable package boundary; project-specific code stays downstream.
+Traitez `noetrium/` comme le package boundary pris en charge pour downstream. `noetrium_platform/` est un namespace d’implémentation interne ; le code spécifique au projet reste downstream.
 
 <!-- readme-section:testing -->
 

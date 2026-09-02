@@ -21,7 +21,7 @@
 
 <!-- readme-locale:zh-CN -->
 
-<!-- readme-source-sha256:5d18d8adb7daf2566c5ecf53aa82031c1bce87b0da055f1231cca7febb1dcb65 -->
+<!-- readme-source-sha256:74a850fb4b71a9b952e2155b201943b01f657d96149c345c2086c11368ec780b -->
 
 <p align="center">
   <strong>构建 Agent。运行实验。验证结果。</strong><br>
@@ -38,7 +38,7 @@
 
 <p align="center">
   <a href="https://www.python.org/"><img alt="Python >=3.11" src="https://img.shields.io/badge/Python-%3E%3D3.11-3776AB?logo=python&logoColor=white"></a>
-  <a href="pyproject.toml"><img alt="Version 0.43.1" src="https://img.shields.io/badge/version-0.43.1-blue"></a>
+  <a href="pyproject.toml"><img alt="Version 0.44.0" src="https://img.shields.io/badge/version-0.44.0-blue"></a>
   <a href="docs/architecture/PLATFORM_ARCHITECTURE.md"><img alt="Contract-driven architecture" src="https://img.shields.io/badge/architecture-contract--driven-6f42c1"></a>
   <a href="LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-green"></a>
 </p>
@@ -47,16 +47,24 @@
 
 ## 项目概览
 
-Noetrium 是面向长时运行 AI Agent 实验的研究基础设施。对这类实验来说，仅仅“跑起来”并不够：你还需要知道究竟运行了什么、使用了哪些 binding、故障后保留了什么，以及结果由哪些 evidence 支撑。
+Noetrium 是一个开源的上游平台，用于构建、运行和验证长时运行的 AI Agent 研究。它为下游项目提供一组小而稳定的 typed、显式、可检查的接缝，覆盖 identity、binding、execution、effect、checkpoint、Artifact、恢复和 evidence。
 
-它覆盖 Agent、模型、环境、实验、Artifact、恢复、可观测性和治理，同时不把项目特定的科学语义强塞进平台。
+它位于 Agent 方法与可支撑结论的实验之间：Noetrium 负责可复用的基础设施和 authority；下游项目负责方法、任务、scientific protocol、metric 与结论。
 
-**当你需要以下能力时，Noetrium 最有价值：**
+**Noetrium 提供：**
 
-- 跨 variant、seed、模型和环境保持可复现的实验 identity；
-- 崩溃后保留 effect certainty，而不是靠猜测决定“是否执行成功”；
-- 把 evidence 与 lineage 追溯到精确 source/runtime identity；
-- 在发表或发布前由 governance gate fail-closed。
+- 跨 study、variant、repetition、模型、环境和 source revision 的可复现实验 identity；
+- 显式 contract 与可替换 provider，而不是隐藏的全局发现；
+- lifecycle、effect receipt、checkpoint、resume、reconciliation、Artifact lineage 与 release evidence；
+- 让 failure、unknown 和发表边界可检查的 observability 与 governance。
+
+**下游项目提供：**
+
+- research method、task suite、benchmark 语义、metric 与 experiment matrix；
+- 项目自有的 provider binding、部署清单、credential 与科学解释；
+- 适用于论文、产品或内部研究的 claims 与 evidence policy。
+
+Noetrium 有意不包含论文特定的 cognition、下游实验代码、部署 secret 或科学结论。
 
 <!-- readme-section:why -->
 
@@ -74,22 +82,21 @@ Noetrium 是面向长时运行 AI Agent 实验的研究基础设施。对这类�
 | [OpenHands](https://github.com/All-Hands-AI/OpenHands) | AI 驱动的软件开发 | 跨 Agent、模型与环境的通用研究基础设施 |
 | **Noetrium** | 可复现 AI Agent 研究基础设施 | Research systems layer 本身 |
 
-Noetrium 刻意比 Agent workflow library 更宽：实验设计、模型/环境 identity、runtime effect、checkpoint、evidence 与 release authority 被视为同一个 research-systems 问题。
+Noetrium 刻意比 Agent workflow library 更宽：实验设计、模型/环境 identity、runtime effect、checkpoint、evidence 与 release authority 被视为同一个 research-systems 问题。已有的 orchestration framework 可以留在下游 method 或 provider 内部；Noetrium 提供外围的 identity、lifecycle 与 evidence 边界。
 
 <!-- readme-section:capabilities -->
 
 ## 核心能力
 
-- 递归架构 — 显式 ownership、窄公共 API、typed port 与 composition-time provider binding。
-- 实验基础设施 — Study、Run、Branch、Task、Variant、Workload、Checkpoint、Resume 与可复现 identity。
-- Agent 运行时 — Participant、Capability、Action、Memory、Workflow 与 Execution 边界，不依赖隐藏的全局查找。
-- 模型基础设施 — catalog、revision、qualification、serving identity、request envelope 与 prompt binding。
-- 环境基础设施 — specification、生命周期、readiness、observation、effect、snapshot 与 recovery。
-- 进程/服务器运行时 — supervision、session、toolchain、远程执行、生命周期控制与 journal。
-- 持久数据/Artifact — checksum 状态、WAL 恢复、lineage、retention 与内容寻址证据。
-- 可靠性 — 故障分类、effect certainty、reconciliation、replay、incident 与 fail-closed 恢复。
-- 可观测性 — 结构化日志、event、metric、trace、diagnostic、projection 与健康信号。
-- 治理 — architecture、dependency、algorithm、concurrency、performance、forensic、release 与 no-degradation gate。
+- 公共 authoring surface — `noetrium.contracts` 与 `noetrium.platform` 暴露稳定的 identity、port、specification 和项目接口。
+- Study 编译 — `ExperimentRunSpec`、`ResearchStudyDefinition` 与 `CompiledResearchPlan` 让实验意图在运行前明确化。
+- Run authority — `ExperimentRunApplication` 负责 lifecycle 决策；checkpoint、resume、reconcile 与 evidence 路径都显式且可检查。
+- 可复用 method 层 — `noetrium.components` 提供 reference single-agent building blocks，`noetrium.orchestration` 提供更高层的 multi-agent topology 与 delivery policy。
+- Provider 接缝 — model、environment、resource、process、server 与 toolchain 通过 typed port 绑定，不依赖隐藏的全局发现。
+- 持久 Artifact — `RunArtifactStore` 记录 manifest、sequence、digest、lineage、raw fact、retention 与可 replay 的 evidence。
+- Effect-safe recovery — 外部 effect 携带 receipt 与 certainty；未解决的 effect 在 reconciliation 证明结果前保持 `UNKNOWN`。
+- Observability 与 governance — 结构化 event、diagnostic、projection、forensic、architecture、concurrency、performance、release 与 no-degradation gate 让系统可审计。
+- 长时运行环境 — 在适用时提供 world cut、branch、snapshot、checkpoint 与 resume 语义，包括内置 Minecraft integration。
 
 <!-- readme-section:architecture -->
 
@@ -110,9 +117,17 @@ flowchart LR
     H --> I["Verify"]
 ```
 
-每个转换都必须保留 identity，或者产生能够解释 identity 为什么变化的 evidence。Composition、Execution 与 Observation 保持为彼此独立的 authority plane；runtime 只接收窄的 injected port，而不是通过全局查找发现 provider。
+每个转换都必须保留 identity，或者产生能够解释 identity 为什么变化的 evidence。平台刻意拆分为三个 authority plane：
 
-每份 durable state 只有一个 owner；不确定的外部 effect 在 reconciliation 证明之前保持 `UNKNOWN`。
+| Plane | 负责 | 不负责 |
+| --- | --- | --- |
+| Composition | study definition、显式 binding、provider 选择与 port wiring | durable run truth 或科学结论 |
+| Runtime | lifecycle、action execution、effect receipt、checkpoint、recovery 与 generation fencing | observation projection 或科学解释 |
+| Observation + evidence | event、diagnostic、Artifact manifest、sequence/digest/lineage、forensic 与 release proof | command authority 或隐藏状态变更 |
+
+`ExperimentRunSpec` 会被编译成 immutable plan，再通过 `ExperimentRunApplication` 应用；`StudyMatrixExecutor` 通过显式的 `StudyUnitExecutionPort` implementation 调度 unit。MC 与 non-MC 路径可以绑定不同 execution port，同时保持相同的 identity 与 evidence discipline。
+
+长时运行 provider 在适用时使用 world cut、branch、snapshot、checkpoint 与 resume 语义。每份 durable state 只有一个 owner；不确定的外部 effect 在 reconciliation 证明之前保持 `UNKNOWN`。
 
 `noetrium_platform/foundation/governance/system_registry/catalog.json`
 
@@ -120,7 +135,7 @@ flowchart LR
 
 ## 平台与下游项目
 
-本仓库是可独立复用的平台包。研究方法、任务集、项目特定环境组合、实验矩阵、模型选择、部署清单和科学解释都属于下游项目。
+本仓库是可独立复用的上游平台包。下游项目应当能够替换自己的 method、task suite、experiment matrix、provider 或部署策略，而不需要修改平台内部实现。
 
 ```text
 noetrium
@@ -136,7 +151,14 @@ noetrium
        └── project evidence and results
 ```
 
-下游代码消费平台公共 contract 并提供项目自有实现；平台不能反向 import 下游项目来决定科学语义或部署策略。
+| 你要改变的内容 | 下游负责实现 | 从 Noetrium 复用 |
+| --- | --- | --- |
+| Research method | policy、method host、tool、memory 与 prompt | reference component 与 lifecycle contract |
+| Task 或 benchmark | task suite、dataset adapter、metric 与 scientific protocol | study/run identity、execution port、Artifact 与 evidence |
+| Provider 或 integration | typed model、environment、resource、process 或 server provider | port contract、composition、readiness 与 recovery 语义 |
+| Multi-agent 行为 | topology、node policy、message delivery 与 coordination rule | orchestration primitive 与 run authority |
+
+使用 `noetrium.contracts`、`noetrium.platform`、`noetrium.components` 与 `noetrium.orchestration` 作为项目接口。`noetrium_platform` 是内部 semantic-plane implementation namespace，不是下游 extension API。平台不能反向 import 下游项目来决定科学语义或部署策略。
 
 <!-- readme-section:quick-start -->
 
@@ -144,7 +166,7 @@ noetrium
 
 ## 快速开始
 
-第一个示例是 deterministic 的，不需要 API key、模型 endpoint 或任何外部服务。
+第一个示例是 deterministic 的，不需要 API key、模型 endpoint 或任何外部服务。它是平台编译流程的 smoke test；公共 component 复用示例见 `examples/quickstart_agent_components.py` 与 `examples/README.md`。
 
 ### 1. Clone 并安装
 
@@ -164,7 +186,7 @@ python -m pip install -e ".[test]"
 python examples/quickstart_experiment_plan.py
 ```
 
-示例会冻结 scientific protocol，绑定显式 provider identity，编译 immutable plan，并验证其 digest。
+示例会冻结 scientific protocol，绑定显式 provider identity，编译 immutable plan，并验证其 digest。它展示的是 compilation seam；下游 method 可以保留自己的 policy，同时复用相同的 run/study contract。
 
 ```text
 study=noetrium-quickstart
@@ -182,7 +204,7 @@ noetrium-architecture-gate
 python scripts/check_readme_i18n.py
 ```
 
-Python distribution metadata 名为 `noetrium`；当前 import namespace 仍为 `noetrium_platform`，产品 identity 与 runtime contract 独立演进。
+下游代码从 `noetrium` 导入稳定 contract 与可复用 component；不要把 `noetrium_platform` 当作项目 extension API。若要生成 author-first 项目骨架，可使用 `noetrium project create <project-id> <destination> --version <version>`，再运行 `noetrium project doctor --project <destination>` 与 `noetrium project test --project <destination>`，然后添加项目自有 provider 或 method。
 
 <!-- readme-section:containers -->
 
@@ -216,7 +238,8 @@ docker compose -f deploy/compose.yaml -f deploy/compose.minecraft.yaml run --rm 
 
 | Path | Responsibility |
 | --- | --- |
-| `noetrium_platform/` | 可复用平台实现与公共系统边界 |
+| `noetrium/` | 公共 facade、contract、reference single-agent component 与 multi-agent orchestration |
+| `noetrium_platform/` | 内部 semantic-plane implementation、provider 与 governance tooling；不是下游 extension API |
 | `configs/` | 版本化配置示例与非机密模板 |
 | `deploy/` | 容器镜像、Compose runtime 与部署引导资产 |
 | `docs/` | 架构、基础设施、治理、状态与历史文档 |
@@ -225,7 +248,7 @@ docker compose -f deploy/compose.yaml -f deploy/compose.minecraft.yaml run --rm 
 | `noetrium_platform/capabilities/environment/minecraft/` | 内置可复用 Minecraft 环境 Provider |
 | `LICENSE` / `NOTICE` / `THIRD_PARTY_NOTICES.md` | Apache-2.0 与第三方许可说明 |
 
-`noetrium_platform/` is the reusable package boundary; project-specific code stays downstream.
+将 `noetrium/` 视为受支持的下游 package boundary。项目特定代码留在下游；`noetrium_platform/` 下的内部实现可以在公共 contract 不变的前提下演进。
 
 <!-- readme-section:testing -->
 
@@ -243,9 +266,11 @@ python scripts/no_degradation_audit.py
 python scripts/check_readme_i18n.py
 ```
 
+聚焦检查还可以使用已安装的 `noetrium-repository-boundary`、`noetrium-concurrency` 与 `noetrium-performance`；发布前使用 `python scripts/verify_release_evidence.py` 校验 source、manifest、evidence 与 authority 的绑定。
+
 历史绿灯不能证明当前工作树。发布或部署前必须针对准备使用的 exact revision 重新运行相关 gate。
 
-仓库使用分层测试 taxonomy，使每个测试都归属于明确 contract level，并让 release evidence 能证明实际执行了什么。 See `tests/TEST_SYSTEM.json`.
+仓库使用分层测试 taxonomy，使每个测试都归属于明确 contract level，并让 release evidence 能证明实际执行了什么。详见 `tests/TEST_SYSTEM.json`。
 
 <!-- readme-section:principles -->
 
@@ -260,13 +285,15 @@ python scripts/check_readme_i18n.py
 7. Observation 不是 authority。
 8. 性能优化必须保持语义。
 9. 实现变化必须同步文档。
-10. 项目特定语义必须留在下游。
+10. 科学语义与部署策略由下游项目负责。
 
 <!-- readme-section:extending -->
 
 ## 扩展平台
 
 在最小 owner 边界增加能力。已有公共 contract 时优先新增 provider；只有能力本身新增时才增加新 contract。
+
+实用的扩展顺序是：选择或定义公共 contract，在 owner 项目中实现 provider 或 component，在 composition 阶段显式 binding，记录由此产生的 identity 与 evidence，最后验证 recovery 与 reconciliation 路径。这样下游 method 可以替换，而不会耦合到平台内部实现。
 
 ```text
 <system>/
@@ -301,7 +328,7 @@ python scripts/check_readme_i18n.py
 - [Current status](docs/status/README.md)
 - [Engineering history](docs/history/README.md)
 
-架构文档定义可复用 ownership 与 contract；status 文档描述当前开发树；history 保存其写入时刻对应状态的证据。
+架构文档定义可复用 ownership 与 contract；status 文档描述当前开发树；history 保存其写入时刻对应状态的证据。想了解实现边界，可先读 `docs/architecture/COMPONENT_LAYERS.md` 的公共 component 分层，以及 `docs/product/PUBLIC_FACADE_AND_CLI.md` 的项目 authoring、doctor 与 test 流程。
 
 <!-- readme-section:security -->
 
@@ -350,11 +377,11 @@ Noetrium 采用 Apache License 2.0。具有法律效力的权威文本是仓库�
 
 ## 开发状态
 
-平台仍处于持续的架构与 runtime 开发阶段。
+Noetrium 0.44.0 是当前发布的平台基线。项目仍处于持续的架构与 runtime 开发阶段，因此下游使用者应固定 exact revision，并在依赖之前验证对应 evidence。
 
-对于生产、发布或科学结论，必须重新运行相关 gate，并检查与 exact source revision 绑定的 release evidence，而不能只依赖历史绿灯。
+Noetrium 不是托管式 Agent 产品，也不是开箱即用的科学 benchmark。下游项目绑定自己的 method、provider、protocol 与 claim；本仓库提供围绕它们的可复用 contract、runtime authority 与 evidence machinery。
 
-历史变更有意不写入这份 README；不可变的工程记录请查看 `docs/history/`。
+对于生产、发布或科学结论，必须重新运行相关 gate，并检查与 exact source revision 绑定的 release evidence，而不能只依赖历史绿灯。历史变更有意不写入这份 README；不可变的工程记录请查看 `docs/history/`。
 
 当前开发事实以 `docs/status/CURRENT_DEVELOPMENT_BASELINE.md` 为准；发布与科研结论必须绑定到被评估精确版本的证据。
 

@@ -21,7 +21,7 @@
 
 <!-- readme-locale:zh-TW -->
 
-<!-- readme-source-sha256:5d18d8adb7daf2566c5ecf53aa82031c1bce87b0da055f1231cca7febb1dcb65 -->
+<!-- readme-source-sha256:74a850fb4b71a9b952e2155b201943b01f657d96149c345c2086c11368ec780b -->
 
 <p align="center">
   <strong>建構 Agent。執行實驗。驗證結果。</strong><br>
@@ -38,7 +38,7 @@
 
 <p align="center">
   <a href="https://www.python.org/"><img alt="Python >=3.11" src="https://img.shields.io/badge/Python-%3E%3D3.11-3776AB?logo=python&logoColor=white"></a>
-  <a href="pyproject.toml"><img alt="Version 0.43.1" src="https://img.shields.io/badge/version-0.43.1-blue"></a>
+  <a href="pyproject.toml"><img alt="Version 0.44.0" src="https://img.shields.io/badge/version-0.44.0-blue"></a>
   <a href="docs/architecture/PLATFORM_ARCHITECTURE.md"><img alt="Contract-driven architecture" src="https://img.shields.io/badge/architecture-contract--driven-6f42c1"></a>
   <a href="LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-green"></a>
 </p>
@@ -182,7 +182,7 @@ noetrium-architecture-gate
 python scripts/check_readme_i18n.py
 ```
 
-Python distribution metadata 名為 `noetrium`；目前 import namespace 仍為 `noetrium_platform`，產品 identity 與 runtime contract 各自演進。
+下游程式碼從 `noetrium` 匯入穩定 contract 與可重用 component；不要將 `noetrium_platform` 視為專案 extension API。若要產生 author-first 專案骨架，可使用 `noetrium project create <project-id> <destination> --version <version>`，再執行 `noetrium project doctor --project <destination>` 與 `noetrium project test --project <destination>`，然後加入專案自有 provider 或 method。
 
 <!-- readme-section:containers -->
 
@@ -216,7 +216,8 @@ docker compose -f deploy/compose.yaml -f deploy/compose.minecraft.yaml run --rm 
 
 | Path | Responsibility |
 | --- | --- |
-| `noetrium_platform/` | 可重用平台實作與公共系統邊界 |
+| `noetrium/` | 公共 facade、contract、reference single-agent component 與 multi-agent orchestration |
+| `noetrium_platform/` | 內部 semantic-plane implementation、provider 與 governance tooling；不是下游 extension API |
 | `configs/` | 版本化設定範例與非機密模板 |
 | `deploy/` | 容器映像、Compose runtime 與部署引導資產 |
 | `docs/` | 架構、基礎設施、治理、狀態與歷史文件 |
@@ -225,7 +226,7 @@ docker compose -f deploy/compose.yaml -f deploy/compose.minecraft.yaml run --rm 
 | `noetrium_platform/capabilities/environment/minecraft/` | 內建可重用 Minecraft 環境 Provider |
 | `LICENSE` / `NOTICE` / `THIRD_PARTY_NOTICES.md` | Apache-2.0 與第三方授權說明 |
 
-`noetrium_platform/` is the reusable package boundary; project-specific code stays downstream.
+將 `noetrium_platform/` 視為受支援的內部實作 namespace；`noetrium/` 才是下游 package boundary，專案特定程式碼留在下游。
 
 <!-- readme-section:testing -->
 
