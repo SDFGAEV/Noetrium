@@ -4,9 +4,9 @@ from dataclasses import dataclass, replace
 
 import pytest
 
-from research_platform.governance.system_registry.api import SystemIdentity
-from research_platform.governance.system_registry.runtime import build_default_system_registry
-from research_platform.governance.architecture.api.capability_composition import (
+from noetrium_platform.foundation.governance.system_registry.api import SystemIdentity
+from noetrium_platform.foundation.governance.system_registry.runtime import build_default_system_registry
+from noetrium_platform.foundation.governance.architecture.api.capability_composition import (
     AmbiguousCapabilityProvider,
     BindingDiagnostic,
     BindingDiagnosticCode,
@@ -33,15 +33,15 @@ from research_platform.governance.architecture.api.capability_composition import
     RequirementAddress,
     interface_contract_digest,
 )
-from research_platform.governance.architecture.runtime.capability_composition import (
+from noetrium_platform.foundation.governance.architecture.runtime.capability_composition import (
     CapabilityCompositionPlanner,
 )
-from research_platform.platform.kernel import Sha256Digest, canonical_digest
-from research_platform.runtime.host.api import OperatingSystemRoute
-from research_platform.runtime.server.identity.api import ServerConnectionFactoryPort
-from research_platform.observability.logging.record.api import LoggingSystemPort
-from research_platform.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
-from research_platform.scope.runtime import InMemoryScopeRegistry
+from noetrium_platform.foundation.kernel.kernel import Sha256Digest, canonical_digest
+from noetrium_platform.infrastructure.lifecycle.host.api import OperatingSystemRoute
+from noetrium_platform.infrastructure.lifecycle.server.identity.api import ServerConnectionFactoryPort
+from noetrium_platform.evidence.observability.logging.record.api import LoggingSystemPort
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
+from noetrium_platform.foundation.scope.runtime import InMemoryScopeRegistry
 
 
 HOST_ROUTE = CapabilityKey("runtime.host", "operating-system-route", 1)
@@ -610,7 +610,7 @@ def test_binding_resolution_rejects_duplicate_machine_diagnostics_and_mutable_se
 
 
 def test_binding_envelope_is_exported_from_public_architecture_api() -> None:
-    from research_platform.governance.architecture import api as architecture_api
+    from noetrium_platform.foundation.governance.architecture import api as architecture_api
 
     assert architecture_api.BindingDiagnostic is BindingDiagnostic
     assert architecture_api.BindingProof is BindingProof

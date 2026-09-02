@@ -3,9 +3,9 @@ import tempfile, unittest
 from unittest import mock
 
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
-from research_platform.observability.api import EventEnvelope
-from research_platform.reliability.failure.api import build_failure
-from research_platform.platform.kernel import ExecutionContext
+from noetrium_platform.evidence.observability.api import EventEnvelope
+from noetrium_platform.infrastructure.reliability.failure.api import build_failure
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
 
 
 class ForensicsEventBatchV51Tests(unittest.TestCase):

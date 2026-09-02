@@ -12,8 +12,8 @@ import sys
 _DOWNSTREAM_SOURCE = '''
 from pathlib import Path
 import sys
-from research_platform.experimentation.checkpoint.api import RunCheckpointManifest
-from research_platform.experimentation.checkpoint.composition import build_project_run_checkpoint_store
+from noetrium_platform.research.experimentation.checkpoint.api import RunCheckpointManifest
+from noetrium_platform.research.experimentation.checkpoint.composition import build_project_run_checkpoint_store
 
 root = Path(sys.argv[2])
 manifest = RunCheckpointManifest(

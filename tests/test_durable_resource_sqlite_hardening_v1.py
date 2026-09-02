@@ -7,13 +7,13 @@ import sqlite3
 
 import pytest
 
-from research_platform.resource.providers import (
+from noetrium_platform.infrastructure.resources.providers import (
     SQLiteEndpointAllocationStore,
     SQLiteResourceLeaseRegistry,
 )
-from research_platform.resource.providers import sqlite_connection
-from research_platform.resource.providers.sqlite_connection import durable_sqlite_connection
-from research_platform.resource.providers import sqlite_endpoint, sqlite_lease
+from noetrium_platform.infrastructure.resources.providers import sqlite_connection
+from noetrium_platform.infrastructure.resources.providers.sqlite_connection import durable_sqlite_connection
+from noetrium_platform.infrastructure.resources.providers import sqlite_endpoint, sqlite_lease
 
 
 def test_hardened_sqlite_session_applies_durable_pragmas_and_closes(tmp_path: Path) -> None:

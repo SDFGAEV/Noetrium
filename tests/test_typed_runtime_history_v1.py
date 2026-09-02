@@ -1,7 +1,7 @@
-from research_platform.execution.runtime.manager.history import RuntimeHistory
-from research_platform.execution.runtime.manager.runtime_history_contracts import RuntimeHistoryEntry
-from research_platform.execution.runtime.manager.runtime_state_contracts import RuntimeControlState, RuntimeTxnPhase
-from research_platform.execution.runtime.manager.runtime_history_storage import FileRuntimeHistoryStorage
+from noetrium_platform.research.execution.runtime.manager.history import RuntimeHistory
+from noetrium_platform.research.execution.runtime.manager.runtime_history_contracts import RuntimeHistoryEntry
+from noetrium_platform.research.execution.runtime.manager.runtime_state_contracts import RuntimeControlState, RuntimeTxnPhase
+from noetrium_platform.research.execution.runtime.manager.runtime_history_storage import FileRuntimeHistoryStorage
 
 
 def _state() -> RuntimeControlState:

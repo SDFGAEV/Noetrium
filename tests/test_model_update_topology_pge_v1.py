@@ -5,7 +5,7 @@ import sqlite3
 
 import pytest
 
-from research_platform.model.api import (
+from noetrium_platform.capabilities.model.api import (
     ModelRevisionIdentity,
     ModelRevisionIntegrityError,
     ModelUpdateBuildEvidence,
@@ -14,11 +14,11 @@ from research_platform.model.api import (
     ModelUpdateProducerPort,
     ModelUpdateSource,
 )
-from research_platform.model.catalog.revision.providers import (
+from noetrium_platform.capabilities.model.catalog.revision.providers import (
     FunctionalModelUpdateProducer,
     SQLiteModelRevisionAuthority,
 )
-from research_platform.platform.kernel import ImmutableModelIdentity
+from noetrium_platform.foundation.kernel.kernel import ImmutableModelIdentity
 
 
 def _model(revision: str) -> ImmutableModelIdentity:

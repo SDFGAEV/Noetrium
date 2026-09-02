@@ -4,25 +4,25 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from research_platform.environment.minecraft.api import (
+from noetrium_platform.capabilities.environment.minecraft.api import (
     MinecraftBridgeSpec,
     MinecraftEndpointSpec,
     MinecraftEnvironmentSpec,
     MinecraftReconciliation,
 )
-from research_platform.environment.minecraft.runtime.action_coordinator import (
+from noetrium_platform.capabilities.environment.minecraft.runtime.action_coordinator import (
     MinecraftActionCoordinator,
     MinecraftActionCoordinatorBindings,
 )
-from research_platform.environment.minecraft.runtime.checkpoint import MinecraftActionVerification
-from research_platform.environment.minecraft.runtime.errors import MinecraftEnvironmentFailure
-from research_platform.environment.runtime.api import (
+from noetrium_platform.capabilities.environment.minecraft.runtime.checkpoint import MinecraftActionVerification
+from noetrium_platform.capabilities.environment.minecraft.runtime.errors import MinecraftEnvironmentFailure
+from noetrium_platform.capabilities.environment.runtime.api import (
     ActionIdentityViolation,
     ActionReconciliationDisposition,
     ActionRequest,
     action_request_digest,
 )
-from research_platform.platform.kernel import EffectCertainty, EffectClass, EffectReceipt, ExecutionContext
+from noetrium_platform.foundation.kernel.kernel import EffectCertainty, EffectClass, EffectReceipt, ExecutionContext
 
 
 class _Bridge:

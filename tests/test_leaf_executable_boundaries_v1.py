@@ -4,7 +4,7 @@ import sys
 import unittest
 ROOT=Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path: sys.path.insert(0,str(ROOT))
-from research_platform.governance.system_registry.api import system_catalog
+from noetrium_platform.foundation.governance.system_registry.api import system_catalog
 class LeafExecutableBoundaryTests(unittest.TestCase):
     def test_all_migrated_leaves_expose_runtime_provider_composition(self):
         rows=0

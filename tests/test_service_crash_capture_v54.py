@@ -1,7 +1,7 @@
 from __future__ import annotations
 from tests._concurrency_support import process_capture
 
-from research_platform.runtime.service.api import ServiceContractDrift, ServiceLaunchContract, ServiceProcessIdentity
+from noetrium_platform.infrastructure.lifecycle.service.api import ServiceContractDrift, ServiceLaunchContract, ServiceProcessIdentity
 from service_os_test_support import make_service_supervisor, ready_evidence
 
 from pathlib import Path
@@ -10,10 +10,10 @@ import tempfile
 import unittest
 
 from tests._concurrency_support import segmented_byte_capture
-from research_platform.reliability.primitives import CrashClass, CrashEvidence
-from research_platform.runtime.service.runtime.state_storage import FileServiceStateStore
-from research_platform.runtime.service.runtime.service_state_contracts import ServiceSupervisorState
-from research_platform.runtime.service.runtime import (
+from noetrium_platform.infrastructure.reliability.primitives import CrashClass, CrashEvidence
+from noetrium_platform.infrastructure.lifecycle.service.runtime.state_storage import FileServiceStateStore
+from noetrium_platform.infrastructure.lifecycle.service.runtime.service_state_contracts import ServiceSupervisorState
+from noetrium_platform.infrastructure.lifecycle.service.runtime import (
     ExactServiceSupervisor,
     ServiceExitClass,
     ServicePhase,

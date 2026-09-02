@@ -6,14 +6,14 @@ import time
 
 import pytest
 
-from research_platform.model.serving.api import ServiceHeartbeat, build_runtime_qualification_receipt
-from research_platform.model.serving.endpoint.providers import (
+from noetrium_platform.capabilities.model.serving.api import ServiceHeartbeat, build_runtime_qualification_receipt
+from noetrium_platform.capabilities.model.serving.endpoint.providers import (
     PersistedQualifiedModelEndpointBinding,
     QualifiedModelClosurePublicationError,
     load_qualified_model_deployment_closure,
     publish_qualified_model_deployment_closure,
 )
-from research_platform.model.serving.providers import (
+from noetrium_platform.capabilities.model.serving.providers import (
     DirectoryRuntimeCanaryEvidenceStore,
     DirectoryRuntimeQualificationEvidenceStore,
 )

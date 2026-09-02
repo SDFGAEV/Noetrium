@@ -4,7 +4,7 @@ import hashlib
 
 import pytest
 
-from research_platform.data.query.api import (
+from noetrium_platform.evidence.data.query.api import (
     ResearchDimension,
     ResearchDimensionKind,
     ResearchQueryGapKind,
@@ -16,9 +16,9 @@ from research_platform.data.query.api import (
     ResearchSourceDisposition,
     ResearchSourceSnapshot,
 )
-from research_platform.data.query.api.identity import source_cut
-from research_platform.data.query.cross.composition import compose
-from research_platform.scope.api import PLATFORM_SCOPE
+from noetrium_platform.evidence.data.query.api.identity import source_cut
+from noetrium_platform.evidence.data.query.cross.composition import compose
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE
 
 
 def _record(source_id: str, result_id: str) -> ResearchResultRecord:
@@ -148,7 +148,7 @@ def test_query_contracts_reject_untyped_impostors_at_construction() -> None:
 
     query = ResearchResultQuery(kinds=(ResearchResultKind.DATASET,))
     cut = source_cut("source.a", query, (_record("source.a", "one"),))
-    from research_platform.data.query.api import ResearchSourceStatus
+    from noetrium_platform.evidence.data.query.api import ResearchSourceStatus
 
     with pytest.raises(ValueError, match="cut source_id must match"):
         ResearchSourceStatus(

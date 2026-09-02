@@ -2,22 +2,22 @@ from __future__ import annotations
 
 import pytest
 
-from research_platform.model.api import (
+from noetrium_platform.capabilities.model.api import (
     ModelCapabilityRequirement,
     ModelProjectDefinition,
     ModelRequirementContribution,
 )
-from research_platform.model.request.prompt.composition import RegistryPromptSelection
-from research_platform.model.request.prompt.runtime import PromptRegistry, PromptSection, PromptSpec
-from research_platform.participant.api import (
+from noetrium_platform.capabilities.model.request.prompt.composition import RegistryPromptSelection
+from noetrium_platform.capabilities.model.request.prompt.runtime import PromptRegistry, PromptSection, PromptSpec
+from noetrium_platform.capabilities.participant.api import (
     AgentIdentity,
     AgentProjectDefinition,
     MethodProjectDefinition,
     ParticipantRequirement,
     ParticipantRequirementContribution,
 )
-from research_platform.participant.method.api import MethodIdentity
-from research_platform.participant.core.api.contracts import ParticipantImplementationIdentity
+from noetrium_platform.capabilities.participant.method.api import MethodIdentity
+from noetrium_platform.capabilities.participant.core.api.contracts import ParticipantImplementationIdentity
 
 
 def _prompt(*, version: str = "1", role: str = "planner") -> PromptSpec:

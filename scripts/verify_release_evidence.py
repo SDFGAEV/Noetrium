@@ -5,11 +5,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from research_platform.platform.composition.release_quality import build_release_quality_evidence
-from research_platform.governance.release.runtime.evidence import RELEASE_EVIDENCE_FILENAME, verify_release_evidence
-from research_platform.governance.release.runtime.manifest import verify_release_manifest
-from research_platform.governance.release.runtime.freeze_lock import ReleaseFreezeBusy, ReleaseFreezeLock
-from research_platform.governance.release.runtime.authority import ReleaseAuthorityMismatch, load_verified_release_authority
+from noetrium_platform.foundation.kernel.composition.release_quality import build_release_quality_evidence
+from noetrium_platform.foundation.governance.release.runtime.evidence import RELEASE_EVIDENCE_FILENAME, verify_release_evidence
+from noetrium_platform.foundation.governance.release.runtime.manifest import verify_release_manifest
+from noetrium_platform.foundation.governance.release.runtime.freeze_lock import ReleaseFreezeBusy, ReleaseFreezeLock
+from noetrium_platform.foundation.governance.release.runtime.authority import ReleaseAuthorityMismatch, load_verified_release_authority
 
 
 def _verify_locked() -> int:

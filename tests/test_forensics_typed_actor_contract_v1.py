@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, get_type_hints
 
-from research_platform.reliability.forensics.api.ports import ForensicWriteActorPort
+from noetrium_platform.infrastructure.reliability.forensics.api.ports import ForensicWriteActorPort
 
 
 def test_forensic_write_actor_preserves_callable_parameter_types_without_any() -> None:

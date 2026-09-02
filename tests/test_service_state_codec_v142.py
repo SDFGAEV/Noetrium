@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from research_platform.runtime.service.api import ServiceProcessIdentity
+from noetrium_platform.infrastructure.lifecycle.service.api import ServiceProcessIdentity
 from dataclasses import asdict, replace
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from research_platform.runtime.service.runtime.state_storage import FileServiceStateStore
-from research_platform.platform.kernel.durability import ChecksummedDocumentFailureCode
-from research_platform.runtime.service.runtime import (
+from noetrium_platform.infrastructure.lifecycle.service.runtime.state_storage import FileServiceStateStore
+from noetrium_platform.foundation.kernel.kernel.durability import ChecksummedDocumentFailureCode
+from noetrium_platform.infrastructure.lifecycle.service.runtime import (
     ServiceExitClass,
     ServiceReadyEvidence,
     ServiceStateIntegrityError,
@@ -72,14 +72,14 @@ class ServiceStateCodecV142Tests(unittest.TestCase):
 
 class ServiceReadyAtV32Tests(unittest.TestCase):
     def _contract(self):
-        from research_platform.runtime.service.api import ServiceLaunchContract
+        from noetrium_platform.infrastructure.lifecycle.service.api import ServiceLaunchContract
         return ServiceLaunchContract(
             "svc", "g1", "/opt/rp/python", ("/opt/rp/python", "-m", "svc"), "/srv/rp",
             "a" * 64, "b" * 64, "c" * 64, 10.0, 10.0, 1.0,
         )
 
     def test_ready_at_round_trips_as_independent_durable_authority(self):
-        from research_platform.runtime.service.runtime import ServicePhase
+        from noetrium_platform.infrastructure.lifecycle.service.runtime import ServicePhase
         state = replace(
             ServiceSupervisorState.initial("svc", "d" * 64),
             phase=ServicePhase.RUNNING, ready_evidence_ref="ready:1", ready_at=1234.5,
@@ -99,13 +99,13 @@ class ServiceReadyAtV32Tests(unittest.TestCase):
 class ServiceReadyProjectionV32Tests(unittest.TestCase):
     def test_producer_ready_at_is_persisted_preserved_and_publicly_projected(self):
         from unittest.mock import patch
-        from research_platform.runtime.service.api import (
+        from noetrium_platform.infrastructure.lifecycle.service.api import (
             ServiceLaunchContract, ServiceProcessIdentity, ServiceReconcileObservation,
         )
-        from research_platform.runtime.service.runtime import ServicePhase
-        from research_platform.runtime.service.runtime.runtime_endpoint import ExactServiceRuntimeEndpoint
-        from research_platform.runtime.service.runtime.start_flow_common import ServiceReadinessCommitter
-        from research_platform.runtime.service.runtime.state_transition import ServiceStateTransitionWriter
+        from noetrium_platform.infrastructure.lifecycle.service.runtime import ServicePhase
+        from noetrium_platform.infrastructure.lifecycle.service.runtime.runtime_endpoint import ExactServiceRuntimeEndpoint
+        from noetrium_platform.infrastructure.lifecycle.service.runtime.start_flow_common import ServiceReadinessCommitter
+        from noetrium_platform.infrastructure.lifecycle.service.runtime.state_transition import ServiceStateTransitionWriter
 
         contract = ServiceLaunchContract(
             "svc", "g1", "/opt/rp/python", ("/opt/rp/python", "-m", "svc"), "/srv/rp",
@@ -128,13 +128,13 @@ class ServiceReadyProjectionV32Tests(unittest.TestCase):
         transitions = ServiceStateTransitionWriter(store)
         committer = ServiceReadinessCommitter(adapter, transitions)
         initial = ServiceSupervisorState.initial(contract.service_id, contract.digest())
-        with patch("research_platform.runtime.service.runtime.state_transition.time.time", return_value=2000.0):
+        with patch("noetrium_platform.infrastructure.lifecycle.service.runtime.state_transition.time.time", return_value=2000.0):
             state, _refs = committer.commit(contract, initial, process)
         self.assertEqual(state.ready_at, 1777.25)
         self.assertEqual(state.last_heartbeat_at, 1777.25)
         second_store = Store()
         second = ServiceReadinessCommitter(Adapter(), ServiceStateTransitionWriter(second_store))
-        with patch("research_platform.runtime.service.runtime.state_transition.time.time", return_value=3000.0):
+        with patch("noetrium_platform.infrastructure.lifecycle.service.runtime.state_transition.time.time", return_value=3000.0):
             second_state, _ = second.commit(contract, initial, process)
         self.assertEqual((state.ready_at, second_state.ready_at), (1777.25, 1777.25))
         self.assertEqual((state.updated_at, second_state.updated_at), (2000.0, 3000.0))
@@ -152,7 +152,7 @@ class ServiceReadyProjectionV32Tests(unittest.TestCase):
 
 class ServiceReadinessReceiptAuthorityV32Tests(unittest.TestCase):
     def _contract(self):
-        from research_platform.runtime.service.api import ServiceLaunchContract
+        from noetrium_platform.infrastructure.lifecycle.service.api import ServiceLaunchContract
         return ServiceLaunchContract(
             "svc", "g1", "/opt/rp/python", ("/opt/rp/python", "-m", "svc"), "/srv/rp",
             "a" * 64, "b" * 64, "c" * 64, 10.0, 10.0, 1.0,
@@ -160,9 +160,9 @@ class ServiceReadinessReceiptAuthorityV32Tests(unittest.TestCase):
 
     def test_local_adapter_freezes_timestamped_identity_bound_receipt_at_probe_success(self):
         from unittest.mock import patch
-        from research_platform.runtime.service.api import ServiceProcessIdentity
-        from research_platform.runtime.service.runtime import LocalServiceProcessAdapter
-        from research_platform.runtime.service.runtime.capture_paths import DirectoryCapturePathProvider
+        from noetrium_platform.infrastructure.lifecycle.service.api import ServiceProcessIdentity
+        from noetrium_platform.infrastructure.lifecycle.service.runtime import LocalServiceProcessAdapter
+        from noetrium_platform.infrastructure.lifecycle.service.runtime.capture_paths import DirectoryCapturePathProvider
         contract = self._contract(); process = ServiceProcessIdentity(42, "start:42")
         backend = object()
         class Probe:
@@ -171,7 +171,7 @@ class ServiceReadinessReceiptAuthorityV32Tests(unittest.TestCase):
                 return "ready:probe"
         probe = Probe()
         with TemporaryDirectory() as td, patch(
-            "research_platform.runtime.service.runtime.process_adapter.time.time", return_value=1555.5
+            "noetrium_platform.infrastructure.lifecycle.service.runtime.process_adapter.time.time", return_value=1555.5
         ):
             adapter = LocalServiceProcessAdapter(object(), DirectoryCapturePathProvider(Path(td)), backend, probe)
             receipt = adapter.wait_ready(process, contract)
@@ -182,7 +182,7 @@ class ServiceReadinessReceiptAuthorityV32Tests(unittest.TestCase):
         self.assertEqual(probe.observed, (process, contract, backend))
 
     def test_readiness_receipt_rejects_noncanonical_identity_and_nonfinite_time(self):
-        from research_platform.runtime.service.api import ServiceProcessIdentity
+        from noetrium_platform.infrastructure.lifecycle.service.api import ServiceProcessIdentity
         process = ServiceProcessIdentity(42, "start:42")
         with self.assertRaises(ValueError):
             ServiceReadyEvidence("A" * 64, process, "ready", "stdout", "stderr", 1.0)
@@ -192,10 +192,10 @@ class ServiceReadinessReceiptAuthorityV32Tests(unittest.TestCase):
             ServiceReadyEvidence("a" * 64, process, "ready", "stdout", "stderr", True)
 
     def test_committer_rejects_receipt_rebound_to_different_process(self):
-        from research_platform.runtime.service.api import ServiceProcessIdentity
-        from research_platform.runtime.service.runtime import ServiceReadinessProofMismatch
-        from research_platform.runtime.service.runtime.start_flow_common import ServiceReadinessCommitter
-        from research_platform.runtime.service.runtime.state_transition import ServiceStateTransitionWriter
+        from noetrium_platform.infrastructure.lifecycle.service.api import ServiceProcessIdentity
+        from noetrium_platform.infrastructure.lifecycle.service.runtime import ServiceReadinessProofMismatch
+        from noetrium_platform.infrastructure.lifecycle.service.runtime.start_flow_common import ServiceReadinessCommitter
+        from noetrium_platform.infrastructure.lifecycle.service.runtime.state_transition import ServiceStateTransitionWriter
         contract = self._contract(); process = ServiceProcessIdentity(42, "start:42")
         forged = ServiceReadyEvidence(contract.digest(), ServiceProcessIdentity(99, "start:99"), "ready", "stdout", "stderr", 5.0)
         class Store:

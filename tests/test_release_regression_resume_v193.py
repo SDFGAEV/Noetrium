@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 
 import scripts.release_regression as regression
-from research_platform.governance.release.runtime.regression_state import default_regression_state_path
+from noetrium_platform.foundation.governance.release.runtime.regression_state import default_regression_state_path
 
 
 class ReleaseRegressionResumeV193Tests(unittest.TestCase):
@@ -129,7 +129,7 @@ class ReleaseRegressionResumeV193Tests(unittest.TestCase):
                 )
 
     def test_exclusive_planner_bounds_shards_by_advisory_runtime_without_reordering(self):
-        from research_platform.governance.release.runtime.regression_timing import (
+        from noetrium_platform.foundation.governance.release.runtime.regression_timing import (
             FileTiming,
             ReleaseRegressionTimingHistory,
         )
@@ -158,7 +158,7 @@ class ReleaseRegressionResumeV193Tests(unittest.TestCase):
         self.assertEqual(tuple(path for group in groups for path in group), tuple(files))
 
     def test_exclusive_planner_allows_one_oversized_file_without_empty_shard(self):
-        from research_platform.governance.release.runtime.regression_timing import (
+        from noetrium_platform.foundation.governance.release.runtime.regression_timing import (
             FileTiming,
             ReleaseRegressionTimingHistory,
         )

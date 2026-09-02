@@ -36,4 +36,4 @@ The `baseline` command is exact and requires `--source-revision <git-sha>` for G
 
 ## Public dependency seam
 
-The canonical Concurrency/Performance baseline semantic digest is a `research_platform.governance.api` contract. Lane runtime services consume that public API and never import sibling `governance.runtime` implementation. Lane implementation fingerprinting remains a composition/runtime concern. Architecture must reject any reintroduction of a concrete sibling-runtime dependency.
+The canonical Concurrency/Performance baseline semantic digest is a `noetrium_platform.foundation.governance.api` contract. Lane runtime services consume that public API and never import sibling `governance.runtime` implementation. Lane implementation fingerprinting remains a composition/runtime concern. Architecture must reject any reintroduction of a concrete sibling-runtime dependency.

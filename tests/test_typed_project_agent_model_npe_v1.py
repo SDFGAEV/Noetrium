@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from research_platform.model.api import (
+from noetrium_platform.capabilities.model.api import (
     ModelBindingDiagnosticCode,
     ModelCapabilityRequirement,
     ModelProjectBindingError,
@@ -16,15 +16,15 @@ from research_platform.model.api import (
     ProjectModelProviderPort,
     ProjectModelRequest,
 )
-from research_platform.model.providers import QualifiedModelProjectProvider
-from research_platform.model.request.api import ContentRef, ModelRequestEnvelope
-from research_platform.model.serving.endpoint.api import (
+from noetrium_platform.capabilities.model.providers import QualifiedModelProjectProvider
+from noetrium_platform.capabilities.model.request.api import ContentRef, ModelRequestEnvelope
+from noetrium_platform.capabilities.model.serving.endpoint.api import (
     ModelEndpointRequest,
     ModelEndpointResponse,
     ModelEndpointRoute,
     QualifiedModelEndpointBinding,
 )
-from research_platform.participant.api import (
+from noetrium_platform.capabilities.participant.api import (
     AgentIdentity,
     AgentProjectDefinition,
     ParticipantBindingDiagnosticCode,
@@ -33,13 +33,13 @@ from research_platform.participant.api import (
     ParticipantRequirement,
     ProjectParticipantProviderPort,
 )
-from research_platform.participant.core.api.contracts import (
+from noetrium_platform.capabilities.participant.core.api.contracts import (
     ParticipantRuntimeBinding,
     ParticipantSessionRuntimeIdentity,
 )
-from research_platform.participant.core.api.runtime import ParticipantRuntimeHandle
-from research_platform.participant.providers import RuntimeParticipantProjectProvider
-from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity, canonical_digest
+from noetrium_platform.capabilities.participant.core.api.runtime import ParticipantRuntimeHandle
+from noetrium_platform.capabilities.participant.providers import RuntimeParticipantProjectProvider
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext, ImmutableModelIdentity, canonical_digest
 
 
 D = {
@@ -178,8 +178,8 @@ def _provider(binding: QualifiedModelEndpointBinding) -> QualifiedModelProjectPr
 
 def test_common_project_source_uses_only_role04_public_api() -> None:
     source = """
-from research_platform.model.api import ModelCapabilityRequirement
-from research_platform.participant.api import (
+from noetrium_platform.capabilities.model.api import ModelCapabilityRequirement
+from noetrium_platform.capabilities.participant.api import (
     AgentIdentity, AgentProjectDefinition, AgentSession, AgentTurnResult,
 )
 
@@ -207,8 +207,8 @@ DEMO_SESSION = DemoSession()
         if isinstance(node, ast.ImportFrom)
     }
     assert modules == {
-        "research_platform.model.api",
-        "research_platform.participant.api",
+        "noetrium_platform.capabilities.model.api",
+        "noetrium_platform.capabilities.participant.api",
     }
     namespace: dict[str, object] = {}
     exec(compile(tree, "project.py", "exec"), namespace)
@@ -437,8 +437,8 @@ def test_participant_provider_detects_resolver_binding_drift() -> None:
 
 
 def test_role04_public_exports_are_reflection_safe_strings() -> None:
-    import research_platform.model.api as model_api
-    import research_platform.participant.api as participant_api
+    import noetrium_platform.capabilities.model.api as model_api
+    import noetrium_platform.capabilities.participant.api as participant_api
 
     assert model_api.__all__
     assert participant_api.__all__
@@ -454,8 +454,8 @@ def test_provider_ports_fail_closed_on_untyped_requirements() -> None:
 
 
 def test_common_public_modules_do_not_export_provider_runtime_constructors() -> None:
-    import research_platform.model.api as model_api
-    import research_platform.participant.api as participant_api
+    import noetrium_platform.capabilities.model.api as model_api
+    import noetrium_platform.capabilities.participant.api as participant_api
 
     assert not hasattr(model_api, "QualifiedModelProjectProvider")
     assert not hasattr(model_api, "EndpointFactory")
@@ -508,8 +508,8 @@ def test_model_response_provenance_drift_fails_closed() -> None:
 
 
 def _psc_subjects(system_id: str):
-    from research_platform.governance.architecture.api import CompositionSubject
-    from research_platform.governance.system_registry.api import SystemIdentity
+    from noetrium_platform.foundation.governance.architecture.api import CompositionSubject
+    from noetrium_platform.foundation.governance.system_registry.api import SystemIdentity
 
     return (
         CompositionSubject.system_subject(SystemIdentity(system_id)),
@@ -518,8 +518,8 @@ def _psc_subjects(system_id: str):
 
 
 def test_model_binding_projects_success_into_neutral_psc03_resolution() -> None:
-    from research_platform.governance.architecture.api import BindingResolutionState
-    from research_platform.model.composition import ModelBindingResolutionAdapter
+    from noetrium_platform.foundation.governance.architecture.api import BindingResolutionState
+    from noetrium_platform.capabilities.model.composition import ModelBindingResolutionAdapter
 
     requirement = _requirement()
     provider = _provider(_qualified_binding())
@@ -540,8 +540,8 @@ def test_model_binding_projects_success_into_neutral_psc03_resolution() -> None:
 
 
 def test_model_binding_projects_domain_failure_into_neutral_psc03_diagnostic() -> None:
-    from research_platform.governance.architecture.api import BindingResolutionState
-    from research_platform.model.composition import ModelBindingResolutionAdapter
+    from noetrium_platform.foundation.governance.architecture.api import BindingResolutionState
+    from noetrium_platform.capabilities.model.composition import ModelBindingResolutionAdapter
 
     requirement = _requirement()
     provider = QualifiedModelProjectProvider(
@@ -564,8 +564,8 @@ def test_model_binding_projects_domain_failure_into_neutral_psc03_diagnostic() -
 
 
 def test_participant_binding_projects_success_into_neutral_psc03_resolution() -> None:
-    from research_platform.governance.architecture.api import BindingResolutionState
-    from research_platform.participant.composition import ParticipantBindingResolutionAdapter
+    from noetrium_platform.foundation.governance.architecture.api import BindingResolutionState
+    from noetrium_platform.capabilities.participant.composition import ParticipantBindingResolutionAdapter
 
     requirement = _participant_requirement()
     provider = _participant_provider()
@@ -586,8 +586,8 @@ def test_participant_binding_projects_success_into_neutral_psc03_resolution() ->
 
 
 def test_participant_binding_projects_domain_failure_into_neutral_psc03_diagnostic() -> None:
-    from research_platform.governance.architecture.api import BindingResolutionState
-    from research_platform.participant.composition import ParticipantBindingResolutionAdapter
+    from noetrium_platform.foundation.governance.architecture.api import BindingResolutionState
+    from noetrium_platform.capabilities.participant.composition import ParticipantBindingResolutionAdapter
 
     requirement = _participant_requirement()
     provider = RuntimeParticipantProjectProvider(

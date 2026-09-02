@@ -1,10 +1,10 @@
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from research_platform.execution.command.api import CommandId
-from research_platform.execution.operation.api import OperationId
-from research_platform.execution.operation.providers import SQLiteOperationStore
-from research_platform.execution.operation.runtime import OperationOwner
+from noetrium_platform.research.execution.command.api import CommandId
+from noetrium_platform.research.execution.operation.api import OperationId
+from noetrium_platform.research.execution.operation.providers import SQLiteOperationStore
+from noetrium_platform.research.execution.operation.runtime import OperationOwner
 
 
 def test_concurrent_same_operation_identity_creates_once(tmp_path: Path):

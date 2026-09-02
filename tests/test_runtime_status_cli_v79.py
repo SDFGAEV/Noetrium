@@ -9,14 +9,14 @@ import time
 import unittest
 
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
-from research_platform.operator.query.runtime.route_runtime import route_runtime
-from research_platform.operator.runtime.parser import build_parser
-from research_platform.execution.runtime.manager.heartbeat_storage import FileServiceHeartbeatStore
-from research_platform.execution.runtime.manager import RuntimeControlStore, RuntimeTxnPhase
-from research_platform.execution.runtime.manager.heartbeat import ServiceHeartbeat
-from research_platform.runtime.service.runtime.state_storage import FileServiceStateStore
-from research_platform.runtime.service.runtime import ServicePhase
-from research_platform.runtime.service.runtime.service_state_contracts import ServiceSupervisorState
+from noetrium_platform.product.operator.query.runtime.route_runtime import route_runtime
+from noetrium_platform.product.operator.runtime.parser import build_parser
+from noetrium_platform.research.execution.runtime.manager.heartbeat_storage import FileServiceHeartbeatStore
+from noetrium_platform.research.execution.runtime.manager import RuntimeControlStore, RuntimeTxnPhase
+from noetrium_platform.research.execution.runtime.manager.heartbeat import ServiceHeartbeat
+from noetrium_platform.infrastructure.lifecycle.service.runtime.state_storage import FileServiceStateStore
+from noetrium_platform.infrastructure.lifecycle.service.runtime import ServicePhase
+from noetrium_platform.infrastructure.lifecycle.service.runtime.service_state_contracts import ServiceSupervisorState
 
 from test_server_runtime_control_v29 import deployment
 

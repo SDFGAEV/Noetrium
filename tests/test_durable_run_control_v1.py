@@ -6,18 +6,18 @@ from pathlib import Path
 import pytest
 
 from tests_support import frozen_runtime_manifest
-from research_platform.execution.decision.cycle_identity import DecisionCycleIdentity
-from research_platform.execution.operation.api import project_effect_reconciliation
-from research_platform.experimentation.checkpoint.api.contracts import (
+from noetrium_platform.research.execution.decision.cycle_identity import DecisionCycleIdentity
+from noetrium_platform.research.execution.operation.api import project_effect_reconciliation
+from noetrium_platform.research.experimentation.checkpoint.api.contracts import (
     RunCheckpointBundle,
     RunCheckpointManifest,
 )
-from research_platform.experimentation.run.api.artifacts import (
+from noetrium_platform.research.experimentation.run.api.artifacts import (
     RunArtifactKind,
     RunArtifactSnapshotReceipt,
     RunArtifactVerificationError,
 )
-from research_platform.experimentation.run.control.api import (
+from noetrium_platform.research.experimentation.run.control.api import (
     RunControlAction,
     RunControlActionFailure,
     RunControlConflict,
@@ -33,12 +33,12 @@ from research_platform.experimentation.run.control.api import (
     RunScientificValidity,
     RunTaskOutcome,
 )
-from research_platform.experimentation.run.control.providers import DirectoryRunControlLedger
-from research_platform.experimentation.run.control.runtime import DurableRunControl
-from research_platform.experimentation.run.identity.api import RunIdentity
-from research_platform.experimentation.run.manifest.api.evidence import EvidenceBundleReceipt
-from research_platform.platform.kernel import EffectCertainty, EffectClass, EffectReceipt
-from research_platform.reliability.effect.api import (
+from noetrium_platform.research.experimentation.run.control.providers import DirectoryRunControlLedger
+from noetrium_platform.research.experimentation.run.control.runtime import DurableRunControl
+from noetrium_platform.research.experimentation.run.identity.api import RunIdentity
+from noetrium_platform.research.experimentation.run.manifest.api.evidence import EvidenceBundleReceipt
+from noetrium_platform.foundation.kernel.kernel import EffectCertainty, EffectClass, EffectReceipt
+from noetrium_platform.infrastructure.reliability.effect.api import (
     EffectReconciliationDisposition,
     EffectReconciliationProof,
 )
@@ -235,7 +235,7 @@ def _evidence_receipt(fx: _Fixture, *, run_id: str = "run-1", manifest_digest: s
 
 
 def test_public_run_control_api_imports_without_loading_checkpoint_workload_cycle() -> None:
-    from research_platform.experimentation.run.control.api import RunControlPort
+    from noetrium_platform.research.experimentation.run.control.api import RunControlPort
     assert RunControlPort is not None
 
 
@@ -602,9 +602,9 @@ def test_cross_process_same_generation_has_one_effectful_winner(tmp_path: Path) 
 
 
 def test_prepared_publication_failure_never_calls_lifecycle(tmp_path: Path, monkeypatch) -> None:
-    from research_platform.experimentation.run.control.api import RunControlNotFound
-    from research_platform.platform.kernel.durability import DurableFileWriteError
-    import research_platform.experimentation.run.control.providers.directory_ledger as ledger_module
+    from noetrium_platform.research.experimentation.run.control.api import RunControlNotFound
+    from noetrium_platform.foundation.kernel.kernel.durability import DurableFileWriteError
+    import noetrium_platform.research.experimentation.run.control.providers.directory_ledger as ledger_module
 
     fx = _fixture()
     lifecycle = _Lifecycle()
@@ -632,8 +632,8 @@ def test_prepared_publication_failure_never_calls_lifecycle(tmp_path: Path, monk
 
 
 def test_terminal_publication_failure_restarts_pending_without_reissuing_effect(tmp_path: Path, monkeypatch) -> None:
-    from research_platform.platform.kernel.durability import DurableFileWriteError
-    import research_platform.experimentation.run.control.providers.directory_ledger as ledger_module
+    from noetrium_platform.foundation.kernel.kernel.durability import DurableFileWriteError
+    import noetrium_platform.research.experimentation.run.control.providers.directory_ledger as ledger_module
 
     fx = _fixture()
     lifecycle = _Lifecycle()
@@ -685,8 +685,8 @@ def test_terminal_publication_failure_restarts_pending_without_reissuing_effect(
 
 
 def test_terminal_commit_crossing_atomic_replace_reconstructs_terminal_authority(tmp_path: Path, monkeypatch) -> None:
-    from research_platform.platform.kernel.durability import DurableFileWriteError
-    import research_platform.experimentation.run.control.providers.directory_ledger as ledger_module
+    from noetrium_platform.foundation.kernel.kernel.durability import DurableFileWriteError
+    import noetrium_platform.research.experimentation.run.control.providers.directory_ledger as ledger_module
 
     fx = _fixture()
     lifecycle = _Lifecycle()

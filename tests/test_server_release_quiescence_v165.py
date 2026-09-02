@@ -4,14 +4,14 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from research_platform.platform.composition.release_quiescence import (
+from noetrium_platform.foundation.kernel.composition.release_quiescence import (
     PersistentSessionReleaseConsumerProbe,
     RecoveryLeaseReleaseConsumerProbe,
 )
-from research_platform.governance.release.composition.retirement import ReleaseQuiescenceVerifier
-from research_platform.governance.release.api import ActiveReleasePin, ReleaseConsumerQuiescence
-from research_platform.reliability.recovery.providers.lease_store import RecoveryLeaseStore
-from research_platform.runtime.session.runtime.status import PersistentSessionObservation, PersistentSessionObservationState
+from noetrium_platform.foundation.governance.release.composition.retirement import ReleaseQuiescenceVerifier
+from noetrium_platform.foundation.governance.release.api import ActiveReleasePin, ReleaseConsumerQuiescence
+from noetrium_platform.infrastructure.reliability.recovery.providers.lease_store import RecoveryLeaseStore
+from noetrium_platform.infrastructure.lifecycle.session.runtime.status import PersistentSessionObservation, PersistentSessionObservationState
 
 
 class SessionProbe:

@@ -5,16 +5,16 @@ import hashlib
 
 import pytest
 
-from research_platform.experimentation.checkpoint.api import (
+from noetrium_platform.research.experimentation.checkpoint.api import (
     RunCheckpointBundle,
     RunCheckpointIntegrityError,
     RunCheckpointManifest,
     RunParticipantPayload,
     RunParticipantSnapshotRef,
 )
-from research_platform.experimentation.checkpoint.providers import DirectoryRunCheckpointStore
-from research_platform.experimentation.checkpoint.providers.codec import RunCheckpointManifestCodec
-from research_platform.participant.core.api.checkpoint import ParticipantCheckpoint, ParticipantCheckpointRef
+from noetrium_platform.research.experimentation.checkpoint.providers import DirectoryRunCheckpointStore
+from noetrium_platform.research.experimentation.checkpoint.providers.codec import RunCheckpointManifestCodec
+from noetrium_platform.capabilities.participant.core.api.checkpoint import ParticipantCheckpoint, ParticipantCheckpointRef
 
 
 def _encoded() -> dict[str, object]:

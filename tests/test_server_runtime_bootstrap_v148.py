@@ -7,18 +7,18 @@ import hashlib
 from tempfile import TemporaryDirectory
 import unittest
 
-from research_platform.runtime.server.lifecycle.runtime import (
+from noetrium_platform.infrastructure.lifecycle.server.lifecycle.runtime import (
     ImmutableServerReleaseLayout,
     ServerReleaseLayoutError,
     ServerRuntimeBootstrap,
     ServerRuntimeLaunchManifestMismatch,
     ServerSessionPolicyMismatch,
 )
-from research_platform.governance.release.runtime.active_pin_store import ActiveReleasePinStore
-from research_platform.runtime.host.bootstrap.runtime import DirectoryServerBootstrapStateStore, ServerBootstrapTransaction
-from research_platform.governance.release.api import ActiveReleasePinned
-from research_platform.runtime.session.api import ServerSessionPolicy
-from research_platform.runtime.session.runtime import (
+from noetrium_platform.foundation.governance.release.runtime.active_pin_store import ActiveReleasePinStore
+from noetrium_platform.infrastructure.lifecycle.host.bootstrap.runtime import DirectoryServerBootstrapStateStore, ServerBootstrapTransaction
+from noetrium_platform.foundation.governance.release.api import ActiveReleasePinned
+from noetrium_platform.infrastructure.lifecycle.session.api import ServerSessionPolicy
+from noetrium_platform.infrastructure.lifecycle.session.runtime import (
     DirectoryPersistentSessionBindingStore,
     PersistentSessionManager,
     TmuxPersistentSessionControl,

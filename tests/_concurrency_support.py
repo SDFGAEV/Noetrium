@@ -4,9 +4,9 @@ from pathlib import Path
 from threading import Lock
 from uuid import uuid4
 
-from research_platform.observability.telemetry.metric.composition import build_telemetry_sqlite_backend
-from research_platform.platform.concurrency.composition import build_concurrency_runtime
-from research_platform.reliability.forensics.composition.store import ForensicStore
+from noetrium_platform.evidence.observability.telemetry.metric.composition import build_telemetry_sqlite_backend
+from noetrium_platform.foundation.kernel.concurrency.composition import build_concurrency_runtime
+from noetrium_platform.infrastructure.reliability.forensics.composition.store import ForensicStore
 
 
 _RUNTIME_LOCK = Lock()
@@ -92,7 +92,7 @@ class OwnedForensicStore(ForensicStore):
 
 def forensic_index(path: Path):
     from weakref import finalize
-    from research_platform.reliability.forensics.providers.index import ForensicIndex
+    from noetrium_platform.infrastructure.reliability.forensics.providers.index import ForensicIndex
 
     runtime = _register_runtime(build_concurrency_runtime())
     group = runtime.open_task_group(f"test-forensic-index:{uuid4().hex}")
@@ -115,13 +115,13 @@ class _InlineSerialActor:
 
 
 def run_artifact_store(path: Path):
-    from research_platform.experimentation.run.runtime import DirectoryRunArtifactStore
+    from noetrium_platform.research.experimentation.run.runtime import DirectoryRunArtifactStore
 
     return DirectoryRunArtifactStore(path, writer_actor=_InlineSerialActor())
 
 
 def jsonl_log_store(path: Path, *, max_bytes: int = 64 * 1024 * 1024, max_segments: int = 8):
-    from research_platform.observability.logging.storage.runtime.jsonl import JsonlLogStore
+    from noetrium_platform.evidence.observability.logging.storage.runtime.jsonl import JsonlLogStore
 
     return JsonlLogStore(
         path,
@@ -132,13 +132,13 @@ def jsonl_log_store(path: Path, *, max_bytes: int = 64 * 1024 * 1024, max_segmen
 
 
 def server_operation_journal(path: Path):
-    from research_platform.runtime.server.runtime import JsonlServerOperationJournal
+    from noetrium_platform.infrastructure.lifecycle.server.runtime import JsonlServerOperationJournal
 
     return JsonlServerOperationJournal(path, writer_actor=_InlineSerialActor())
 
 
 def raw_observation_lake(path: Path):
-    from research_platform.observability.capture.composition import build_file_raw_observation_lake
+    from noetrium_platform.evidence.observability.capture.composition import build_file_raw_observation_lake
 
     runtime = _register_runtime(build_concurrency_runtime())
     group = runtime.open_task_group(f"test-raw-capture:{uuid4().hex}")
@@ -149,7 +149,7 @@ def raw_observation_lake(path: Path):
 
 
 def process_capture(path: Path, stream: str, **kwargs):
-    from research_platform.runtime.process.capture import SegmentedByteCapture
+    from noetrium_platform.infrastructure.lifecycle.process.capture import SegmentedByteCapture
 
     runtime = _register_runtime(build_concurrency_runtime())
     group = runtime.open_task_group(f"test-process-capture:{uuid4().hex}")
@@ -160,7 +160,7 @@ def process_capture(path: Path, stream: str, **kwargs):
 
 
 def segmented_byte_capture(path: Path, stream: str, **kwargs):
-    from research_platform.runtime.process.capture import SegmentedByteCapture
+    from noetrium_platform.infrastructure.lifecycle.process.capture import SegmentedByteCapture
 
     runtime = _register_runtime(build_concurrency_runtime())
     group = runtime.open_task_group(f"test-process-capture:{uuid4().hex}")

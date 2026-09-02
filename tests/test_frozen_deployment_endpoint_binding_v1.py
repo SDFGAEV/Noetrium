@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from research_platform.model.serving.api import FrozenDeploymentIdentity, FrozenDeploymentSet, FrozenRoleAssignment
-from research_platform.model.serving.endpoint.api import ModelEndpointRoute
-from research_platform.model.serving.endpoint.composition import FrozenDeploymentEndpointBinder
+from noetrium_platform.capabilities.model.serving.api import FrozenDeploymentIdentity, FrozenDeploymentSet, FrozenRoleAssignment
+from noetrium_platform.capabilities.model.serving.endpoint.api import ModelEndpointRoute
+from noetrium_platform.capabilities.model.serving.endpoint.composition import FrozenDeploymentEndpointBinder
 
 
 class Factory:

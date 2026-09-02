@@ -22,9 +22,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from research_platform.execution.admission.api import AdmissionBudget
+from noetrium_platform.research.execution.admission.api import AdmissionBudget
 
-from research_platform.governance.release.runtime.regression_state import (
+from noetrium_platform.foundation.governance.release.runtime.regression_state import (
     REGRESSION_STATE_SCHEMA_VERSION,
     ReleaseRegressionShardPlan,
     ReleaseRegressionShardResult,
@@ -35,13 +35,13 @@ from research_platform.governance.release.runtime.regression_state import (
     test_inventory_digest,
     write_regression_state,
 )
-from research_platform.governance.release.runtime.regression_timing import (
+from noetrium_platform.foundation.governance.release.runtime.regression_timing import (
     default_timing_history_path,
     load_timing_history,
     write_timing_history,
 )
 from scripts.test_system import TestSystemError, check as check_test_system
-from research_platform.platform.concurrency.api import (
+from noetrium_platform.foundation.kernel.concurrency.api import (
     ConcurrencyBudget,
     Deadline,
     ExecutionLaneKind,
@@ -49,7 +49,7 @@ from research_platform.platform.concurrency.api import (
     TaskContextPort,
     TaskGroupPort,
 )
-from research_platform.platform.composition.concurrency import build_execution_concurrency_runtime
+from noetrium_platform.foundation.kernel.composition.concurrency import build_execution_concurrency_runtime
 
 
 # Kept only for backwards-compatible diagnostics/tests.  Release evidence no

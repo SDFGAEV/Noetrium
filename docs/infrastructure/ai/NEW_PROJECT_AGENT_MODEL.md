@@ -7,14 +7,14 @@ This document defines the ROLE04-owned downstream seam used by the New Project E
 Ordinary downstream project code should begin with only:
 
 ```python
-from research_platform.participant.api import (
+from noetrium_platform.capabilities.participant.api import (
     AgentIdentity,
     AgentProjectDefinition,
     AgentSession,
     AgentTurnRequest,
     AgentTurnResult,
 )
-from research_platform.model.api import ModelCapabilityRequirement
+from noetrium_platform.capabilities.model.api import ModelCapabilityRequirement
 ```
 
 A project can define Agent behavior with `AgentSession`, declare the exact Agent identity through `AgentProjectDefinition`, and state model requirements through `ModelCapabilityRequirement` without importing Participant runtime/catalog packages or Model serving providers.
@@ -31,7 +31,7 @@ The common path intentionally does not contain a serving URL, process PID, proce
 
 `ProjectParticipantProviderPort` is the provider-author conformance seam. A provider may choose a local, server, container, or other Participant session runtime, but it must return a `ProjectParticipantBinding` whose role, implementation, configuration, requirement digest, and provider-profile digest remain exact.
 
-The reference `RuntimeParticipantProjectProvider` lives under `research_platform.participant.providers` for provider/composition authors. Common project code does not import it. It adapts the existing Participant binding resolver and detects runtime binding drift before publication.
+The reference `RuntimeParticipantProjectProvider` lives under `noetrium_platform.capabilities.participant.providers` for provider/composition authors. Common project code does not import it. It adapts the existing Participant binding resolver and detects runtime binding drift before publication.
 
 Provider switching is therefore a composition decision: changing the selected session runtime does not change project Agent identity or capability requirements.
 ## Model requirement and qualified binding
@@ -79,8 +79,8 @@ A provider-facing conformance implementation must:
 
 ROLE06 may build the canonical Python facade, project scaffold, provider templates, doctor, and CLI over the following stable ROLE04 surfaces:
 
-- `research_platform.participant.api`: Agent behavior/identity, Participant requirements/bindings, typed diagnostics, provider port;
-- `research_platform.model.api`: model capability requirement, qualified project binding/client, exact project request/response, typed diagnostics, provider port.
+- `noetrium_platform.capabilities.participant.api`: Agent behavior/identity, Participant requirements/bindings, typed diagnostics, provider port;
+- `noetrium_platform.capabilities.model.api`: model capability requirement, qualified project binding/client, exact project request/response, typed diagnostics, provider port.
 
 ROLE06 must not recreate Participant runtime selection, serving endpoint construction, qualification decisions, request provenance, or model/Participant truth inside its facade. Provider templates may implement the public provider ports; common generated project code should depend only on the public API packages above.
 

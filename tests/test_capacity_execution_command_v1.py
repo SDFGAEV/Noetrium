@@ -1,9 +1,9 @@
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from research_platform.execution.command.api import ExecutionCommand
-from research_platform.execution.command.providers import SQLiteCommandStore
-from research_platform.execution.command.runtime import CommandIntentOwner
+from noetrium_platform.research.execution.command.api import ExecutionCommand
+from noetrium_platform.research.execution.command.providers import SQLiteCommandStore
+from noetrium_platform.research.execution.command.runtime import CommandIntentOwner
 
 
 def test_concurrent_replay_creates_one_durable_command(tmp_path: Path):

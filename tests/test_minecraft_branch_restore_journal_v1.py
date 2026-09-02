@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from research_platform.environment.minecraft.api import MinecraftWorldCut
-from research_platform.environment.minecraft.providers.branch_restore_journal import (
+from noetrium_platform.capabilities.environment.minecraft.api import MinecraftWorldCut
+from noetrium_platform.capabilities.environment.minecraft.providers.branch_restore_journal import (
     MinecraftBranchCheckpointError,
     MinecraftBranchRestoreJournal,
 )

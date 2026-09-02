@@ -5,7 +5,7 @@ import json
 import pytest
 
 from tests_support import frozen_runtime_manifest
-from research_platform.experimentation.run.manifest.runtime import (
+from noetrium_platform.research.experimentation.run.manifest.runtime import (
     RunLaunchManifestDecodeError,
     decode_run_launch_manifest,
     encode_run_launch_manifest,

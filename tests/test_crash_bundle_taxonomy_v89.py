@@ -6,10 +6,10 @@ import tempfile
 import unittest
 
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
-from research_platform.reliability.failure.api import DEFAULT_FAILURE_CATALOG
-from research_platform.reliability.forensics.runtime import CrashBundleBuilder
-from research_platform.reliability.failure.api import build_failure_from_spec
-from research_platform.platform.kernel import ExecutionContext
+from noetrium_platform.infrastructure.reliability.failure.api import DEFAULT_FAILURE_CATALOG
+from noetrium_platform.infrastructure.reliability.forensics.runtime import CrashBundleBuilder
+from noetrium_platform.infrastructure.reliability.failure.api import build_failure_from_spec
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
 
 
 class CrashBundleTaxonomyV89Tests(unittest.TestCase):

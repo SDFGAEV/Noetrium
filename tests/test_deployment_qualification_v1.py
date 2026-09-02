@@ -2,7 +2,7 @@ from pathlib import Path
 import json
 from dataclasses import replace
 
-from research_platform.model.qualification.api import (
+from noetrium_platform.capabilities.model.qualification.api import (
     CudaFacts,
     DeploymentCapabilityFacts,
     DeploymentQualificationRequest,
@@ -19,13 +19,13 @@ from research_platform.model.qualification.api import (
     CandidateDecision,
     native_cuda_runtime_package_names,
 )
-from research_platform.model.qualification.runtime.qualification import (
+from noetrium_platform.capabilities.model.qualification.runtime.qualification import (
     DeploymentQualificationResolver,
     _QualificationFactView,
 )
-from research_platform.operator.maintenance.runtime.management.deployments import _qualification_python_path
-from research_platform.model.qualification.providers.qualification_probe import LocalDeploymentCapabilityProbe
-from research_platform.platform.kernel.process import LocalCommandResult
+from noetrium_platform.product.operator.maintenance.runtime.management.deployments import _qualification_python_path
+from noetrium_platform.capabilities.model.qualification.providers.qualification_probe import LocalDeploymentCapabilityProbe
+from noetrium_platform.foundation.kernel.kernel.process import LocalCommandResult
 
 
 def _facts(*, kernel_architectures: tuple[str, ...] = ("sm100",)) -> DeploymentCapabilityFacts:

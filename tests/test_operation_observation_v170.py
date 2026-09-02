@@ -4,9 +4,9 @@ from pathlib import Path
 import tempfile
 
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
-from research_platform.platform.composition.operation import build_operation_executor
-from research_platform.platform.composition.operation_forensics import OperationForensicFailureSink
-from research_platform.platform.kernel import (
+from noetrium_platform.foundation.kernel.composition.operation import build_operation_executor
+from noetrium_platform.foundation.kernel.composition.operation_forensics import OperationForensicFailureSink
+from noetrium_platform.foundation.kernel.kernel import (
     ComponentIdentity,
     ExecutionContext,
     FailureRecordReceipt,
@@ -123,7 +123,7 @@ def test_forensic_lifecycle_has_distinct_operation_and_failure_materialization_e
 
 
 def test_completed_observer_failure_gets_its_own_durable_auxiliary_event():
-    from research_platform.observability.api import (
+    from noetrium_platform.evidence.observability.api import (
         OperationAuxiliaryFailureEventSink,
         OperationLifecycleObserver,
     )

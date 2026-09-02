@@ -14,7 +14,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
     PLATFORM_STATE_DIR=/var/lib/research-platform \
-    PLATFORM_EMBEDDED_WHEEL=/opt/research-platform-artifact/research_platform.whl
+    PLATFORM_EMBEDDED_WHEEL=/opt/research-platform-artifact/noetrium_platform.whl
 
 WORKDIR /opt/research-platform
 COPY *.whl /tmp/wheelhouse/

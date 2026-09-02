@@ -2,17 +2,17 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from research_platform.governance.architecture import ArchitectureAudit, ComponentDescriptor
-from research_platform.reliability.failure.api import RecoveryAction, RiskLevel
-from research_platform.reliability.forensics.runtime import triage
-from research_platform.reliability.failure.api import build_failure
-from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity
-from research_platform.participant.method.api import MethodIdentity
-from research_platform.model.serving.api import ModelPhase, ModelRunState
-from research_platform.model.serving.runtime import RecoveryPlanner
-from research_platform.model.request.prompt.runtime import PromptRegistry, default_prompt_specs
-from research_platform.observability.telemetry.metric.composition import build_default_registry
-from research_platform.observability.telemetry.metric.runtime import InMemoryMetricRecorder
+from noetrium_platform.foundation.governance.architecture import ArchitectureAudit, ComponentDescriptor
+from noetrium_platform.infrastructure.reliability.failure.api import RecoveryAction, RiskLevel
+from noetrium_platform.infrastructure.reliability.forensics.runtime import triage
+from noetrium_platform.infrastructure.reliability.failure.api import build_failure
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext, ImmutableModelIdentity
+from noetrium_platform.capabilities.participant.method.api import MethodIdentity
+from noetrium_platform.capabilities.model.serving.api import ModelPhase, ModelRunState
+from noetrium_platform.capabilities.model.serving.runtime import RecoveryPlanner
+from noetrium_platform.capabilities.model.request.prompt.runtime import PromptRegistry, default_prompt_specs
+from noetrium_platform.evidence.observability.telemetry.metric.composition import build_default_registry
+from noetrium_platform.evidence.observability.telemetry.metric.runtime import InMemoryMetricRecorder
 
 
 class PlatformCoreTests(unittest.TestCase):
@@ -77,7 +77,7 @@ if __name__ == "__main__":
 
 
 def test_retry_until_deadline_retries_only_classified_transient_errors() -> None:
-    from research_platform.platform.kernel.retry import retry_until_deadline
+    from noetrium_platform.foundation.kernel.kernel.retry import retry_until_deadline
 
     attempts = 0
 
@@ -99,7 +99,7 @@ def test_retry_until_deadline_retries_only_classified_transient_errors() -> None
 
 def test_retry_until_deadline_fails_closed_for_unclassified_error() -> None:
     import pytest
-    from research_platform.platform.kernel.retry import retry_until_deadline
+    from noetrium_platform.foundation.kernel.kernel.retry import retry_until_deadline
 
     with pytest.raises(ValueError, match="fatal"):
         retry_until_deadline(

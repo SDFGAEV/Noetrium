@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from research_platform.participant.agent.api import AgentCoordinationCheckpoint
-from research_platform.participant.agent.runtime import (
+from noetrium_platform.capabilities.participant.agent.api import AgentCoordinationCheckpoint
+from noetrium_platform.capabilities.participant.agent.runtime import (
     AgentConversationManager,
     AgentCoordinationHub,
     ConversationKind,

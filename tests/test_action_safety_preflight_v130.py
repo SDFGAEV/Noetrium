@@ -8,14 +8,14 @@ from pathlib import Path
 import tempfile
 import pytest
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
-from research_platform.platform.composition.operation_forensics import OperationForensicFailureSink
-from research_platform.platform.composition.context_action import context_action_failure_classifier_chain
-from research_platform.reliability.effect.runtime import SQLiteEffectIntentJournal
-from research_platform.environment.runtime.api import EnvironmentIdentity, Observation
-from research_platform.platform.kernel import OperationExecutor, OperationFailure
-from research_platform.participant.method.api import MethodIdentity, RecallResult
-from research_platform.experimentation.experiment.runtime import ExperimentRuntime
-from research_platform.experimentation.experiment.api import ExperimentSpec
+from noetrium_platform.foundation.kernel.composition.operation_forensics import OperationForensicFailureSink
+from noetrium_platform.foundation.kernel.composition.context_action import context_action_failure_classifier_chain
+from noetrium_platform.infrastructure.reliability.effect.runtime import SQLiteEffectIntentJournal
+from noetrium_platform.capabilities.environment.runtime.api import EnvironmentIdentity, Observation
+from noetrium_platform.foundation.kernel.kernel import OperationExecutor, OperationFailure
+from noetrium_platform.capabilities.participant.method.api import MethodIdentity, RecallResult
+from noetrium_platform.research.experimentation.experiment.runtime import ExperimentRuntime
+from noetrium_platform.research.experimentation.experiment.api import ExperimentSpec
 
 class MS:
     def ingest(self,e,c): pass

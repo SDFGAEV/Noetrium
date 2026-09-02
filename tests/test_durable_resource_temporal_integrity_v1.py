@@ -6,46 +6,46 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from research_platform.platform.kernel.durability.durable_file import atomic_replace_bytes as platform_atomic_replace_bytes
-import research_platform.reliability.recovery.providers.lease_store as recovery_lease_store_module
-import research_platform.resource.directory.runtime.workspaces as workspace_runtime_module
-from research_platform.reliability.recovery.api.lease import RecoveryLease
-from research_platform.reliability.recovery.execution.runtime.file_lock import (
+from noetrium_platform.foundation.kernel.kernel.durability.durable_file import atomic_replace_bytes as platform_atomic_replace_bytes
+import noetrium_platform.infrastructure.reliability.recovery.providers.lease_store as recovery_lease_store_module
+import noetrium_platform.infrastructure.resources.directory.runtime.workspaces as workspace_runtime_module
+from noetrium_platform.infrastructure.reliability.recovery.api.lease import RecoveryLease
+from noetrium_platform.infrastructure.reliability.recovery.execution.runtime.file_lock import (
     FileLockedRecoveryExecutionFactory,
 )
-from research_platform.reliability.recovery.providers.lease_codec import (
+from noetrium_platform.infrastructure.reliability.recovery.providers.lease_codec import (
     RECOVERY_LEASE_DOCUMENT_SCHEMA,
     RecoveryLeaseCodec,
     RecoveryLeaseIntegrityError,
 )
-from research_platform.reliability.recovery.providers.lease_store import RecoveryLeaseStore
-from research_platform.resource.allocation.api import (
+from noetrium_platform.infrastructure.reliability.recovery.providers.lease_store import RecoveryLeaseStore
+from noetrium_platform.infrastructure.resources.allocation.api import (
     EndpointAllocation,
     EndpointAllocationRequest,
     EndpointBindingProof,
     EndpointLeasePolicy,
     NetworkEndpoint,
 )
-from research_platform.resource.allocation.runtime import AtomicEndpointAllocator
-from research_platform.resource.directory.api import ManagedDirectoryKind
-from research_platform.resource.directory.runtime.workspaces import LocalWorkspaceManager
-from research_platform.resource.lease.api import (
+from noetrium_platform.infrastructure.resources.allocation.runtime import AtomicEndpointAllocator
+from noetrium_platform.infrastructure.resources.directory.api import ManagedDirectoryKind
+from noetrium_platform.infrastructure.resources.directory.runtime.workspaces import LocalWorkspaceManager
+from noetrium_platform.infrastructure.resources.lease.api import (
     ResourceIdentity,
     ResourceKind,
     ResourceLease,
     ResourceOwner,
 )
-from research_platform.resource.lease.runtime import InMemoryResourceLeaseRegistry
-from research_platform.resource.providers import (
+from noetrium_platform.infrastructure.resources.lease.runtime import InMemoryResourceLeaseRegistry
+from noetrium_platform.infrastructure.resources.providers import (
     SQLiteEndpointAllocationStore,
     SQLiteResourceLeaseRegistry,
 )
-from research_platform.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
 
 
 class _AvailableProbe:
     def probe(self, endpoint: NetworkEndpoint):
-        from research_platform.resource.allocation.api import EndpointProbeResult
+        from noetrium_platform.infrastructure.resources.allocation.api import EndpointProbeResult
         return EndpointProbeResult(endpoint, True, "available")
 
 

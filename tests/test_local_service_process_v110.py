@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from research_platform.runtime.service.api import ServiceLaunchContract
-from research_platform.platform.concurrency.api import TaskFailurePolicy
-from research_platform.platform.concurrency.composition import build_concurrency_runtime
+from noetrium_platform.infrastructure.lifecycle.service.api import ServiceLaunchContract
+from noetrium_platform.foundation.kernel.concurrency.api import TaskFailurePolicy
+from noetrium_platform.foundation.kernel.concurrency.composition import build_concurrency_runtime
 from service_os_test_support import make_service_supervisor
 
 from dataclasses import replace
@@ -13,8 +13,8 @@ import sys
 import tempfile
 import unittest
 
-from research_platform.runtime.service.runtime.state_storage import FileServiceStateStore
-from research_platform.runtime.service.runtime import (
+from noetrium_platform.infrastructure.lifecycle.service.runtime.state_storage import FileServiceStateStore
+from noetrium_platform.infrastructure.lifecycle.service.runtime import (
     DirectoryCapturePathProvider,
     ExactServiceSupervisor,
     LinuxProcessBackend,
@@ -115,7 +115,7 @@ class LocalServiceProcessV110Tests(unittest.TestCase):
             try:
                 fake=replace(process,start_identity=process.start_identity+":wrong")
                 state=FileServiceStateStore(root/"fake-state.json")
-                from research_platform.runtime.service.runtime import ServiceSupervisorState
+                from noetrium_platform.infrastructure.lifecycle.service.runtime import ServiceSupervisorState
                 state.write(replace(ServiceSupervisorState.initial(c.service_id,c.digest()),process=fake))
                 reconciled,refs=adapter.reconcile(state.read(),c)
                 self.assertIsNone(reconciled)
@@ -129,7 +129,7 @@ if __name__ == "__main__": unittest.main()
 
 class LinuxProcfsSnapshotV110Tests(unittest.TestCase):
     def test_facts_resolves_process_directory_once(self):
-        from research_platform.runtime.service.runtime.linux_procfs import LinuxProcfsReader
+        from noetrium_platform.infrastructure.lifecycle.service.runtime.linux_procfs import LinuxProcfsReader
 
         with tempfile.TemporaryDirectory() as td:
             proc_root = Path(td)
@@ -157,7 +157,7 @@ class LinuxProcfsSnapshotV110Tests(unittest.TestCase):
                     return super()._process_directory(pid)
 
             from unittest.mock import patch
-            from research_platform.runtime.service.runtime import linux_procfs
+            from noetrium_platform.infrastructure.lifecycle.service.runtime import linux_procfs
 
             reader = CountingReader(proc_root)
             with patch.object(linux_procfs.os, "getpgid", return_value=42, create=True):

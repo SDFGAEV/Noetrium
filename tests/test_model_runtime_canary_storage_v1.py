@@ -7,12 +7,12 @@ import threading
 
 import pytest
 
-from research_platform.model.serving.api import RuntimeCanaryEvidence
-from research_platform.model.serving.providers import (
+from noetrium_platform.capabilities.model.serving.api import RuntimeCanaryEvidence
+from noetrium_platform.capabilities.model.serving.providers import (
     DirectoryRuntimeCanaryEvidenceStore,
     RuntimeCanaryEvidenceError,
 )
-from research_platform.platform.kernel.durability import encode_checksummed_document
+from noetrium_platform.foundation.kernel.kernel.durability import encode_checksummed_document
 
 
 def _digest(seed: str) -> str:

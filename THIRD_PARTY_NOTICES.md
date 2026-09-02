@@ -8,7 +8,7 @@ This repository currently bundles an npm lockfile for the first-party Minecraft/
 
 本仓库当前为第一方 Minecraft/Mineflayer bridge 提交了 npm lockfile。下表根据该 exact lockfile 中记录的 license metadata 生成，用于 attribution 与索引，不替代上游许可证法律原文。
 
-Source / 来源: `research_platform/environment/minecraft/providers/assets/mineflayer_bridge/package-lock.json`
+Source / 来源: `noetrium_platform/capabilities/environment/minecraft/providers/assets/mineflayer_bridge/package-lock.json`
 
 ## Direct dependencies / 直接依赖
 

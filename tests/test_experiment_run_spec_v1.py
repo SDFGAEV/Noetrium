@@ -3,13 +3,13 @@ from __future__ import annotations
 import unittest
 from dataclasses import dataclass, replace
 
-from research_platform.experimentation.api import ProjectRunDefinition
-from research_platform.experimentation.experiment.api import ExperimentSpec
-from research_platform.experimentation.run.api import ExperimentRunSpec
-from research_platform.experimentation.run.identity.api import RunIdentity
-from research_platform.experimentation.identity import OptionalIdentityFacet, ReplayLevel
-from research_platform.experimentation.run.manifest.api import CompositionPlanReference, RunLaunchManifest, RunResearchSemanticsReference
-from research_platform.experimentation.study.api import StudyProtocol, StudyVariantSpec, VariantKind
+from noetrium_platform.research.experimentation.api import ProjectRunDefinition
+from noetrium_platform.research.experimentation.experiment.api import ExperimentSpec
+from noetrium_platform.research.experimentation.run.api import ExperimentRunSpec
+from noetrium_platform.research.experimentation.run.identity.api import RunIdentity
+from noetrium_platform.research.experimentation.identity import OptionalIdentityFacet, ReplayLevel
+from noetrium_platform.research.experimentation.run.manifest.api import CompositionPlanReference, RunLaunchManifest, RunResearchSemanticsReference
+from noetrium_platform.research.experimentation.study.api import StudyProtocol, StudyVariantSpec, VariantKind
 
 
 @dataclass(frozen=True)

@@ -8,9 +8,9 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from research_platform.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
-from research_platform.scope.providers import SQLiteScopeRegistry
-from research_platform.scope.runtime import ScopeNotRegistered
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
+from noetrium_platform.foundation.scope.providers import SQLiteScopeRegistry
+from noetrium_platform.foundation.scope.runtime import ScopeNotRegistered
 
 
 def test_scope_sqlite_reopens_with_parent_lookup_index() -> None:

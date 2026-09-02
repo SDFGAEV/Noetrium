@@ -20,13 +20,13 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from research_platform.governance.architecture.report import build_architecture_report
-from research_platform.governance.release.runtime.manifest import (
+from noetrium_platform.foundation.governance.architecture.report import build_architecture_report
+from noetrium_platform.foundation.governance.release.runtime.manifest import (
     EXCLUDED_DIRS,
     EXCLUDED_NAME_MARKERS,
     EXCLUDED_SUFFIXES,
 )
-from research_platform.platform.kernel.project_root import discover_project_root
+from noetrium_platform.foundation.kernel.kernel.project_root import discover_project_root
 
 
 SNAPSHOT_MANIFEST = "DEVELOPMENT_SNAPSHOT_MANIFEST.sha256"

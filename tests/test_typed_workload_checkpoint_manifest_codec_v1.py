@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from research_platform.experimentation.checkpoint.api import (
+from noetrium_platform.research.experimentation.checkpoint.api import (
     RunCheckpointIntegrityError,
     WorkloadCheckpointBundle,
     WorkloadCheckpointComponentRef,
@@ -13,8 +13,8 @@ from research_platform.experimentation.checkpoint.api import (
     WorkloadExecutionCut,
     build_workload_checkpoint_manifest,
 )
-from research_platform.experimentation.checkpoint.providers import DirectoryWorkloadCheckpointStore
-from research_platform.experimentation.checkpoint.providers.workload_codec import (
+from noetrium_platform.research.experimentation.checkpoint.providers import DirectoryWorkloadCheckpointStore
+from noetrium_platform.research.experimentation.checkpoint.providers.workload_codec import (
     WorkloadCheckpointManifestCodec,
 )
 

@@ -4,7 +4,7 @@ Noetrium exposes two complementary downstream method paths.
 
 The component path uses reusable Agent/Participant/Model capabilities when a paper changes one mechanism. The whole-method path uses `ResearchMethodProgram[TaskT, InputT, ResultT]` when the paper owns the complete cognition/control graph.
 
-`ResearchMethodProgram` is a structural public contract in `research_platform.participant.method.api`. A downstream method does not subclass a Platform runtime class and does not register a paper algorithm name upstream.
+`ResearchMethodProgram` is a structural public contract in `noetrium_platform.capabilities.participant.method.api`. A downstream method does not subclass a Platform runtime class and does not register a paper algorithm name upstream.
 
 Concrete `TaskT`, `InputT`, and `ResultT` remain project-typed. They are not converted to `Any`, `object`, a universal JSON payload, or text merely to satisfy the host contract.
 
@@ -40,7 +40,7 @@ The host does not reconstruct method identity in Experimentation. ROLE04 project
 
 ## Component-level counterpart
 
-Whole-method escape does not replace the built-in Agent archetype. Component-level research can continue to use the public `research_platform.participant.agent` facade together with public `participant.agent.api` ports. The facade internally owns the runtime import; downstream paper code does not import `participant.agent.runtime`.
+Whole-method escape does not replace the built-in Agent archetype. Component-level research can continue to use the public `noetrium_platform.capabilities.participant.agent` facade together with public `participant.agent.api` ports. The facade internally owns the runtime import; downstream paper code does not import `participant.agent.runtime`.
 
 The conformance test `test_typed_role04_agent_component_extension_v1.py` replaces the Planner with a synthetic `PaperOnlyPlanner` whose name/algorithm is absent from Platform source, executes the public `AgentCognitionLoop`, and uses only public Agent/kernel imports. This proves a paper can change one reusable component without reimplementing the whole Agent or editing Platform source.
 

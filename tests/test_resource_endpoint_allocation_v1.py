@@ -5,20 +5,20 @@ import pytest
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 
-from research_platform.resource.allocation.api import (
+from noetrium_platform.infrastructure.resources.allocation.api import (
     EndpointAllocationRequest,
     EndpointAllocationState,
     EndpointBindingProof,
     EndpointProbeResult,
     NetworkEndpoint,
 )
-from research_platform.resource.allocation.runtime import (
+from noetrium_platform.infrastructure.resources.allocation.runtime import (
     EndpointAllocationUnavailable,
     InMemoryEndpointAllocator,
 )
-from research_platform.resource.lease.api import ResourceIdentity, ResourceKind
-from research_platform.resource.lease.runtime import InMemoryResourceLeaseRegistry
-from research_platform.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
+from noetrium_platform.infrastructure.resources.lease.api import ResourceIdentity, ResourceKind
+from noetrium_platform.infrastructure.resources.lease.runtime import InMemoryResourceLeaseRegistry
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
 
 
 class ScriptedProbe:
@@ -119,7 +119,7 @@ def test_endpoint_allocator_reports_probe_rejection_without_fallback() -> None:
 def test_resource_lease_registry_rejects_two_active_leases_for_one_resource() -> None:
     registry = InMemoryResourceLeaseRegistry()
     resource = ResourceIdentity(ResourceKind.STORAGE, "artifact-pool")
-    from research_platform.resource.lease.api import ResourceLease, ResourceOwner
+    from noetrium_platform.infrastructure.resources.lease.api import ResourceLease, ResourceOwner
 
     registry.register_owner(ResourceOwner(resource, PLATFORM_SCOPE))
     registry.acquire(ResourceLease("lease-a", resource, PLATFORM_SCOPE, "first"))

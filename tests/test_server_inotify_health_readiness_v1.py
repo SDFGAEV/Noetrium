@@ -3,12 +3,12 @@ from __future__ import annotations
 import subprocess
 import sys
 
-from research_platform.runtime.server.health.api import ServerRuntimeHealthSpec
-from research_platform.runtime.server.health.providers.ssh_probe import (
+from noetrium_platform.infrastructure.lifecycle.server.health.api import ServerRuntimeHealthSpec
+from noetrium_platform.infrastructure.lifecycle.server.health.providers.ssh_probe import (
     SSHServerHealthProbe,
     _inotify_probe_script,
 )
-from research_platform.runtime.server.identity.api import ServerCommandResult
+from noetrium_platform.infrastructure.lifecycle.server.identity.api import ServerCommandResult
 
 
 def _specification() -> ServerRuntimeHealthSpec:
@@ -91,8 +91,8 @@ def test_managed_health_command_collects_inotify_authority_read_only_fact() -> N
 
 
 def test_inotify_health_issue_projects_as_stable_typed_diagnostic_code() -> None:
-    from research_platform.runtime.server.health.api import ServerHealthReport
-    from research_platform.runtime.server.health.runtime import ServerDiagnosticProjector
+    from noetrium_platform.infrastructure.lifecycle.server.health.api import ServerHealthReport
+    from noetrium_platform.infrastructure.lifecycle.server.health.runtime import ServerDiagnosticProjector
 
     raw = ServerCommandResult("server-a", "health", 0, "", "")
     health = ServerHealthReport(

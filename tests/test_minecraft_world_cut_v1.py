@@ -7,13 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from research_platform.platform.kernel import canonical_bytes
+from noetrium_platform.foundation.kernel.kernel import canonical_bytes
 
-from research_platform.environment.minecraft.api import (
+from noetrium_platform.capabilities.environment.minecraft.api import (
     MinecraftServerSpec,
     MinecraftWorldQuiescence,
 )
-from research_platform.environment.minecraft.providers.world_cut import (
+from noetrium_platform.capabilities.environment.minecraft.providers.world_cut import (
     FilesystemMinecraftBranchCheckpointProvider,
     FilesystemMinecraftWorldCopier,
     FilesystemMinecraftWorldCutProvider,

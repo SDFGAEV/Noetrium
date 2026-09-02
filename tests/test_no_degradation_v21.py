@@ -1,7 +1,7 @@
 from pathlib import Path
 import tempfile
 import unittest
-from research_platform.governance.quality import scan_no_degradation
+from noetrium_platform.foundation.governance.quality import scan_no_degradation
 
 class NoDegradationV21Tests(unittest.TestCase):
     def test_detects_explicit_runtime_degradation_api(self):

@@ -8,13 +8,13 @@ import time
 
 import pytest
 
-from research_platform.model.serving.api import RuntimeQualificationReceipt, ServiceHeartbeat
-from research_platform.model.serving.providers.runtime_qualification_storage import (
+from noetrium_platform.capabilities.model.serving.api import RuntimeQualificationReceipt, ServiceHeartbeat
+from noetrium_platform.capabilities.model.serving.providers.runtime_qualification_storage import (
     DirectoryRuntimeQualificationEvidenceStore,
     RuntimeQualificationEvidenceError,
 )
-from research_platform.platform.kernel import canonical_digest
-from research_platform.platform.kernel.durability import encode_checksummed_document
+from noetrium_platform.foundation.kernel.kernel import canonical_digest
+from noetrium_platform.foundation.kernel.kernel.durability import encode_checksummed_document
 
 
 def _digest(seed: str) -> str:

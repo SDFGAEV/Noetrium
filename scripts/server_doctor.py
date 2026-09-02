@@ -25,7 +25,7 @@ if sys.version_info < (3, 11):
     )
     raise SystemExit(2)
 
-from research_platform.platform.kernel.errors import describe_exception
+from noetrium_platform.foundation.kernel.kernel.errors import describe_exception
 from scripts.server_common import (
     compose_script_server_catalog,
     compose_server_from_environment,
@@ -34,11 +34,11 @@ from scripts.server_common import (
     server_health_spec,
     server_cli_concurrency_scope,
 )
-from research_platform.runtime.server.health.composition import (
+from noetrium_platform.infrastructure.lifecycle.server.health.composition import (
     compose_server_diagnostic_projector,
     compose_ssh_server_health,
 )
-from research_platform.runtime.server.health.api import ServerSessionDiagnostic
+from noetrium_platform.infrastructure.lifecycle.server.health.api import ServerSessionDiagnostic
 
 
 def _operation_payload(record) -> dict[str, object]:

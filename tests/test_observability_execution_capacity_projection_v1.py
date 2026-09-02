@@ -2,20 +2,20 @@ from __future__ import annotations
 
 import unittest
 
-from research_platform.execution.admission.api import (
+from noetrium_platform.research.execution.admission.api import (
     AdmissionTopologySnapshot,
     GroupAdmissionSnapshot,
     LaneAdmissionSnapshot,
     ResourceAdmissionSnapshot,
     TenantAdmissionSnapshot,
 )
-from research_platform.observability.diagnostic.snapshot.runtime import (
+from noetrium_platform.evidence.observability.diagnostic.snapshot.runtime import (
     project_execution_capacity_diagnostic,
 )
-from research_platform.observability.telemetry.metric.composition import build_default_registry
-from research_platform.observability.telemetry.metric.runtime import project_execution_capacity_metrics
-from research_platform.platform.composition.execution_observability import build_execution_capacity_facts
-from research_platform.platform.concurrency.api import (
+from noetrium_platform.evidence.observability.telemetry.metric.composition import build_default_registry
+from noetrium_platform.evidence.observability.telemetry.metric.runtime import project_execution_capacity_metrics
+from noetrium_platform.foundation.kernel.composition.execution_observability import build_execution_capacity_facts
+from noetrium_platform.foundation.kernel.concurrency.api import (
     ConcurrencyTopologySnapshot,
     ExecutionLaneKind,
     HeartbeatTopologySnapshot,

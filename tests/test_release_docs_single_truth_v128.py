@@ -37,7 +37,7 @@ class ReleaseDocsSingleTruthV128Tests(unittest.TestCase):
         self.assertIsNotNone(match)
         version = match.group(1)
         hits = []
-        for base in (root / "research_platform", root / "projects"):
+        for base in (root / "noetrium_platform", root / "projects"):
             for path in base.rglob("*.py"):
                 if version in path.read_text(encoding="utf-8"):
                     hits.append(path.relative_to(root).as_posix())

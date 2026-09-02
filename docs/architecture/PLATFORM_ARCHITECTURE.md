@@ -168,7 +168,7 @@ Python concurrency governance separates rule classification, intra-file helper-c
 
 ## System registry authority
 
-`research_platform/governance/system_registry/catalog.json` is the sole declaration authority for every registered node's identity, parentage, package ownership, authority identity, standard shape, `requires`, `provides`, and `components`. The Python loader validates that dependency targets exist and that provided capabilities have one owner; it derives typed `SystemDescriptor` values without a second metadata table.
+`noetrium_platform/foundation/governance/system_registry/catalog.json` is the sole declaration authority for every registered node's identity, parentage, package ownership, authority identity, standard shape, `requires`, `provides`, and `components`. The Python loader validates that dependency targets exist and that provided capabilities have one owner; it derives typed `SystemDescriptor` values without a second metadata table.
 
 ## Operator management dispatch boundary
 

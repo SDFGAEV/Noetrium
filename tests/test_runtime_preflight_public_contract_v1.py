@@ -4,29 +4,29 @@ import ast
 import inspect
 from pathlib import Path
 
-from research_platform.reliability.recovery.api import (
+from noetrium_platform.infrastructure.reliability.recovery.api import (
     RecoveryActionCode,
     RecoveryAutomation,
     RecoveryDecisionReport,
     RecoveryRecommendation,
 )
-from research_platform.resource.compute.api import (
+from noetrium_platform.infrastructure.resources.compute.api import (
     ComputeCandidatePort,
     ComputeGPU,
     ComputeHost,
     ComputeRequirement,
     ComputeSchedulerPort,
 )
-from research_platform.resource.compute.composition import compose_in_memory_compute_scheduler
-from research_platform.runtime.server.health.api import (
+from noetrium_platform.infrastructure.resources.compute.composition import compose_in_memory_compute_scheduler
+from noetrium_platform.infrastructure.lifecycle.server.health.api import (
     ServerDiagnosticIssue,
     ServerDiagnosticReport,
     ServerDiagnosticSeverity,
     ServerDiagnosticStatus,
     ServerHealthReport,
 )
-from research_platform.runtime.server.identity.api import ServerCommandResult
-from research_platform.scope.api import ScopeIdentity, ScopeKind
+from noetrium_platform.infrastructure.lifecycle.server.identity.api import ServerCommandResult
+from noetrium_platform.foundation.scope.api import ScopeIdentity, ScopeKind
 
 
 def _server(status: ServerDiagnosticStatus) -> ServerDiagnosticReport:
@@ -124,11 +124,11 @@ def test_reference_consumer_uses_public_api_or_explicit_composition_only() -> No
         node.module for node in ast.walk(tree)
         if isinstance(node, ast.ImportFrom)
         and node.module is not None
-        and node.module.startswith("research_platform.")
+        and node.module.startswith("noetrium_platform.")
     )
     assert imports
     assert all(
-        ".api" in module or module == "research_platform.resource.compute.composition"
+        ".api" in module or module == "noetrium_platform.infrastructure.resources.compute.composition"
         for module in imports
     )
     assert all(not ({"runtime", "providers"} & set(module.split(".")[2:])) for module in imports)

@@ -9,7 +9,7 @@ import tempfile
 import time
 import unittest
 
-from research_platform.participant.capability.api import (
+from noetrium_platform.capabilities.participant.capability.api import (
     CapabilityDescriptor,
     CapabilityPolicyDenied,
     CapabilityPostPolicyViolation,
@@ -19,21 +19,21 @@ from research_platform.participant.capability.api import (
     GuardDecision,
     GuardVerdict,
 )
-from research_platform.execution.capability.runtime import CapabilityInvocationPipeline
-from research_platform.data.fact.api import DurableFact, FactCriticality, UnknownRequiredFact
-from research_platform.observability.api import EventEnvelope
-from research_platform.data.record.api import ExecutionRecordPlane
-from research_platform.data.fact.runtime import FactDecoderRegistry
-from research_platform.platform.kernel import canonical_bytes, EffectClass, ExecutionContext, ImmutableModelIdentity, canonical_digest
-from research_platform.model.request.runtime import (
+from noetrium_platform.research.execution.capability.runtime import CapabilityInvocationPipeline
+from noetrium_platform.evidence.data.fact.api import DurableFact, FactCriticality, UnknownRequiredFact
+from noetrium_platform.evidence.observability.api import EventEnvelope
+from noetrium_platform.evidence.data.record.api import ExecutionRecordPlane
+from noetrium_platform.evidence.data.fact.runtime import FactDecoderRegistry
+from noetrium_platform.foundation.kernel.kernel import canonical_bytes, EffectClass, ExecutionContext, ImmutableModelIdentity, canonical_digest
+from noetrium_platform.capabilities.model.request.runtime import (
     DirectoryContentAddressedStore,
     DirectoryModelRequestLedger,
     ReconstructableModelRequestRecorder,
 )
-from research_platform.data.projection.api import ProjectionCursor, ProjectionTail
-from research_platform.data.projection.runtime import IncrementalProjectionRuntime, InMemoryProjectionCheckpointStore, ProjectionSourceDrift
-from research_platform.execution.capability.api import RegistrationKey, ScopeDisposed
-from research_platform.execution.capability.runtime import ScopedRegistrationRuntime
+from noetrium_platform.evidence.data.projection.api import ProjectionCursor, ProjectionTail
+from noetrium_platform.evidence.data.projection.runtime import IncrementalProjectionRuntime, InMemoryProjectionCheckpointStore, ProjectionSourceDrift
+from noetrium_platform.research.execution.capability.api import RegistrationKey, ScopeDisposed
+from noetrium_platform.research.execution.capability.runtime import ScopedRegistrationRuntime
 
 
 class _Deny:

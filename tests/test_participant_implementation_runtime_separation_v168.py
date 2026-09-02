@@ -4,17 +4,17 @@ from dataclasses import dataclass
 
 import pytest
 
-from research_platform.participant.binding.runtime.configuration import ParticipantConfigurationCatalog
-from research_platform.participant.core.api.contracts import (
+from noetrium_platform.capabilities.participant.binding.runtime.configuration import ParticipantConfigurationCatalog
+from noetrium_platform.capabilities.participant.core.api.contracts import (
     ParticipantConfigurationArtifact,
     ParticipantImplementationIdentity,
     ParticipantRuntimeBinding,
     ParticipantSessionRuntimeIdentity,
 )
-from research_platform.participant.definition.runtime.catalog import ParticipantImplementationCatalog
-from research_platform.participant.binding.runtime import LocalParticipantResolver
-from research_platform.participant.session.runtime.runtime_catalog import ParticipantSessionRuntimeCatalog
-from research_platform.participant.session.runtime.runtime_endpoint import LocalParticipantRuntimeEndpoint
+from noetrium_platform.capabilities.participant.definition.runtime.catalog import ParticipantImplementationCatalog
+from noetrium_platform.capabilities.participant.binding.runtime import LocalParticipantResolver
+from noetrium_platform.capabilities.participant.session.runtime.runtime_catalog import ParticipantSessionRuntimeCatalog
+from noetrium_platform.capabilities.participant.session.runtime.runtime_endpoint import LocalParticipantRuntimeEndpoint
 from tests_support import runtime_identity_for_test
 
 

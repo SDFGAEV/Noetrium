@@ -10,7 +10,7 @@ Date: 2026-08-22
   verified server commit can be transported back without a GitHub fetch on the
   server.
 - The platform now has one local process execution authority at
-  `research_platform.platform.kernel.process`; the Python environment adapter
+  `noetrium_platform.foundation.kernel.kernel.process`; the Python environment adapter
   and server Git bundle provider consume that port.
 - Server repository development and exact bundle export are persistent
   controller entrypoints, rather than ad-hoc SSH editing.

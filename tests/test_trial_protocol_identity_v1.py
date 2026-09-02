@@ -4,12 +4,12 @@ from dataclasses import replace
 
 import pytest
 
-from research_platform.experimentation.experiment.api import (
+from noetrium_platform.research.experimentation.experiment.api import (
     ExperimentSpec,
     ExperimentTrialProtocol,
     ExperimentTrialProtocolIdentityMismatch,
 )
-from research_platform.experimentation.experiment.runtime import (
+from noetrium_platform.research.experimentation.experiment.runtime import (
     trial_protocol_identity,
     verify_trial_protocol_identity,
 )

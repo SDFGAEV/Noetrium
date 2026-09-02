@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from research_platform.model.qualification.api import (
+from noetrium_platform.capabilities.model.qualification.api import (
     BackendCandidatePlan,
     CandidateDecision,
     DeploymentQualificationApplicationReceipt,

@@ -4,7 +4,7 @@ This contract implements the ROLE01 governance portion of Playbook ?41. It does 
 
 ## Semantic-boundary classification
 
-`research_platform.governance.architecture.classify_semantic_boundaries()` produces a deterministic source-backed inventory for every canonical catalog node. Each node is classified as exactly one of:
+`noetrium_platform.foundation.governance.architecture.classify_semantic_boundaries()` produces a deterministic source-backed inventory for every canonical catalog node. Each node is classified as exactly one of:
 
 - `IMPLEMENTED_SEMANTIC_BOUNDARY`: its own standard planes contain direct non-template semantic source, rather than only generated ownership wrappers;
 - `DECLARATIVE_ONLY`: it is a dependency/capability/component aggregation boundary but has no direct semantic implementation evidence;
@@ -24,7 +24,7 @@ This rule intentionally leaves low-risk generic leaf infrastructure reusable. It
 
 ## Current convergence consequence
 
-ROLE03 exact producer `80eff508ec95c32b61c3d4345ab79f474a671157` deletes the redundant `research_platform.scientific/**` shell after folding reusable research semantics into Experimentation Study/Trial contracts. ROLE01 therefore removes the stale Scientific catalog authority and `SystemLayer` identity, while leaving the producer-side source deletion exclusively to ROLE03.
+ROLE03 exact producer `80eff508ec95c32b61c3d4345ab79f474a671157` deletes the redundant `noetrium_platform.research.scientific/**` shell after folding reusable research semantics into Experimentation Study/Trial contracts. ROLE01 therefore removes the stale Scientific catalog authority and `SystemLayer` identity, while leaving the producer-side source deletion exclusively to ROLE03.
 
 By contrast, boundaries such as `execution/operation` contain direct typed API/provider implementation and classify as implemented even though a generic owner wrapper also exists. This prevents blanket deletion based on filenames or boilerplate counts.
 
@@ -36,7 +36,7 @@ This semantic-boundary inventory is only one ?41 gate. It does not replace capab
 
 ## PSC-02 neutral kernel primitive convergence
 
-`research_platform.platform.kernel` exposes two deliberately different canonical boundaries. The pre-existing broad `canonical_bytes` / `canonical_text` / `canonical_digest` contract explicitly supports Platform values such as dataclasses, Enum, bytes, Path and sets. It must not be used to widen scientific/public finite-JSON acceptance. The narrow handoff is `strict_finite_json_bytes`, `strict_finite_json_text`, `strict_finite_json_digest`, `strict_json_loads`, `freeze_json`, and `thaw_json`; its encoder itself rejects bytes, Path, set/frozenset, dataclass, Enum (including string/integer Enum subclasses), non-string mapping keys, cycles, excessive depth and non-finite floats. `require_sha256` / `Sha256Digest` own canonical lowercase SHA-256 text validation.
+`noetrium_platform.foundation.kernel.kernel` exposes two deliberately different canonical boundaries. The pre-existing broad `canonical_bytes` / `canonical_text` / `canonical_digest` contract explicitly supports Platform values such as dataclasses, Enum, bytes, Path and sets. It must not be used to widen scientific/public finite-JSON acceptance. The narrow handoff is `strict_finite_json_bytes`, `strict_finite_json_text`, `strict_finite_json_digest`, `strict_json_loads`, `freeze_json`, and `thaw_json`; its encoder itself rejects bytes, Path, set/frozenset, dataclass, Enum (including string/integer Enum subclasses), non-string mapping keys, cycles, excessive depth and non-finite floats. `require_sha256` / `Sha256Digest` own canonical lowercase SHA-256 text validation.
 
 ROLE01 itself consumes the narrow authority: ProjectManifest encoding/digest/decoding no longer carries a second duplicate-key/non-finite JSON parser or SHA-256 regex, and generic leaf contract/state mechanics no longer maintain a separate JSON-digest encoder. Tests lock byte/digest equivalence with the overlapping Artifact/Data canonical domain before any foreign-owner cutover. Consumer handoffs must name the `strict_finite_json_*` entrypoints explicitly rather than broad `canonical_*`. Strict decoding projects failures through stable `CanonicalDecodingFailureKind` values (`bom`, `duplicate_key`, `non_finite`, `syntax`, `domain`); raw parser tokens, duplicate keys, or nested encoder exception text are never public error semantics. Domain owners may map those stable kinds to their own typed decode errors without copying parser logic.
 
@@ -55,7 +55,7 @@ Portfolio owns these author/onboarding identity projections only. ROLE03 remains
 
 ## PSC-03 neutral binding/diagnostic envelope
 
-`research_platform.governance.architecture.api` now owns only the neutral transport/projection mechanics required by Playbook Section 41.6 and the Supervisor PSC-03 decision. `BindingDiagnosticCode` validates a stable namespaced code value without defining Model, Participant, Environment, Runtime, or project-specific code enumerations. `BindingDiagnostic` carries typed severity, blocking state, owner/subject identities, requirement digest/address, optional provider/profile identity, typed identity/evidence references, bounded remediation category/action, and concise rendering text. Its `machine_digest` excludes the human `summary`, so rewording cannot change diagnostic truth.
+`noetrium_platform.foundation.governance.architecture.api` now owns only the neutral transport/projection mechanics required by Playbook Section 41.6 and the Supervisor PSC-03 decision. `BindingDiagnosticCode` validates a stable namespaced code value without defining Model, Participant, Environment, Runtime, or project-specific code enumerations. `BindingDiagnostic` carries typed severity, blocking state, owner/subject identities, requirement digest/address, optional provider/profile identity, typed identity/evidence references, bounded remediation category/action, and concise rendering text. Its `machine_digest` excludes the human `summary`, so rewording cannot change diagnostic truth.
 
 `BindingProof` carries successful neutral provenance: producer owner, consumer subject, requirement digest, provider/profile identities, binding generation, and evidence refs. `BindingResolution[T]` is fail-closed XOR state: success requires a producer-owned typed `T` payload plus `BindingProof` and forbids diagnostics; diagnostic state requires an immutable, machine-unique set with at least one blocking diagnostic and forbids a binding/proof. Diagnostic ordering and the neutral `projection_digest` are deterministic. The success projection digest covers only neutral proof metadata; it deliberately does **not** absorb domain payload identity, which remains owned by the producer binding type.
 
@@ -81,7 +81,7 @@ Generic-leaf conformance tests intentionally validate every retained `SystemLeaf
 
 ## PSC-02 consumer-test cutover after duplicate deletion
 
-ROLE01 convergence tests no longer import `research_platform.artifact._canonical` or other foreign private helpers as permanent equivalence authorities. Once a domain owner deletes a proven duplicate, restoring that private module for test compatibility would violate the migration state machine.
+ROLE01 convergence tests no longer import `noetrium_platform.evidence.artifact._canonical` or other foreign private helpers as permanent equivalence authorities. Once a domain owner deletes a proven duplicate, restoring that private module for test compatibility would violate the migration state machine.
 
 `test_typed_canonicalization_v2.py` therefore freezes the kernel's own strict byte/digest contract and separately proves ROLE01-owned ProjectManifest code consumes `strict_finite_json_bytes`, `strict_finite_json_digest`, and `strict_json_loads` rather than reimplementing them. Artifact/Data equivalence is producer-cutover evidence owned by ROLE05 while those duplicate implementations exist; after deletion, integrated tests consume only the surviving public/kernel authority.
 

@@ -80,7 +80,7 @@ interpretation, serving policy, evaluation policy, and experiment composition
 remain owned by the downstream project.
 
 ```text
-research_platform/<system>/api/       # stable platform contract
+noetrium_platform/<system>/api/       # stable platform contract
 downstream-project/composition/       # project composition root
 downstream-project/<domain>/          # project-owned implementation
 ```

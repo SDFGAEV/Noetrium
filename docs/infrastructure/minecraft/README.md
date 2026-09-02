@@ -10,6 +10,6 @@ Project-specific task suites, benchmark manifests, scientific methods and experi
 - `DOCKER_COMPOSE_RUNTIME.md` documents the optional Minecraft container overlay.
 - `UPSTREAM_SOURCE_EVIDENCE.md` records the exact Mineflayer source lock and the local safety extensions derived from it.
 
-Provider source lives under `research_platform/environment/minecraft/`. Mineflayer bridge assets are shipped as Python package data so wheel installations retain the locked JavaScript runtime contract.
+Provider source lives under `noetrium_platform/capabilities/environment/minecraft/`. Mineflayer bridge assets are shipped as Python package data so wheel installations retain the locked JavaScript runtime contract.
 
 Minecraft provider changes must follow the exact-version upstream-source audit rule in [`../../governance/DOCUMENTATION_CHANGE_POLICY.md`](../../governance/DOCUMENTATION_CHANGE_POLICY.md). Do not infer protocol, pathfinder or entity behavior when the locked upstream source can establish it.

@@ -4,10 +4,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from research_platform.observability.logging.context.api import DiagnosticAddress
-from research_platform.observability.logging.record.api import LogLevel, LogRecord
+from noetrium_platform.evidence.observability.logging.context.api import DiagnosticAddress
+from noetrium_platform.evidence.observability.logging.record.api import LogLevel, LogRecord
 from tests._concurrency_support import jsonl_log_store as JsonlLogStore
-from research_platform.scope.api import PLATFORM_SCOPE
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE
 
 
 class FinalReliabilityBoundaryTests(unittest.TestCase):

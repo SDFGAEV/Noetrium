@@ -4,25 +4,25 @@ from types import SimpleNamespace
 
 import pytest
 
-from research_platform.experimentation.run.api import ExperimentRunSpec
-from research_platform.experimentation.run.runtime import ExperimentRunApplication
-from research_platform.experimentation.run.runtime.decision_coordination import (
+from noetrium_platform.research.experimentation.run.api import ExperimentRunSpec
+from noetrium_platform.research.experimentation.run.runtime import ExperimentRunApplication
+from noetrium_platform.research.experimentation.run.runtime.decision_coordination import (
     DecisionCycleCoordinator,
     _CycleState,
 )
-from research_platform.experimentation.run.runtime.resources import RunResourceAcquirer
-from research_platform.experimentation.study.api import (
+from noetrium_platform.research.experimentation.run.runtime.resources import RunResourceAcquirer
+from noetrium_platform.research.experimentation.study.api import (
     StudyMetricObservation,
     StudyProtocol,
     StudyVariantSpec,
     VariantKind,
 )
-from research_platform.experimentation.study.runtime import (
+from noetrium_platform.research.experimentation.study.runtime import (
     BasicStudyMetricAggregator,
     DeterministicStudyAssignment,
     StudyMatrixExecutor,
 )
-from research_platform.platform.kernel import ExecutionContext, canonical_digest
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext, canonical_digest
 
 
 class _Publication:

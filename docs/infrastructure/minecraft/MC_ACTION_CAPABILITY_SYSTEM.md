@@ -7,7 +7,7 @@ is one provider implementation; downstream planners, memory systems and research
 not import Mineflayer or JavaScript action handlers.
 
 The action catalog is authoritative in
-`research_platform/environment/minecraft/api/contracts.py`. Each entry declares
+`noetrium_platform/capabilities/environment/minecraft/api/contracts.py`. Each entry declares
 its category, effect behavior, bounded timeout, purpose and planner-visible
 argument contract. The same catalog drives Python validation, planner tool
 publication, transport command support and the Mineflayer handshake check.
@@ -118,7 +118,7 @@ that API to satisfy complexity governance.
 Provider module tests run without a Minecraft server:
 
 ```bash
-cd research_platform/environment/minecraft/providers/assets/mineflayer_bridge
+cd noetrium_platform/capabilities/environment/minecraft/providers/assets/mineflayer_bridge
 npm ci
 node --test actions.test.js
 ```

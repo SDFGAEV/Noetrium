@@ -4,16 +4,16 @@ import hashlib
 
 import pytest
 
-from research_platform.data.query.api import (
+from noetrium_platform.evidence.data.query.api import (
     ResearchDimension,
     ResearchDimensionKind,
     ResearchResultKind,
     ResearchResultQuery,
     ResearchSourceDisposition,
 )
-from research_platform.experimentation.run.control.composition import RunControlResearchResultSource
-from research_platform.experimentation.run.api import RunArtifactKind, RunArtifactSnapshotReceipt
-from research_platform.experimentation.run.control.api import (
+from noetrium_platform.research.experimentation.run.control.composition import RunControlResearchResultSource
+from noetrium_platform.research.experimentation.run.api import RunArtifactKind, RunArtifactSnapshotReceipt
+from noetrium_platform.research.experimentation.run.control.api import (
     RunControlAction,
     RunControlEventReceipt,
     RunControlNotFound,
@@ -27,8 +27,8 @@ from research_platform.experimentation.run.control.api import (
     RunScientificValidity,
     RunTaskOutcome,
 )
-from research_platform.experimentation.run.manifest.api import EvidenceBundleReceipt
-from research_platform.scope.api import ScopeIdentity, ScopeKind
+from noetrium_platform.research.experimentation.run.manifest.api import EvidenceBundleReceipt
+from noetrium_platform.foundation.scope.api import ScopeIdentity, ScopeKind
 
 
 def _sha(value: str) -> str:
@@ -131,7 +131,7 @@ def test_run_control_source_reports_missing_authority_as_unavailable() -> None:
         run_manifest_digest=MANIFEST_DIGEST,
         scope=SCOPE,
     )
-    from research_platform.data.query.cross.composition import compose
+    from noetrium_platform.evidence.data.query.cross.composition import compose
 
     page = compose((source,)).query(
         ResearchResultQuery(kinds=(ResearchResultKind.RUN,))

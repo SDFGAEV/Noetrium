@@ -3,11 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 import tempfile
 
-from research_platform.governance.architecture.concurrency_boundary_invariants import (
+from noetrium_platform.foundation.governance.architecture.concurrency_boundary_invariants import (
     audit_concurrency_boundary_invariants,
 )
-from research_platform.governance.system_registry.api import system_catalog
-from research_platform.execution.admission.api import boundary as admission_boundary
+from noetrium_platform.foundation.governance.system_registry.api import system_catalog
+from noetrium_platform.research.execution.admission.api import boundary as admission_boundary
 
 
 def _write(root: Path, relative: str, text: str) -> None:
@@ -31,9 +31,9 @@ def test_business_system_cannot_import_concurrency_provider_or_deep_provider_por
         root = Path(td)
         _write(
             root,
-            "research_platform/resource/example/runtime/service.py",
-            "from research_platform.platform.concurrency.providers import BoundedThreadExecutor\n"
-            "from research_platform.platform.concurrency.api.ports import ExecutorProviderPort\n",
+            "noetrium_platform/infrastructure/resources/example/runtime/service.py",
+            "from noetrium_platform.foundation.kernel.concurrency.providers import BoundedThreadExecutor\n"
+            "from noetrium_platform.foundation.kernel.concurrency.api.ports import ExecutorProviderPort\n",
         )
         rows = audit_concurrency_boundary_invariants(root)
         assert len(rows) == 2
@@ -45,8 +45,8 @@ def test_business_system_may_depend_on_public_task_group_contract() -> None:
         root = Path(td)
         _write(
             root,
-            "research_platform/resource/example/runtime/service.py",
-            "from research_platform.platform.concurrency.api import TaskGroupPort\n",
+            "noetrium_platform/infrastructure/resources/example/runtime/service.py",
+            "from noetrium_platform.foundation.kernel.concurrency.api import TaskGroupPort\n",
         )
         assert audit_concurrency_boundary_invariants(root) == []
 
@@ -56,8 +56,8 @@ def test_concurrency_system_itself_may_use_provider_ports() -> None:
         root = Path(td)
         _write(
             root,
-            "research_platform/platform/concurrency/runtime/runtime.py",
-            "from research_platform.platform.concurrency.api.ports import ExecutorProviderPort\n",
+            "noetrium_platform/foundation/kernel/concurrency/runtime/runtime.py",
+            "from noetrium_platform.foundation.kernel.concurrency.api.ports import ExecutorProviderPort\n",
         )
         assert audit_concurrency_boundary_invariants(root) == []
 
@@ -67,7 +67,7 @@ def test_business_system_cannot_use_legacy_executor_specific_task_group_methods(
         root = Path(td)
         _write(
             root,
-            "research_platform/resource/example/runtime/service.py",
+            "noetrium_platform/infrastructure/resources/example/runtime/service.py",
             "def run(group):\n"
             "    group.submit_blocking('a', lambda context: None)\n"
             "    group.submit_cpu('b', abs, -1)\n"
@@ -83,9 +83,9 @@ def test_concurrency_cannot_import_admission_or_scheduling_policy_systems() -> N
         root = Path(td)
         _write(
             root,
-            "research_platform/platform/concurrency/runtime/runtime.py",
-            "from research_platform.execution.admission.api import ExecutionAdmissionPort\n"
-            "from research_platform.execution.scheduling.api import ExecutionPriority\n",
+            "noetrium_platform/foundation/kernel/concurrency/runtime/runtime.py",
+            "from noetrium_platform.research.execution.admission.api import ExecutionAdmissionPort\n"
+            "from noetrium_platform.research.execution.scheduling.api import ExecutionPriority\n",
         )
         rows = audit_concurrency_boundary_invariants(root)
         assert len(rows) == 2
@@ -97,7 +97,7 @@ def test_concurrency_cannot_redeclare_tenant_resource_or_priority_policy_semanti
         root = Path(td)
         _write(
             root,
-            "research_platform/platform/concurrency/runtime/runtime.py",
+            "noetrium_platform/foundation/kernel/concurrency/runtime/runtime.py",
             "def configure(tenant_id, resource_id):\n"
             "    priority_aging_seconds = 1.0\n"
             "    return tenant_id, resource_id, priority_aging_seconds\n",
@@ -112,14 +112,14 @@ def test_admission_may_use_scheduling_api_but_not_scheduling_runtime() -> None:
         root = Path(td)
         _write(
             root,
-            "research_platform/execution/admission/runtime/authority.py",
-            "from research_platform.execution.scheduling.api import AdmissionSchedulingPolicyPort\n",
+            "noetrium_platform/research/execution/admission/runtime/authority.py",
+            "from noetrium_platform.research.execution.scheduling.api import AdmissionSchedulingPolicyPort\n",
         )
         assert audit_concurrency_boundary_invariants(root) == []
         _write(
             root,
-            "research_platform/execution/admission/runtime/bad.py",
-            "from research_platform.execution.scheduling.runtime import FairPrioritySchedulingPolicy\n",
+            "noetrium_platform/research/execution/admission/runtime/bad.py",
+            "from noetrium_platform.research.execution.scheduling.runtime import FairPrioritySchedulingPolicy\n",
         )
         rows = audit_concurrency_boundary_invariants(root)
         assert len(rows) == 1
@@ -131,8 +131,8 @@ def test_scheduling_cannot_depend_back_on_admission() -> None:
         root = Path(td)
         _write(
             root,
-            "research_platform/execution/scheduling/runtime/policy.py",
-            "from research_platform.execution.admission.api import AdmissionBudget\n",
+            "noetrium_platform/research/execution/scheduling/runtime/policy.py",
+            "from noetrium_platform.research.execution.admission.api import AdmissionBudget\n",
         )
         rows = audit_concurrency_boundary_invariants(root)
         assert len(rows) == 1

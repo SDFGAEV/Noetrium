@@ -4,11 +4,11 @@ import time
 
 import pytest
 
-from research_platform.experimentation.study.runtime import BasicStudyMetricAggregator, DeterministicStudyAssignment, StudyMatrixExecutor
+from noetrium_platform.research.experimentation.study.runtime import BasicStudyMetricAggregator, DeterministicStudyAssignment, StudyMatrixExecutor
 
-from research_platform.platform.concurrency.api import ConcurrencyBudget, TaskFailurePolicy
-from research_platform.platform.concurrency.composition import build_concurrency_runtime
-from research_platform.experimentation.study.api import (
+from noetrium_platform.foundation.kernel.concurrency.api import ConcurrencyBudget, TaskFailurePolicy
+from noetrium_platform.foundation.kernel.concurrency.composition import build_concurrency_runtime
+from noetrium_platform.research.experimentation.study.api import (
     ExperimentPlan,
     StudyConcurrencyPolicy,
     StudyExecutionUnit,

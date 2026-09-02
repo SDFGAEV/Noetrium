@@ -4,8 +4,8 @@ import json
 
 import pytest
 
-from research_platform.reliability.forensics.providers.index_db import ForensicIndexDB
-from research_platform.reliability.forensics.providers.index_reader import ForensicIndexReader
+from noetrium_platform.infrastructure.reliability.forensics.providers.index_db import ForensicIndexDB
+from noetrium_platform.infrastructure.reliability.forensics.providers.index_reader import ForensicIndexReader
 
 
 def _db(tmp_path) -> ForensicIndexDB:

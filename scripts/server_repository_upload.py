@@ -17,7 +17,7 @@ if sys.version_info < (3, 11):
     raise SystemExit("server management requires controller Python >=3.11")
 
 from scripts.server_common import compose_script_server, server_cli_concurrency_scope
-from research_platform.platform.kernel.errors import describe_exception
+from noetrium_platform.foundation.kernel.kernel.errors import describe_exception
 
 
 def _destination(value: str) -> str:

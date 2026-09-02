@@ -16,7 +16,7 @@ from scripts.verify_installed_artifact import verify_installed_artifact
 def test_formal_distribution_requires_clean_exact_git_source(monkeypatch):
     def dirty_git(*args: str) -> str:
         if args[:2] == ("status", "--porcelain=v1"):
-            return " M research_platform/api.py"
+            return " M noetrium_platform/api.py"
         raise AssertionError(args)
 
     monkeypatch.setattr(distribution, "_git", dirty_git)
@@ -38,7 +38,7 @@ def test_spdx_binds_distribution_artifact_sha256():
     local_root = distribution.ROOT / ".local"
     local_root.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(prefix="spdx-test-", dir=local_root) as td:
-        artifact = Path(td) / "research_platform.whl"
+        artifact = Path(td) / "noetrium_platform.whl"
         artifact.write_bytes(b"wheel-bytes")
         document = distribution._spdx_document(
             sha="b" * 40,
@@ -63,7 +63,7 @@ def test_installed_artifact_verifier_rejects_missing_file():
 
 
 def test_installed_artifact_verifier_fails_closed_when_venv_is_unavailable(tmp_path: Path, monkeypatch):
-    artifact = tmp_path / "research_platform.whl"
+    artifact = tmp_path / "noetrium_platform.whl"
     artifact.write_bytes(b"wheel")
 
     def unavailable(root: Path) -> None:
@@ -114,8 +114,8 @@ def test_distribution_build_runs_from_external_exact_source(monkeypatch):
         assert source_root != distribution.ROOT
         assert distribution.ROOT not in source_root.parents
         output = Path(argv[-1])
-        (output / "research_platform-1.0-py3-none-any.whl").write_bytes(b"wheel")
-        (output / "research_platform-1.0.tar.gz").write_bytes(b"sdist")
+        (output / "noetrium_platform-1.0-py3-none-any.whl").write_bytes(b"wheel")
+        (output / "noetrium_platform-1.0.tar.gz").write_bytes(b"sdist")
         return type("Completed", (), {
             "returncode": 0,
             "stdout": "build-ok",
@@ -201,7 +201,7 @@ def test_distribution_closing_source_identity_rejects_dirty_tree(monkeypatch):
     expected_sha = "a" * 40
     expected_branch = "system/06-product-assurance-convergence"
     values = {
-        ("status", "--porcelain=v1", "--untracked-files=all"): " M research_platform/api.py",
+        ("status", "--porcelain=v1", "--untracked-files=all"): " M noetrium_platform/api.py",
         ("rev-parse", "HEAD"): expected_sha,
         ("branch", "--show-current"): expected_branch,
     }

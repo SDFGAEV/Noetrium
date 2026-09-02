@@ -6,7 +6,7 @@ import tempfile
 import unittest
 import time
 
-from research_platform.model.serving.api import (
+from noetrium_platform.capabilities.model.serving.api import (
     DeploymentPlacement,
     QualificationCertificate,
     QualifiedDeploymentManifest,
@@ -18,21 +18,21 @@ from research_platform.model.serving.api import (
     ServiceHeartbeat,
     build_runtime_qualification_receipt,
 )
-from research_platform.model.serving.composition import publish_qualified_model_deployment_closure
-from research_platform.model.serving.endpoint.api import (
+from noetrium_platform.capabilities.model.serving.composition import publish_qualified_model_deployment_closure
+from noetrium_platform.capabilities.model.serving.endpoint.api import (
     ModelEndpointRoute,
     QualifiedModelClosurePublication,
 )
-from research_platform.model.serving.endpoint.providers import (
+from noetrium_platform.capabilities.model.serving.endpoint.providers import (
     PersistedQualifiedModelEndpointBinding,
     load_qualified_model_deployment_closure,
 )
-from research_platform.model.serving.providers import (
+from noetrium_platform.capabilities.model.serving.providers import (
     DirectoryRuntimeCanaryEvidenceStore,
     DirectoryRuntimeQualificationEvidenceStore,
 )
-from research_platform.model.stack.api import ModelArtifactClosure, ModelStackSpec, RuntimeBuildIdentity
-from research_platform.platform.kernel import ImmutableModelIdentity, canonical_digest
+from noetrium_platform.capabilities.model.stack.api import ModelArtifactClosure, ModelStackSpec, RuntimeBuildIdentity
+from noetrium_platform.foundation.kernel.kernel import ImmutableModelIdentity, canonical_digest
 
 
 def _digest(seed: str) -> str:

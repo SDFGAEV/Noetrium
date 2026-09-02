@@ -2,7 +2,7 @@ from pathlib import Path
 import sys, unittest
 ROOT=Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path: sys.path.insert(0,str(ROOT))
-from research_platform.governance.system_registry.api import system_catalog
+from noetrium_platform.foundation.governance.system_registry.api import system_catalog
 class LeafPublicEntryPointTests(unittest.TestCase):
  def test_all_retained_leaves_use_package_level_entrypoints_and_attested_results(self):
   count=0

@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 import threading
 import time
 
-from research_platform.model.qualification.providers import qualification_index_worker as worker
+from noetrium_platform.capabilities.model.qualification.providers import qualification_index_worker as worker
 
 
 def _run_parallel(fn, count: int = 8):

@@ -8,7 +8,7 @@ import time
 
 import pytest
 
-from research_platform.model.serving.api import (
+from noetrium_platform.capabilities.model.serving.api import (
     DeploymentPlacement,
     QualificationCertificate,
     QualifiedDeploymentManifest,
@@ -20,25 +20,25 @@ from research_platform.model.serving.api import (
     ServiceHeartbeat,
     build_runtime_qualification_receipt,
 )
-from research_platform.model.serving.composition import publish_qualified_model_deployment_closure
-from research_platform.model.serving.endpoint.api import (
+from noetrium_platform.capabilities.model.serving.composition import publish_qualified_model_deployment_closure
+from noetrium_platform.capabilities.model.serving.endpoint.api import (
     ModelEndpointRoute,
     QualifiedModelClosurePublication,
 )
-from research_platform.model.serving.endpoint.providers import (
+from noetrium_platform.capabilities.model.serving.endpoint.providers import (
     PersistedQualifiedModelEndpointBinding,
     QualifiedModelClosurePublicationError,
     QualifiedModelClosureReadError,
     load_qualified_model_deployment_closure,
     publish_qualified_model_deployment_closure as _publish_with_store,
 )
-from research_platform.model.serving.providers import (
+from noetrium_platform.capabilities.model.serving.providers import (
     DirectoryRuntimeCanaryEvidenceStore,
     DirectoryRuntimeQualificationEvidenceStore,
 )
-from research_platform.model.stack.api import ModelArtifactClosure, ModelStackSpec, RuntimeBuildIdentity
-from research_platform.platform.kernel import ImmutableModelIdentity, canonical_digest
-from research_platform.platform.kernel.durability import (
+from noetrium_platform.capabilities.model.stack.api import ModelArtifactClosure, ModelStackSpec, RuntimeBuildIdentity
+from noetrium_platform.foundation.kernel.kernel import ImmutableModelIdentity, canonical_digest
+from noetrium_platform.foundation.kernel.kernel.durability import (
     decode_checksummed_document,
     encode_checksummed_document,
 )

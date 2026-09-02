@@ -2,11 +2,11 @@ from tests_support import FakeParticipantResolver
 from tests_support import context_action_runtime
 from tests_support import context_action_spec
 import hashlib, unittest
-from research_platform.participant.method.api import MethodIdentity, MethodSnapshot, RecallResult
-from research_platform.environment.runtime.api import action_request_digest, EnvironmentIdentity, Observation, ActionResult
-from research_platform.platform.kernel import EffectReceipt, EffectClass, EffectCertainty, OperationExecutor, OperationFailure
-from research_platform.experimentation.experiment.runtime import ExperimentRuntime
-from research_platform.experimentation.experiment.api import ExperimentSpec
+from noetrium_platform.capabilities.participant.method.api import MethodIdentity, MethodSnapshot, RecallResult
+from noetrium_platform.capabilities.environment.runtime.api import action_request_digest, EnvironmentIdentity, Observation, ActionResult
+from noetrium_platform.foundation.kernel.kernel import EffectReceipt, EffectClass, EffectCertainty, OperationExecutor, OperationFailure
+from noetrium_platform.research.experimentation.experiment.runtime import ExperimentRuntime
+from noetrium_platform.research.experimentation.experiment.api import ExperimentSpec
 
 class MSession:
     def ingest(self,e,c): self.e=e

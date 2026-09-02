@@ -4,9 +4,9 @@ from pathlib import Path
 import tempfile
 
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
-from research_platform.platform.composition.operation_forensics import OperationForensicFailureSink
-from research_platform.platform.kernel import ComponentIdentity, ExecutionContext, OperationExecutor, OperationStatus
-from research_platform.execution.workflow.runtime import KernelOperationDispatcher
+from noetrium_platform.foundation.kernel.composition.operation_forensics import OperationForensicFailureSink
+from noetrium_platform.foundation.kernel.kernel import ComponentIdentity, ExecutionContext, OperationExecutor, OperationStatus
+from noetrium_platform.research.execution.workflow.runtime import KernelOperationDispatcher
 
 
 def _dispatch(executor: OperationExecutor, operation_type: str, *, idempotency_key: str | None, called: list[str]):

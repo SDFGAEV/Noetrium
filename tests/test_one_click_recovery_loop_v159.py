@@ -5,11 +5,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from research_platform.execution.runtime.manager import ExactRuntimeController, RuntimeAction, RuntimeControlError, RuntimeControlStore
+from noetrium_platform.research.execution.runtime.manager import ExactRuntimeController, RuntimeAction, RuntimeControlError, RuntimeControlStore
 from tests_support import frozen_runtime_manifest
-from research_platform.execution.runtime.manager.one_click import OneClickRuntimeManager
-from research_platform.reliability.recovery.providers.lease_store import RecoveryLeaseStore
-from research_platform.reliability.recovery.execution.runtime.file_lock import FileLockedRecoveryExecutionFactory
+from noetrium_platform.research.execution.runtime.manager.one_click import OneClickRuntimeManager
+from noetrium_platform.infrastructure.reliability.recovery.providers.lease_store import RecoveryLeaseStore
+from noetrium_platform.infrastructure.reliability.recovery.execution.runtime.file_lock import FileLockedRecoveryExecutionFactory
 
 
 def manifest():

@@ -4,9 +4,9 @@ from pathlib import Path
 import tempfile
 
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
-from research_platform.platform.composition.operation_forensics import OperationForensicFailureSink
-from research_platform.platform.composition.context_action import context_action_failure_classifier_chain
-from research_platform.platform.kernel import ComponentIdentity, EffectCertainty, ExecutionContext, OperationExecutor, OperationRequest, canonical_digest
+from noetrium_platform.foundation.kernel.composition.operation_forensics import OperationForensicFailureSink
+from noetrium_platform.foundation.kernel.composition.context_action import context_action_failure_classifier_chain
+from noetrium_platform.foundation.kernel.kernel import ComponentIdentity, EffectCertainty, ExecutionContext, OperationExecutor, OperationRequest, canonical_digest
 
 
 def request(operation_type: str, component_id: str = "environment.e"):
@@ -48,7 +48,7 @@ def test_post_effect_journal_failure_requires_effect_reconciliation():
 
 
 def test_action_not_applied_has_replan_recovery():
-    from research_platform.environment.runtime.api import ActionNotApplied
+    from noetrium_platform.capabilities.environment.runtime.api import ActionNotApplied
     with tempfile.TemporaryDirectory() as td:
         with ForensicStore(Path(td)) as store:
             sink = OperationForensicFailureSink(store, classifier=context_action_failure_classifier_chain())

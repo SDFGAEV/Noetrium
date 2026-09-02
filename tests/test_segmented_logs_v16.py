@@ -4,8 +4,8 @@ import os
 import tempfile
 import unittest
 
-from research_platform.reliability.forensics.providers import HashChainError, SegmentedHashChainedJSONL
-from research_platform.runtime.process.capture import CaptureIntegrityError
+from noetrium_platform.infrastructure.reliability.forensics.providers import HashChainError, SegmentedHashChainedJSONL
+from noetrium_platform.infrastructure.lifecycle.process.capture import CaptureIntegrityError
 
 class SegmentedLogsV16Tests(unittest.TestCase):
     def test_global_hash_chain_rotates_and_verifies(self):

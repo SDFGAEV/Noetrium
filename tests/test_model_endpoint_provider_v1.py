@@ -4,18 +4,18 @@ from uuid import uuid4
 
 import pytest
 
-from research_platform.model.request.api import ContentRef, ModelRequestEnvelope
-from research_platform.model.serving.endpoint import (
+from noetrium_platform.capabilities.model.request.api import ContentRef, ModelRequestEnvelope
+from noetrium_platform.capabilities.model.serving.endpoint import (
     JsonHttpResponse,
     ModelEndpointError,
     ModelEndpointRequest,
     ModelEndpointRoute,
 )
-from research_platform.model.serving.endpoint.providers import OpenAICompatibleModelEndpoint
-from research_platform.model.serving.runtime import ModelAdmissionController
-from research_platform.platform.concurrency.api import ExecutionLaneKind
-from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity
-from research_platform.platform.concurrency.composition import build_concurrency_runtime
+from noetrium_platform.capabilities.model.serving.endpoint.providers import OpenAICompatibleModelEndpoint
+from noetrium_platform.capabilities.model.serving.runtime import ModelAdmissionController
+from noetrium_platform.foundation.kernel.concurrency.api import ExecutionLaneKind
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext, ImmutableModelIdentity
+from noetrium_platform.foundation.kernel.concurrency.composition import build_concurrency_runtime
 
 
 class Transport:

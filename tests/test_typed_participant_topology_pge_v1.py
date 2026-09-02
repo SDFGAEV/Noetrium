@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from research_platform.participant.api import (
+from noetrium_platform.capabilities.participant.api import (
     ArchitectureChangeKind,
     ParticipantArchitectureChange,
     ParticipantArchitectureComponent,

@@ -7,13 +7,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from research_platform.operator.api import (
+from noetrium_platform.product.operator.api import (
     ResearchAction,
     ResearchOperationFailure,
     ResearchRequest,
 )
-import research_platform.operator.runtime.run_control_application as adapter
-from research_platform.operator.runtime.run_control_application import (
+import noetrium_platform.product.operator.runtime.run_control_application as adapter
+from noetrium_platform.product.operator.runtime.run_control_application import (
     RunControlResearchBinding,
     bind_run_control_application,
 )
@@ -295,12 +295,12 @@ def test_adapter_rejects_non_typed_receipt(monkeypatch):
 
 def test_adapter_consumes_real_role03_run_control_contract_when_available():
     try:
-        spec = importlib.util.find_spec("research_platform.experimentation.run.control.api")
+        spec = importlib.util.find_spec("noetrium_platform.research.experimentation.run.control.api")
     except ModuleNotFoundError:
         spec = None
     if spec is None:
         pytest.skip("ROLE03 run-control dependency is not present in this branch cut")
-    from research_platform.experimentation.run.control.api import (
+    from noetrium_platform.research.experimentation.run.control.api import (
         RunControlAction,
         RunControlEventReceipt,
         RunControlPhase,
@@ -311,7 +311,7 @@ def test_adapter_consumes_real_role03_run_control_contract_when_available():
         RunScientificValidity,
         RunTaskOutcome,
     )
-    from research_platform.experimentation.run.control.api.contracts import RunControlRecordKind
+    from noetrium_platform.research.experimentation.run.control.api.contracts import RunControlRecordKind
 
     class _RealControl:
         def execute(self, request):

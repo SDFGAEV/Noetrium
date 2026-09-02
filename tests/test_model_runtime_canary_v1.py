@@ -6,7 +6,7 @@ import time
 
 import pytest
 
-from research_platform.model.serving.api import (
+from noetrium_platform.capabilities.model.serving.api import (
     DeploymentPlacement,
     QualificationCertificate,
     QualifiedDeploymentManifest,
@@ -15,13 +15,13 @@ from research_platform.model.serving.api import (
     RuntimeCanaryProbe,
     ServiceHeartbeat,
 )
-from research_platform.model.serving.endpoint.api import (
+from noetrium_platform.capabilities.model.serving.endpoint.api import (
     ModelEndpointResponse,
     ModelEndpointRoute,
 )
-from research_platform.model.serving.runtime import run_runtime_canary
-from research_platform.model.stack.api import ModelArtifactClosure, ModelStackSpec, RuntimeBuildIdentity
-from research_platform.platform.kernel import ImmutableModelIdentity, canonical_digest
+from noetrium_platform.capabilities.model.serving.runtime import run_runtime_canary
+from noetrium_platform.capabilities.model.stack.api import ModelArtifactClosure, ModelStackSpec, RuntimeBuildIdentity
+from noetrium_platform.foundation.kernel.kernel import ImmutableModelIdentity, canonical_digest
 
 
 def _digest(seed: str) -> str:

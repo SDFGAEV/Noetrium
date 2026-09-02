@@ -2,7 +2,7 @@ from __future__ import annotations
 from tests._concurrency_support import process_capture
 
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
-from research_platform.runtime.service.api import ServiceLaunchContract, ServiceProcessIdentity
+from noetrium_platform.infrastructure.lifecycle.service.api import ServiceLaunchContract, ServiceProcessIdentity
 from service_os_test_support import make_service_supervisor, ready_evidence
 
 from pathlib import Path
@@ -10,15 +10,15 @@ import hashlib
 import tempfile
 import unittest
 
-from research_platform.platform.composition.service_crash import CrashHandoffPhase
-from research_platform.platform.composition.service_crash import DurableCrashHandoffStore
-from research_platform.platform.composition.service_crash import DurableServiceCrashCoordinator
-from research_platform.platform.composition.service_crash_failure import service_crash_failure
-from research_platform.platform.kernel.context import ExecutionContext
+from noetrium_platform.foundation.kernel.composition.service_crash import CrashHandoffPhase
+from noetrium_platform.foundation.kernel.composition.service_crash import DurableCrashHandoffStore
+from noetrium_platform.foundation.kernel.composition.service_crash import DurableServiceCrashCoordinator
+from noetrium_platform.foundation.kernel.composition.service_crash_failure import service_crash_failure
+from noetrium_platform.foundation.kernel.kernel.context import ExecutionContext
 from tests._concurrency_support import segmented_byte_capture
-from research_platform.reliability.primitives import CrashEvidence
-from research_platform.runtime.service.runtime.state_storage import FileServiceStateStore
-from research_platform.runtime.service.runtime import (
+from noetrium_platform.infrastructure.reliability.primitives import CrashEvidence
+from noetrium_platform.infrastructure.lifecycle.service.runtime.state_storage import FileServiceStateStore
+from noetrium_platform.infrastructure.lifecycle.service.runtime import (
     ExactServiceSupervisor,
     ServicePhase,
 )

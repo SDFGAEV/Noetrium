@@ -4,27 +4,27 @@ from pathlib import Path
 
 import pytest
 
-from research_platform.model.serving.api import (
+from noetrium_platform.capabilities.model.serving.api import (
     RuntimeCanaryContract,
     RuntimeCanaryProbe,
     ServiceHeartbeat,
 )
-from research_platform.model.serving.runtime import ModelAdmissionRegistry
-from research_platform.model.serving.composition import (
+from noetrium_platform.capabilities.model.serving.runtime import ModelAdmissionRegistry
+from noetrium_platform.capabilities.model.serving.composition import (
     qualify_and_publish_model_deployment_closure,
 )
-from research_platform.model.serving.endpoint.api import JsonHttpResponse
-from research_platform.model.serving.endpoint.providers import (
+from noetrium_platform.capabilities.model.serving.endpoint.api import JsonHttpResponse
+from noetrium_platform.capabilities.model.serving.endpoint.providers import (
     PersistedQualifiedModelEndpointBinding,
     QualifiedModelClosurePublicationError,
     load_qualified_model_deployment_closure,
 )
-from research_platform.model.serving.providers import (
+from noetrium_platform.capabilities.model.serving.providers import (
     DirectoryRuntimeCanaryEvidenceStore,
     DirectoryRuntimeQualificationEvidenceStore,
 )
-from research_platform.platform.concurrency.composition import build_concurrency_runtime
-from research_platform.platform.kernel import canonical_digest
+from noetrium_platform.foundation.kernel.concurrency.composition import build_concurrency_runtime
+from noetrium_platform.foundation.kernel.kernel import canonical_digest
 from tests.test_qualified_closure_publication_v3 import _publication
 
 

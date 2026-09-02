@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 import unittest
 
-from research_platform.platform.kernel.durability.durable_file import (
+from noetrium_platform.foundation.kernel.kernel.durability.durable_file import (
     DurableFileWriteError,
     atomic_replace_bytes,
     durable_replace_file,
@@ -20,7 +20,7 @@ class DurableFileTests(unittest.TestCase):
             path = Path(td) / "state.json"
             events: list[str] = []
 
-            from research_platform.platform.kernel.durability import durable_file as module
+            from noetrium_platform.foundation.kernel.kernel.durability import durable_file as module
 
             real_replace = module.os.replace
             real_fsync_directory = module.fsync_directory
@@ -46,7 +46,7 @@ class DurableFileTests(unittest.TestCase):
             root = Path(td)
             path = root / "state.json"
             with patch(
-                "research_platform.platform.kernel.durability.durable_file.os.replace",
+                "noetrium_platform.foundation.kernel.kernel.durability.durable_file.os.replace",
                 side_effect=OSError("replace failed"),
             ):
                 with self.assertRaises(DurableFileWriteError):
@@ -61,7 +61,7 @@ class DurableFileTests(unittest.TestCase):
             source = root / "rebuilt.sqlite3"
             target = root / "index.sqlite3"
             source.write_bytes(b"sqlite")
-            from research_platform.platform.kernel.durability import durable_file as module
+            from noetrium_platform.foundation.kernel.kernel.durability import durable_file as module
             real_flush = module._flush_file
             flushed: list[Path] = []
 
@@ -81,7 +81,7 @@ class DurableFileTests(unittest.TestCase):
     @unittest.skipUnless(os.name == "nt", "Windows sharing-violation semantics")
     def test_durable_replace_retries_transient_windows_sharing_violation(self) -> None:
         with TemporaryDirectory() as td:
-            from research_platform.platform.kernel.durability import durable_file as module
+            from noetrium_platform.foundation.kernel.kernel.durability import durable_file as module
 
             root = Path(td)
             source = root / "source.bin"
@@ -107,7 +107,7 @@ class DurableFileTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name == "nt", "Windows sharing-violation semantics")
     def test_windows_retry_does_not_retry_non_sharing_permission_error(self) -> None:
-        from research_platform.platform.kernel.durability import durable_file as module
+        from noetrium_platform.foundation.kernel.kernel.durability import durable_file as module
 
         attempts = 0
 
@@ -128,7 +128,7 @@ class DurableFileTests(unittest.TestCase):
             path = root / "lease.json"
             path.write_bytes(b"lease")
             with patch(
-                "research_platform.platform.kernel.durability.durable_file.fsync_directory"
+                "noetrium_platform.foundation.kernel.kernel.durability.durable_file.fsync_directory"
             ) as sync:
                 durable_unlink(path)
             self.assertFalse(path.exists())

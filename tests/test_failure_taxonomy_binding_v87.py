@@ -6,11 +6,11 @@ import tempfile
 import unittest
 
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
-from research_platform.reliability.failure.api import DEFAULT_FAILURE_CATALOG
-from research_platform.reliability.forensics.runtime.diagnostic_adapter import ForensicDiagnosticEvidence
-from research_platform.reliability.failure.api import build_failure_from_spec
-from research_platform.platform.kernel import ExecutionContext
-from research_platform.reliability.diagnostics.runtime import FailureDiagnosisService
+from noetrium_platform.infrastructure.reliability.failure.api import DEFAULT_FAILURE_CATALOG
+from noetrium_platform.infrastructure.reliability.forensics.runtime.diagnostic_adapter import ForensicDiagnosticEvidence
+from noetrium_platform.infrastructure.reliability.failure.api import build_failure_from_spec
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
+from noetrium_platform.infrastructure.reliability.diagnostics.runtime import FailureDiagnosisService
 
 
 class FailureTaxonomyBindingV87Tests(unittest.TestCase):

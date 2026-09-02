@@ -114,7 +114,7 @@ Jeder Übergang soll Identity erhalten oder Evidence dafür erzeugen, warum sie 
 
 Jeder Durable State hat genau einen Owner; unsichere externe Effects bleiben `UNKNOWN`, bis Reconciliation das Gegenteil beweist.
 
-`research_platform/governance/system_registry/catalog.json`
+`noetrium_platform/foundation/governance/system_registry/catalog.json`
 
 <!-- readme-section:downstream -->
 
@@ -149,7 +149,7 @@ Das erste Beispiel ist deterministisch und benötigt weder API Key, Model Endpoi
 ### 1. Klonen und installieren
 
 ```bash
-git clone https://github.com/SDFGAEV/noetrium.git
+git clone https://github.com/Xalzeroph/noetrium.git
 cd noetrium
 python -m venv .venv
 source .venv/bin/activate
@@ -182,7 +182,7 @@ research-platform-architecture-gate
 python scripts/check_readme_i18n.py
 ```
 
-Die Python-Distribution-Metadaten heißen `noetrium`; der aktuelle Import-Namespace bleibt `research_platform`, während Product Identity und Runtime Contracts unabhängig weiterentwickelt werden.
+Die Python-Distribution-Metadaten heißen `noetrium`; der aktuelle Import-Namespace bleibt `noetrium_platform`, während Product Identity und Runtime Contracts unabhängig weiterentwickelt werden.
 
 <!-- readme-section:containers -->
 
@@ -216,16 +216,16 @@ docker compose -f deploy/compose.yaml -f deploy/compose.minecraft.yaml run --rm 
 
 | Path | Responsibility |
 | --- | --- |
-| `research_platform/` | Wiederverwendbare Plattformimplementierung und öffentliche Systemgrenzen |
+| `noetrium_platform/` | Wiederverwendbare Plattformimplementierung und öffentliche Systemgrenzen |
 | `configs/` | Versionierte Konfigurationsbeispiele und secret-freie Templates |
 | `deploy/` | Container-Image, Compose Runtime und Deployment-Bootstrap |
 | `docs/` | Dokumentation für architecture, infrastructure, governance, status und history |
 | `scripts/` | Dünne operator-, audit-, release- und maintenance-Einstiegspunkte |
 | `tests/` | Hierarchische Regression- und Contract-Tests |
-| `research_platform/environment/minecraft/` | Wiederverwendbarer Minecraft Environment Provider |
+| `noetrium_platform/capabilities/environment/minecraft/` | Wiederverwendbarer Minecraft Environment Provider |
 | `LICENSE` / `NOTICE` / `THIRD_PARTY_NOTICES.md` | Apache-2.0- und Drittanbieter-Lizenzhinweise |
 
-`research_platform/` is the reusable package boundary; project-specific code stays downstream.
+`noetrium_platform/` is the reusable package boundary; project-specific code stays downstream.
 
 <!-- readme-section:testing -->
 

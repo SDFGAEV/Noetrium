@@ -1,21 +1,21 @@
 from contextlib import closing
-from research_platform.data.state.api import AggregateValue, AtomicMutation, StateBootstrapConflict, StateCorruptionError, StateVersionConflict
-from research_platform.data.state.runtime import SQLiteAtomicStateStore
+from noetrium_platform.evidence.data.state.api import AggregateValue, AtomicMutation, StateBootstrapConflict, StateCorruptionError, StateVersionConflict
+from noetrium_platform.evidence.data.state.runtime import SQLiteAtomicStateStore
 import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
 import hashlib
 
-from research_platform.artifact.catalog.api import ArtifactKind, ArtifactQuery, ArtifactRecord, ArtifactRegistryConflict, ArtifactRegistryCorruptionError
-from research_platform.artifact._sqlite_connection import rollback_artifact_writer
-from research_platform.artifact.catalog.providers import SQLiteArtifactRegistry
-from research_platform.data._sqlite_transaction import rollback_data_writer
-from research_platform.data.dataset.api import DatasetIdentity, DatasetQuery, DatasetRegistryConflict, DatasetRegistryCorruptionError, DatasetVersion
-from research_platform.data.dataset.providers import SQLiteDatasetRegistry
-from research_platform.data.fact.api import DurableFact, DurableFactConflict, DurableFactCorruptionError, FactCriticality
-from research_platform.data.fact.providers import SQLiteDurableFactStore
-from research_platform.scope.api import PLATFORM_SCOPE
+from noetrium_platform.evidence.artifact.catalog.api import ArtifactKind, ArtifactQuery, ArtifactRecord, ArtifactRegistryConflict, ArtifactRegistryCorruptionError
+from noetrium_platform.evidence.artifact._sqlite_connection import rollback_artifact_writer
+from noetrium_platform.evidence.artifact.catalog.providers import SQLiteArtifactRegistry
+from noetrium_platform.evidence.data._sqlite_transaction import rollback_data_writer
+from noetrium_platform.evidence.data.dataset.api import DatasetIdentity, DatasetQuery, DatasetRegistryConflict, DatasetRegistryCorruptionError, DatasetVersion
+from noetrium_platform.evidence.data.dataset.providers import SQLiteDatasetRegistry
+from noetrium_platform.evidence.data.fact.api import DurableFact, DurableFactConflict, DurableFactCorruptionError, FactCriticality
+from noetrium_platform.evidence.data.fact.providers import SQLiteDurableFactStore
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE
 
 
 

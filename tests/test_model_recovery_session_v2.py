@@ -4,11 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from research_platform.model.serving.api import RecoveryPlan, RecoveryStep
-from research_platform.model.serving.providers.recovery_storage import FileDurableRecoveryStore
-from research_platform.model.serving.runtime import DurableExactRecoveryRunner
-from research_platform.platform.concurrency.api import TaskCancelled
-from research_platform.platform.kernel import ImmutableModelIdentity
+from noetrium_platform.capabilities.model.serving.api import RecoveryPlan, RecoveryStep
+from noetrium_platform.capabilities.model.serving.providers.recovery_storage import FileDurableRecoveryStore
+from noetrium_platform.capabilities.model.serving.runtime import DurableExactRecoveryRunner
+from noetrium_platform.foundation.kernel.concurrency.api import TaskCancelled
+from noetrium_platform.foundation.kernel.kernel import ImmutableModelIdentity
 
 
 def _plan(*steps: RecoveryStep) -> RecoveryPlan:

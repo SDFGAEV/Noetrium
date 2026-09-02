@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import pytest
 
-from research_platform.participant.agent.api import (
+from noetrium_platform.capabilities.participant.agent.api import (
     AGENT_MEMORY_CHECKPOINT_SCHEMA,
     AgentActionSequence,
     AgentActionStep,
     AgentMemoryCheckpoint,
     AgentStepReceipt,
 )
-from research_platform.participant.agent.runtime import InMemoryAgentMemory
-from research_platform.platform.kernel import ExecutionContext
+from noetrium_platform.capabilities.participant.agent.runtime import InMemoryAgentMemory
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
 
 
 def _context() -> ExecutionContext:

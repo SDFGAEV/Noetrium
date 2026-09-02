@@ -2,9 +2,9 @@ import json
 from pathlib import Path
 from importlib.resources import files
 
-from research_platform.governance.system_registry.api import SystemLayer, system_catalog
-from research_platform.governance.architecture.system_topology_invariants import audit_system_topology_completeness
-import research_platform.governance.architecture.system_topology_invariants as topology_invariants
+from noetrium_platform.foundation.governance.system_registry.api import SystemLayer, system_catalog
+from noetrium_platform.foundation.governance.architecture.system_topology_invariants import audit_system_topology_completeness
+import noetrium_platform.foundation.governance.architecture.system_topology_invariants as topology_invariants
 
 def test_vnext_catalog_has_unique_keys_and_parent_first_order():
     rows=system_catalog(); keys=[row.identity.key for row in rows]
@@ -18,7 +18,7 @@ def test_each_node_declares_one_authority_and_standard_package_shape():
     for row in system_catalog():
         assert len(row.authorities)==1
         assert row.authorities[0].authority_id
-        assert row.package_prefix.startswith('research_platform.')
+        assert row.package_prefix.startswith('noetrium_platform.')
         assert row.owns
         assert row.must_not_own
         assert row.shape == ('api', 'runtime', 'providers', 'composition')
@@ -26,7 +26,7 @@ def test_each_node_declares_one_authority_and_standard_package_shape():
 
 def test_runtime_descriptor_preserves_canonical_catalog_semantics():
     catalog = json.loads(
-        files('research_platform.governance.system_registry').joinpath('catalog.json').read_text(encoding='utf-8')
+        files('noetrium_platform.foundation.governance.system_registry').joinpath('catalog.json').read_text(encoding='utf-8')
     )
     for row in system_catalog():
         source = catalog[row.identity.key]
@@ -40,7 +40,7 @@ def test_runtime_descriptor_preserves_canonical_catalog_semantics():
 
 
 def test_documentation_catalog_mirrors_packaged_catalog():
-    packaged = files('research_platform.governance.system_registry').joinpath('catalog.json').read_bytes()
+    packaged = files('noetrium_platform.foundation.governance.system_registry').joinpath('catalog.json').read_bytes()
     documented = (Path(__file__).parents[1] / 'docs' / 'architecture' / 'VNEXT_SYSTEM_CATALOG.json').read_bytes()
     assert packaged == documented
 
@@ -106,7 +106,7 @@ def test_section42_scaffold_contraction_keeps_parent_authorities_only():
 def test_packaged_catalog_is_the_single_topology_declaration_authority():
     topology_source = (
         Path(__file__).parents[1]
-        / "research_platform"
+        / "noetrium_platform"
         / "governance"
         / "system_registry"
         / "api"
@@ -116,7 +116,7 @@ def test_packaged_catalog_is_the_single_topology_declaration_authority():
     assert "_NODE_METADATA" not in topology_source
     assert "_apply_node_metadata" not in topology_source
     catalog = json.loads(
-        files("research_platform.governance.system_registry")
+        files("noetrium_platform.foundation.governance.system_registry")
         .joinpath("catalog.json")
         .read_text(encoding="utf-8")
     )
@@ -131,7 +131,7 @@ def test_standard_shaped_systems_cannot_bypass_catalog_authority():
 
 
 def test_registered_package_authority_cannot_point_to_missing_source(tmp_path, monkeypatch):
-    catalog = tmp_path / "research_platform" / "governance" / "system_registry" / "catalog.json"
+    catalog = tmp_path / "noetrium_platform" / "governance" / "system_registry" / "catalog.json"
     catalog.parent.mkdir(parents=True)
     catalog.write_text("{}\n", encoding="utf-8")
     descriptor = next(row for row in system_catalog() if row.identity.key == "scope")
@@ -139,12 +139,12 @@ def test_registered_package_authority_cannot_point_to_missing_source(tmp_path, m
     rows = topology_invariants.audit_system_topology_completeness(tmp_path)
     assert len(rows) == 1
     assert rows[0].invariant == "stale_catalog_package"
-    assert "research_platform.scope" in rows[0].detail
+    assert "noetrium_platform.foundation.scope" in rows[0].detail
 
 
 def test_new_standard_shaped_system_is_fail_closed_until_registered(tmp_path):
-    package = tmp_path / "research_platform" / "governance" / "rogue"
-    for path in (tmp_path / "research_platform", tmp_path / "research_platform" / "governance", package):
+    package = tmp_path / "noetrium_platform" / "governance" / "rogue"
+    for path in (tmp_path / "noetrium_platform", tmp_path / "noetrium_platform" / "governance", package):
         path.mkdir(parents=True, exist_ok=True)
         (path / "__init__.py").write_text("", encoding="utf-8")
     for plane in ("api", "runtime", "providers", "composition"):
@@ -154,7 +154,7 @@ def test_new_standard_shaped_system_is_fail_closed_until_registered(tmp_path):
     rows = audit_system_topology_completeness(tmp_path)
     assert len(rows) == 1
     assert rows[0].invariant == "unregistered_standard_system"
-    assert "research_platform.governance.rogue" in rows[0].detail
+    assert "noetrium_platform.foundation.governance.rogue" in rows[0].detail
 
 
 class _CatalogResource:
@@ -174,7 +174,7 @@ class _CatalogPackage:
 
 
 def _load_catalog_payload(monkeypatch, payload):
-    import research_platform.governance.system_registry.api.topology as topology
+    import noetrium_platform.foundation.governance.system_registry.api.topology as topology
 
     topology._load_catalog_semantics.cache_clear()
     monkeypatch.setattr(topology, "files", lambda _package: _CatalogPackage(payload))
@@ -186,7 +186,7 @@ def _load_catalog_payload(monkeypatch, payload):
 
 def _packaged_catalog_payload():
     return json.loads(
-        files("research_platform.governance.system_registry")
+        files("noetrium_platform.foundation.governance.system_registry")
         .joinpath("catalog.json")
         .read_text(encoding="utf-8")
     )
@@ -230,7 +230,7 @@ def test_catalog_metadata_rejects_duplicate_providers(monkeypatch):
 
 def test_catalog_runtime_metadata_is_closed_over_registered_nodes_and_capabilities():
     catalog = json.loads(
-        files("research_platform.governance.system_registry")
+        files("noetrium_platform.foundation.governance.system_registry")
         .joinpath("catalog.json")
         .read_text(encoding="utf-8")
     )
@@ -253,5 +253,5 @@ def test_architecture_policy_facets_are_folded_into_parent_authority():
     assert "governance/architecture" in keys
     assert "governance/architecture/authority" not in keys
     assert "governance/architecture/dependency" not in keys
-    assert not any((root / "research_platform/governance/architecture/authority").rglob("*.py"))
-    assert not any((root / "research_platform/governance/architecture/dependency").rglob("*.py"))
+    assert not any((root / "noetrium_platform/foundation/governance/architecture/authority").rglob("*.py"))
+    assert not any((root / "noetrium_platform/foundation/governance/architecture/dependency").rglob("*.py"))

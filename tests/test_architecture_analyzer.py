@@ -3,19 +3,19 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from research_platform.governance.architecture import (
+from noetrium_platform.foundation.governance.architecture import (
     ImportRule,
     analyze_hotspots,
     audit_import_rules,
     package_cycles,
     scan_imports,
 )
-from research_platform.governance.architecture.import_graph import (
+from noetrium_platform.foundation.governance.architecture.import_graph import (
     ImportEdge,
     ImportViolation,
     LayerViolation,
 )
-from research_platform.governance.architecture.report import (
+from noetrium_platform.foundation.governance.architecture.report import (
     ImportViolationRecord,
     LayerViolationRecord,
 )
@@ -31,35 +31,35 @@ class ArchitectureAnalyzerTests(unittest.TestCase):
         self.assertEqual(len(report.report_sha256),64)
 
     def test_report_violation_records_preserve_flat_json_shape(self):
-        edge=ImportEdge("research_platform.a","projects.b","research_platform/a.py",7)
+        edge=ImportEdge("noetrium_platform.a","projects.b","noetrium_platform/a.py",7)
         import_row=ImportViolationRecord.from_violation(ImportViolation(edge,"no"))
         layer_row=LayerViolationRecord.from_violation(
             LayerViolation(edge,"api","runtime","layer violation")
         )
         self.assertEqual(asdict(import_row),{
-            "source":"research_platform.a","target":"projects.b",
-            "path":"research_platform/a.py","line":7,"reason":"no",
+            "source":"noetrium_platform.a","target":"projects.b",
+            "path":"noetrium_platform/a.py","line":7,"reason":"no",
         })
         self.assertEqual(asdict(layer_row),{
-            "source":"research_platform.a","target":"projects.b",
-            "path":"research_platform/a.py","line":7,
+            "source":"noetrium_platform.a","target":"projects.b",
+            "path":"noetrium_platform/a.py","line":7,
             "source_layer":"api","target_layer":"runtime","reason":"layer violation",
         })
 
     def test_rule_reports_exact_source_line(self):
         with tempfile.TemporaryDirectory() as td:
-            root=Path(td); (root/"research_platform"/"x").mkdir(parents=True); (root/"projects"/"m").mkdir(parents=True)
-            (root/"research_platform"/"__init__.py").write_text(""); (root/"projects"/"__init__.py").write_text("")
-            p=root/"research_platform"/"x"/"a.py"; p.write_text("from projects.m import y\n")
-            edges=scan_imports(root); v=audit_import_rules(edges,(ImportRule("research_platform","projects","no"),))
+            root=Path(td); (root/"noetrium_platform"/"x").mkdir(parents=True); (root/"projects"/"m").mkdir(parents=True)
+            (root/"noetrium_platform"/"__init__.py").write_text(""); (root/"projects"/"__init__.py").write_text("")
+            p=root/"noetrium_platform"/"x"/"a.py"; p.write_text("from projects.m import y\n")
+            edges=scan_imports(root); v=audit_import_rules(edges,(ImportRule("noetrium_platform","projects","no"),))
             self.assertEqual(v[0].edge.line,1); self.assertIn("a.py",v[0].edge.path)
 
     def test_cycle_detection_is_physical(self):
         with tempfile.TemporaryDirectory() as td:
-            root=Path(td); (root/"research_platform"/"a").mkdir(parents=True); (root/"research_platform"/"b").mkdir(parents=True)
-            for p in (root/"research_platform"/"__init__.py",root/"research_platform"/"a"/"__init__.py",root/"research_platform"/"b"/"__init__.py"): p.write_text("")
-            (root/"research_platform"/"a"/"x.py").write_text("from research_platform.b import y\n")
-            (root/"research_platform"/"b"/"y.py").write_text("from research_platform.a import x\n")
+            root=Path(td); (root/"noetrium_platform"/"a").mkdir(parents=True); (root/"noetrium_platform"/"b").mkdir(parents=True)
+            for p in (root/"noetrium_platform"/"__init__.py",root/"noetrium_platform"/"a"/"__init__.py",root/"noetrium_platform"/"b"/"__init__.py"): p.write_text("")
+            (root/"noetrium_platform"/"a"/"x.py").write_text("from noetrium_platform.b import y\n")
+            (root/"noetrium_platform"/"b"/"y.py").write_text("from noetrium_platform.a import x\n")
             self.assertTrue(package_cycles(scan_imports(root),depth=2))
 
     def test_hotspot_analysis_surfaces_large_branchy_module(self):

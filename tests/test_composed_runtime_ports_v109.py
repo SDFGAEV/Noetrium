@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from research_platform.execution.runtime.manager import RuntimePlatformAuthorities
+from noetrium_platform.research.execution.runtime.manager import RuntimePlatformAuthorities
 
 
 class Unary:

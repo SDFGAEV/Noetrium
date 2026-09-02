@@ -6,10 +6,10 @@ from contextlib import contextmanager
 from threading import RLock
 from typing import Iterator
 
-from research_platform.execution.runtime.manager.history import RuntimeHistory
-from research_platform.execution.runtime.manager.runtime_state_contracts import RuntimeControlState, RuntimeTxnPhase
-from research_platform.execution.runtime.manager.state import RuntimeControlStore
-from research_platform.execution.runtime.manager.status_readers import RuntimeControlStatusReader
+from noetrium_platform.research.execution.runtime.manager.history import RuntimeHistory
+from noetrium_platform.research.execution.runtime.manager.runtime_state_contracts import RuntimeControlState, RuntimeTxnPhase
+from noetrium_platform.research.execution.runtime.manager.state import RuntimeControlStore
+from noetrium_platform.research.execution.runtime.manager.status_readers import RuntimeControlStatusReader
 
 
 class MemoryRuntimeStateStore:

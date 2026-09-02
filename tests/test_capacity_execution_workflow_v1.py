@@ -1,15 +1,15 @@
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from research_platform.execution.command.api import CommandId
-from research_platform.execution.operation.api import OperationId
-from research_platform.execution.operation.providers import SQLiteOperationStore
-from research_platform.execution.operation.runtime import OperationOwner
-from research_platform.execution.workflow.api import (
+from noetrium_platform.research.execution.command.api import CommandId
+from noetrium_platform.research.execution.operation.api import OperationId
+from noetrium_platform.research.execution.operation.providers import SQLiteOperationStore
+from noetrium_platform.research.execution.operation.runtime import OperationOwner
+from noetrium_platform.research.execution.workflow.api import (
     WorkflowGraph, WorkflowProgressConflict, WorkflowRunId, WorkflowStep,
 )
-from research_platform.execution.workflow.providers import SQLiteWorkflowProgressStore
-from research_platform.execution.workflow.runtime import WorkflowProgressOwner
+from noetrium_platform.research.execution.workflow.providers import SQLiteWorkflowProgressStore
+from noetrium_platform.research.execution.workflow.runtime import WorkflowProgressOwner
 
 def _operation_owner(path: Path) -> OperationOwner:
     return OperationOwner(SQLiteOperationStore(path))

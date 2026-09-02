@@ -4,7 +4,7 @@ import asyncio
 from dataclasses import dataclass
 from pathlib import Path
 
-from research_platform.participant.method.api import (
+from noetrium_platform.capabilities.participant.method.api import (
     MethodGraphEvent,
     MethodGraphRequest,
     MethodGraphResult,
@@ -14,14 +14,14 @@ from research_platform.participant.method.api import (
     ResearchMethodProgram,
     StatefulResearchMethodProgram,
 )
-from research_platform.participant.method.providers import (
+from noetrium_platform.capabilities.participant.method.providers import (
     LangGraphAsyncInvoker,
     LangGraphCodec,
     LangGraphInvocation,
     LangGraphMethodProgram,
     LangGraphStatefulMethodProgram,
 )
-from research_platform.platform.kernel import ExecutionContext
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
 
 
 @dataclass(frozen=True, slots=True)
@@ -215,6 +215,6 @@ def test_langgraph_adapter_fails_explicitly_when_checkpoint_is_not_supported():
 def test_langgraph_provider_has_no_hard_runtime_import():
     source = (
         Path(__file__).parents[1]
-        / "research_platform/participant/method/providers/langgraph.py"
+        / "noetrium_platform/capabilities/participant/method/providers/langgraph.py"
     ).read_text(encoding="utf-8")
     assert "import langgraph" not in source

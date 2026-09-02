@@ -6,11 +6,11 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from research_platform.api import ResearchFacade
-from research_platform.operator.reference import ReferenceResearchApplication
-from research_platform.operator.reference.application import ReferencePhase, ReferenceState
-from research_platform.operator.composition.research import main
-from research_platform.platform.kernel.durability import (
+from noetrium_platform.api import ResearchFacade
+from noetrium_platform.product.operator.reference import ReferenceResearchApplication
+from noetrium_platform.product.operator.reference.application import ReferencePhase, ReferenceState
+from noetrium_platform.product.operator.composition.research import main
+from noetrium_platform.foundation.kernel.kernel.durability import (
     ChecksummedDocumentError,
     encode_checksummed_document,
 )
@@ -63,7 +63,7 @@ def test_reference_workload_is_exercisable_through_installed_cli_shape(capsys):
         config.write_text(json.dumps({"state_root": str(root / "state")}), encoding="utf-8")
         prefix = [
             "--application",
-            "research_platform.operator.reference:build_reference_application",
+            "noetrium_platform.product.operator.reference:build_reference_application",
             "--application-config",
             str(config),
         ]

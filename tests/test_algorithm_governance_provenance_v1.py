@@ -4,18 +4,18 @@ from pathlib import Path
 
 import pytest
 
-from research_platform.governance.algorithm.api import AlgorithmLanguage, SourceDocument
-from research_platform.governance.algorithm.providers import (
+from noetrium_platform.foundation.governance.algorithm.api import AlgorithmLanguage, SourceDocument
+from noetrium_platform.foundation.governance.algorithm.providers import (
     FilesystemFileAnalysisCache,
     RepositorySourceInventory,
 )
-from research_platform.governance.algorithm.runtime import (
+from noetrium_platform.foundation.governance.algorithm.runtime import (
     AlgorithmGovernanceService,
     AlgorithmScanner,
     PythonAlgorithmAnalyzer,
     gate_against_baseline,
 )
-from research_platform.governance.providers import RepositorySourceTree
+from noetrium_platform.foundation.governance.providers import RepositorySourceTree
 
 
 def _algorithm_test_git_executable() -> str:
@@ -35,7 +35,7 @@ def _algorithm_snapshot_with_complexity(
     source_digest: str,
     implementation_digest: str,
 ):
-    from research_platform.governance.algorithm.api import (
+    from noetrium_platform.foundation.governance.algorithm.api import (
         AlgorithmMetrics,
         AlgorithmSnapshot,
         AlgorithmSymbol,
@@ -65,7 +65,7 @@ def _algorithm_snapshot_with_complexity(
 
 
 def _approval_set(*, baselines=(), complexity=()):
-    from research_platform.governance.algorithm.api import AlgorithmGovernanceApprovalSet
+    from noetrium_platform.foundation.governance.algorithm.api import AlgorithmGovernanceApprovalSet
     return AlgorithmGovernanceApprovalSet(
         schema_version="algorithm-governance-approval-set.v1",
         authority="ROLE00",
@@ -77,8 +77,8 @@ def _approval_set(*, baselines=(), complexity=()):
 
 def test_algorithm_immutable_git_replay_is_semantically_reproducible(tmp_path: Path) -> None:
     import subprocess
-    from research_platform.governance.algorithm.runtime import algorithm_snapshot_semantic_digest
-    from research_platform.governance.providers import GitRepositorySourceTree
+    from noetrium_platform.foundation.governance.algorithm.runtime import algorithm_snapshot_semantic_digest
+    from noetrium_platform.foundation.governance.providers import GitRepositorySourceTree
 
     git = _algorithm_test_git_executable()
     def run(*args: str) -> str:
@@ -127,7 +127,7 @@ def test_algorithm_immutable_git_replay_is_semantically_reproducible(tmp_path: P
 
 def test_algorithm_service_reports_one_parent_blocker_for_legacy_baseline() -> None:
     from types import SimpleNamespace
-    from research_platform.governance.algorithm.api import AlgorithmSnapshot
+    from noetrium_platform.foundation.governance.algorithm.api import AlgorithmSnapshot
 
     current = _algorithm_snapshot_with_complexity(
         "O(N)",
@@ -165,7 +165,7 @@ def test_algorithm_service_reports_one_parent_blocker_for_legacy_baseline() -> N
 
 
 def test_algorithm_analyzer_identity_mismatch_blocks_before_symbol_diff() -> None:
-    from research_platform.governance.algorithm.runtime import baseline_provenance_blocker
+    from noetrium_platform.foundation.governance.algorithm.runtime import baseline_provenance_blocker
 
     baseline = _algorithm_snapshot_with_complexity(
         "O(1)",
@@ -186,7 +186,7 @@ def test_algorithm_analyzer_identity_mismatch_blocks_before_symbol_diff() -> Non
 
 def test_algorithm_baseline_replay_mismatch_fails_closed() -> None:
     from dataclasses import replace
-    from research_platform.governance.algorithm.runtime import baseline_provenance_blocker
+    from noetrium_platform.foundation.governance.algorithm.runtime import baseline_provenance_blocker
 
     baseline = _algorithm_snapshot_with_complexity(
         "O(1)",
@@ -214,7 +214,7 @@ def test_algorithm_baseline_replay_mismatch_fails_closed() -> None:
 
 def test_exact_lower_bound_approval_allows_only_its_bound_complexity_transition() -> None:
     from dataclasses import replace
-    from research_platform.governance.algorithm.api import AlgorithmComplexityMigrationApproval
+    from noetrium_platform.foundation.governance.algorithm.api import AlgorithmComplexityMigrationApproval
 
     baseline = _algorithm_snapshot_with_complexity(
         "O(1)",
@@ -261,11 +261,11 @@ def test_exact_lower_bound_approval_allows_only_its_bound_complexity_transition(
 
 def test_git_baseline_acceptance_requires_exact_role00_approval() -> None:
     from types import SimpleNamespace
-    from research_platform.governance.algorithm.api import (
+    from noetrium_platform.foundation.governance.algorithm.api import (
         AlgorithmBaselineApproval,
         AlgorithmGovernanceApprovalSet,
     )
-    from research_platform.governance.algorithm.runtime import (
+    from noetrium_platform.foundation.governance.algorithm.runtime import (
         AlgorithmBaselineApprovalMissing,
         algorithm_snapshot_semantic_digest,
     )
@@ -315,7 +315,7 @@ def test_git_baseline_acceptance_requires_exact_role00_approval() -> None:
 def test_algorithm_external_approval_set_is_file_and_record_digest_bound(tmp_path: Path) -> None:
     import hashlib
     import json
-    from research_platform.governance.algorithm.providers import (
+    from noetrium_platform.foundation.governance.algorithm.providers import (
         AlgorithmGovernanceApprovalError,
         load_algorithm_governance_approval_set,
     )
@@ -408,23 +408,23 @@ def test_algorithm_cache_key_includes_analyzer_implementation_identity(tmp_path:
 
 
 def test_implementation_text_digest_normalizes_only_line_endings(tmp_path: Path) -> None:
-    from research_platform.governance.api import (
+    from noetrium_platform.foundation.governance.api import (
         repository_source_scope_digest,
         repository_source_scope_text_digest,
     )
 
-    target = tmp_path / "research_platform" / "governance" / "algorithm" / "x.py"
+    target = tmp_path / "noetrium_platform" / "governance" / "algorithm" / "x.py"
     target.parent.mkdir(parents=True)
     target.write_bytes(b"def f():\r\n    return 1\r\n")
     crlf = RepositorySourceTree(tmp_path).index()
     byte_crlf = repository_source_scope_digest(
         crlf,
-        path_prefixes=("research_platform/governance/algorithm",),
+        path_prefixes=("noetrium_platform/foundation/governance/algorithm",),
         suffixes=(".py",),
     )
     text_crlf = repository_source_scope_text_digest(
         crlf,
-        path_prefixes=("research_platform/governance/algorithm",),
+        path_prefixes=("noetrium_platform/foundation/governance/algorithm",),
         suffixes=(".py",),
     )
 
@@ -432,12 +432,12 @@ def test_implementation_text_digest_normalizes_only_line_endings(tmp_path: Path)
     lf = RepositorySourceTree(tmp_path).index()
     byte_lf = repository_source_scope_digest(
         lf,
-        path_prefixes=("research_platform/governance/algorithm",),
+        path_prefixes=("noetrium_platform/foundation/governance/algorithm",),
         suffixes=(".py",),
     )
     text_lf = repository_source_scope_text_digest(
         lf,
-        path_prefixes=("research_platform/governance/algorithm",),
+        path_prefixes=("noetrium_platform/foundation/governance/algorithm",),
         suffixes=(".py",),
     )
     assert byte_crlf != byte_lf
@@ -447,38 +447,38 @@ def test_implementation_text_digest_normalizes_only_line_endings(tmp_path: Path)
     changed = RepositorySourceTree(tmp_path).index()
     assert repository_source_scope_text_digest(
         changed,
-        path_prefixes=("research_platform/governance/algorithm",),
+        path_prefixes=("noetrium_platform/foundation/governance/algorithm",),
         suffixes=(".py",),
     ) != text_lf
 
 
 def test_algorithm_governance_authority_hotpaths_remain_constant_time() -> None:
     import hashlib
-    from research_platform.governance.algorithm.api import AlgorithmLanguage, SourceDocument
-    from research_platform.governance.algorithm.runtime import PythonAlgorithmAnalyzer
+    from noetrium_platform.foundation.governance.algorithm.api import AlgorithmLanguage, SourceDocument
+    from noetrium_platform.foundation.governance.algorithm.runtime import PythonAlgorithmAnalyzer
 
     root = Path(__file__).resolve().parents[1]
     cases = (
         (
-            "research_platform/governance/algorithm/composition/default.py",
+            "noetrium_platform/foundation/governance/algorithm/composition/default.py",
             "build_algorithm_governance",
             "O(1)",
             5,
         ),
         (
-            "research_platform/governance/algorithm/runtime/service.py",
+            "noetrium_platform/foundation/governance/algorithm/runtime/service.py",
             "AlgorithmGovernanceService.accept_baseline",
             "O(1)",
             5,
         ),
         (
-            "research_platform/governance/algorithm/api/contracts.py",
+            "noetrium_platform/foundation/governance/algorithm/api/contracts.py",
             "AlgorithmGovernanceApprovalSet.baseline_approval_for",
             "O(1)",
             1,
         ),
         (
-            "research_platform/governance/algorithm/api/contracts.py",
+            "noetrium_platform/foundation/governance/algorithm/api/contracts.py",
             "AlgorithmGovernanceApprovalSet.complexity_migration_for",
             "O(1)",
             1,

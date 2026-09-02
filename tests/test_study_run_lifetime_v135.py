@@ -12,15 +12,15 @@ import tempfile
 
 import pytest
 
-from research_platform.environment.runtime.api import ActionRequest, ActionResult, EnvironmentIdentity, Observation, action_request_digest
-from research_platform.platform.kernel import EffectCertainty, EffectClass, EffectReceipt
-from research_platform.participant.method.api import MethodIdentity, MethodSnapshot, MethodTaskCompletionReceipt, RecallResult
-from research_platform.experimentation.experiment.runtime import ExperimentRuntime
-from research_platform.experimentation.experiment.api import ExperimentSpec
-from research_platform.experimentation.run.identity.api import RunIdentity
-from research_platform.experimentation.checkpoint.providers import DirectoryRunCheckpointStore
-from research_platform.execution.decision.cycle_identity import DecisionCycleIdentity
-from research_platform.experimentation.run.lifecycle.runtime.state import RunRecoveryRequired
+from noetrium_platform.capabilities.environment.runtime.api import ActionRequest, ActionResult, EnvironmentIdentity, Observation, action_request_digest
+from noetrium_platform.foundation.kernel.kernel import EffectCertainty, EffectClass, EffectReceipt
+from noetrium_platform.capabilities.participant.method.api import MethodIdentity, MethodSnapshot, MethodTaskCompletionReceipt, RecallResult
+from noetrium_platform.research.experimentation.experiment.runtime import ExperimentRuntime
+from noetrium_platform.research.experimentation.experiment.api import ExperimentSpec
+from noetrium_platform.research.experimentation.run.identity.api import RunIdentity
+from noetrium_platform.research.experimentation.checkpoint.providers import DirectoryRunCheckpointStore
+from noetrium_platform.research.execution.decision.cycle_identity import DecisionCycleIdentity
+from noetrium_platform.research.experimentation.run.lifecycle.runtime.state import RunRecoveryRequired
 
 
 class MethodSession:

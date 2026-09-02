@@ -5,12 +5,12 @@ from tests_support import context_action_runtime
 
 from tests_support import context_action_spec
 
-from research_platform.environment.runtime.api import action_request_digest, ActionResult, EnvironmentIdentity, Observation
-from research_platform.platform.kernel import EffectCertainty, EffectClass, EffectReceipt
-from research_platform.participant.method.api import MethodIdentity, RecallResult
-from research_platform.experimentation.experiment.runtime import ExperimentRuntime
-from research_platform.experimentation.experiment.api import ExperimentSpec
-from research_platform.execution.decision import FixedDecisionCycleIdentityProvider, DecisionCycleIdentity
+from noetrium_platform.capabilities.environment.runtime.api import action_request_digest, ActionResult, EnvironmentIdentity, Observation
+from noetrium_platform.foundation.kernel.kernel import EffectCertainty, EffectClass, EffectReceipt
+from noetrium_platform.capabilities.participant.method.api import MethodIdentity, RecallResult
+from noetrium_platform.research.experimentation.experiment.runtime import ExperimentRuntime
+from noetrium_platform.research.experimentation.experiment.api import ExperimentSpec
+from noetrium_platform.research.execution.decision import FixedDecisionCycleIdentityProvider, DecisionCycleIdentity
 
 
 class MethodSession:

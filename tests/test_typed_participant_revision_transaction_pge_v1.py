@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from research_platform.participant.api import (
+from noetrium_platform.capabilities.participant.api import (
     ArchitectureChangeKind,
     ParticipantArchitectureChange,
     ParticipantArchitectureComponent,
@@ -26,8 +26,8 @@ from research_platform.participant.api import (
     PreparedParticipantRevision,
     TopologyChangeKind,
 )
-from research_platform.participant.providers import SQLiteParticipantRevisionAuthority
-from research_platform.platform.kernel import CanonicalDecodingError, CanonicalDecodingFailureKind
+from noetrium_platform.capabilities.participant.providers import SQLiteParticipantRevisionAuthority
+from noetrium_platform.foundation.kernel.kernel import CanonicalDecodingError, CanonicalDecodingFailureKind
 
 
 def _proposal(predecessor_digest: str, proposal_id: str = "proposal-1") -> ParticipantRevisionProposal:
@@ -188,7 +188,7 @@ def test_validation_evidence_must_bind_exact_candidate() -> None:
         _proposal(before.digest()), before, after, transition, 2, "8" * 64, "9" * 64
     )
     with pytest.raises(ValueError, match="exact candidate"):
-        from research_platform.participant.api import ParticipantRevisionCommit
+        from noetrium_platform.capabilities.participant.api import ParticipantRevisionCommit
         ParticipantRevisionCommit(prepared, (_validation(before.digest()),), 3)
 
 

@@ -1,5 +1,5 @@
-from research_platform.governance.system_registry.api import system_catalog
-from research_platform.governance.system_registry.runtime import InMemorySystemRegistry
+from noetrium_platform.foundation.governance.system_registry.api import system_catalog
+from noetrium_platform.foundation.governance.system_registry.runtime import InMemorySystemRegistry
 
 
 TOP_LEVEL_SYSTEMS = {

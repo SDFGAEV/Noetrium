@@ -5,9 +5,9 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from research_platform.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
-from research_platform.scope.providers import SQLiteScopeRegistry
-from research_platform.scope.runtime import InMemoryScopeRegistry, ScopeRegistryConflict
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
+from noetrium_platform.foundation.scope.providers import SQLiteScopeRegistry
+from noetrium_platform.foundation.scope.runtime import InMemoryScopeRegistry, ScopeRegistryConflict
 
 
 def _wrong_parent_case(registry) -> None:

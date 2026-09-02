@@ -19,8 +19,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from research_platform.governance.release.api import ReleaseManifest
-from research_platform.governance.release.runtime.manifest import build_release_manifest
+from noetrium_platform.foundation.governance.release.api import ReleaseManifest
+from noetrium_platform.foundation.governance.release.runtime.manifest import build_release_manifest
 from scripts.verify_installed_artifact import verify_installed_artifact
 
 

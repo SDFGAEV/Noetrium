@@ -10,24 +10,24 @@ from contextlib import redirect_stderr, redirect_stdout
 
 from tests._concurrency_support import telemetry_backend
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
-from research_platform.reliability.failure.api import RecoveryAction
-from research_platform.reliability.diagnostics.runtime import (
+from noetrium_platform.infrastructure.reliability.failure.api import RecoveryAction
+from noetrium_platform.infrastructure.reliability.diagnostics.runtime import (
     CausalGraphService,
     CausalGraphSnapshot,
     CausalNodeSnapshot,
 )
 
-from research_platform.observability.api import EventEnvelope
-from research_platform.reliability.forensics.api import MutationRecord
-from research_platform.reliability.forensics.runtime.diagnostic_adapter import ForensicDiagnosticEvidence
-from research_platform.reliability.failure.api import build_failure
-from research_platform.platform.kernel import ExecutionContext
-from research_platform.operator.composition.cli import main as operator_main
-from research_platform.platform.composition.release_verification import verify_source_tree_release
-from research_platform.observability.telemetry.metric.providers import SQLiteTelemetryReader
-from research_platform.governance.release.runtime.manifest import build_release_manifest
-from research_platform.observability.telemetry.metric.composition import build_default_registry
-from research_platform.observability.telemetry.metric.runtime import TelemetryStore
+from noetrium_platform.evidence.observability.api import EventEnvelope
+from noetrium_platform.infrastructure.reliability.forensics.api import MutationRecord
+from noetrium_platform.infrastructure.reliability.forensics.runtime.diagnostic_adapter import ForensicDiagnosticEvidence
+from noetrium_platform.infrastructure.reliability.failure.api import build_failure
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
+from noetrium_platform.product.operator.composition.cli import main as operator_main
+from noetrium_platform.foundation.kernel.composition.release_verification import verify_source_tree_release
+from noetrium_platform.evidence.observability.telemetry.metric.providers import SQLiteTelemetryReader
+from noetrium_platform.foundation.governance.release.runtime.manifest import build_release_manifest
+from noetrium_platform.evidence.observability.telemetry.metric.composition import build_default_registry
+from noetrium_platform.evidence.observability.telemetry.metric.runtime import TelemetryStore
 
 
 class OperatorV17Tests(unittest.TestCase):

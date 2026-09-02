@@ -3,16 +3,16 @@ from __future__ import annotations
 from tests_support import environment_effect_intent
 
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
-from research_platform.reliability.effect.api import PreparedEffectHandle
+from noetrium_platform.infrastructure.reliability.effect.api import PreparedEffectHandle
 
 from pathlib import Path
 import tempfile
 
-from research_platform.platform.composition.operation_forensics import OperationForensicFailureSink
-from research_platform.reliability.effect.api import EffectIntent
-from research_platform.environment.runtime.api import ActionRequest, action_request_digest
-from research_platform.platform.kernel import ComponentIdentity, ExecutionContext, OperationExecutor, OperationRequest
-from research_platform.execution.workflow.implementations.context_action.forensic_refs import StudyOperationFailureReferenceProjector
+from noetrium_platform.foundation.kernel.composition.operation_forensics import OperationForensicFailureSink
+from noetrium_platform.infrastructure.reliability.effect.api import EffectIntent
+from noetrium_platform.capabilities.environment.runtime.api import ActionRequest, action_request_digest
+from noetrium_platform.foundation.kernel.kernel import ComponentIdentity, ExecutionContext, OperationExecutor, OperationRequest
+from noetrium_platform.research.execution.workflow.implementations.context_action.forensic_refs import StudyOperationFailureReferenceProjector
 
 
 def test_action_failure_projects_only_safe_digest_correlations_not_opaque_handle_material():

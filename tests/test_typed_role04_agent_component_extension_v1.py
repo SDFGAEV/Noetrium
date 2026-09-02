@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from research_platform.participant.agent import AgentCognitionLoop
-from research_platform.participant.agent.api import (
+from noetrium_platform.capabilities.participant.agent import AgentCognitionLoop
+from noetrium_platform.capabilities.participant.agent.api import (
     AgentActionSequence,
     AgentActionStep,
     AgentGoal,
@@ -13,7 +13,7 @@ from research_platform.participant.agent.api import (
     AgentSkillSelection,
     AgentStepReceipt,
 )
-from research_platform.platform.kernel import ExecutionContext
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
 
 
 class PaperOnlyPlanner:

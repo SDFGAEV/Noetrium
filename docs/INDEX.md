@@ -4,7 +4,7 @@ This directory is the single documentation root for the reusable Noetrium. Docum
 
 ## Authority order
 
-1. `research_platform/governance/system_registry/catalog.json` is the unique platform system-topology authority.
+1. `noetrium_platform/foundation/governance/system_registry/catalog.json` is the unique platform system-topology authority.
 2. `docs/architecture/VNEXT_SYSTEM_CATALOG.json` is the checked documentation mirror of that topology.
 3. Current architecture, infrastructure, and governance documents describe reusable platform contracts.
 4. `status/` reports the current platform development state.

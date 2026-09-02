@@ -4,8 +4,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from research_platform.runtime.session.api import PersistentSessionDrift, PersistentSessionSpec
-from research_platform.runtime.session.runtime import DirectoryPersistentSessionBindingStore, PersistentSessionManager, TmuxPersistentSessionControl, TmuxCommandResult
+from noetrium_platform.infrastructure.lifecycle.session.api import PersistentSessionDrift, PersistentSessionSpec
+from noetrium_platform.infrastructure.lifecycle.session.runtime import DirectoryPersistentSessionBindingStore, PersistentSessionManager, TmuxPersistentSessionControl, TmuxCommandResult
 
 TEST_TMUX_EXECUTABLE = "/definitely/missing/tmux"
 

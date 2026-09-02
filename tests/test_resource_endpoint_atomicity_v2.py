@@ -9,7 +9,7 @@ from threading import Barrier, Event
 
 import pytest
 
-from research_platform.resource.allocation.api import (
+from noetrium_platform.infrastructure.resources.allocation.api import (
     EndpointAllocationRequest,
     EndpointLeasePolicy,
     EndpointAllocationState,
@@ -17,17 +17,17 @@ from research_platform.resource.allocation.api import (
     EndpointProbeResult,
     NetworkEndpoint,
 )
-from research_platform.resource.providers import SQLiteEndpointAllocationStore
-from research_platform.platform.concurrency.api import ConcurrencyBudget
-from research_platform.platform.concurrency.composition import build_concurrency_runtime
-from research_platform.resource.allocation.runtime import (
+from noetrium_platform.infrastructure.resources.providers import SQLiteEndpointAllocationStore
+from noetrium_platform.foundation.kernel.concurrency.api import ConcurrencyBudget
+from noetrium_platform.foundation.kernel.concurrency.composition import build_concurrency_runtime
+from noetrium_platform.infrastructure.resources.allocation.runtime import (
     AtomicEndpointAllocator,
     EndpointLeaseHeartbeatError,
     EndpointLeaseHeartbeatFactory,
 )
-from research_platform.resource.lease.api import LeaseState
-from research_platform.resource.providers import SQLiteResourceLeaseRegistry
-from research_platform.scope.api import ScopeIdentity, ScopeKind
+from noetrium_platform.infrastructure.resources.lease.api import LeaseState
+from noetrium_platform.infrastructure.resources.providers import SQLiteResourceLeaseRegistry
+from noetrium_platform.foundation.scope.api import ScopeIdentity, ScopeKind
 
 
 class _AvailableProbe:
@@ -310,20 +310,20 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from research_platform.resource.allocation.api import (
+from noetrium_platform.infrastructure.resources.allocation.api import (
     EndpointAllocationRequest,
     EndpointBindingProof,
     EndpointProbeResult,
     NetworkEndpoint,
 )
-from research_platform.resource.allocation.runtime import (
+from noetrium_platform.infrastructure.resources.allocation.runtime import (
     AtomicEndpointAllocator,
     EndpointAllocationConflict,
     InMemoryEndpointAllocator,
 )
-from research_platform.resource.lease.runtime import InMemoryResourceLeaseRegistry
-from research_platform.resource.providers import SQLiteEndpointAllocationStore
-from research_platform.scope.api import ScopeIdentity, ScopeKind
+from noetrium_platform.infrastructure.resources.lease.runtime import InMemoryResourceLeaseRegistry
+from noetrium_platform.infrastructure.resources.providers import SQLiteEndpointAllocationStore
+from noetrium_platform.foundation.scope.api import ScopeIdentity, ScopeKind
 
 
 class _RebindAvailableProbe:

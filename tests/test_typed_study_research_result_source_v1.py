@@ -4,15 +4,15 @@ from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import time
 
-from research_platform.data.query.api import (
+from noetrium_platform.evidence.data.query.api import (
     ResearchDimension,
     ResearchDimensionKind,
     ResearchResultKind,
     ResearchResultQuery,
 )
-from research_platform.data.query.cross.composition import compose
-from research_platform.experimentation.identity import OptionalIdentityFacet
-from research_platform.experimentation.study.api import (
+from noetrium_platform.evidence.data.query.cross.composition import compose
+from noetrium_platform.research.experimentation.identity import OptionalIdentityFacet
+from noetrium_platform.research.experimentation.study.api import (
     BenchmarkTaskSet,
     MeasurementRecord,
     MeasurementValue,
@@ -21,8 +21,8 @@ from research_platform.experimentation.study.api import (
     TaskDefinition,
     TrialExecutionReceipt,
 )
-from research_platform.experimentation.study.composition import StudyResearchResultSource
-from research_platform.scope.api import ScopeIdentity, ScopeKind
+from noetrium_platform.research.experimentation.study.composition import StudyResearchResultSource
+from noetrium_platform.foundation.scope.api import ScopeIdentity, ScopeKind
 
 SCOPE = ScopeIdentity(ScopeKind.RUN, "run-load")
 SHA = lambda value: hashlib.sha256(value.encode()).hexdigest()

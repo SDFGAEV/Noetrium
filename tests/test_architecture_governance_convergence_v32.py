@@ -10,7 +10,7 @@ import tempfile
 
 import pytest
 
-from research_platform.governance.architecture.budget import (
+from noetrium_platform.foundation.governance.architecture.budget import (
     ArchitectureBudgetProvenanceError,
     ArchitectureComplexity,
     ArchitectureMigrationApproval,
@@ -22,16 +22,16 @@ from research_platform.governance.architecture.budget import (
     load_architecture_migration_approval_set,
     source_scope_digest,
 )
-from research_platform.governance.architecture.catalog_contract_invariants import (
+from noetrium_platform.foundation.governance.architecture.catalog_contract_invariants import (
     audit_catalog_contract_consistency,
 )
-from research_platform.governance.system_registry.api import system_catalog
-from research_platform.governance.architecture.system_topology_invariants import audit_system_topology_completeness
+from noetrium_platform.foundation.governance.system_registry.api import system_catalog
+from noetrium_platform.foundation.governance.architecture.system_topology_invariants import audit_system_topology_completeness
 
 
 def _leaf_source(descriptor, *, owns: str | None = None) -> str:
     package = descriptor.package_prefix
-    return f'''from research_platform.platform.kernel.leaf_contract import SystemLeafContract
+    return f'''from noetrium_platform.foundation.kernel.kernel.leaf_contract import SystemLeafContract
 CONTRACT = SystemLeafContract(
     system_id={descriptor.identity.system_id!r},
     node={descriptor.identity.key!r},
@@ -90,7 +90,7 @@ def _budget_document(*, projection: str | None = None) -> dict[str, object]:
             "delta": {"top_level_systems":0,"subsystems":0,"contract_declarations":0,"authorities":0,"import_edges":1},
             "justification": "Test proposal adds one explicit typed architecture dependency for external approval validation.",
             "applicability": None if projection is None else {
-                "module_prefixes": ["research_platform.governance"],
+                "module_prefixes": ["noetrium_platform.foundation.governance"],
                 "import_projection_sha256": projection,
             },
         }],
@@ -98,7 +98,7 @@ def _budget_document(*, projection: str | None = None) -> dict[str, object]:
 
 
 def _write_budget(root: Path, document: dict[str, object]) -> None:
-    path = root / "research_platform/governance/architecture/ARCHITECTURE_BUDGET.json"
+    path = root / "noetrium_platform/foundation/governance/architecture/ARCHITECTURE_BUDGET.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(document), encoding="utf-8")
 
@@ -176,10 +176,10 @@ def _typed_v2_approval_set(delta: ArchitectureComplexity) -> ArchitectureMigrati
     )
 
 def _synthetic_git_index(root: Path):
-    from research_platform.governance.providers import RepositorySourceIndex, RepositorySourceTree
-    marker=root/"research_platform/governance/architecture/report.py"
+    from noetrium_platform.foundation.governance.providers import RepositorySourceIndex, RepositorySourceTree
+    marker=root/"noetrium_platform/foundation/governance/architecture/report.py"
     marker.parent.mkdir(parents=True, exist_ok=True); marker.write_text("VALUE=1\n",encoding="utf-8")
-    owner=root/"research_platform/governance/x.py"; owner.write_text("VALUE=1\n",encoding="utf-8")
+    owner=root/"noetrium_platform/foundation/governance/x.py"; owner.write_text("VALUE=1\n",encoding="utf-8")
     fs=RepositorySourceTree(root).snapshot()
     return RepositorySourceIndex(fs, source_authority="git", source_revision="4"*40)
 
@@ -221,17 +221,17 @@ def test_external_approval_record_digest_is_verified(tmp_path: Path) -> None:
 def test_external_approval_applies_only_to_exact_owner_source_scope(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import research_platform.governance.architecture.budget as budget_module
+    import noetrium_platform.foundation.governance.architecture.budget as budget_module
 
     monkeypatch.setattr(
         budget_module, "current_architecture_complexity",
         lambda *, import_edges: ArchitectureComplexity(**_baseline_complexity(import_edges)),
     )
-    pairs=(("research_platform.governance.a","research_platform.platform.b"),)
-    projection=import_projection_digest(pairs,("research_platform.governance",))
+    pairs=(("noetrium_platform.foundation.governance.a","noetrium_platform.foundation.kernel.b"),)
+    projection=import_projection_digest(pairs,("noetrium_platform.foundation.governance",))
     _write_budget(tmp_path,_budget_document(projection=projection))
     index=_synthetic_git_index(tmp_path)
-    owner_digest=source_scope_digest(index,("research_platform.governance",))
+    owner_digest=source_scope_digest(index,("noetrium_platform.foundation.governance",))
     calls=[]
     def resolve(sha: str, prefixes: tuple[str,...]):
         calls.append((sha,prefixes))
@@ -248,25 +248,25 @@ def test_external_approval_applies_only_to_exact_owner_source_scope(
     assert budget.applicable_migration_ids == ("test-reviewed-migration",)
     assert calls == [
         ("1"*40,()),
-        ("1"*40,("research_platform.governance",)),
-        ("3"*40,("research_platform.governance",)),
-        ("1"*40,("research_platform.governance",)),
+        ("1"*40,("noetrium_platform.foundation.governance",)),
+        ("3"*40,("noetrium_platform.foundation.governance",)),
+        ("1"*40,("noetrium_platform.foundation.governance",)),
     ]
 
 
 def test_mismatched_external_source_digest_contributes_zero_headroom(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import research_platform.governance.architecture.budget as budget_module
+    import noetrium_platform.foundation.governance.architecture.budget as budget_module
 
     monkeypatch.setattr(
         budget_module, "current_architecture_complexity",
         lambda *, import_edges: ArchitectureComplexity(**_baseline_complexity(import_edges)),
     )
-    pairs=(("research_platform.governance.a","research_platform.platform.b"),)
-    projection=import_projection_digest(pairs,("research_platform.governance",))
+    pairs=(("noetrium_platform.foundation.governance.a","noetrium_platform.foundation.kernel.b"),)
+    projection=import_projection_digest(pairs,("noetrium_platform.foundation.governance",))
     _write_budget(tmp_path,_budget_document(projection=projection)); index=_synthetic_git_index(tmp_path)
-    owner_digest=source_scope_digest(index,("research_platform.governance",))
+    owner_digest=source_scope_digest(index,("noetrium_platform.foundation.governance",))
     def resolve(sha: str, prefixes: tuple[str,...]):
         if sha == "1"*40:
             complexity = ArchitectureComplexity(**_baseline_complexity(0 if prefixes else 4749))
@@ -282,16 +282,16 @@ def test_mismatched_external_source_digest_contributes_zero_headroom(
 def test_scoped_approval_cannot_be_borrowed_by_disjoint_growth_and_contraction(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import research_platform.governance.architecture.budget as budget_module
+    import noetrium_platform.foundation.governance.architecture.budget as budget_module
 
-    governance = ("research_platform.governance",)
-    runtime = ("research_platform.runtime",)
-    reliability = ("research_platform.reliability",)
+    governance = ("noetrium_platform.foundation.governance",)
+    runtime = ("noetrium_platform.infrastructure.lifecycle",)
+    reliability = ("noetrium_platform.infrastructure.reliability",)
     pairs = (
-        ("research_platform.governance.a", "research_platform.platform.x"),
-        ("research_platform.governance.b", "research_platform.platform.x"),
-        ("research_platform.runtime.a", "research_platform.platform.x"),
-        ("research_platform.runtime.b", "research_platform.platform.x"),
+        ("noetrium_platform.foundation.governance.a", "noetrium_platform.foundation.kernel.x"),
+        ("noetrium_platform.foundation.governance.b", "noetrium_platform.foundation.kernel.x"),
+        ("noetrium_platform.infrastructure.lifecycle.a", "noetrium_platform.foundation.kernel.x"),
+        ("noetrium_platform.infrastructure.lifecycle.b", "noetrium_platform.foundation.kernel.x"),
     )
     document = {
         "schema_version": "architecture-complexity-budget.v3",
@@ -366,7 +366,7 @@ def test_scoped_approval_cannot_be_borrowed_by_disjoint_growth_and_contraction(
     assert [(row.dimension, row.observed, row.limit) for row in violations] == [
         ("import_edges", 2, 1)
     ]
-    assert "scope=research_platform.runtime" in violations[0].detail
+    assert "scope=noetrium_platform.infrastructure.lifecycle" in violations[0].detail
 
 
 def _multidim_budget_document(projection: str) -> dict[str, object]:
@@ -381,7 +381,7 @@ def _multidim_budget_document(projection: str) -> dict[str, object]:
             "delta": {"top_level_systems":0,"subsystems":1,"contract_declarations":1,"authorities":1,"import_edges":1},
             "justification": "Synthetic multidimensional migration proves complete external complexity authority binding.",
             "applicability": {
-                "module_prefixes": ["research_platform.governance"],
+                "module_prefixes": ["noetrium_platform.foundation.governance"],
                 "import_projection_sha256": projection,
             },
         }],
@@ -418,7 +418,7 @@ def test_v2_approval_file_decodes_complete_complexity_delta(tmp_path: Path) -> N
     assert loaded.approvals[0].complexity_delta == ArchitectureComplexity(0,1,1,1,1)
 
 def _patch_multidim_current(monkeypatch) -> None:
-    import research_platform.governance.architecture.budget as budget_module
+    import noetrium_platform.foundation.governance.architecture.budget as budget_module
 
     monkeypatch.setattr(
         budget_module,
@@ -429,10 +429,10 @@ def _patch_multidim_current(monkeypatch) -> None:
 
 def test_v1_import_approval_cannot_authorize_multidimensional_migration(tmp_path: Path, monkeypatch) -> None:
     _patch_multidim_current(monkeypatch)
-    pairs=(("research_platform.governance.a","research_platform.platform.b"),)
-    projection=import_projection_digest(pairs,("research_platform.governance",))
+    pairs=(("noetrium_platform.foundation.governance.a","noetrium_platform.foundation.kernel.b"),)
+    projection=import_projection_digest(pairs,("noetrium_platform.foundation.governance",))
     _write_budget(tmp_path,_multidim_budget_document(projection)); index=_synthetic_git_index(tmp_path)
-    owner=source_scope_digest(index,("research_platform.governance",))
+    owner=source_scope_digest(index,("noetrium_platform.foundation.governance",))
     _current,budget,violations=audit_architecture_complexity_budget(
         tmp_path,import_edges=4750,import_edge_pairs=pairs,source_index=index,
         approval_set=_typed_approval_set(),historical_observation_resolver=_multidim_resolver(projection,owner),
@@ -442,10 +442,10 @@ def test_v1_import_approval_cannot_authorize_multidimensional_migration(tmp_path
 
 def test_v2_full_complexity_approval_authorizes_exact_multidimensional_migration(tmp_path: Path, monkeypatch) -> None:
     _patch_multidim_current(monkeypatch)
-    pairs=(("research_platform.governance.a","research_platform.platform.b"),)
-    projection=import_projection_digest(pairs,("research_platform.governance",))
+    pairs=(("noetrium_platform.foundation.governance.a","noetrium_platform.foundation.kernel.b"),)
+    projection=import_projection_digest(pairs,("noetrium_platform.foundation.governance",))
     _write_budget(tmp_path,_multidim_budget_document(projection)); index=_synthetic_git_index(tmp_path)
-    owner=source_scope_digest(index,("research_platform.governance",))
+    owner=source_scope_digest(index,("noetrium_platform.foundation.governance",))
     delta=ArchitectureComplexity(0,1,1,1,1)
     _current,budget,violations=audit_architecture_complexity_budget(
         tmp_path,import_edges=4750,import_edge_pairs=pairs,source_index=index,
@@ -457,10 +457,10 @@ def test_v2_full_complexity_approval_authorizes_exact_multidimensional_migration
 
 def test_v2_mismatched_complexity_delta_contributes_zero_headroom(tmp_path: Path, monkeypatch) -> None:
     _patch_multidim_current(monkeypatch)
-    pairs=(("research_platform.governance.a","research_platform.platform.b"),)
-    projection=import_projection_digest(pairs,("research_platform.governance",))
+    pairs=(("noetrium_platform.foundation.governance.a","noetrium_platform.foundation.kernel.b"),)
+    projection=import_projection_digest(pairs,("noetrium_platform.foundation.governance",))
     _write_budget(tmp_path,_multidim_budget_document(projection)); index=_synthetic_git_index(tmp_path)
-    owner=source_scope_digest(index,("research_platform.governance",))
+    owner=source_scope_digest(index,("noetrium_platform.foundation.governance",))
     wrong=ArchitectureComplexity(0,1,1,0,1)
     _current,budget,violations=audit_architecture_complexity_budget(
         tmp_path,import_edges=4750,import_edge_pairs=pairs,source_index=index,
@@ -478,8 +478,8 @@ def test_v2_approval_record_requires_whole_migration_scope(tmp_path: Path) -> No
     assert approval.complexity_delta == delta
 
 def test_current_role01_has_no_self_granted_headroom() -> None:
-    from research_platform.governance.architecture.source_profile import scan_architecture_source_profile
-    from research_platform.governance.providers import RepositorySourceTree
+    from noetrium_platform.foundation.governance.architecture.source_profile import scan_architecture_source_profile
+    from noetrium_platform.foundation.governance.providers import RepositorySourceTree
     root=Path(__file__).resolve().parents[1]; index=RepositorySourceTree(root).index()
     profile=scan_architecture_source_profile(root,source_index=index)
     pairs=tuple((e.source_module,e.target_module) for e in profile.import_edges)
@@ -504,7 +504,7 @@ def _test_git_executable() -> str:
 
 
 def test_git_source_cut_is_pinned_against_worktree_and_head_changes(tmp_path: Path) -> None:
-    from research_platform.governance.providers import GitRepositorySourceTree
+    from noetrium_platform.foundation.governance.providers import GitRepositorySourceTree
 
     git = _test_git_executable()
     def run(*args: str) -> None:
@@ -512,7 +512,7 @@ def test_git_source_cut_is_pinned_against_worktree_and_head_changes(tmp_path: Pa
     run("init")
     run("config", "user.email", "role01-test@example.invalid")
     run("config", "user.name", "ROLE01 Test")
-    source = tmp_path / "research_platform" / "x.py"
+    source = tmp_path / "noetrium_platform" / "x.py"
     source.parent.mkdir(parents=True)
     source.write_bytes(b"VALUE = 1\n")
     run("add", ".")
@@ -523,20 +523,20 @@ def test_git_source_cut_is_pinned_against_worktree_and_head_changes(tmp_path: Pa
     (source.parent / "new.py").write_bytes(b"NEW = 1\n")
     first = provider.index()
     assert first.source_revision == pinned_revision
-    assert first.text("research_platform/x.py") == "VALUE = 1\n"
-    assert tuple(blob.relative_path for blob in first.documents(suffixes={".py"})) == ("research_platform/x.py",)
+    assert first.text("noetrium_platform/x.py") == "VALUE = 1\n"
+    assert tuple(blob.relative_path for blob in first.documents(suffixes={".py"})) == ("noetrium_platform/x.py",)
     run("add", ".")
     run("commit", "-m", "advance-head")
     second = provider.index()
     assert second.source_revision == pinned_revision
     assert second.source_digest == first.source_digest
-    assert second.text("research_platform/x.py") == "VALUE = 1\n"
+    assert second.text("noetrium_platform/x.py") == "VALUE = 1\n"
 
 
 def test_release_quality_consumers_receive_one_frozen_source_index(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import research_platform.platform.composition.release_quality as quality_module
+    import noetrium_platform.foundation.kernel.composition.release_quality as quality_module
 
     sentinel = object()
     seen: list[object] = []
@@ -563,9 +563,9 @@ def test_release_quality_consumers_receive_one_frozen_source_index(
 
 
 def test_repository_source_cut_excludes_derived_release_evidence(tmp_path: Path) -> None:
-    from research_platform.governance.providers import RepositorySourceTree
+    from noetrium_platform.foundation.governance.providers import RepositorySourceTree
 
-    source = tmp_path / "research_platform" / "x.py"
+    source = tmp_path / "noetrium_platform" / "x.py"
     source.parent.mkdir(parents=True)
     source.write_bytes(b"VALUE = 1\n")
     before = RepositorySourceTree(tmp_path).index()
@@ -577,10 +577,10 @@ def test_repository_source_cut_excludes_derived_release_evidence(tmp_path: Path)
 
 
 def test_no_degradation_standalone_fails_closed_on_python_syntax(tmp_path: Path) -> None:
-    from research_platform.governance.api import RepositorySourceFailureKind, RepositorySourceIncompleteError
-    from research_platform.governance.quality import scan_no_degradation
+    from noetrium_platform.foundation.governance.api import RepositorySourceFailureKind, RepositorySourceIncompleteError
+    from noetrium_platform.foundation.governance.quality import scan_no_degradation
 
-    source = tmp_path / "research_platform" / "broken.py"
+    source = tmp_path / "noetrium_platform" / "broken.py"
     source.parent.mkdir(parents=True)
     source.write_text("def broken(:\n", encoding="utf-8")
     with pytest.raises(RepositorySourceIncompleteError) as raised:
@@ -589,8 +589,8 @@ def test_no_degradation_standalone_fails_closed_on_python_syntax(tmp_path: Path)
 
 
 def test_no_degradation_standalone_fails_closed_on_malformed_json(tmp_path: Path) -> None:
-    from research_platform.governance.api import RepositorySourceFailureKind, RepositorySourceIncompleteError
-    from research_platform.governance.quality import scan_no_degradation
+    from noetrium_platform.foundation.governance.api import RepositorySourceFailureKind, RepositorySourceIncompleteError
+    from noetrium_platform.foundation.governance.quality import scan_no_degradation
 
     config = tmp_path / "configs" / "broken.json"
     config.parent.mkdir(parents=True)
@@ -601,11 +601,11 @@ def test_no_degradation_standalone_fails_closed_on_malformed_json(tmp_path: Path
 
 
 def test_source_invariant_paths_use_canonical_posix_identity(tmp_path: Path) -> None:
-    from research_platform.governance.architecture.source_scan import violation
+    from noetrium_platform.foundation.governance.architecture.source_scan import violation
 
-    source = tmp_path / "research_platform" / "execution" / "admission" / "api" / "boundary.py"
+    source = tmp_path / "noetrium_platform" / "execution" / "admission" / "api" / "boundary.py"
     row = violation(tmp_path, source, "test", 1, "detail")
-    assert row.path == "research_platform/execution/admission/api/boundary.py"
+    assert row.path == "noetrium_platform/research/execution/admission/api/boundary.py"
 
 def test_role04_historical_and_current_architecture_allowances_are_preserved() -> None:
     root = Path(__file__).resolve().parents[1]
@@ -614,12 +614,12 @@ def test_role04_historical_and_current_architecture_allowances_are_preserved() -
     npe = rows["role04-npe-participant-model-248d67c"]
     current = rows["role04-agent-model-convergence-866751f8"]
     assert historical.delta.import_edges == 41
-    assert historical.module_prefixes == ("research_platform.participant", "research_platform.model")
+    assert historical.module_prefixes == ("noetrium_platform.capabilities.participant", "noetrium_platform.capabilities.model")
     assert historical.import_projection_sha256 == "dcd7c1e5a32e7a57e466c8f0a1a1b866bde249f7f6cc57d1af1362fff38ae25e"
     assert npe.delta.import_edges == 60
     assert npe.import_projection_sha256 == "258324fc514e5aa069f069d5d9282f0433c35a20bbbdd3da8782530cef40b643"
     assert current.delta.import_edges == 101
-    assert current.module_prefixes == ("research_platform.participant", "research_platform.model")
+    assert current.module_prefixes == ("noetrium_platform.capabilities.participant", "noetrium_platform.capabilities.model")
     assert current.import_projection_sha256 == "4f47fd94552daff488eb31b112a5bbdff6a63ad2e1cf967c2af812aa2644df8a"
 
 def test_role05_historical_and_research_data_architecture_allowances_are_preserved() -> None:
@@ -630,7 +630,7 @@ def test_role05_historical_and_research_data_architecture_allowances_are_preserv
     prior_research_data = rows["role05-research-data-semantic-convergence-0e573f98"]
     prior_current = rows["role05-research-data-semantic-convergence-7c401246"]
     current = rows["role05-research-data-semantic-convergence-8d1a71aa"]
-    prefixes = ("research_platform.environment", "research_platform.data", "research_platform.artifact", "research_platform.observability")
+    prefixes = ("noetrium_platform.capabilities.environment", "noetrium_platform.evidence.data", "noetrium_platform.evidence.artifact", "noetrium_platform.evidence.observability")
     assert historical.delta.import_edges == 2
     assert historical.module_prefixes == prefixes
     assert historical.import_projection_sha256 == "6f9fdf4f5d64703e1be10d2707b49109e365bb7343cd5118a05e73a6e3a5e62b"
@@ -660,10 +660,10 @@ def test_current_downstream_proposals_have_exact_applicability_without_self_appr
     root = Path(__file__).resolve().parents[1]
     budget = load_architecture_complexity_budget(root)
     expected = {
-        "ROLE03": ("role03-research-v4-mainline-20260901", 25, ("research_platform.execution", "research_platform.experimentation", "research_platform.scientific"), "1d486a376d9627e40b457991720c00fd247a5ff8034a871c71550b3cce8b5bd2"),
-        "ROLE04": ("role04-agent-model-mainline-20260901", 99, ("research_platform.participant", "research_platform.model"), "a7450828a12253ac93cbe78be2db29b60f90dfdb32ca2d33c57c07d4f551d6ef"),
-        "ROLE05": ("role05-research-data-mainline-20260901", 70, ("research_platform.environment", "research_platform.data", "research_platform.artifact", "research_platform.observability"), "b0d25f807ff2c73a6605754e7d6320b4846a4f6d866b9ef67b4d9ad563f081fe"),
-        "ROLE06": ("role06-product-assurance-v1", 55, ("research_platform.operator", "research_platform.api"), "3f367d5717fd4fbca273b3fb4d13af5c54d262afeb2a1e663898338adc713e77"),
+        "ROLE03": ("role03-research-v4-mainline-20260901", 25, ("noetrium_platform.research.execution", "noetrium_platform.research.experimentation", "noetrium_platform.research.scientific"), "1d486a376d9627e40b457991720c00fd247a5ff8034a871c71550b3cce8b5bd2"),
+        "ROLE04": ("role04-agent-model-mainline-20260901", 99, ("noetrium_platform.capabilities.participant", "noetrium_platform.capabilities.model"), "a7450828a12253ac93cbe78be2db29b60f90dfdb32ca2d33c57c07d4f551d6ef"),
+        "ROLE05": ("role05-research-data-mainline-20260901", 70, ("noetrium_platform.capabilities.environment", "noetrium_platform.evidence.data", "noetrium_platform.evidence.artifact", "noetrium_platform.evidence.observability"), "b0d25f807ff2c73a6605754e7d6320b4846a4f6d866b9ef67b4d9ad563f081fe"),
+        "ROLE06": ("role06-product-assurance-v1", 55, ("noetrium_platform.product.operator", "noetrium_platform.api"), "3f367d5717fd4fbca273b3fb4d13af5c54d262afeb2a1e663898338adc713e77"),
     }
     for role, (migration_id, delta, prefixes, projection) in expected.items():
         migration = next(row for row in budget.migrations if row.migration_id == migration_id)
@@ -704,7 +704,7 @@ def test_run_control_catalog_registration_matches_exact_role03_boundary() -> Non
     assert descriptor.provides==("run.control",)
 
 def test_run_control_standard_shape_is_registered(tmp_path: Path) -> None:
-    leaf=tmp_path/'research_platform/experimentation/run/control'
+    leaf=tmp_path/'noetrium_platform/research/experimentation/run/control'
     for plane in ("api","runtime","providers","composition"):
         p=leaf/plane; p.mkdir(parents=True); (p/'__init__.py').write_text('',encoding='utf-8')
     (leaf/'__init__.py').write_text('',encoding='utf-8')
@@ -724,7 +724,7 @@ def test_role01_historical_and_current_architecture_allowances_are_preserved() -
     assert (public_seam.delta.subsystems,public_seam.delta.contract_declarations,public_seam.delta.authorities,public_seam.delta.import_edges)==(1,13,1,54)
     assert public_seam.import_projection_sha256=="1e0c06fd1777a81e2c573891c1c39f62627c37ca138e2683d0566889dc64f714"
     assert (current.delta.subsystems,current.delta.contract_declarations,current.delta.authorities,current.delta.import_edges)==(1,13,1,59)
-    assert current.module_prefixes==("research_platform.platform","research_platform.governance","research_platform.scope","research_platform.portfolio")
+    assert current.module_prefixes==("noetrium_platform.foundation.kernel","noetrium_platform.foundation.governance","noetrium_platform.foundation.scope","noetrium_platform.foundation.portfolio")
     assert current.import_projection_sha256=="fd225e4d33b57a9f4b52495941b69d89f33cb333ddcc031ab87a983b8c1f6c98"
     assert (contraction.delta.top_level_systems,contraction.delta.subsystems,contraction.delta.contract_declarations,contraction.delta.authorities,contraction.delta.import_edges)==(-1,-31,14,-32,45)
     assert contraction.module_prefixes==current.module_prefixes
@@ -740,7 +740,7 @@ def test_role03_historical_and_section42_architecture_allowances_are_preserved()
     assert npe.delta.import_edges==52
     assert npe.import_projection_sha256=="e69dbebfd7126e1c55c3c42c79073428f86ba547febc20630e0497a763aed87c"
     assert current.delta.import_edges==50
-    assert current.module_prefixes==("research_platform.execution","research_platform.experimentation","research_platform.scientific")
+    assert current.module_prefixes==("noetrium_platform.research.execution","noetrium_platform.research.experimentation","noetrium_platform.research.scientific")
     assert current.import_projection_sha256=="2db9d82255181f39e5a3ffc28e64d688380a5bdb9c739ddd84600b814d93f80f"
 
 
@@ -748,44 +748,44 @@ def test_role03_historical_and_section42_architecture_allowances_are_preserved()
 def _semantic_boundary_fixture(tmp_path: Path) -> Path:
     catalog = {
         "demo": {
-            "package_prefix": "research_platform.demo",
+            "package_prefix": "noetrium_platform.demo",
             "requires": [], "provides": ["demo.aggregate"], "components": [],
         },
         "demo/declarative": {
-            "package_prefix": "research_platform.demo.declarative",
+            "package_prefix": "noetrium_platform.demo.declarative",
             "requires": [], "provides": ["demo.read"], "components": [],
         },
         "demo/generic": {
-            "package_prefix": "research_platform.demo.generic",
+            "package_prefix": "noetrium_platform.demo.generic",
             "requires": [], "provides": [], "components": [],
         },
         "demo/implemented": {
-            "package_prefix": "research_platform.demo.implemented",
+            "package_prefix": "noetrium_platform.demo.implemented",
             "requires": [], "provides": [], "components": [],
         },
     }
-    catalog_path = tmp_path / "research_platform/governance/system_registry/catalog.json"
+    catalog_path = tmp_path / "noetrium_platform/foundation/governance/system_registry/catalog.json"
     catalog_path.parent.mkdir(parents=True, exist_ok=True)
     catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
-    generic = tmp_path / "research_platform/demo/generic/runtime/owner.py"
+    generic = tmp_path / "noetrium_platform/demo/generic/runtime/owner.py"
     generic.parent.mkdir(parents=True, exist_ok=True)
     generic.write_text(
-        "from research_platform.platform.kernel.leaf_contract import BoundSystemLeafRuntime, FileLeafStateStore\n"
+        "from noetrium_platform.foundation.kernel.kernel.leaf_contract import BoundSystemLeafRuntime, FileLeafStateStore\n"
         "def runtime(handler, state_path=None) -> BoundSystemLeafRuntime:\n    return handler(state_path)\n",
         encoding="utf-8",
     )
-    declarative = tmp_path / "research_platform/demo/declarative/api/boundary.py"
+    declarative = tmp_path / "noetrium_platform/demo/declarative/api/boundary.py"
     declarative.parent.mkdir(parents=True, exist_ok=True)
     declarative.write_text("# declarative catalog facet only\n", encoding="utf-8")
-    implemented = tmp_path / "research_platform/demo/implemented/providers/sqlite.py"
+    implemented = tmp_path / "noetrium_platform/demo/implemented/providers/sqlite.py"
     implemented.parent.mkdir(parents=True, exist_ok=True)
     implemented.write_text("class SQLiteDemoStore:\n    pass\n", encoding="utf-8")
     return tmp_path
 
 
 def test_semantic_boundary_inventory_distinguishes_synthetic_shells_from_domain_authority(tmp_path: Path) -> None:
-    from research_platform.governance.architecture import classify_semantic_boundaries
-    from research_platform.governance.architecture.api import SemanticBoundaryClassification
+    from noetrium_platform.foundation.governance.architecture import classify_semantic_boundaries
+    from noetrium_platform.foundation.governance.architecture.api import SemanticBoundaryClassification
 
     rows = {row.node: row for row in classify_semantic_boundaries(_semantic_boundary_fixture(tmp_path))}
     assert rows["demo"].classification is SemanticBoundaryClassification.DECLARATIVE_ONLY
@@ -800,8 +800,8 @@ def test_semantic_boundary_inventory_distinguishes_synthetic_shells_from_domain_
 
 
 def test_generic_leaf_shell_cannot_claim_implemented_semantic_boundary(tmp_path: Path) -> None:
-    from research_platform.governance.architecture import classify_semantic_boundary
-    from research_platform.governance.architecture.api import (
+    from noetrium_platform.foundation.governance.architecture import classify_semantic_boundary
+    from noetrium_platform.foundation.governance.architecture.api import (
         SemanticBoundaryClaim, SemanticBoundaryClaimError, validate_semantic_boundary_claim,
     )
 
@@ -811,8 +811,8 @@ def test_generic_leaf_shell_cannot_claim_implemented_semantic_boundary(tmp_path:
 
 
 def test_generic_leaf_state_cannot_be_claimed_as_domain_durable_authority(tmp_path: Path) -> None:
-    from research_platform.governance.architecture import classify_semantic_boundary
-    from research_platform.governance.architecture.api import (
+    from noetrium_platform.foundation.governance.architecture import classify_semantic_boundary
+    from noetrium_platform.foundation.governance.architecture.api import (
         SemanticBoundaryClaim, SemanticBoundaryClaimError, SemanticStateAuthorityKind,
         validate_semantic_boundary_claim,
     )
@@ -829,8 +829,8 @@ def test_generic_leaf_state_cannot_be_claimed_as_domain_durable_authority(tmp_pa
 
 
 def test_typed_domain_authority_claim_is_accepted_for_real_boundary(tmp_path: Path) -> None:
-    from research_platform.governance.architecture import classify_semantic_boundary
-    from research_platform.governance.architecture.api import (
+    from noetrium_platform.foundation.governance.architecture import classify_semantic_boundary
+    from noetrium_platform.foundation.governance.architecture.api import (
         SemanticBoundaryClaim, SemanticStateAuthorityKind, validate_semantic_boundary_claim,
     )
 
@@ -845,7 +845,7 @@ def test_typed_domain_authority_claim_is_accepted_for_real_boundary(tmp_path: Pa
 
 
 def test_semantic_boundary_inventory_is_deterministic_and_digest_bound(tmp_path: Path) -> None:
-    from research_platform.governance.architecture import classify_semantic_boundaries
+    from noetrium_platform.foundation.governance.architecture import classify_semantic_boundaries
 
     root = _semantic_boundary_fixture(tmp_path)
     first = classify_semantic_boundaries(root)
@@ -900,14 +900,14 @@ def test_v2_approval_file_decodes_signed_complexity_delta(tmp_path: Path) -> Non
     assert loaded.approvals[0].complexity_delta==ArchitectureComplexity(0,-1,13,-1,39)
 
 def test_v2_signed_approval_authorizes_exact_contraction(tmp_path: Path, monkeypatch) -> None:
-    pairs=(("research_platform.governance.a","research_platform.platform.b"),)
-    projection=import_projection_digest(pairs,("research_platform.governance",))
+    pairs=(("noetrium_platform.foundation.governance.a","noetrium_platform.foundation.kernel.b"),)
+    projection=import_projection_digest(pairs,("noetrium_platform.foundation.governance",))
     document=_multidim_budget_document(projection)
     signed=ArchitectureComplexity(0,-1,1,-1,1)
     document["migrations"][0]["delta"]={"top_level_systems":0,"subsystems":-1,"contract_declarations":1,"authorities":-1,"import_edges":1}
     _write_budget(tmp_path,document); index=_synthetic_git_index(tmp_path)
-    owner=source_scope_digest(index,("research_platform.governance",))
-    import research_platform.governance.architecture.budget as budget_module
+    owner=source_scope_digest(index,("noetrium_platform.foundation.governance",))
+    import noetrium_platform.foundation.governance.architecture.budget as budget_module
     monkeypatch.setattr(budget_module,"current_architecture_complexity",lambda *,import_edges: ArchitectureComplexity(17,172,142,189,import_edges))
     def resolve(sha: str, prefixes: tuple[str,...]):
         if sha=="1"*40:
@@ -928,7 +928,7 @@ def _role01_source(relative: str) -> str:
 
 
 def test_platform_runtime_builder_consumes_trial_contract() -> None:
-    source = _role01_source("research_platform/platform/composition/experiment_runtime.py")
+    source = _role01_source("noetrium_platform/foundation/kernel/composition/experiment_runtime.py")
     tree = ast.parse(source)
     functions = {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
     for name in ("build_experiment_runtime_components", "build_experiment_runtime"):
@@ -942,8 +942,8 @@ def test_platform_runtime_builder_consumes_trial_contract() -> None:
 
 
 def test_platform_default_compositions_inject_trial_protocols() -> None:
-    agent = _role01_source("research_platform/platform/composition/agent_turn.py")
-    context = _role01_source("research_platform/platform/composition/context_action.py")
+    agent = _role01_source("noetrium_platform/foundation/kernel/composition/agent_turn.py")
+    context = _role01_source("noetrium_platform/foundation/kernel/composition/context_action.py")
     assert "AgentTurnTrialProtocol" in agent and "trial_protocol=AgentTurnTrialProtocol()" in agent
     assert "ContextActionTrialProtocol" in context and "trial_protocol=ContextActionTrialProtocol()" in context
     assert "StudyWorkflow" not in agent + context
@@ -951,7 +951,7 @@ def test_platform_default_compositions_inject_trial_protocols() -> None:
 
 
 def test_generic_participant_guard_targets_trial_executor() -> None:
-    source = _role01_source("research_platform/governance/architecture/composition_participant_invariants.py")
+    source = _role01_source("noetrium_platform/foundation/governance/architecture/composition_participant_invariants.py")
     assert '"trial_cycle.py", "ExperimentTrialCycleExecutor", "execute"' in source
     assert "scientific_cycle.py" not in source
     assert "ExperimentScientificCycleExecutor" not in source

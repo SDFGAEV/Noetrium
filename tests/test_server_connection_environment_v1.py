@@ -6,27 +6,27 @@ from unittest.mock import patch
 
 import pytest
 
-from research_platform.runtime.process.supervision.api import ProcessCommandResult
-from research_platform.platform.concurrency.composition import build_concurrency_runtime
-from research_platform.runtime.server.identity.api import (
+from noetrium_platform.infrastructure.lifecycle.process.supervision.api import ProcessCommandResult
+from noetrium_platform.foundation.kernel.concurrency.composition import build_concurrency_runtime
+from noetrium_platform.infrastructure.lifecycle.server.identity.api import (
     ServerCommandResult,
     ServerFileTransferResult,
     ServerIdentityConfigurationError,
     ServerTransportFailureKind,
     server_environment_prefix,
 )
-from research_platform.runtime.server.health.api import ServerRuntimeHealthSpec
-from research_platform.runtime.server.health.providers import SSHServerHealthProbe
-from research_platform.runtime.server.identity.providers import (
+from noetrium_platform.infrastructure.lifecycle.server.health.api import ServerRuntimeHealthSpec
+from noetrium_platform.infrastructure.lifecycle.server.health.providers import SSHServerHealthProbe
+from noetrium_platform.infrastructure.lifecycle.server.identity.providers import (
     EnvironmentSSHServerConnectionFactory,
     EnvironmentSSHServerFileTransferFactory,
     SSHServerConnection,
     SSHServerFileTransfer,
 )
-from research_platform.runtime.host.providers import LocalOperatingSystemRoute
-from research_platform.platform.composition.platform_meta import build_in_memory_platform_meta
-from research_platform.runtime.host.composition import compose_local_host
-from research_platform.runtime.server.identity.composition import (
+from noetrium_platform.infrastructure.lifecycle.host.providers import LocalOperatingSystemRoute
+from noetrium_platform.foundation.kernel.composition.platform_meta import build_in_memory_platform_meta
+from noetrium_platform.infrastructure.lifecycle.host.composition import compose_local_host
+from noetrium_platform.infrastructure.lifecycle.server.identity.composition import (
     compose_environment_server_identity,
 )
 

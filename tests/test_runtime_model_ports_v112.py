@@ -9,16 +9,16 @@ import tempfile
 import time
 import unittest
 
-from research_platform.platform.kernel.identity import ImmutableModelIdentity
-from research_platform.model.serving.providers.runtime_qualification_storage import DirectoryRuntimeQualificationEvidenceStore
-from research_platform.model.serving.runtime.runtime_qualification_service import RuntimeQualificationPublisher
-from research_platform.model.serving.api.qualified_deployment import QualificationCertificate, QualifiedDeploymentManifest, ResourceEnvelope, RoleModelAssignment, RoleModelManifest
-from research_platform.model.serving.api.placement import DeploymentPlacement
-from research_platform.model.stack.api import ModelArtifactClosure, ModelStackSpec, RuntimeBuildIdentity
-from research_platform.model.serving.api import ServiceHeartbeat
-from research_platform.platform.composition.model_deployments import freeze_model_deployment_set
-from research_platform.execution.runtime.manager.heartbeat_storage import FileServiceHeartbeatStore
-from research_platform.execution.runtime.manager import FrozenDeploymentVerificationPort, HeartbeatRuntimeQualificationVerifier
+from noetrium_platform.foundation.kernel.kernel.identity import ImmutableModelIdentity
+from noetrium_platform.capabilities.model.serving.providers.runtime_qualification_storage import DirectoryRuntimeQualificationEvidenceStore
+from noetrium_platform.capabilities.model.serving.runtime.runtime_qualification_service import RuntimeQualificationPublisher
+from noetrium_platform.capabilities.model.serving.api.qualified_deployment import QualificationCertificate, QualifiedDeploymentManifest, ResourceEnvelope, RoleModelAssignment, RoleModelManifest
+from noetrium_platform.capabilities.model.serving.api.placement import DeploymentPlacement
+from noetrium_platform.capabilities.model.stack.api import ModelArtifactClosure, ModelStackSpec, RuntimeBuildIdentity
+from noetrium_platform.capabilities.model.serving.api import ServiceHeartbeat
+from noetrium_platform.foundation.kernel.composition.model_deployments import freeze_model_deployment_set
+from noetrium_platform.research.execution.runtime.manager.heartbeat_storage import FileServiceHeartbeatStore
+from noetrium_platform.research.execution.runtime.manager import FrozenDeploymentVerificationPort, HeartbeatRuntimeQualificationVerifier
 
 
 def h(v): return hashlib.sha256(v.encode()).hexdigest()

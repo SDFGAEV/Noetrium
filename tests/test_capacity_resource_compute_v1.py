@@ -3,10 +3,10 @@ from __future__ import annotations
 from threading import Barrier, Thread
 import time
 
-from research_platform.resource.compute.api import ComputeHost, ComputeRequirement
-from research_platform.resource.compute.runtime.inventory import InMemoryComputeInventory
-from research_platform.resource.compute.runtime.scheduler import InMemoryComputeScheduler
-from research_platform.scope.api import ScopeIdentity, ScopeKind
+from noetrium_platform.infrastructure.resources.compute.api import ComputeHost, ComputeRequirement
+from noetrium_platform.infrastructure.resources.compute.runtime.inventory import InMemoryComputeInventory
+from noetrium_platform.infrastructure.resources.compute.runtime.scheduler import InMemoryComputeScheduler
+from noetrium_platform.foundation.scope.api import ScopeIdentity, ScopeKind
 
 
 def _scope(name: str) -> ScopeIdentity:

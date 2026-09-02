@@ -7,16 +7,16 @@ import time
 import unittest
 
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
-from research_platform.reliability.forensics.runtime.diagnostic_adapter import ForensicDiagnosticEvidence
-from research_platform.observability.status.runtime import PlatformStatusService
-from research_platform.reliability.diagnostics.runtime.status_projection import ForensicStatusProbe
-from research_platform.execution.runtime.manager import RuntimeControlStore
-from research_platform.reliability.recovery.providers.lease_store import RecoveryLeaseStore
-from research_platform.reliability.recovery.composition import compose_recovery_lease_status_probe
-from research_platform.execution.runtime.manager.status_readers import RuntimeControlStatusReader
-from research_platform.execution.runtime.manager.runtime_transaction_status import RuntimeTransactionStatusProbe
-from research_platform.runtime.session.api import PersistentSessionSpec
-from research_platform.runtime.session.runtime import (
+from noetrium_platform.infrastructure.reliability.forensics.runtime.diagnostic_adapter import ForensicDiagnosticEvidence
+from noetrium_platform.evidence.observability.status.runtime import PlatformStatusService
+from noetrium_platform.infrastructure.reliability.diagnostics.runtime.status_projection import ForensicStatusProbe
+from noetrium_platform.research.execution.runtime.manager import RuntimeControlStore
+from noetrium_platform.infrastructure.reliability.recovery.providers.lease_store import RecoveryLeaseStore
+from noetrium_platform.infrastructure.reliability.recovery.composition import compose_recovery_lease_status_probe
+from noetrium_platform.research.execution.runtime.manager.status_readers import RuntimeControlStatusReader
+from noetrium_platform.research.execution.runtime.manager.runtime_transaction_status import RuntimeTransactionStatusProbe
+from noetrium_platform.infrastructure.lifecycle.session.api import PersistentSessionSpec
+from noetrium_platform.infrastructure.lifecycle.session.runtime import (
     BoundPersistentSessionStatusProbe,
     PersistentSessionHealthProbe,
     DirectoryPersistentSessionBindingStore,

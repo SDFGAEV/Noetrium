@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from research_platform.participant.agent.api import (
+from noetrium_platform.capabilities.participant.agent.api import (
     AgentActionSequence,
     AgentActionSummary,
     AgentGoal,
@@ -16,8 +16,8 @@ from research_platform.participant.agent.api import (
     AgentSkillDescription,
     AgentSkillSelection,
 )
-from research_platform.participant.agent.runtime import AgentCognitionLoop
-from research_platform.platform.kernel import ExecutionContext
+from noetrium_platform.capabilities.participant.agent.runtime import AgentCognitionLoop
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
 
 
 class _Observation:

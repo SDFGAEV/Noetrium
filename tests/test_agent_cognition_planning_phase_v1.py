@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from research_platform.participant.agent.api import (
+from noetrium_platform.capabilities.participant.agent.api import (
     AgentActionSequence,
     AgentActionStep,
     AgentGoal,
@@ -13,13 +13,13 @@ from research_platform.participant.agent.api import (
     AgentSkillDescription,
     AgentSkillSelection,
 )
-from research_platform.participant.agent.runtime.cognition_context import CognitionContextPhase
-from research_platform.participant.agent.runtime.cognition_planning import (
+from noetrium_platform.capabilities.participant.agent.runtime.cognition_context import CognitionContextPhase
+from noetrium_platform.capabilities.participant.agent.runtime.cognition_planning import (
     CognitionPlanningPhase,
     PlanningDisposition,
 )
-from research_platform.participant.agent.runtime.cognition_reasoning import CognitionReasoningPhase
-from research_platform.platform.kernel import ExecutionContext
+from noetrium_platform.capabilities.participant.agent.runtime.cognition_reasoning import CognitionReasoningPhase
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
 
 
 _CONTEXT = ExecutionContext("run", "trace", "span")

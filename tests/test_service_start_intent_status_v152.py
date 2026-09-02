@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
-from research_platform.runtime.service.api import ServiceLaunchContract, ServiceProcessIdentity
+from noetrium_platform.infrastructure.lifecycle.service.api import ServiceLaunchContract, ServiceProcessIdentity
 from runtime_manager_test_support import make_runtime_control_store
 from service_os_test_support import make_service_supervisor, ready_evidence
 
@@ -10,24 +10,24 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from research_platform.reliability.forensics.runtime.diagnostic_adapter import ForensicDiagnosticEvidence
-from research_platform.observability.status.runtime import PlatformStatusService
-from research_platform.reliability.diagnostics.runtime.status_projection import ForensicStatusProbe
-from research_platform.execution.runtime.manager import RuntimeControlStore
-from research_platform.reliability.recovery.providers.lease_store import RecoveryLeaseStore
-from research_platform.reliability.recovery.composition import compose_recovery_lease_status_probe
-from research_platform.execution.runtime.manager.status_readers import RuntimeControlStatusReader
-from research_platform.execution.runtime.manager.runtime_transaction_status import RuntimeTransactionStatusProbe
-from research_platform.runtime.service.runtime.state_storage import FileServiceStateStore
-from research_platform.runtime.service.runtime import (
+from noetrium_platform.infrastructure.reliability.forensics.runtime.diagnostic_adapter import ForensicDiagnosticEvidence
+from noetrium_platform.evidence.observability.status.runtime import PlatformStatusService
+from noetrium_platform.infrastructure.reliability.diagnostics.runtime.status_projection import ForensicStatusProbe
+from noetrium_platform.research.execution.runtime.manager import RuntimeControlStore
+from noetrium_platform.infrastructure.reliability.recovery.providers.lease_store import RecoveryLeaseStore
+from noetrium_platform.infrastructure.reliability.recovery.composition import compose_recovery_lease_status_probe
+from noetrium_platform.research.execution.runtime.manager.status_readers import RuntimeControlStatusReader
+from noetrium_platform.research.execution.runtime.manager.runtime_transaction_status import RuntimeTransactionStatusProbe
+from noetrium_platform.infrastructure.lifecycle.service.runtime.state_storage import FileServiceStateStore
+from noetrium_platform.infrastructure.lifecycle.service.runtime import (
     ExactServiceSupervisor,
     PreparedServiceStartReconcileResult,
     PreparedServiceStartStatus,
     ServiceStartRecoveryHandle,
 )
-from research_platform.runtime.service.runtime.status_reader import ServiceOperationalStatusReader
-from research_platform.runtime.service.runtime.start_intent_store import DirectoryServiceStartIntentStore
-from research_platform.runtime.service.runtime.status_projection import ServiceOperationalStatusProbe
+from noetrium_platform.infrastructure.lifecycle.service.runtime.status_reader import ServiceOperationalStatusReader
+from noetrium_platform.infrastructure.lifecycle.service.runtime.start_intent_store import DirectoryServiceStartIntentStore
+from noetrium_platform.infrastructure.lifecycle.service.runtime.status_projection import ServiceOperationalStatusProbe
 
 
 def h(v): return hashlib.sha256(v.encode()).hexdigest()
@@ -73,8 +73,8 @@ class ServiceStartIntentStatusTests(unittest.TestCase):
             finally: forensics.close()
 
     def test_exited_service_is_not_reported_ready(self):
-        from research_platform.runtime.service.runtime import ServicePhase
-        from research_platform.runtime.service.runtime.service_state_contracts import ServiceSupervisorState
+        from noetrium_platform.infrastructure.lifecycle.service.runtime import ServicePhase
+        from noetrium_platform.infrastructure.lifecycle.service.runtime.service_state_contracts import ServiceSupervisorState
         import time
         with TemporaryDirectory() as td:
             root=Path(td); service_store=FileServiceStateStore(root/'svc.json')

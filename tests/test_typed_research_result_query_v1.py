@@ -4,11 +4,11 @@ import hashlib
 
 import pytest
 
-from research_platform.artifact.catalog.api import ArtifactKind, ArtifactRecord
-from research_platform.artifact.catalog.runtime import InMemoryArtifactRegistry
-from research_platform.data.dataset.api import DatasetIdentity, DatasetVersion
-from research_platform.data.dataset.runtime import InMemoryDatasetRegistry
-from research_platform.data.query.api import (
+from noetrium_platform.evidence.artifact.catalog.api import ArtifactKind, ArtifactRecord
+from noetrium_platform.evidence.artifact.catalog.runtime import InMemoryArtifactRegistry
+from noetrium_platform.evidence.data.dataset.api import DatasetIdentity, DatasetVersion
+from noetrium_platform.evidence.data.dataset.runtime import InMemoryDatasetRegistry
+from noetrium_platform.evidence.data.query.api import (
     ResearchDimension,
     ResearchDimensionKind,
     ResearchQueryGapKind,
@@ -17,13 +17,13 @@ from research_platform.data.query.api import (
     ResearchResultQuery,
     ResearchSourceDisposition,
 )
-from research_platform.data.query.cross.composition import (
+from noetrium_platform.evidence.data.query.cross.composition import (
     ArtifactCatalogResearchResultSource,
     compose,
 )
-from research_platform.data.query.cross.providers import DatasetResearchResultSource
-from research_platform.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
-from research_platform.scope.runtime import InMemoryScopeRegistry
+from noetrium_platform.evidence.data.query.cross.providers import DatasetResearchResultSource
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
+from noetrium_platform.foundation.scope.runtime import InMemoryScopeRegistry
 
 
 def _sha(value: str) -> str:

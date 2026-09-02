@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from research_platform.model.qualification.api import (
+from noetrium_platform.capabilities.model.qualification.api import (
     CudaFacts,
     DeploymentCapabilityFacts,
     DeploymentQualificationEvidenceRecord,
@@ -11,12 +11,12 @@ from research_platform.model.qualification.api import (
     OperatingSystemFacts,
     PythonRuntimeFacts,
 )
-from research_platform.model.qualification.providers.qualification_evidence_codec import (
+from noetrium_platform.capabilities.model.qualification.providers.qualification_evidence_codec import (
     QualificationEvidenceCodecError,
     decode_qualification_record,
     encode_qualification_record,
 )
-from research_platform.model.qualification.runtime.qualification import DeploymentQualificationResolver
+from noetrium_platform.capabilities.model.qualification.runtime.qualification import DeploymentQualificationResolver
 
 
 def _record() -> DeploymentQualificationEvidenceRecord:

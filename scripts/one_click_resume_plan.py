@@ -1,7 +1,7 @@
 """Generate the exact, non-degrading recovery sequence for an interrupted model run."""
-from research_platform.platform.kernel import ImmutableModelIdentity
-from research_platform.model.serving.api import ModelPhase, ModelRunState
-from research_platform.model.serving.runtime import RecoveryPlanner
+from noetrium_platform.foundation.kernel.kernel import ImmutableModelIdentity
+from noetrium_platform.capabilities.model.serving.api import ModelPhase, ModelRunState
+from noetrium_platform.capabilities.model.serving.runtime import RecoveryPlanner
 
 
 def main() -> None:

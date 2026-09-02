@@ -7,16 +7,16 @@ from dataclasses import dataclass
 from types import NoneType
 from typing import get_args, get_origin, get_type_hints
 
-from research_platform.participant.agent.api import AgentIdentity, AgentTurnRequest, AgentTurnResult
-from research_platform.participant.agent.api.cognition_ports import AgentDiagnosticsPort
-from research_platform.participant.method.api import MethodSession
-from research_platform.participant.capability.api import (
+from noetrium_platform.capabilities.participant.agent.api import AgentIdentity, AgentTurnRequest, AgentTurnResult
+from noetrium_platform.capabilities.participant.agent.api.cognition_ports import AgentDiagnosticsPort
+from noetrium_platform.capabilities.participant.method.api import MethodSession
+from noetrium_platform.capabilities.participant.capability.api import (
     CapabilityDescriptor,
     CapabilityProviderIdentity,
     CapabilityRequest,
     CapabilityResult,
 )
-from research_platform.platform.kernel import EffectClass, ExecutionContext
+from noetrium_platform.foundation.kernel.kernel import EffectClass, ExecutionContext
 
 
 class EchoCapabilitySession:
@@ -109,7 +109,7 @@ def test_agent_turn_json_boundary_is_deeply_immutable():
 
 def test_agent_turn_json_boundary_rejects_non_json_authority_values():
     import pytest
-    from research_platform.platform.kernel import CanonicalEncodingError
+    from noetrium_platform.foundation.kernel.kernel import CanonicalEncodingError
     ctx = ExecutionContext("run", "trace", "span")
     with pytest.raises(CanonicalEncodingError, match="non-finite"):
         AgentTurnRequest({"score": float("nan")}, ctx)

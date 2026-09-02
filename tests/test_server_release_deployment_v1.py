@@ -6,17 +6,17 @@ import shlex
 
 import pytest
 
-from research_platform.runtime.server.identity.api import (
+from noetrium_platform.infrastructure.lifecycle.server.identity.api import (
     ServerCommandResult,
     ServerConnectionProfile,
     ServerFileTransferResult,
 )
-from research_platform.runtime.server.lifecycle.api import (
+from noetrium_platform.infrastructure.lifecycle.server.lifecycle.api import (
     ServerReleaseDeploymentError,
     ServerReleaseDeploymentRequest,
     ServerReleaseLayout,
 )
-from research_platform.runtime.server.lifecycle.providers import SSHServerReleasePublisher
+from noetrium_platform.infrastructure.lifecycle.server.lifecycle.providers import SSHServerReleasePublisher
 
 
 class FakeConnection:

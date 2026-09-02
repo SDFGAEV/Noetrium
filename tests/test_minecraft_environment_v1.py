@@ -9,7 +9,7 @@ from typing import Any
 
 import pytest
 
-from research_platform.environment.minecraft.api import (
+from noetrium_platform.capabilities.environment.minecraft.api import (
     MINECRAFT_ACTION_TYPES,
     MinecraftActionOutcomeStatus,
     MinecraftActionResultEvidence,
@@ -25,60 +25,60 @@ from research_platform.environment.minecraft.api import (
     minecraft_action_timeout,
     validate_minecraft_action,
 )
-from research_platform.environment.minecraft.providers.readiness import (
+from noetrium_platform.capabilities.environment.minecraft.providers.readiness import (
     parse_java_major,
     parse_node_major,
     probe_node,
     probe_node_package,
     probe_minecraft_protocol_version,
 )
-from research_platform.environment.minecraft.providers.jsonl_bridge import (
+from noetrium_platform.capabilities.environment.minecraft.providers.jsonl_bridge import (
     JsonlMinecraftBridge,
     MinecraftBridgeError,
 )
-from research_platform.environment.minecraft.providers.server_files import (
+from noetrium_platform.capabilities.environment.minecraft.providers.server_files import (
     MinecraftServerPreparationError,
     prepare_server_files,
 )
-from research_platform.environment.minecraft.composition.server_service import (
+from noetrium_platform.capabilities.environment.minecraft.composition.server_service import (
     MinecraftServerServiceController,
     build_server_service_contract,
     compose_minecraft_server_service_runtime,
 )
-from research_platform.environment.minecraft.composition.diagnostics import (
+from noetrium_platform.capabilities.environment.minecraft.composition.diagnostics import (
     StructuredMinecraftDiagnostics,
 )
-from research_platform.environment.minecraft.composition.environment import compose_minecraft_environment
-from research_platform.environment.minecraft.composition.participant_runtime import (
+from noetrium_platform.capabilities.environment.minecraft.composition.environment import compose_minecraft_environment
+from noetrium_platform.capabilities.environment.minecraft.composition.participant_runtime import (
     compose_minecraft_participant_endpoint,
 )
-from research_platform.environment.minecraft.runtime import (
+from noetrium_platform.capabilities.environment.minecraft.runtime import (
     MinecraftEnvironmentFailure,
     MinecraftEnvironmentImplementation,
     MinecraftEnvironmentSession,
     MinecraftStateProjection,
 )
-from research_platform.environment.runtime.api import (
+from noetrium_platform.capabilities.environment.runtime.api import (
     ActionIdentityViolation,
     ActionReconciliationDisposition,
     ActionReconciliationResult,
     ActionRequest,
 )
-from research_platform.observability.logging.context.api import DiagnosticAddress
-from research_platform.observability.logging.record.api import LogRecord
-from research_platform.observability.logging.record.runtime import StructuredLogger
-from research_platform.platform.kernel import ExecutionContext
-from research_platform.runtime.host.providers import LocalOperatingSystemRoute
-from research_platform.runtime.service.api import (
+from noetrium_platform.evidence.observability.logging.context.api import DiagnosticAddress
+from noetrium_platform.evidence.observability.logging.record.api import LogRecord
+from noetrium_platform.evidence.observability.logging.record.runtime import StructuredLogger
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
+from noetrium_platform.infrastructure.lifecycle.host.providers import LocalOperatingSystemRoute
+from noetrium_platform.infrastructure.lifecycle.service.api import (
     ServiceProcessIdentity,
     ServiceReadyObservation,
     ServiceReconcileObservation,
     ServiceStartOutcome,
     ServiceStopOutcome,
 )
-from research_platform.runtime.service.runtime.environment import MaterializedServiceEnvironment
-from research_platform.runtime.service.runtime.process_contracts import ProcessReconcileResult, ProcessReconcileStatus
-from research_platform.scope.api import ScopeIdentity, ScopeKind
+from noetrium_platform.infrastructure.lifecycle.service.runtime.environment import MaterializedServiceEnvironment
+from noetrium_platform.infrastructure.lifecycle.service.runtime.process_contracts import ProcessReconcileResult, ProcessReconcileStatus
+from noetrium_platform.foundation.scope.api import ScopeIdentity, ScopeKind
 
 
 TEST_OPERATING_SYSTEM = LocalOperatingSystemRoute()
@@ -1246,8 +1246,8 @@ def test_minecraft_composition_joins_generic_participant_endpoint_without_second
 
 
 def test_planner_finish_requires_action_receipt() -> None:
-    from research_platform.environment.minecraft.composition import MinecraftAgentCompletion
-    from research_platform.participant.agent.api import AgentGoal, AgentObservation
+    from noetrium_platform.capabilities.environment.minecraft.composition import MinecraftAgentCompletion
+    from noetrium_platform.capabilities.participant.agent.api import AgentGoal, AgentObservation
 
     completion = MinecraftAgentCompletion()
     goal = AgentGoal("goal:planner-finish", "finish", context={"success": {"kind": "planner_finish"}})
@@ -1259,8 +1259,8 @@ def test_planner_finish_requires_action_receipt() -> None:
 
 
 def test_last_action_verified_requires_grounded_non_contradictory_receipt() -> None:
-    from research_platform.environment.minecraft.composition import MinecraftAgentCompletion
-    from research_platform.participant.agent.api import AgentGoal, AgentObservation, AgentStepReceipt
+    from noetrium_platform.capabilities.environment.minecraft.composition import MinecraftAgentCompletion
+    from noetrium_platform.capabilities.participant.agent.api import AgentGoal, AgentObservation, AgentStepReceipt
 
     completion = MinecraftAgentCompletion()
     goal = AgentGoal(
@@ -1288,10 +1288,10 @@ def test_last_action_verified_requires_grounded_non_contradictory_receipt() -> N
 
 
 def test_minecraft_agent_executor_preserves_effect_identity_and_possible_certainty() -> None:
-    from research_platform.environment.api import ActionResult
-    from research_platform.environment.minecraft.composition import MinecraftAgentActionExecutor
-    from research_platform.participant.agent.api import AgentActionStep
-    from research_platform.platform.kernel import EffectCertainty, EffectClass, EffectReceipt
+    from noetrium_platform.capabilities.environment.api import ActionResult
+    from noetrium_platform.capabilities.environment.minecraft.composition import MinecraftAgentActionExecutor
+    from noetrium_platform.capabilities.participant.agent.api import AgentActionStep
+    from noetrium_platform.foundation.kernel.kernel import EffectCertainty, EffectClass, EffectReceipt
 
     context = ExecutionContext("run", "trace", "span", task_id="task")
     step = AgentActionStep(
@@ -1325,8 +1325,8 @@ def test_minecraft_agent_executor_preserves_effect_identity_and_possible_certain
 
 
 def test_planner_finish_requires_grounded_action_receipt() -> None:
-    from research_platform.environment.minecraft.composition import MinecraftAgentCompletion
-    from research_platform.participant.agent.api import AgentGoal, AgentObservation, AgentStepReceipt
+    from noetrium_platform.capabilities.environment.minecraft.composition import MinecraftAgentCompletion
+    from noetrium_platform.capabilities.participant.agent.api import AgentGoal, AgentObservation, AgentStepReceipt
 
     completion = MinecraftAgentCompletion()
     goal = AgentGoal("goal:planner-grounded", "finish", context={"success": {"kind": "planner_finish"}})

@@ -2,15 +2,15 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from research_platform.governance.architecture import build_architecture_report, build_optimization_report
-from research_platform.governance.providers import RepositorySourceTree
+from noetrium_platform.foundation.governance.architecture import build_architecture_report, build_optimization_report
+from noetrium_platform.foundation.governance.providers import RepositorySourceTree
 
 
 class ArchitectureLocationIndependenceV124Tests(unittest.TestCase):
     def _tree(self, root: Path) -> None:
-        package = root / "research_platform" / "sample"
+        package = root / "noetrium_platform" / "sample"
         package.mkdir(parents=True)
-        (root / "research_platform" / "__init__.py").write_text("", encoding="utf-8")
+        (root / "noetrium_platform" / "__init__.py").write_text("", encoding="utf-8")
         (package / "__init__.py").write_text("", encoding="utf-8")
         (package / "a.py").write_text("def f(x):\n    return x + 1\n", encoding="utf-8")
 

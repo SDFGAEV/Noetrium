@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from research_platform.runtime.service.composition import build_service_supervisor
-from research_platform.runtime.service.runtime.start_intent_store import DirectoryServiceStartIntentStore
+from noetrium_platform.infrastructure.lifecycle.service.composition import build_service_supervisor
+from noetrium_platform.infrastructure.lifecycle.service.runtime.start_intent_store import DirectoryServiceStartIntentStore
 
 
 def make_service_supervisor(state, adapter):
@@ -13,5 +13,5 @@ def make_service_supervisor(state, adapter):
 
 
 def ready_evidence(process, contract, ready_ref="ready", stdout_ref="stdout", stderr_ref="stderr", ready_at=1234.5):
-    from research_platform.runtime.service.runtime import ServiceReadyEvidence
+    from noetrium_platform.infrastructure.lifecycle.service.runtime import ServiceReadyEvidence
     return ServiceReadyEvidence(contract.digest(), process, ready_ref, stdout_ref, stderr_ref, ready_at)

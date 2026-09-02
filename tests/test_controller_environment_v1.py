@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from research_platform.runtime.session.runtime import (
+from noetrium_platform.infrastructure.lifecycle.session.runtime import (
     ControllerEnvironmentFileError,
     load_controller_environment,
 )

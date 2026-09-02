@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from research_platform.experimentation.experiment.api import (
+from noetrium_platform.research.experimentation.experiment.api import (
     ExperimentTaskSpec,
     ExperimentWorkloadFailure,
     FailureScope,

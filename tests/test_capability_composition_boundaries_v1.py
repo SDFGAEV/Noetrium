@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import tempfile
 
-from research_platform.governance.architecture.capability_composition_invariants import (
+from noetrium_platform.foundation.governance.architecture.capability_composition_invariants import (
     audit_capability_composition_boundaries,
 )
 
@@ -15,18 +15,18 @@ def test_current_source_keeps_composition_metadata_out_of_runtime_modules() -> N
 
 def test_capability_graph_is_architecture_policy_not_outer_platform_composition() -> None:
     root = Path(__file__).resolve().parents[1]
-    assert (root / "research_platform/governance/architecture/api/capability_composition.py").is_file()
-    assert (root / "research_platform/governance/architecture/runtime/capability_composition.py").is_file()
-    assert not (root / "research_platform/platform/composition/capability_graph.py").exists()
+    assert (root / "noetrium_platform/foundation/governance/architecture/api/capability_composition.py").is_file()
+    assert (root / "noetrium_platform/foundation/governance/architecture/runtime/capability_composition.py").is_file()
+    assert not (root / "noetrium_platform/foundation/kernel/composition/capability_graph.py").exists()
 
 
 def test_runtime_cannot_import_or_construct_composition_metadata() -> None:
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
-        runtime = root / "research_platform" / "runtime" / "service" / "runtime"
+        runtime = root / "noetrium_platform" / "infrastructure" / "lifecycle" / "service" / "runtime"
         runtime.mkdir(parents=True)
         (runtime / "bad.py").write_text(
-            "from research_platform.governance.architecture.runtime.capability_composition import CapabilityCompositionPlanner\n",
+            "from noetrium_platform.foundation.governance.architecture.runtime.capability_composition import CapabilityCompositionPlanner\n",
             encoding="utf-8",
         )
         rows = audit_capability_composition_boundaries(root)
@@ -36,10 +36,10 @@ def test_runtime_cannot_import_or_construct_composition_metadata() -> None:
 def test_only_host_composition_can_select_the_local_os_provider() -> None:
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
-        runtime = root / "research_platform" / "runtime" / "service" / "runtime"
+        runtime = root / "noetrium_platform" / "infrastructure" / "lifecycle" / "service" / "runtime"
         runtime.mkdir(parents=True)
         (runtime / "bad.py").write_text(
-            "from research_platform.runtime.host.providers import LocalOperatingSystemRoute\n",
+            "from noetrium_platform.infrastructure.lifecycle.host.providers import LocalOperatingSystemRoute\n",
             encoding="utf-8",
         )
         rows = audit_capability_composition_boundaries(root)

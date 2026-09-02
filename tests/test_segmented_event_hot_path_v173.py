@@ -8,9 +8,9 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
-from research_platform.reliability.forensics.providers.segmented_hashlog import SegmentedHashChainedJSONL
-from research_platform.reliability.forensics.providers.hashlog import HashChainError
-from research_platform.reliability.forensics.providers.directory_change_signal import DirectoryChangeSignal
+from noetrium_platform.infrastructure.reliability.forensics.providers.segmented_hashlog import SegmentedHashChainedJSONL
+from noetrium_platform.infrastructure.reliability.forensics.providers.hashlog import HashChainError
+from noetrium_platform.infrastructure.reliability.forensics.providers.directory_change_signal import DirectoryChangeSignal
 
 
 class SegmentedEventHotPathV173Tests(unittest.TestCase):
@@ -70,7 +70,7 @@ class SegmentedEventHotPathV173Tests(unittest.TestCase):
             root.mkdir()
             failure = OSError(errno.ENOSPC, "inotify watch quota exhausted", str(root))
             with patch(
-                "research_platform.reliability.forensics.providers.directory_change_signal.open_linux_directory_watch",
+                "noetrium_platform.infrastructure.reliability.forensics.providers.directory_change_signal.open_linux_directory_watch",
                 side_effect=failure,
             ):
                 with self.assertRaises(OSError) as raised:

@@ -4,12 +4,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from research_platform.environment.minecraft.api import MinecraftRconEndpoint, MinecraftServerSpec
-from research_platform.environment.minecraft.composition import (
+from noetrium_platform.capabilities.environment.minecraft.api import MinecraftRconEndpoint, MinecraftServerSpec
+from noetrium_platform.capabilities.environment.minecraft.composition import (
     LocalMinecraftExperimentHostFactory,
     MinecraftExperimentHostInputs,
 )
-from research_platform.platform.kernel import canonical_digest
+from noetrium_platform.foundation.kernel.kernel import canonical_digest
 
 
 class RecordingSourceServer:

@@ -4,7 +4,7 @@ from dataclasses import replace
 
 import pytest
 
-from research_platform.environment.api import (
+from noetrium_platform.capabilities.environment.api import (
     ActionIdentityViolation,
     ActionRequest,
     EnvironmentCapability,
@@ -20,7 +20,7 @@ from research_platform.environment.api import (
     EnvironmentProviderPort,
     verify_environment_provider_conformance,
 )
-from research_platform.environment.composition import reference_counter_environment
+from noetrium_platform.capabilities.environment.composition import reference_counter_environment
 
 
 def _context() -> ExecutionContext:
@@ -134,8 +134,8 @@ def test_reference_counter_rejected_action_is_non_mutating_and_evidence_bearing(
 
 
 def test_conformance_requires_typed_unsupported_optional_capabilities() -> None:
-    from research_platform.environment.api import ActionResult, Observation
-    from research_platform.platform.kernel import canonical_digest
+    from noetrium_platform.capabilities.environment.api import ActionResult, Observation
+    from noetrium_platform.foundation.kernel.kernel import canonical_digest
 
     digest = canonical_digest({"provider": "unsupported-reference"})
 

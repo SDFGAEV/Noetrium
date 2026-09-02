@@ -7,8 +7,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from research_platform.execution.runtime.manager import RuntimeControlStore, RuntimeTxnPhase
-from research_platform.execution.runtime.manager.history import RuntimeHistoryIntegrityError
+from noetrium_platform.research.execution.runtime.manager import RuntimeControlStore, RuntimeTxnPhase
+from noetrium_platform.research.execution.runtime.manager.history import RuntimeHistoryIntegrityError
 
 
 class RuntimeHistoryReconcileV143Tests(unittest.TestCase):

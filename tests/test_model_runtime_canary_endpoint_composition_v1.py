@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from research_platform.model.serving.endpoint.api import JsonHttpResponse, ModelEndpointRoute
-from research_platform.model.serving.endpoint.composition import (
+from noetrium_platform.capabilities.model.serving.endpoint.api import JsonHttpResponse, ModelEndpointRoute
+from noetrium_platform.capabilities.model.serving.endpoint.composition import (
     build_openai_compatible_runtime_canary_endpoint,
 )
-from research_platform.model.serving.runtime import ModelAdmissionRegistry
+from noetrium_platform.capabilities.model.serving.runtime import ModelAdmissionRegistry
 from tests.test_model_runtime_canary_v1 import _deployment, _digest, _route
 
 

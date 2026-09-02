@@ -10,7 +10,7 @@ import pytest
 _PROFILE_DIGEST = "1" * 64
 _OTHER_PROFILE_DIGEST = "2" * 64
 
-from research_platform.runtime.server.api import (
+from noetrium_platform.infrastructure.lifecycle.server.api import (
     ServerOperationEffect,
     ServerOperationFinished,
     ServerOperationKind,
@@ -23,13 +23,13 @@ from research_platform.runtime.server.api import (
     ServerMutationBusy,
     ServerTransportBusy,
 )
-from research_platform.runtime.server.providers import (
+from noetrium_platform.infrastructure.lifecycle.server.providers import (
     ObservedServerConnection,
     ObservedServerFileTransfer,
 )
-from research_platform.runtime.server.runtime import ServerOperationJournalIntegrityError
+from noetrium_platform.infrastructure.lifecycle.server.runtime import ServerOperationJournalIntegrityError
 from tests._concurrency_support import server_operation_journal as JsonlServerOperationJournal
-from research_platform.runtime.server.identity.api import (
+from noetrium_platform.infrastructure.lifecycle.server.identity.api import (
     ServerCommandResult,
     ServerConnectionProfile,
     ServerFileTransferResult,
@@ -579,7 +579,7 @@ def test_server_operation_journal_fsyncs_parent_only_on_first_publication(
     path = tmp_path / "server-operations.jsonl"
     calls: list[Path] = []
     monkeypatch.setattr(
-        "research_platform.runtime.server.runtime.operation_journal.fsync_directory",
+        "noetrium_platform.infrastructure.lifecycle.server.runtime.operation_journal.fsync_directory",
         lambda candidate: calls.append(candidate),
     )
     journal = JsonlServerOperationJournal(path)

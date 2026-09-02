@@ -4,19 +4,19 @@ from dataclasses import dataclass
 
 import pytest
 
-from research_platform.experimentation.checkpoint.providers import DirectoryWorkloadCheckpointStore
-from research_platform.experimentation.checkpoint.api import CheckpointedWorkloadBatchResult
-from research_platform.experimentation.checkpoint.runtime import (
+from noetrium_platform.research.experimentation.checkpoint.providers import DirectoryWorkloadCheckpointStore
+from noetrium_platform.research.experimentation.checkpoint.api import CheckpointedWorkloadBatchResult
+from noetrium_platform.research.experimentation.checkpoint.runtime import (
     CheckpointedWorkloadBatchExecutor,
     WorkloadCheckpointCoordinator,
 )
-from research_platform.experimentation.experiment.api import (
+from noetrium_platform.research.experimentation.experiment.api import (
     ExperimentTaskSpec,
     ExperimentWorkloadFailure,
     FailureScope,
 )
-from research_platform.experimentation.workload import WorkloadBatchResult, WorkloadTaskResult
-from research_platform.platform.kernel import ExecutionContext
+from noetrium_platform.research.experimentation.workload import WorkloadBatchResult, WorkloadTaskResult
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
 
 
 @dataclass

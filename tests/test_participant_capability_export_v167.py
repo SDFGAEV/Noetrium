@@ -5,8 +5,8 @@ from tests_support import agent_turn_runtime
 
 import hashlib
 
-from research_platform.participant.agent.api import AgentIdentity, AgentSnapshot, AgentTurnResult
-from research_platform.participant.capability.api import (
+from noetrium_platform.capabilities.participant.agent.api import AgentIdentity, AgentSnapshot, AgentTurnResult
+from noetrium_platform.capabilities.participant.capability.api import (
     CapabilityDescriptor,
     CapabilityEffectReconciliationResult,
     CapabilityRequest,
@@ -14,14 +14,14 @@ from research_platform.participant.capability.api import (
     capability_effect_request_id,
     capability_request_digest,
 )
-from research_platform.reliability.effect.api import EffectReconciliationDisposition, PreparedEffectHandle
-from research_platform.reliability.effect.runtime import InMemoryEffectIntentJournal
-from research_platform.platform.kernel import EffectCertainty, EffectClass, EffectReceipt
-from research_platform.participant.core.api.contracts import ParticipantImplementationIdentity
-from research_platform.execution.workflow.implementations.agent_turn.agent_turn_workflow import AgentTurnTrialProtocol
-from research_platform.execution.decision.cycle_identity import DecisionCycleIdentity
-from research_platform.experimentation.experiment.runtime import ExperimentRuntime
-from research_platform.experimentation.experiment.api import ExperimentParticipantSpec, ExperimentSpec
+from noetrium_platform.infrastructure.reliability.effect.api import EffectReconciliationDisposition, PreparedEffectHandle
+from noetrium_platform.infrastructure.reliability.effect.runtime import InMemoryEffectIntentJournal
+from noetrium_platform.foundation.kernel.kernel import EffectCertainty, EffectClass, EffectReceipt
+from noetrium_platform.capabilities.participant.core.api.contracts import ParticipantImplementationIdentity
+from noetrium_platform.research.execution.workflow.implementations.agent_turn.agent_turn_workflow import AgentTurnTrialProtocol
+from noetrium_platform.research.execution.decision.cycle_identity import DecisionCycleIdentity
+from noetrium_platform.research.experimentation.experiment.runtime import ExperimentRuntime
+from noetrium_platform.research.experimentation.experiment.api import ExperimentParticipantSpec, ExperimentSpec
 
 
 class RobotSession:

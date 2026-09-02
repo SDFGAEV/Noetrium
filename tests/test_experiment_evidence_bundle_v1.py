@@ -7,23 +7,23 @@ from pathlib import Path
 
 import pytest
 
-from research_platform.experimentation.run.api import (
+from noetrium_platform.research.experimentation.run.api import (
     RunArtifactKind,
     RunArtifactSnapshotReceipt,
 )
-from research_platform.experimentation.run.manifest.api import (
+from noetrium_platform.research.experimentation.run.manifest.api import (
     DerivedEvidenceArtifact,
     EvidenceBundleManifest,
     EvidenceBundleReceipt,
     EvidenceBundleStatus,
     EvidenceStreamDescriptor,
 )
-from research_platform.experimentation.run.manifest.runtime import (
+from noetrium_platform.research.experimentation.run.manifest.runtime import (
     RunArtifactEvidenceBundlePublisher,
     decode_evidence_bundle_manifest,
     encode_evidence_bundle_manifest,
 )
-from research_platform.experimentation.run.runtime import DirectoryRunArtifactStore
+from noetrium_platform.research.experimentation.run.runtime import DirectoryRunArtifactStore
 
 SHA_A = "a" * 64
 SHA_B = "b" * 64

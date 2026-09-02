@@ -3,12 +3,12 @@ from tests_support import context_action_runtime
 from tests_support import context_action_spec
 import unittest
 
-from research_platform.environment.runtime.api import EnvironmentIdentity
-from research_platform.platform.kernel import OperationFailure
-from research_platform.participant.method.api import MethodIdentity
-from research_platform.experimentation.experiment.runtime import ExperimentRuntime
-from research_platform.experimentation.experiment.api import ExperimentSpec
-from research_platform.experimentation.run.lifecycle.api import RunCleanupFailure
+from noetrium_platform.capabilities.environment.runtime.api import EnvironmentIdentity
+from noetrium_platform.foundation.kernel.kernel import OperationFailure
+from noetrium_platform.capabilities.participant.method.api import MethodIdentity
+from noetrium_platform.research.experimentation.experiment.runtime import ExperimentRuntime
+from noetrium_platform.research.experimentation.experiment.api import ExperimentSpec
+from noetrium_platform.research.experimentation.run.lifecycle.api import RunCleanupFailure
 
 
 class MethodSession:

@@ -1,20 +1,20 @@
 from __future__ import annotations
 
-from research_platform.runtime.server.api import (
+from noetrium_platform.infrastructure.lifecycle.server.api import (
     ServerOperationEffect,
     ServerOperationKind,
     ServerOperationStarted,
 )
 import pytest
 
-from research_platform.runtime.server.health.api import (
+from noetrium_platform.infrastructure.lifecycle.server.health.api import (
     ServerDiagnosticStatus,
     ServerHealthReport,
     ServerSessionDiagnostic,
 )
-from research_platform.runtime.server.health.runtime import ServerDiagnosticProjector
-from research_platform.runtime.server.identity.api import ServerCommandResult
-from research_platform.runtime.server.identity.api import ServerTransportFailureKind
+from noetrium_platform.infrastructure.lifecycle.server.health.runtime import ServerDiagnosticProjector
+from noetrium_platform.infrastructure.lifecycle.server.identity.api import ServerCommandResult
+from noetrium_platform.infrastructure.lifecycle.server.identity.api import ServerTransportFailureKind
 
 
 def _health(
@@ -58,7 +58,7 @@ def _pending(*, profile_digest: str) -> object:
 
 
 def test_diagnostic_marks_old_profile_uncertainty_as_actionable() -> None:
-    from research_platform.runtime.server.api import ServerOperationRecord
+    from noetrium_platform.infrastructure.lifecycle.server.api import ServerOperationRecord
 
     record = ServerOperationRecord(_pending(profile_digest="old-profile"))
     report = ServerDiagnosticProjector().project(

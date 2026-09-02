@@ -114,7 +114,7 @@ flowchart LR
 
 У каждого durable state один owner, а неопределённые внешние effects остаются `UNKNOWN`, пока reconciliation не докажет обратное.
 
-`research_platform/governance/system_registry/catalog.json`
+`noetrium_platform/foundation/governance/system_registry/catalog.json`
 
 <!-- readme-section:downstream -->
 
@@ -149,7 +149,7 @@ Downstream-код использует публичные platform contracts и 
 ### 1. Клонирование и установка
 
 ```bash
-git clone https://github.com/SDFGAEV/noetrium.git
+git clone https://github.com/Xalzeroph/noetrium.git
 cd noetrium
 python -m venv .venv
 source .venv/bin/activate
@@ -182,7 +182,7 @@ research-platform-architecture-gate
 python scripts/check_readme_i18n.py
 ```
 
-Metadata Python distribution называется `noetrium`; текущий import namespace остаётся `research_platform`, пока product identity и runtime contracts развиваются независимо.
+Metadata Python distribution называется `noetrium`; текущий import namespace остаётся `noetrium_platform`, пока product identity и runtime contracts развиваются независимо.
 
 <!-- readme-section:containers -->
 
@@ -216,16 +216,16 @@ docker compose -f deploy/compose.yaml -f deploy/compose.minecraft.yaml run --rm 
 
 | Path | Responsibility |
 | --- | --- |
-| `research_platform/` | Повторно используемая реализация платформы и публичные системные границы |
+| `noetrium_platform/` | Повторно используемая реализация платформы и публичные системные границы |
 | `configs/` | Версионируемые примеры конфигурации и шаблоны без секретов |
 | `deploy/` | Контейнерный образ, Compose runtime и deployment bootstrap |
 | `docs/` | Документация architecture, infrastructure, governance, status и history |
 | `scripts/` | Тонкие operator, audit, release и maintenance entry points |
 | `tests/` | Иерархические regression и contract tests |
-| `research_platform/environment/minecraft/` | Повторно используемый Minecraft environment provider |
+| `noetrium_platform/capabilities/environment/minecraft/` | Повторно используемый Minecraft environment provider |
 | `LICENSE` / `NOTICE` / `THIRD_PARTY_NOTICES.md` | Уведомления Apache-2.0 и лицензии третьих сторон |
 
-`research_platform/` is the reusable package boundary; project-specific code stays downstream.
+`noetrium_platform/` is the reusable package boundary; project-specific code stays downstream.
 
 <!-- readme-section:testing -->
 

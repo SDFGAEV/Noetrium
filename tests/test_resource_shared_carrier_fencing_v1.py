@@ -5,7 +5,7 @@ from time import time
 
 import pytest
 
-from research_platform.resource.lease.api import (
+from noetrium_platform.infrastructure.resources.lease.api import (
     LeaseState,
     ResourceIdentity,
     ResourceKind,
@@ -14,9 +14,9 @@ from research_platform.resource.lease.api import (
     ResourceOwner,
     ResourceOwnership,
 )
-from research_platform.resource.lease.runtime import InMemoryResourceLeaseRegistry
-from research_platform.resource.providers import SQLiteResourceLeaseRegistry
-from research_platform.scope.api import PLATFORM_SCOPE
+from noetrium_platform.infrastructure.resources.lease.runtime import InMemoryResourceLeaseRegistry
+from noetrium_platform.infrastructure.resources.providers import SQLiteResourceLeaseRegistry
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE
 
 
 @pytest.mark.parametrize(

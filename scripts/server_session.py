@@ -37,7 +37,7 @@ from scripts.server_common import (
     compose_server_session_observation,
     server_cli_concurrency_scope,
 )
-from research_platform.platform.kernel.errors import describe_exception
+from noetrium_platform.foundation.kernel.kernel.errors import describe_exception
 
 
 def _observation_payload(observation) -> dict[str, object]:

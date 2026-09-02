@@ -6,11 +6,11 @@ from threading import Event, Thread
 
 import pytest
 
-from research_platform.platform.kernel.durability.file_lock import InterprocessFileLock
-from research_platform.platform.kernel.leaf_contract import FileLeafStateStore
-from research_platform.platform.kernel.logical_path import logical_absolute_path
-from research_platform.scope.path.api import PathFlavor
-from research_platform.scope.path.runtime.resolver import TargetPathResolver
+from noetrium_platform.foundation.kernel.kernel.durability.file_lock import InterprocessFileLock
+from noetrium_platform.foundation.kernel.kernel.leaf_contract import FileLeafStateStore
+from noetrium_platform.foundation.kernel.kernel.logical_path import logical_absolute_path
+from noetrium_platform.foundation.scope.path.api import PathFlavor
+from noetrium_platform.foundation.scope.path.runtime.resolver import TargetPathResolver
 
 
 def _expected(path: Path) -> Path:

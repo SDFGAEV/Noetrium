@@ -5,17 +5,17 @@ from pathlib import Path
 
 import pytest
 
-from research_platform.resource.compute.providers.nvidia_smi import NvidiaSmiGpuRuntimeObserver
-from research_platform.runtime.process.supervision.runtime.command_runner import AsyncProcessCommandRunner
-from research_platform.runtime.process.supervision.runtime.local_command import AsyncLocalCommandRunner
-from research_platform.runtime.server.identity.api.contracts import ServerConnectionProfile
-from research_platform.runtime.server.identity.providers.ssh_connection import SSHServerConnection
-from research_platform.runtime.service.api import ServiceLaunchContract
-from research_platform.runtime.service.runtime.readiness import HttpEndpointReadinessProbe, ProcessAliveReadinessProbe
-from research_platform.runtime.session.runtime.tmux_subprocess import SubprocessTmuxCommandRunner
-from research_platform.runtime.session.runtime.tmux_transport import TmuxPersistentSessionControl
-from research_platform.runtime.toolchain.api import JavaRuntimePlatform, JavaRuntimeProvisioningRequest
-from research_platform.scope.api import PLATFORM_SCOPE
+from noetrium_platform.infrastructure.resources.compute.providers.nvidia_smi import NvidiaSmiGpuRuntimeObserver
+from noetrium_platform.infrastructure.lifecycle.process.supervision.runtime.command_runner import AsyncProcessCommandRunner
+from noetrium_platform.infrastructure.lifecycle.process.supervision.runtime.local_command import AsyncLocalCommandRunner
+from noetrium_platform.infrastructure.lifecycle.server.identity.api.contracts import ServerConnectionProfile
+from noetrium_platform.infrastructure.lifecycle.server.identity.providers.ssh_connection import SSHServerConnection
+from noetrium_platform.infrastructure.lifecycle.service.api import ServiceLaunchContract
+from noetrium_platform.infrastructure.lifecycle.service.runtime.readiness import HttpEndpointReadinessProbe, ProcessAliveReadinessProbe
+from noetrium_platform.infrastructure.lifecycle.session.runtime.tmux_subprocess import SubprocessTmuxCommandRunner
+from noetrium_platform.infrastructure.lifecycle.session.runtime.tmux_transport import TmuxPersistentSessionControl
+from noetrium_platform.infrastructure.lifecycle.toolchain.api import JavaRuntimePlatform, JavaRuntimeProvisioningRequest
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE
 
 
 NONFINITE = (math.nan, math.inf, -math.inf)

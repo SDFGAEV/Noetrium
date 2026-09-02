@@ -7,19 +7,19 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from research_platform.platform.kernel import (
+from noetrium_platform.foundation.kernel.kernel import (
     ComponentIdentity,
     EffectCertainty,
     EffectClass,
     EffectReceipt,
     ExecutionContext,
 )
-from research_platform.reliability.effect.api import (
+from noetrium_platform.infrastructure.reliability.effect.api import (
     EffectIntent,
     EffectIntentConflict,
     EffectJournalIntegrityError,
 )
-from research_platform.reliability.effect.runtime import (
+from noetrium_platform.infrastructure.reliability.effect.runtime import (
     InMemoryEffectIntentJournal,
     SQLiteEffectIntentJournal,
 )

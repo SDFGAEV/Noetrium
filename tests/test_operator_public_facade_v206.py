@@ -8,16 +8,16 @@ from unittest.mock import patch
 
 import pytest
 
-from research_platform.api import (
+from noetrium_platform.api import (
     ResearchAction,
     ResearchFacade,
     ResearchOperationFailure,
     ResearchRequest,
     ResearchResult,
 )
-from research_platform.operator.api.json_rendering import plain_json
-from research_platform.operator.runtime.research_cli import build_research_parser
-from research_platform.operator.composition.research import main
+from noetrium_platform.product.operator.api.json_rendering import plain_json
+from noetrium_platform.product.operator.runtime.research_cli import build_research_parser
+from noetrium_platform.product.operator.composition.research import main
 
 
 class _Application:
@@ -81,7 +81,7 @@ def test_lifecycle_cli_requires_explicit_project_or_application_binding(capsys):
 def test_lifecycle_cli_delegates_to_explicit_application(capsys):
     app = _Application()
     with patch(
-        "research_platform.operator.runtime.research_cli.load_research_application",
+        "noetrium_platform.product.operator.runtime.research_cli.load_research_application",
         return_value=app,
     ):
         rc = main(
@@ -115,7 +115,7 @@ def test_lifecycle_cli_preserves_authoritative_operation_failure(capsys):
             )
 
     with patch(
-        "research_platform.operator.runtime.research_cli.load_research_application",
+        "noetrium_platform.product.operator.runtime.research_cli.load_research_application",
         return_value=_FailingApplication(),
     ):
         rc = main([
@@ -134,7 +134,7 @@ def test_lifecycle_cli_preserves_authoritative_operation_failure(capsys):
 
 def test_manage_route_preserves_foreign_cli_arguments_verbatim():
     with patch(
-        "research_platform.operator.maintenance.composition.cli._management_main",
+        "noetrium_platform.product.operator.maintenance.composition.cli._management_main",
         return_value=0,
     ) as downstream:
         assert main(["manage", "--config", "management.json", "summary"]) == 0
@@ -143,7 +143,7 @@ def test_manage_route_preserves_foreign_cli_arguments_verbatim():
 
 def test_diagnose_route_preserves_foreign_cli_arguments_verbatim():
     with patch(
-        "research_platform.operator.composition.research.diagnose_main",
+        "noetrium_platform.product.operator.composition.research.diagnose_main",
         return_value=0,
     ) as downstream:
         assert main(["diagnose", "status", "run-root"]) == 0

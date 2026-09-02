@@ -23,8 +23,8 @@ if sys.version_info < (3, 11):
     raise SystemExit(2)
 
 from scripts.server_common import compose_script_server, server_cli_concurrency_scope, server_health_spec
-from research_platform.runtime.server.health.composition import compose_ssh_server_health
-from research_platform.platform.kernel.errors import describe_exception
+from noetrium_platform.infrastructure.lifecycle.server.health.composition import compose_ssh_server_health
+from noetrium_platform.foundation.kernel.kernel.errors import describe_exception
 
 
 def ready_for_mutation(*, platform_ready: bool, pending_operations: tuple[object, ...]) -> bool:

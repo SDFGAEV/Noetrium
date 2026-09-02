@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from research_platform.experimentation.experiment.api import ExperimentParticipantSpec, ExperimentSpec
-from research_platform.participant.core.api.contracts import (
+from noetrium_platform.research.experimentation.experiment.api import ExperimentParticipantSpec, ExperimentSpec
+from noetrium_platform.capabilities.participant.core.api.contracts import (
     ParticipantImplementationIdentity, ParticipantRuntimeBinding, ParticipantSessionRuntimeIdentity,
 )
-from research_platform.participant.core.api.runtime import ParticipantRuntimeHandle
+from noetrium_platform.capabilities.participant.core.api.runtime import ParticipantRuntimeHandle
 
 
 class _TestParticipantRuntimeEndpoint:
@@ -207,7 +207,7 @@ def study_spec(
 
 
 def participant_component(spec):
-    from research_platform.platform.kernel import ComponentIdentity
+    from noetrium_platform.foundation.kernel.kernel import ComponentIdentity
     binding = spec.runtime_binding()
     implementation = binding.implementation
     return ComponentIdentity(
@@ -219,8 +219,8 @@ def participant_component(spec):
     )
 
 def environment_effect_intent(request, provider_component, *, operation_id: str, recovery_handle=None):
-    from research_platform.reliability.effect.api import EffectIntent
-    from research_platform.environment.runtime.api import action_request_digest
+    from noetrium_platform.infrastructure.reliability.effect.api import EffectIntent
+    from noetrium_platform.capabilities.environment.runtime.api import action_request_digest
 
     return EffectIntent.build(
         request_id=request.action_id,
@@ -243,12 +243,12 @@ class EmptyWorkflowSurfaceFactory:
 
 
 def context_action_runtime(methods, environments, **kwargs):
-    from research_platform.platform.composition.context_action import compose_context_action_runtime
+    from noetrium_platform.foundation.kernel.composition.context_action import compose_context_action_runtime
     return compose_context_action_runtime(CompositeParticipantResolver(methods, environments), **kwargs)
 
 
 def agent_turn_runtime(agents, **kwargs):
-    from research_platform.platform.composition.agent_turn import compose_agent_turn_runtime
+    from noetrium_platform.foundation.kernel.composition.agent_turn import compose_agent_turn_runtime
     capability = kwargs.pop("capability_plugins", None)
     runtime = kwargs.pop("runtime_plugins", None)
     resolver = CompositeParticipantResolver(agents, capability, runtime)
@@ -274,7 +274,7 @@ def frozen_binding(
     artifact_digest: str = "",
 ):
     import hashlib
-    from research_platform.participant.core.api.contracts import ParticipantImplementationIdentity, ParticipantRuntimeBinding
+    from noetrium_platform.capabilities.participant.core.api.contracts import ParticipantImplementationIdentity, ParticipantRuntimeBinding
     resolved_artifact = artifact_digest or hashlib.sha256(
         f"{kind}:{participant_id}:{implementation_version}:{abi_version}:{schema_version}".encode()
     ).hexdigest()
@@ -314,7 +314,7 @@ def context_action_runtime_bindings(
 
 
 def _frozen_participant_manifest_digests(participant_bindings):
-    from research_platform.participant.core.api.frozen_manifests import (
+    from noetrium_platform.capabilities.participant.core.api.frozen_manifests import (
         ParticipantImplementationInventory,
         ParticipantRuntimeBindingManifest,
         ParticipantRuntimeInventory,
@@ -347,16 +347,16 @@ def frozen_runtime_manifest(
     seed_identity: str = "seed",
     composition_plans=None,
 ):
-    from research_platform.experimentation.identity import (
+    from noetrium_platform.research.experimentation.identity import (
         OptionalIdentityFacet,
         ReplayLevel,
         RunResearchSemanticsReference,
     )
-    from research_platform.experimentation.run.manifest.api import (
+    from noetrium_platform.research.experimentation.run.manifest.api import (
         CompositionPlanReference,
         RunLaunchManifest,
     )
-    from research_platform.runtime.session.api import process_environment_digest
+    from noetrium_platform.infrastructure.lifecycle.session.api import process_environment_digest
 
     bindings = context_action_runtime_bindings() if participant_bindings is None else tuple(participant_bindings)
     implementation_inventory_digest, runtime_inventory_digest, binding_manifest_digest = _frozen_participant_manifest_digests(bindings)
@@ -437,8 +437,8 @@ def run_launch_manifest(
 def default_method_composition_ports():
     """Build test method ports through the same explicit system boundary as production."""
 
-    from research_platform.participant.method.composition import compose_default_method_system
-    from research_platform.platform.composition.platform_meta import build_in_memory_platform_meta
+    from noetrium_platform.capabilities.participant.method.composition import compose_default_method_system
+    from noetrium_platform.foundation.kernel.composition.platform_meta import build_in_memory_platform_meta
 
     meta = build_in_memory_platform_meta()
     return compose_default_method_system(planner=meta.capability_composition).ports
@@ -457,7 +457,7 @@ def repository_architecture_report():
     """
 
     from pathlib import Path
-    from research_platform.governance.release.runtime.manifest import build_release_manifest
+    from noetrium_platform.foundation.governance.release.runtime.manifest import build_release_manifest
 
     root = Path(__file__).resolve().parent
     manifest_digest = build_release_manifest(root).digest()
@@ -466,7 +466,7 @@ def repository_architecture_report():
 
 def _repository_architecture_report_cached(root_text: str, _manifest_digest: str):
     from pathlib import Path
-    from research_platform.governance.architecture import build_architecture_report
+    from noetrium_platform.foundation.governance.architecture import build_architecture_report
 
     return build_architecture_report(Path(root_text))
 

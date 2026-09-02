@@ -10,7 +10,7 @@ The command fails unless the Git worktree is clean. It materializes one exact so
 
 Each installed artifact must:
 
-- import `research_platform.api` from the isolated environment's `site-packages`;
+- import `noetrium_platform.api` from the isolated environment's `site-packages`;
 - expose the installed `research` console script;
 - execute the historical Operator smoke lifecycle `run -> inspect -> stop -> resume -> reconcile -> evidence` successfully;
 - preserve that synthetic smoke state across command processes.
@@ -42,7 +42,7 @@ python scripts/verify_container_image.py "research-platform:$GIT_SHA" \
 
 The image embeds that exact wheel as a read-only provenance artifact. Build-time verification rejects a wheel whose bytes do not match the authority digest. Runtime verification independently checks the revision/wheel/distribution-evidence labels, recomputes the embedded wheel SHA-256, verifies every hashed installed file against the wheel `RECORD`, attests effective UID/GID (not only Docker `Config.User`), requires both to be non-root, and then executes the full historical Operator smoke lifecycle with networking disabled. The container receipt likewise records `npe_verified=false`; this smoke does not satisfy the Section-37 project/reference acceptance contract. The receipt binds the image ID/digest to the exact wheel and distribution evidence.
 
-Changing mutable checkout Platform source after wheel qualification cannot alter the image code because no `research_platform/**` source tree enters the container build context. Modified installed `site-packages`, a forged wheel label, a stale distribution receipt, or effective root execution all fail closed.
+Changing mutable checkout Platform source after wheel qualification cannot alter the image code because no `noetrium_platform/**` source tree enters the container build context. Modified installed `site-packages`, a forged wheel label, a stale distribution receipt, or effective root execution all fail closed.
 
 The container test does not create domain evidence. Minecraft/model/live qualification remains with the owning Roles and their explicitly allocated server windows.
 
@@ -77,8 +77,8 @@ python scripts/verify_npe_cleanroom.py <qualified-wheel-or-sdist> \
   --output npe-clean-room.json
 ```
 
-The verifier creates a fresh virtual environment and workspace, removes ambient `PYTHONPATH/PYTHONHOME`, installs only the supplied artifact, and proves `research_platform.api` resolves inside that verification environment. It then runs the installed `research project create`, `project doctor`, and generated `project test` surfaces. `project test` itself builds and installs the generated downstream package into an isolated temporary install root before executing its contract suite, so checkout/src-only import success cannot satisfy NPE. Machine JSON is parsed from the complete command output; bounded stdout/stderr tails remain diagnostic-only and are never the authority for NPE state. Public-import-boundary readiness is taken from the typed doctor receipt.
+The verifier creates a fresh virtual environment and workspace, removes ambient `PYTHONPATH/PYTHONHOME`, installs only the supplied artifact, and proves `noetrium_platform.api` resolves inside that verification environment. It then runs the installed `research project create`, `project doctor`, and generated `project test` surfaces. `project test` itself builds and installs the generated downstream package into an isolated temporary install root before executing its contract suite, so checkout/src-only import success cannot satisfy NPE. Machine JSON is parsed from the complete command output; bounded stdout/stderr tails remain diagnostic-only and are never the authority for NPE state. Public-import-boundary readiness is taken from the typed doctor receipt.
 
 The receipt schema is `research-platform.npe-clean-room.v2` and records the generated template profile. `npe_verified` remains false unless the complete Section-37/40 acceptance sequence passes. The default installed-artifact path must be `template_profile=author`; it may not fall back to provider-first scaffolding. The verifier requires the installed author template to expose the producer-owned public Research Method Host and typed compiler/binding seam. It must not manufacture an Operator-side compiler or reference lifecycle; runtime execution remains blocked until explicit provider/runtime bindings are supplied.
 
-The current clean-room receipt is intentionally fail-closed while the ROLE02/03/04/05 standard composition and ROLE05 public reference Environment route remain unresolved. ROLE 06 is not `READY_FOR_REVIEW` until one exact installed release produces `npe_verified=true` on Windows and Server2/Linux, including fresh-process lifecycle/recovery/evidence plus the Section-40/41 URE/semantic-convergence acceptance battery. Legacy `research_platform.operator.reference` smoke evidence cannot satisfy that authority.
+The current clean-room receipt is intentionally fail-closed while the ROLE02/03/04/05 standard composition and ROLE05 public reference Environment route remain unresolved. ROLE 06 is not `READY_FOR_REVIEW` until one exact installed release produces `npe_verified=true` on Windows and Server2/Linux, including fresh-process lifecycle/recovery/evidence plus the Section-40/41 URE/semantic-convergence acceptance battery. Legacy `noetrium_platform.product.operator.reference` smoke evidence cannot satisfy that authority.

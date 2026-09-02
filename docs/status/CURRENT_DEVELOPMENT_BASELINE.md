@@ -8,7 +8,7 @@ This document is the current development truth for the generic Noetrium reposito
 
 ## Repository boundary
 
-The reusable package boundary is `research_platform/`. Packaging publishes only `research_platform*`; the upstream must import, test, build, release, and run its generic doctor without any `projects/` tree or project-owned environment/provider package. Approved bundled providers are governed explicitly by the repository-boundary allowlist.
+The reusable package boundary is `noetrium_platform/`. Packaging publishes only `noetrium_platform*`; the upstream must import, test, build, release, and run its generic doctor without any `projects/` tree or project-owned environment/provider package. Approved bundled providers are governed explicitly by the repository-boundary allowlist.
 
 The enforceable split contract is [`../architecture/DOWNSTREAM_PROJECT_REPOSITORY_CONTRACT.md`](../architecture/DOWNSTREAM_PROJECT_REPOSITORY_CONTRACT.md) and `scripts/platform_repository_boundary.py`.
 

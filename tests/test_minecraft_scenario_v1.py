@@ -5,14 +5,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from research_platform.environment.minecraft.api import (
+from noetrium_platform.capabilities.environment.minecraft.api import (
     MinecraftConsoleCommandResult,
     MinecraftScenarioSpec,
     MinecraftScenarioStep,
     minecraft_scenario_from_mapping,
 )
-from research_platform.environment.minecraft.composition import LocalMinecraftExperimentHostFactory
-from research_platform.environment.minecraft.providers import (
+from noetrium_platform.capabilities.environment.minecraft.composition import LocalMinecraftExperimentHostFactory
+from noetrium_platform.capabilities.environment.minecraft.providers import (
     MinecraftScenarioProvisioningError,
     RconMinecraftScenarioProvisioner,
 )

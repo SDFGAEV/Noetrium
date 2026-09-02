@@ -5,13 +5,13 @@ import tempfile
 import unittest
 
 from tests._concurrency_support import telemetry_backend
-from research_platform.platform.kernel import ExecutionContext
-from research_platform.model.serving.api import RecoveryStep
-from research_platform.model.serving.runtime import DurableExactRecoveryRunner
-from research_platform.platform.composition.model_recovery_observability import MetricDurableRecoveryObserver
-from research_platform.model.serving.providers.recovery_storage import FileDurableRecoveryStore
-from research_platform.observability.telemetry.metric.composition import build_default_registry
-from research_platform.observability.telemetry.metric.runtime import TelemetryStore
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
+from noetrium_platform.capabilities.model.serving.api import RecoveryStep
+from noetrium_platform.capabilities.model.serving.runtime import DurableExactRecoveryRunner
+from noetrium_platform.foundation.kernel.composition.model_recovery_observability import MetricDurableRecoveryObserver
+from noetrium_platform.capabilities.model.serving.providers.recovery_storage import FileDurableRecoveryStore
+from noetrium_platform.evidence.observability.telemetry.metric.composition import build_default_registry
+from noetrium_platform.evidence.observability.telemetry.metric.runtime import TelemetryStore
 
 from test_model_os_v11 import ModelOSV11Tests, _RecoveryExecutor
 

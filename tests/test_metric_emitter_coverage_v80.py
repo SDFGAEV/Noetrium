@@ -4,8 +4,8 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from research_platform.observability.telemetry.metric.composition import build_default_registry
-from research_platform.observability.telemetry.metric.runtime import MetricEmitterCoverageAudit
+from noetrium_platform.evidence.observability.telemetry.metric.composition import build_default_registry
+from noetrium_platform.evidence.observability.telemetry.metric.runtime import MetricEmitterCoverageAudit
 
 
 REQUIRED=(
@@ -36,7 +36,7 @@ REQUIRED=(
 
 class MetricEmitterCoverageV80Tests(unittest.TestCase):
     def test_required_metrics_have_real_source_emitters_and_are_registered(self):
-        root=Path(__file__).resolve().parents[1]/"research_platform"
+        root=Path(__file__).resolve().parents[1]/"noetrium_platform"
         coverage=MetricEmitterCoverageAudit(root,build_default_registry(),required_metrics=REQUIRED).run()
         self.assertEqual(coverage.errors,())
         self.assertTrue(set(REQUIRED)<=set(coverage.emitted_metrics))

@@ -4,8 +4,8 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from research_platform.environment.minecraft.api import MinecraftObservationEvent
-from research_platform.environment.minecraft.runtime import (
+from noetrium_platform.capabilities.environment.minecraft.api import MinecraftObservationEvent
+from noetrium_platform.capabilities.environment.minecraft.runtime import (
     MinecraftEntityState,
     MinecraftStateProjection,
 )

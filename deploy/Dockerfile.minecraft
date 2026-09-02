@@ -10,7 +10,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     VIRTUAL_ENV=/opt/venv \
     PLATFORM_STATE_DIR=/var/lib/research-platform \
     MC_DATA_DIR=/var/lib/minecraft \
-    MC_BRIDGE_DIR=/opt/research-platform/research_platform/environment/minecraft/providers/assets/mineflayer_bridge \
+    MC_BRIDGE_DIR=/opt/research-platform/noetrium_platform/capabilities/environment/minecraft/providers/assets/mineflayer_bridge \
     PATH=/opt/venv/bin:/usr/local/bin:$PATH
 
 RUN apt-get update \
@@ -27,7 +27,7 @@ RUN cd /tmp \
 
 WORKDIR /opt/research-platform
 COPY pyproject.toml README.md ./
-COPY research_platform ./research_platform
+COPY noetrium_platform ./noetrium_platform
 COPY scripts ./scripts
 COPY deploy ./deploy
 

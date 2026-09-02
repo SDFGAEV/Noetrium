@@ -2,7 +2,7 @@ from dataclasses import replace
 
 import pytest
 
-from research_platform.experimentation.api import (
+from noetrium_platform.research.experimentation.api import (
     ResearchBindingContribution,
     ResearchBindingRequirements,
     ResearchCapabilityBinding,
@@ -13,8 +13,8 @@ from research_platform.experimentation.api import (
     diff_research_plans,
     resolve_research_requirements,
 )
-from research_platform.experimentation.experiment.api import ExperimentTrialProtocolIdentity
-from research_platform.experimentation.study.api import (
+from noetrium_platform.research.experimentation.experiment.api import ExperimentTrialProtocolIdentity
+from noetrium_platform.research.experimentation.study.api import (
     BenchmarkTaskSet,
     FactorLevelSpec,
     MeasurementDefinition,
@@ -27,20 +27,20 @@ from research_platform.experimentation.study.api import (
     TaskSetSplit,
     TrialBudget,
 )
-from research_platform.governance.architecture.api import BindingProof, CompositionSubject
-from research_platform.governance.system_registry.api import SystemIdentity
-from research_platform.participant.api.project import (
+from noetrium_platform.foundation.governance.architecture.api import BindingProof, CompositionSubject
+from noetrium_platform.foundation.governance.system_registry.api import SystemIdentity
+from noetrium_platform.capabilities.participant.api.project import (
     ParticipantProviderProfile,
     ParticipantRequirement,
     ProjectParticipantBinding,
 )
-from research_platform.participant.core.api.contracts import (
+from noetrium_platform.capabilities.participant.core.api.contracts import (
     ParticipantImplementationIdentity,
     ParticipantRuntimeBinding,
     ParticipantSessionRuntimeIdentity,
 )
-from research_platform.platform.kernel import Sha256Digest, canonical_digest
-from research_platform.portfolio.api import (
+from noetrium_platform.foundation.kernel.kernel import Sha256Digest, canonical_digest
+from noetrium_platform.foundation.portfolio.api import (
     ProjectCapabilityRequirement,
     ProjectIdentity,
     ProjectManifest,
@@ -343,11 +343,11 @@ def test_exactly_one_trial_requirement_rejects_multiple_proofs() -> None:
         )
 
 def test_non_generation_model_binding_is_proof_backed_without_fake_prompt() -> None:
-    from research_platform.experimentation.api import ResearchModelBinding
-    from research_platform.model.api.project import (
+    from noetrium_platform.research.experimentation.api import ResearchModelBinding
+    from noetrium_platform.capabilities.model.api.project import (
         ModelCapabilityRequirement, ModelProviderProfile, ProjectModelBinding,
     )
-    from research_platform.platform.kernel import ImmutableModelIdentity
+    from noetrium_platform.foundation.kernel.kernel import ImmutableModelIdentity
 
     base = _definition()
     definition = replace(

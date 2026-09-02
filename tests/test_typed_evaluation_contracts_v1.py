@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from research_platform.experimentation.evaluation.api import (
+from noetrium_platform.research.experimentation.evaluation.api import (
     BranchReceipt,
     ComparabilityProof,
     PairedEvaluationResult,

@@ -4,27 +4,27 @@ from dataclasses import dataclass
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 
-from research_platform.platform.kernel import canonical_digest
-from research_platform.platform.concurrency.api import TaskGroupPort
-from research_platform.platform.composition.concurrency import build_execution_concurrency_runtime
-from research_platform.platform.composition.platform_meta import build_in_memory_platform_meta
-from research_platform.runtime.host.composition import compose_local_host
-from research_platform.runtime.server.composition import (
+from noetrium_platform.foundation.kernel.kernel import canonical_digest
+from noetrium_platform.foundation.kernel.concurrency.api import TaskGroupPort
+from noetrium_platform.foundation.kernel.composition.concurrency import build_execution_concurrency_runtime
+from noetrium_platform.foundation.kernel.composition.platform_meta import build_in_memory_platform_meta
+from noetrium_platform.infrastructure.lifecycle.host.composition import compose_local_host
+from noetrium_platform.infrastructure.lifecycle.server.composition import (
     ServerManagementComposition,
     compose_environment_server,
     load_server_management_environment,
 )
-from research_platform.runtime.server.health.api import ServerRuntimeHealthSpec
-from research_platform.runtime.server.health.composition import compose_server_runtime_health_spec
-from research_platform.runtime.server.identity.composition import compose_environment_server_identity
-from research_platform.runtime.server.identity.api import ServerProfileCatalog
-from research_platform.runtime.server.identity.providers import (
+from noetrium_platform.infrastructure.lifecycle.server.health.api import ServerRuntimeHealthSpec
+from noetrium_platform.infrastructure.lifecycle.server.health.composition import compose_server_runtime_health_spec
+from noetrium_platform.infrastructure.lifecycle.server.identity.composition import compose_environment_server_identity
+from noetrium_platform.infrastructure.lifecycle.server.identity.api import ServerProfileCatalog
+from noetrium_platform.infrastructure.lifecycle.server.identity.providers import (
     build_server_profile_catalog,
 )
-from research_platform.runtime.server.lifecycle.composition import compose_ssh_server_session_control
-from research_platform.runtime.session.api import PersistentSessionSpec
-from research_platform.runtime.session.api import PersistentSessionControlPort
-from research_platform.runtime.session.runtime import (
+from noetrium_platform.infrastructure.lifecycle.server.lifecycle.composition import compose_ssh_server_session_control
+from noetrium_platform.infrastructure.lifecycle.session.api import PersistentSessionSpec
+from noetrium_platform.infrastructure.lifecycle.session.api import PersistentSessionControlPort
+from noetrium_platform.infrastructure.lifecycle.session.runtime import (
     BoundPersistentSessionStatusProbe,
     DirectoryPersistentSessionBindingStore,
     PersistentSessionManager,

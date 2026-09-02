@@ -5,8 +5,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from research_platform.reliability.recovery.api.lease import RecoveryLeaseBusy
-from research_platform.reliability.recovery.providers.lease_store import RecoveryLeaseStore
+from noetrium_platform.infrastructure.reliability.recovery.api.lease import RecoveryLeaseBusy
+from noetrium_platform.infrastructure.reliability.recovery.providers.lease_store import RecoveryLeaseStore
 
 
 def _lease_worker(path: str, owner: str, start, results) -> None:

@@ -21,17 +21,17 @@ if __name__ == "__main__":
         raise SystemExit(1)
     print("README_I18N_RELEASE_GATE_PASS")
 
-from research_platform.execution.admission.api import AdmissionBudget
+from noetrium_platform.research.execution.admission.api import AdmissionBudget
 
-from research_platform.governance.release.api import ReleaseRegressionEvidence
-from research_platform.governance.release.runtime.evidence import RELEASE_EVIDENCE_FILENAME
-from research_platform.governance.release.runtime.authority import publish_release_authority
-from research_platform.governance.release.runtime.freeze_lock import ReleaseFreezeBusy, ReleaseFreezeLock
-from research_platform.governance.release.runtime.generation import ReleaseEvidenceCoordinator
-from research_platform.governance.release.runtime.regression_state import default_regression_state_path
-from research_platform.platform.composition.release_quality import ReleaseQualityEvidenceProvider
-from research_platform.platform.concurrency.api import ConcurrencyBudget, TaskGroupPort
-from research_platform.platform.composition.concurrency import build_execution_concurrency_runtime
+from noetrium_platform.foundation.governance.release.api import ReleaseRegressionEvidence
+from noetrium_platform.foundation.governance.release.runtime.evidence import RELEASE_EVIDENCE_FILENAME
+from noetrium_platform.foundation.governance.release.runtime.authority import publish_release_authority
+from noetrium_platform.foundation.governance.release.runtime.freeze_lock import ReleaseFreezeBusy, ReleaseFreezeLock
+from noetrium_platform.foundation.governance.release.runtime.generation import ReleaseEvidenceCoordinator
+from noetrium_platform.foundation.governance.release.runtime.regression_state import default_regression_state_path
+from noetrium_platform.foundation.kernel.composition.release_quality import ReleaseQualityEvidenceProvider
+from noetrium_platform.foundation.kernel.concurrency.api import ConcurrencyBudget, TaskGroupPort
+from noetrium_platform.foundation.kernel.composition.concurrency import build_execution_concurrency_runtime
 from release_regression import run_release_regression
 
 

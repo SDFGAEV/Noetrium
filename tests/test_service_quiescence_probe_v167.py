@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from research_platform.runtime.service.api import ServiceLaunchContract, ServiceProcessIdentity
+from noetrium_platform.infrastructure.lifecycle.service.api import ServiceLaunchContract, ServiceProcessIdentity
 from service_os_test_support import make_service_supervisor
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from research_platform.runtime.service.runtime.state_storage import FileServiceStateStore
-from research_platform.runtime.service.runtime import (
+from noetrium_platform.infrastructure.lifecycle.service.runtime.state_storage import FileServiceStateStore
+from noetrium_platform.infrastructure.lifecycle.service.runtime import (
     ExactServiceQuiescenceProbe,
     ExactServiceSupervisor,
     ServicePhase,

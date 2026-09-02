@@ -6,23 +6,23 @@ import time
 
 import pytest
 
-from research_platform.environment.minecraft.api import (
+from noetrium_platform.capabilities.environment.minecraft.api import (
     MinecraftConsoleCommandResult,
     MinecraftRconEndpoint,
     MinecraftServerSpec,
 )
-from research_platform.environment.minecraft.providers.rcon import (
+from noetrium_platform.capabilities.environment.minecraft.providers.rcon import (
     MinecraftRconConsole,
     MinecraftRconError,
 )
-from research_platform.environment.minecraft.providers.world_cut import (
+from noetrium_platform.capabilities.environment.minecraft.providers.world_cut import (
     FilesystemMinecraftWorldCutProvider,
 )
-from research_platform.environment.minecraft.providers.world_quiescence import (
+from noetrium_platform.capabilities.environment.minecraft.providers.world_quiescence import (
     MinecraftSaveQuiescenceProvider,
     MinecraftWorldQuiescenceError,
 )
-from research_platform.environment.minecraft.providers.server_files import (
+from noetrium_platform.capabilities.environment.minecraft.providers.server_files import (
     MinecraftServerPreparationError,
     prepare_server_files,
 )

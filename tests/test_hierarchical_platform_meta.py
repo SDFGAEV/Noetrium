@@ -1,11 +1,11 @@
 from dataclasses import replace
 import pytest
 
-from research_platform.experimentation.catalog.runtime import InMemoryExperimentationCatalog
-from research_platform.experimentation.experiment.api import ExperimentSpec
-from research_platform.experimentation.run.identity.api import RunIdentity
-from research_platform.experimentation.study import StudySpec
-from research_platform.portfolio.api import (
+from noetrium_platform.research.experimentation.catalog.runtime import InMemoryExperimentationCatalog
+from noetrium_platform.research.experimentation.experiment.api import ExperimentSpec
+from noetrium_platform.research.experimentation.run.identity.api import RunIdentity
+from noetrium_platform.research.experimentation.study import StudySpec
+from noetrium_platform.foundation.portfolio.api import (
     ProgramSpec,
     ProjectCapabilityRequirement,
     ProjectConfigurationReference,
@@ -24,16 +24,16 @@ from research_platform.portfolio.api import (
     encode_project_manifest,
     project_manifest_document,
 )
-from research_platform.portfolio.runtime import InMemoryPortfolioCatalog
-from research_platform.environment.catalog.api import (
+from noetrium_platform.foundation.portfolio.runtime import InMemoryPortfolioCatalog
+from noetrium_platform.capabilities.environment.catalog.api import (
     EnvironmentAssignment,
     EnvironmentOverlay,
     EnvironmentSpec,
     ExecutionEnvironmentKind,
 )
-from research_platform.environment.catalog.runtime import ExecutionEnvironmentCatalog
-from research_platform.scope.api import ScopeIdentity, ScopeKind
-from research_platform.scope.runtime import InMemoryScopeRegistry
+from noetrium_platform.capabilities.environment.catalog.runtime import ExecutionEnvironmentCatalog
+from noetrium_platform.foundation.scope.api import ScopeIdentity, ScopeKind
+from noetrium_platform.foundation.scope.runtime import InMemoryScopeRegistry
 
 
 EXAMPLE_TEMPLATE_REVISION = "research-project-template.v1"
@@ -154,8 +154,8 @@ def _project_manifest_fixture() -> ProjectManifest:
 
 
 def test_project_manifest_is_strict_canonical_digest_bound_and_single_authority() -> None:
-    from research_platform.portfolio.project.api import ProjectIdentity as LeafProjectIdentity
-    from research_platform.portfolio.project.api import ProjectManifest as LeafProjectManifest
+    from noetrium_platform.foundation.portfolio.project.api import ProjectIdentity as LeafProjectIdentity
+    from noetrium_platform.foundation.portfolio.project.api import ProjectManifest as LeafProjectManifest
 
     manifest = _project_manifest_fixture()
     raw = encode_project_manifest(manifest)

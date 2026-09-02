@@ -32,21 +32,21 @@ if sys.version_info < (3, 11):
     raise SystemExit(2)
 
 from scripts.server_common import compose_script_server, server_cli_concurrency_scope
-from research_platform.platform.kernel.errors import describe_exception
-from research_platform.experimentation.run.manifest.runtime import load_run_launch_manifest
-from research_platform.governance.release.runtime.active_pin_store import ActiveReleasePinStore
-from research_platform.runtime.host.bootstrap.runtime import (
+from noetrium_platform.foundation.kernel.kernel.errors import describe_exception
+from noetrium_platform.research.experimentation.run.manifest.runtime import load_run_launch_manifest
+from noetrium_platform.foundation.governance.release.runtime.active_pin_store import ActiveReleasePinStore
+from noetrium_platform.infrastructure.lifecycle.host.bootstrap.runtime import (
     DirectoryServerBootstrapStateStore,
     ServerBootstrapTransaction,
 )
-from research_platform.runtime.server.lifecycle.api import ServerReleaseLayout
-from research_platform.runtime.server.lifecycle.composition import (
+from noetrium_platform.infrastructure.lifecycle.server.lifecycle.api import ServerReleaseLayout
+from noetrium_platform.infrastructure.lifecycle.server.lifecycle.composition import (
     compose_ssh_server_release_directory,
     compose_ssh_server_session_control,
 )
-from research_platform.runtime.server.lifecycle.runtime import ServerRuntimeBootstrap
-from research_platform.runtime.session.api import ServerSessionPolicy
-from research_platform.runtime.session.runtime import (
+from noetrium_platform.infrastructure.lifecycle.server.lifecycle.runtime import ServerRuntimeBootstrap
+from noetrium_platform.infrastructure.lifecycle.session.api import ServerSessionPolicy
+from noetrium_platform.infrastructure.lifecycle.session.runtime import (
     DirectoryPersistentSessionBindingStore,
     PersistentSessionManager,
     RuntimePersistentSessionHost,

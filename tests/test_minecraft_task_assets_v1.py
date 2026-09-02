@@ -1,7 +1,7 @@
 import unittest
 
-from research_platform.environment.minecraft.runtime import MinecraftTaskKind, MinecraftTaskSpec, score_blueprint
-from research_platform.participant.agent.runtime import AgentCoordinationHub, AgentConversationManager, ConversationKind
+from noetrium_platform.capabilities.environment.minecraft.runtime import MinecraftTaskKind, MinecraftTaskSpec, score_blueprint
+from noetrium_platform.capabilities.participant.agent.runtime import AgentCoordinationHub, AgentConversationManager, ConversationKind
 
 
 class MinecraftTaskAssetsV1Tests(unittest.TestCase):

@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from research_platform.runtime.service.api import ServiceLaunchContract, ServiceProcessIdentity
+from noetrium_platform.infrastructure.lifecycle.service.api import ServiceLaunchContract, ServiceProcessIdentity
 import hashlib
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from research_platform.platform.concurrency.api import TaskFailurePolicy
-from research_platform.platform.concurrency.composition import build_concurrency_runtime
+from noetrium_platform.foundation.kernel.concurrency.api import TaskFailurePolicy
+from noetrium_platform.foundation.kernel.concurrency.composition import build_concurrency_runtime
 
-from research_platform.runtime.service.runtime import (
+from noetrium_platform.infrastructure.lifecycle.service.runtime import (
     DirectoryCapturePathProvider,
     LocalServiceProcessAdapter,
     PreparedServiceStartReconcileResult,
@@ -18,7 +18,7 @@ from research_platform.runtime.service.runtime import (
     ServiceStartRecoveryHandle,
     StaticServiceEnvironmentProvider,
 )
-from research_platform.runtime.service.runtime.environment import MaterializedServiceEnvironment
+from noetrium_platform.infrastructure.lifecycle.service.runtime.environment import MaterializedServiceEnvironment
 
 
 def h(v: str) -> str:

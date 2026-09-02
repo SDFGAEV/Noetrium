@@ -5,10 +5,10 @@ import threading
 import unittest
 from unittest import mock
 
-from research_platform.platform.kernel import ExecutionContext
-from research_platform.platform.kernel.durability import InterprocessLockBusy
-from research_platform.observability.capture.api import RawObservationCorruptionError
-from research_platform.observability.capture.providers.segment_pool import RawSegmentPool
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
+from noetrium_platform.foundation.kernel.kernel.durability import InterprocessLockBusy
+from noetrium_platform.evidence.observability.capture.api import RawObservationCorruptionError
+from noetrium_platform.evidence.observability.capture.providers.segment_pool import RawSegmentPool
 from tests._concurrency_support import raw_observation_lake
 
 
@@ -58,7 +58,7 @@ class RawLakeV50Tests(unittest.TestCase):
                 return Candidate()
 
             with mock.patch(
-                "research_platform.observability.capture.providers.segment_pool.RawSegmentWriter",
+                "noetrium_platform.evidence.observability.capture.providers.segment_pool.RawSegmentWriter",
                 side_effect=construct,
             ):
                 with self.assertRaisesRegex(RuntimeError, "raw segment pool is closed") as caught:

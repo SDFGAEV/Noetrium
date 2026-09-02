@@ -1,11 +1,11 @@
-from research_platform.execution.workflow.api import (
+from noetrium_platform.research.execution.workflow.api import (
     WorkflowGraph,
     WorkflowGraphError,
     WorkflowProgress,
     WorkflowRunId,
     WorkflowStep,
 )
-from research_platform.execution.workflow.runtime import workflow_graph_digest
+from noetrium_platform.research.execution.workflow.runtime import workflow_graph_digest
 
 
 def test_workflow_graph_is_explicit_and_deterministic():

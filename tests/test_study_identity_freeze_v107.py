@@ -3,16 +3,16 @@ from tests_support import context_action_spec, runtime_identity_for_test
 import hashlib
 import unittest
 
-from research_platform.environment.runtime.api import action_request_digest, EnvironmentIdentity, Observation, ActionResult
-from research_platform.platform.kernel import EffectReceipt, EffectClass, EffectCertainty
-from research_platform.participant.method.api import MethodIdentity, MethodSnapshot, RecallResult
-from research_platform.participant.binding.runtime.configuration import ParticipantConfigurationCatalog
-from research_platform.participant.core.api.contracts import ParticipantConfigurationArtifact, ParticipantImplementationIdentity
-from research_platform.participant.definition.runtime.catalog import ParticipantImplementationCatalog
-from research_platform.participant.binding.runtime import LocalParticipantResolver
-from research_platform.participant.session.runtime.runtime_catalog import ParticipantSessionRuntimeCatalog
-from research_platform.participant.session.runtime.runtime_endpoint import LocalParticipantRuntimeEndpoint
-from research_platform.platform.composition.context_action import compose_context_action_runtime
+from noetrium_platform.capabilities.environment.runtime.api import action_request_digest, EnvironmentIdentity, Observation, ActionResult
+from noetrium_platform.foundation.kernel.kernel import EffectReceipt, EffectClass, EffectCertainty
+from noetrium_platform.capabilities.participant.method.api import MethodIdentity, MethodSnapshot, RecallResult
+from noetrium_platform.capabilities.participant.binding.runtime.configuration import ParticipantConfigurationCatalog
+from noetrium_platform.capabilities.participant.core.api.contracts import ParticipantConfigurationArtifact, ParticipantImplementationIdentity
+from noetrium_platform.capabilities.participant.definition.runtime.catalog import ParticipantImplementationCatalog
+from noetrium_platform.capabilities.participant.binding.runtime import LocalParticipantResolver
+from noetrium_platform.capabilities.participant.session.runtime.runtime_catalog import ParticipantSessionRuntimeCatalog
+from noetrium_platform.capabilities.participant.session.runtime.runtime_endpoint import LocalParticipantRuntimeEndpoint
+from noetrium_platform.foundation.kernel.composition.context_action import compose_context_action_runtime
 
 
 class MSession:

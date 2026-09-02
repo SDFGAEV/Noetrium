@@ -3,11 +3,11 @@ from pathlib import Path
 
 import pytest
 
-import research_platform.model.qualification.providers.qualification_host_probe as host_module
-from research_platform.model.qualification.providers.qualification_accelerator_probe import AcceleratorFactsProbe
-from research_platform.model.qualification.providers.qualification_host_probe import HostFactsProbe
-from research_platform.model.qualification.providers.qualification_model_artifact_probe import ModelArtifactProbe
-from research_platform.model.qualification.providers.qualification_python_facts_probe import PythonFactsProbe
+import noetrium_platform.capabilities.model.qualification.providers.qualification_host_probe as host_module
+from noetrium_platform.capabilities.model.qualification.providers.qualification_accelerator_probe import AcceleratorFactsProbe
+from noetrium_platform.capabilities.model.qualification.providers.qualification_host_probe import HostFactsProbe
+from noetrium_platform.capabilities.model.qualification.providers.qualification_model_artifact_probe import ModelArtifactProbe
+from noetrium_platform.capabilities.model.qualification.providers.qualification_python_facts_probe import PythonFactsProbe
 
 
 def test_host_probe_captures_resource_values_without_controller(monkeypatch) -> None:
@@ -67,7 +67,7 @@ def test_accelerator_probe_captures_cuda_and_gpu_facts() -> None:
 
 
 def test_accelerator_probe_parses_extended_gpu_row() -> None:
-    from research_platform.model.qualification.api import DeploymentQualificationRequest, PythonRuntimeFacts
+    from noetrium_platform.capabilities.model.qualification.api import DeploymentQualificationRequest, PythonRuntimeFacts
 
     def run(argv, timeout):
         del timeout
@@ -94,9 +94,9 @@ def test_accelerator_probe_parses_extended_gpu_row() -> None:
 
 def test_local_capability_probe_composes_split_fact_probes(tmp_path) -> None:
     import json
-    from research_platform.model.qualification.api import DeploymentQualificationRequest
-    from research_platform.model.qualification.providers.qualification_probe import LocalDeploymentCapabilityProbe
-    from research_platform.platform.kernel.process import LocalCommandResult
+    from noetrium_platform.capabilities.model.qualification.api import DeploymentQualificationRequest
+    from noetrium_platform.capabilities.model.qualification.providers.qualification_probe import LocalDeploymentCapabilityProbe
+    from noetrium_platform.foundation.kernel.kernel.process import LocalCommandResult
 
     model_path = tmp_path / "model"
     model_path.mkdir()
@@ -132,7 +132,7 @@ def _capture_model_artifact(tmp_path: Path, payload: object):
     model_path = tmp_path / "strict-model"
     model_path.mkdir()
     (model_path / "config.json").write_text(json.dumps(payload), encoding="utf-8")
-    from research_platform.model.qualification.api import DeploymentQualificationRequest
+    from noetrium_platform.capabilities.model.qualification.api import DeploymentQualificationRequest
 
     request = DeploymentQualificationRequest(
         "strict-model",

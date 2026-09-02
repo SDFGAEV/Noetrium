@@ -6,18 +6,18 @@ from pathlib import Path
 import pytest
 from tempfile import TemporaryDirectory
 
-from research_platform.governance.algorithm.api import AlgorithmLanguage, SourceDocument
-from research_platform.governance.api import (
+from noetrium_platform.foundation.governance.algorithm.api import AlgorithmLanguage, SourceDocument
+from noetrium_platform.foundation.governance.api import (
     RepositorySourceFailureKind,
     RepositorySourceIncompleteError,
 )
-from research_platform.governance.algorithm.providers import (
+from noetrium_platform.foundation.governance.algorithm.providers import (
     FilesystemAlgorithmSnapshotStore,
     FilesystemFileAnalysisCache,
     RepositorySourceInventory,
 )
-from research_platform.governance.providers import RepositorySourceTree
-from research_platform.governance.algorithm.runtime import (
+from noetrium_platform.foundation.governance.providers import RepositorySourceTree
+from noetrium_platform.foundation.governance.algorithm.runtime import (
     AlgorithmGovernanceService,
     AlgorithmScanner,
     JavaScriptAlgorithmAnalyzer,
@@ -37,17 +37,17 @@ def test_role01_capability_composition_hotspots_preserve_reviewed_complexity() -
     analyzer = PythonAlgorithmAnalyzer()
     cases = (
         (
-            "research_platform/governance/architecture/api/capability_composition.py",
+            "noetrium_platform/foundation/governance/architecture/api/capability_composition.py",
             "interface_contract_digest",
             "O(N log N)",
         ),
         (
-            "research_platform/governance/architecture/runtime/capability_composition.py",
+            "noetrium_platform/foundation/governance/architecture/runtime/capability_composition.py",
             "CapabilityCompositionPlanner._index_offers",
             "O(N)",
         ),
         (
-            "research_platform/governance/architecture/runtime/capability_composition.py",
+            "noetrium_platform/foundation/governance/architecture/runtime/capability_composition.py",
             "CapabilityCompositionPlanner._candidates",
             "O(N)",
         ),
@@ -385,14 +385,14 @@ def test_repository_source_snapshot_is_explicit_and_frozen() -> None:
 
 
 def test_governance_builders_accept_one_shared_source_snapshot() -> None:
-    from research_platform.governance.algorithm.composition import build_algorithm_governance
-    from research_platform.governance.concurrency.composition import build_concurrency_governance
-    from research_platform.governance.performance.composition import build_performance_governance
+    from noetrium_platform.foundation.governance.algorithm.composition import build_algorithm_governance
+    from noetrium_platform.foundation.governance.concurrency.composition import build_concurrency_governance
+    from noetrium_platform.foundation.governance.performance.composition import build_performance_governance
 
     with TemporaryDirectory() as td:
         root = Path(td)
-        (root / "research_platform").mkdir()
-        (root / "research_platform" / "x.py").write_text("def f():\n    return 1\n", encoding="utf-8")
+        (root / "noetrium_platform").mkdir()
+        (root / "noetrium_platform" / "x.py").write_text("def f():\n    return 1\n", encoding="utf-8")
         snapshot = RepositorySourceTree(root).snapshot()
         algorithm = build_algorithm_governance(
             root, state_root=root / ".state-algorithm", source_inventory=snapshot
@@ -432,7 +432,7 @@ def test_repository_source_tree_reports_typed_utf8_failure(tmp_path: Path) -> No
 def test_repository_source_tree_fails_closed_on_directory_walk_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import research_platform.governance.providers.repository_source as source_provider
+    import noetrium_platform.foundation.governance.providers.repository_source as source_provider
 
     blocked = tmp_path / "blocked"
     def failing_walk(_root, *, topdown, onerror):
@@ -451,7 +451,7 @@ def test_repository_source_tree_fails_closed_on_directory_walk_error(
 def test_repository_source_tree_reports_typed_file_read_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import research_platform.governance.providers.repository_source as source_provider
+    import noetrium_platform.foundation.governance.providers.repository_source as source_provider
 
     target = tmp_path / "denied.py"
     target.write_text("VALUE = 1\n", encoding="utf-8")
@@ -497,7 +497,7 @@ def test_python_analyzer_reuses_canonical_source_index_ast(
     index = RepositorySourceTree(tmp_path).index(suffixes={".py"})
     document = next(iter(RepositorySourceInventory(index).documents()))
 
-    import research_platform.governance.algorithm.runtime.python_analyzer as analyzer_module
+    import noetrium_platform.foundation.governance.algorithm.runtime.python_analyzer as analyzer_module
     monkeypatch.setattr(
         analyzer_module.ast,
         "parse",

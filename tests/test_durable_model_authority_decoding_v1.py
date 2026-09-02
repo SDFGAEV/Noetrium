@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from research_platform.model.qualification.api import (
+from noetrium_platform.capabilities.model.qualification.api import (
     DeploymentQualificationApplicationReceipt,
     DeploymentQualificationRuntimeReceipt,
     DeploymentRuntimeQualificationStatus,
@@ -14,18 +14,18 @@ from research_platform.model.qualification.api import (
     QualificationMaterializationStatus,
     RuntimeCheckReceipt,
 )
-from research_platform.model.qualification.providers.qualification_application import (
+from noetrium_platform.capabilities.model.qualification.providers.qualification_application import (
     FileDeploymentQualificationApplicationStore,
     QualificationApplicationIntegrityError,
 )
-from research_platform.model.qualification.providers.qualification_runtime import (
+from noetrium_platform.capabilities.model.qualification.providers.qualification_runtime import (
     FileDeploymentQualificationRuntimeStore,
     QualificationRuntimeIntegrityError,
 )
-from research_platform.model.request.api import ContentRef, ModelRequestEnvelope
-from research_platform.model.request.runtime.ledger import DirectoryModelRequestLedger
-from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity
-from research_platform.platform.kernel.durability import (
+from noetrium_platform.capabilities.model.request.api import ContentRef, ModelRequestEnvelope
+from noetrium_platform.capabilities.model.request.runtime.ledger import DirectoryModelRequestLedger
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext, ImmutableModelIdentity
+from noetrium_platform.foundation.kernel.kernel.durability import (
     decode_checksummed_document,
     encode_checksummed_document,
 )

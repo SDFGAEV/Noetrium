@@ -5,12 +5,12 @@ import math
 
 import pytest
 
-from research_platform.experimentation.checkpoint.runtime.workload_progress import (
+from noetrium_platform.research.experimentation.checkpoint.runtime.workload_progress import (
     WorkloadProgressCheckpointComponent,
     WorkloadProgressIntegrityError,
 )
-from research_platform.experimentation.workload.api import WorkloadCompletionReceipt, WorkloadTaskResult
-from research_platform.participant.method.api import MethodTaskCompletionReceipt
+from noetrium_platform.research.experimentation.workload.api import WorkloadCompletionReceipt, WorkloadTaskResult
+from noetrium_platform.capabilities.participant.method.api import MethodTaskCompletionReceipt
 
 
 def _result() -> WorkloadTaskResult:

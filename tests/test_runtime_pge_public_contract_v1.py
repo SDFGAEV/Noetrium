@@ -5,16 +5,16 @@ from dataclasses import fields
 import inspect
 from pathlib import Path
 
-from research_platform.resource.allocation.api import (
+from noetrium_platform.infrastructure.resources.allocation.api import (
     EndpointAllocationPort,
     EndpointAllocationRequest,
 )
-from research_platform.resource.compute.api import ComputeRequirement
-from research_platform.runtime.process.supervision.api import (
+from noetrium_platform.infrastructure.resources.compute.api import ComputeRequirement
+from noetrium_platform.infrastructure.lifecycle.process.supervision.api import (
     ProcessCommandRunnerPort,
     ProcessSupervisorPort,
 )
-from research_platform.runtime.service.api import (
+from noetrium_platform.infrastructure.lifecycle.service.api import (
     ExactServiceRuntimePort,
     ServiceLaunchContract,
     ServiceProcessIdentity,
@@ -23,7 +23,7 @@ from research_platform.runtime.service.api import (
     ServiceStartOutcome,
     ServiceStopOutcome,
 )
-from research_platform.scope.api import PLATFORM_SCOPE
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE
 
 
 _DIGEST = "a" * 64
@@ -130,7 +130,7 @@ def test_pge_reference_consumer_uses_public_api_modules_only() -> None:
         node.module for node in ast.walk(tree)
         if isinstance(node, ast.ImportFrom)
         and node.module is not None
-        and node.module.startswith("research_platform.")
+        and node.module.startswith("noetrium_platform.")
     )
     assert imports
     assert all(".api" in module for module in imports)

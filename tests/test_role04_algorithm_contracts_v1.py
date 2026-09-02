@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from research_platform.model.qualification.api import (
+from noetrium_platform.capabilities.model.qualification.api import (
     DeploymentQualificationApplicationReceipt,
     DeploymentQualificationRuntimeReceipt,
     DeploymentRuntimeQualificationStatus,
@@ -11,10 +11,10 @@ from research_platform.model.qualification.api import (
     QualificationMaterializationStatus,
     RuntimeCheckReceipt,
 )
-from research_platform.model.serving.endpoint.api import QualifiedModelEndpointBinding
-from research_platform.participant.agent.api.cognition import AgentObservation
-from research_platform.participant.agent.runtime.conversation import ConversationMessage
-from research_platform.platform.kernel import ImmutableModelIdentity
+from noetrium_platform.capabilities.model.serving.endpoint.api import QualifiedModelEndpointBinding
+from noetrium_platform.capabilities.participant.agent.api.cognition import AgentObservation
+from noetrium_platform.capabilities.participant.agent.runtime.conversation import ConversationMessage
+from noetrium_platform.foundation.kernel.kernel import ImmutableModelIdentity
 
 
 _SHA = "a" * 64

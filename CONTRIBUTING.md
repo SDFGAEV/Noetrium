@@ -14,7 +14,7 @@ Noetrium values changes that are explicit about ownership, semantics, evidence, 
 ## Development setup
 
 ```bash
-git clone https://github.com/SDFGAEV/noetrium.git
+git clone https://github.com/Xalzeroph/noetrium.git
 cd noetrium
 python -m venv .venv
 source .venv/bin/activate

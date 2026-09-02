@@ -2,7 +2,7 @@
 
 The common product boundary is intentionally small:
 
-- Python: `research_platform.api`
+- Python: `noetrium_platform.api`
 - CLI: `research`
 - lifecycle intents: `run`, `inspect`, `stop`, `resume`, `reconcile`, `evidence`
 - existing forensic tools: `research diagnose ...`
@@ -15,7 +15,7 @@ There is deliberately no ambient service locator and no implicit default product
 ## Python
 
 ```python
-from research_platform.api import ResearchFacade
+from noetrium_platform.api import ResearchFacade
 
 facade = ResearchFacade(my_application)
 result = facade.inspect("run-123")
@@ -35,7 +35,7 @@ research --application my_project.operator:build_application evidence run-123
 
 Factories receive the optional `--application-config` path. Downstream projects use that hook to compose their own ROLE 03/04/05 bindings without exposing internal topology to users.
 
-The bundled `research_platform.operator.reference` application exists only to qualify the facade, persistence and installed distribution lifecycle. It is deterministic and checksummed, but it is **not** a substitute for a production run/effect authority and its `reconcile` action does not certify external effect certainty.
+The bundled `noetrium_platform.product.operator.reference` application exists only to qualify the facade, persistence and installed distribution lifecycle. It is deterministic and checksummed, but it is **not** a substitute for a production run/effect authority and its `reconcile` action does not certify external effect certainty.
 
 ## Failure rules
 
@@ -55,7 +55,7 @@ This closes `CSR-06-GENERIC-RUN-LIFECYCLE-OPERATOR-HANDOFF-20260829`: ROLE06 own
 
 ## ROLE 03 run-control binding
 
-`research_platform.operator.composition.bind_run_control_application(...)` is the canonical ROLE 06 adapter for the ROLE 03 `RunControlPort`. The adapter is a translation boundary only: ROLE 03 remains the authority for run identity, manifest identity, lifecycle phase, checkpoint identity, reconciliation and evidence. ROLE 06 does not persist a second run-state projection.
+`noetrium_platform.product.operator.composition.bind_run_control_application(...)` is the canonical ROLE 06 adapter for the ROLE 03 `RunControlPort`. The adapter is a translation boundary only: ROLE 03 remains the authority for run identity, manifest identity, lifecycle phase, checkpoint identity, reconciliation and evidence. ROLE 06 does not persist a second run-state projection.
 
 The binding requires one explicit `run_id`, its exact `run_manifest_digest`, and an injected `RunControlPort`. Payloads are intentionally exact and generation-fenced:
 
@@ -92,7 +92,7 @@ The provider loader derives the package identity from the canonical manifest and
 
 ## NPE reference authority
 
-The historical `research_platform.operator.reference` workload remains a narrow CLI/distribution smoke fixture only. It persists its own synthetic phase/generation/event state and therefore is **not** Section-37 New Project Experience lifecycle evidence.
+The historical `noetrium_platform.product.operator.reference` workload remains a narrow CLI/distribution smoke fixture only. It persists its own synthetic phase/generation/event state and therefore is **not** Section-37 New Project Experience lifecycle evidence.
 
 Claim-grade NPE reference acceptance must instead compose producer-owned contracts: ROLE03 `RunControlPort`/checkpoint/evidence authority, ROLE05 public Environment provider/session authority, and ROLE02 typed runtime/resource/recovery facts where required. ROLE06 may translate those receipts but may not manufacture replacement lifecycle, effect, checkpoint, environment or evidence truth.
 

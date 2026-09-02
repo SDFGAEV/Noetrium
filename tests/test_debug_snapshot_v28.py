@@ -5,16 +5,16 @@ from pathlib import Path
 import pytest
 
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
-from research_platform.reliability.forensics.runtime.diagnostic_adapter import ForensicDiagnosticEvidence
-from research_platform.platform.kernel import ExecutionContext
-from research_platform.reliability.failure.api import RecoveryAction, RiskLevel
-from research_platform.reliability.failure.api import build_failure
-from research_platform.reliability.forensics.api.mutation import MutationRecord
-from research_platform.reliability.diagnostics.runtime import DebugSnapshotService, FailureDiagnosisService
-from research_platform.observability.telemetry.metric.composition import build_default_registry, build_telemetry_sqlite_backend
-from research_platform.platform.concurrency.composition import build_concurrency_runtime
-from research_platform.observability.telemetry.metric.runtime import TelemetryStore
-from research_platform.observability.telemetry.metric.providers import SQLiteTelemetryReader
+from noetrium_platform.infrastructure.reliability.forensics.runtime.diagnostic_adapter import ForensicDiagnosticEvidence
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
+from noetrium_platform.infrastructure.reliability.failure.api import RecoveryAction, RiskLevel
+from noetrium_platform.infrastructure.reliability.failure.api import build_failure
+from noetrium_platform.infrastructure.reliability.forensics.api.mutation import MutationRecord
+from noetrium_platform.infrastructure.reliability.diagnostics.runtime import DebugSnapshotService, FailureDiagnosisService
+from noetrium_platform.evidence.observability.telemetry.metric.composition import build_default_registry, build_telemetry_sqlite_backend
+from noetrium_platform.foundation.kernel.concurrency.composition import build_concurrency_runtime
+from noetrium_platform.evidence.observability.telemetry.metric.runtime import TelemetryStore
+from noetrium_platform.evidence.observability.telemetry.metric.providers import SQLiteTelemetryReader
 
 
 def _ctx():

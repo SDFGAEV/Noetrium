@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from research_platform.runtime.server.identity.providers import (
+from noetrium_platform.infrastructure.lifecycle.server.identity.providers import (
     ServerProfileFileError,
     load_server_profile_environment,
 )
@@ -59,8 +59,8 @@ def test_profile_file_rejects_ambiguous_or_unsafe_records(tmp_path: Path, conten
 
 
 def test_connection_profile_materializes_control_path_and_persist_seconds(tmp_path: Path) -> None:
-    from research_platform.runtime.host.providers import LocalOperatingSystemRoute
-    from research_platform.runtime.server.identity.providers import EnvironmentSSHServerConnectionFactory
+    from noetrium_platform.infrastructure.lifecycle.host.providers import LocalOperatingSystemRoute
+    from noetrium_platform.infrastructure.lifecycle.server.identity.providers import EnvironmentSSHServerConnectionFactory
 
     control_path = (Path(Path.cwd().anchor) / "rp-ssh-%C").resolve()
     profile = EnvironmentSSHServerConnectionFactory(LocalOperatingSystemRoute()).from_environment(
@@ -78,9 +78,9 @@ def test_connection_profile_materializes_control_path_and_persist_seconds(tmp_pa
 
 
 def test_connection_profile_rejects_an_oversized_control_socket_template(tmp_path: Path) -> None:
-    from research_platform.runtime.host.providers import LocalOperatingSystemRoute
-    from research_platform.runtime.server.identity.api import ServerIdentityConfigurationError
-    from research_platform.runtime.server.identity.providers import EnvironmentSSHServerConnectionFactory
+    from noetrium_platform.infrastructure.lifecycle.host.providers import LocalOperatingSystemRoute
+    from noetrium_platform.infrastructure.lifecycle.server.identity.api import ServerIdentityConfigurationError
+    from noetrium_platform.infrastructure.lifecycle.server.identity.providers import EnvironmentSSHServerConnectionFactory
 
     with pytest.raises(ServerIdentityConfigurationError, match="108"):
         EnvironmentSSHServerConnectionFactory(LocalOperatingSystemRoute()).from_environment(
@@ -95,9 +95,9 @@ def test_connection_profile_rejects_an_oversized_control_socket_template(tmp_pat
 
 
 def test_connection_profile_rejects_relative_local_identity_paths(tmp_path: Path) -> None:
-    from research_platform.runtime.host.providers import LocalOperatingSystemRoute
-    from research_platform.runtime.server.identity.api import ServerIdentityConfigurationError
-    from research_platform.runtime.server.identity.providers import EnvironmentSSHServerConnectionFactory
+    from noetrium_platform.infrastructure.lifecycle.host.providers import LocalOperatingSystemRoute
+    from noetrium_platform.infrastructure.lifecycle.server.identity.api import ServerIdentityConfigurationError
+    from noetrium_platform.infrastructure.lifecycle.server.identity.providers import EnvironmentSSHServerConnectionFactory
 
     with pytest.raises(ServerIdentityConfigurationError, match="absolute local path"):
         EnvironmentSSHServerConnectionFactory(LocalOperatingSystemRoute()).from_environment(
@@ -112,9 +112,9 @@ def test_connection_profile_rejects_relative_local_identity_paths(tmp_path: Path
 
 
 def test_connection_profile_rejects_missing_local_ssh_config_before_network() -> None:
-    from research_platform.runtime.host.providers import LocalOperatingSystemRoute
-    from research_platform.runtime.server.identity.api import ServerIdentityConfigurationError
-    from research_platform.runtime.server.identity.providers import EnvironmentSSHServerConnectionFactory
+    from noetrium_platform.infrastructure.lifecycle.host.providers import LocalOperatingSystemRoute
+    from noetrium_platform.infrastructure.lifecycle.server.identity.api import ServerIdentityConfigurationError
+    from noetrium_platform.infrastructure.lifecycle.server.identity.providers import EnvironmentSSHServerConnectionFactory
 
     with pytest.raises(ServerIdentityConfigurationError, match="readable regular local file"):
         EnvironmentSSHServerConnectionFactory(LocalOperatingSystemRoute()).from_environment(

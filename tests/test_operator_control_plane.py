@@ -3,18 +3,18 @@ import tempfile
 import unittest
 
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
-from research_platform.reliability.failure.api import RecoveryAction
+from noetrium_platform.infrastructure.reliability.failure.api import RecoveryAction
 
-from research_platform.observability.api import EventEnvelope
-from research_platform.reliability.forensics.runtime.diagnostic_adapter import ForensicDiagnosticEvidence
-from research_platform.reliability.forensics.api import MutationRecord
-from research_platform.reliability.failure.api import build_failure
-from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity
-from research_platform.model.serving.api import ModelPhase, ModelRunState
-from research_platform.model.serving.runtime import RecoveryPlanner, ExactRecoveryCoordinator, RecoveryExecutionError
-from research_platform.reliability.diagnostics.runtime import EvidenceVerifier, FailureDiagnosisService
-from research_platform.reliability.diagnostics.runtime.status_projection import ForensicStatusProbe
-from research_platform.observability.status.runtime import PlatformStatusService
+from noetrium_platform.evidence.observability.api import EventEnvelope
+from noetrium_platform.infrastructure.reliability.forensics.runtime.diagnostic_adapter import ForensicDiagnosticEvidence
+from noetrium_platform.infrastructure.reliability.forensics.api import MutationRecord
+from noetrium_platform.infrastructure.reliability.failure.api import build_failure
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext, ImmutableModelIdentity
+from noetrium_platform.capabilities.model.serving.api import ModelPhase, ModelRunState
+from noetrium_platform.capabilities.model.serving.runtime import RecoveryPlanner, ExactRecoveryCoordinator, RecoveryExecutionError
+from noetrium_platform.infrastructure.reliability.diagnostics.runtime import EvidenceVerifier, FailureDiagnosisService
+from noetrium_platform.infrastructure.reliability.diagnostics.runtime.status_projection import ForensicStatusProbe
+from noetrium_platform.evidence.observability.status.runtime import PlatformStatusService
 
 
 class _Executor:

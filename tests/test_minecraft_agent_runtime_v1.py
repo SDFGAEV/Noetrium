@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from research_platform.environment.minecraft.composition import (
+from noetrium_platform.capabilities.environment.minecraft.composition import (
     MinecraftBlueprintBlock,
     MinecraftBlueprintBuilder,
     MinecraftCognitionRunner,
@@ -10,8 +10,8 @@ from research_platform.environment.minecraft.composition import (
     MinecraftResourcePlanner,
     MinecraftAgentSkillCatalog,
 )
-from research_platform.environment.runtime.api import ActionResult, Observation, action_request_digest
-from research_platform.participant.agent.api import (
+from noetrium_platform.capabilities.environment.runtime.api import ActionResult, Observation, action_request_digest
+from noetrium_platform.capabilities.participant.agent.api import (
     AgentEvidencePort,
     AgentGoal,
     AgentPlannerPort,
@@ -19,7 +19,7 @@ from research_platform.participant.agent.api import (
     AgentProgressPort,
     AgentSkillSelection,
 )
-from research_platform.platform.kernel import EffectCertainty, EffectClass, EffectReceipt, ExecutionContext
+from noetrium_platform.foundation.kernel.kernel import EffectCertainty, EffectClass, EffectReceipt, ExecutionContext
 
 
 class _Session:

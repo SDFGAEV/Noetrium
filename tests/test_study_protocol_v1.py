@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from research_platform.experimentation.study.api import (
+from noetrium_platform.research.experimentation.study.api import (
     StudyConcurrencyPolicy,
     StudyAssignment,
     StudyMetricAggregate,
@@ -10,7 +10,7 @@ from research_platform.experimentation.study.api import (
     VariantExecutionReceipt,
     VariantKind,
 )
-from research_platform.experimentation.study.runtime import BasicStudyMetricAggregator, DeterministicStudyAssignment
+from noetrium_platform.research.experimentation.study.runtime import BasicStudyMetricAggregator, DeterministicStudyAssignment
 import pytest
 
 

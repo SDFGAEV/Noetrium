@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from research_platform.environment.minecraft.api import MinecraftObservationEvent
-from research_platform.environment.minecraft.runtime.event_views import minecraft_events_payload
+from noetrium_platform.capabilities.environment.minecraft.api import MinecraftObservationEvent
+from noetrium_platform.capabilities.environment.minecraft.runtime.event_views import minecraft_events_payload
 
 
 def test_event_view_preserves_stable_json_shape_and_order() -> None:

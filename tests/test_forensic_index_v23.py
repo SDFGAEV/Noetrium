@@ -4,10 +4,10 @@ import tempfile
 import unittest
 
 from tests._concurrency_support import OwnedForensicStore as ForensicStore, owned_task_group
-from research_platform.observability.api import EventEnvelope
-from research_platform.reliability.forensics.composition import inspect_index_freshness, rebuild_forensic_index
-from research_platform.reliability.forensics.providers import ForensicWriterBusy
-from research_platform.platform.kernel import ExecutionContext
+from noetrium_platform.evidence.observability.api import EventEnvelope
+from noetrium_platform.infrastructure.reliability.forensics.composition import inspect_index_freshness, rebuild_forensic_index
+from noetrium_platform.infrastructure.reliability.forensics.providers import ForensicWriterBusy
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
 
 class ForensicIndexV23Tests(unittest.TestCase):
     def ctx(self): return ExecutionContext('r','t','s')

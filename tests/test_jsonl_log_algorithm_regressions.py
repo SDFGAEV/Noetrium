@@ -5,17 +5,17 @@ from pathlib import Path
 
 import pytest
 
-from research_platform.observability.logging.context.api import DiagnosticAddress
-from research_platform.observability.logging.record.api import LogLevel, LogRecord
-import research_platform.observability.logging.storage.runtime.jsonl as jsonl_runtime
-from research_platform.observability.logging.storage.runtime.jsonl import (
+from noetrium_platform.evidence.observability.logging.context.api import DiagnosticAddress
+from noetrium_platform.evidence.observability.logging.record.api import LogLevel, LogRecord
+import noetrium_platform.evidence.observability.logging.storage.runtime.jsonl as jsonl_runtime
+from noetrium_platform.evidence.observability.logging.storage.runtime.jsonl import (
     JsonlLogCorruptionError,
     JsonlLogStore as RuntimeJsonlLogStore,
 )
 from tests._concurrency_support import jsonl_log_store as JsonlLogStore
-from research_platform.observability.logging.storage.composition import build_jsonl_log_store
-from research_platform.platform.concurrency.composition import build_concurrency_runtime
-from research_platform.scope.api import PLATFORM_SCOPE
+from noetrium_platform.evidence.observability.logging.storage.composition import build_jsonl_log_store
+from noetrium_platform.foundation.kernel.concurrency.composition import build_concurrency_runtime
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE
 
 
 def _record(index: int) -> LogRecord:
@@ -31,8 +31,8 @@ def _record(index: int) -> LogRecord:
 
 
 def test_jsonl_store_uses_structural_logging_ports_without_nominal_bases() -> None:
-    from research_platform.observability.logging.query.api import LogQueryPort
-    from research_platform.observability.logging.sink.api import LogSinkPort
+    from noetrium_platform.evidence.observability.logging.query.api import LogQueryPort
+    from noetrium_platform.evidence.observability.logging.sink.api import LogSinkPort
 
     assert LogQueryPort not in RuntimeJsonlLogStore.__mro__
     assert LogSinkPort not in RuntimeJsonlLogStore.__mro__

@@ -5,13 +5,13 @@ from threading import Barrier
 
 import pytest
 
-from research_platform.execution.command.api import CommandConflict, CommandCorruption, CommandId, ExecutionCommand
-from research_platform.execution.command.providers import SQLiteCommandStore
-from research_platform.execution.operation.api import OperationConflict, OperationCorruption, OperationId
-from research_platform.execution.operation.providers import SQLiteOperationStore
-from research_platform.execution.operation.runtime import OperationOwner
-from research_platform.execution.workflow.api import WorkflowProgress, WorkflowProgressConflict, WorkflowProgressCorruption, WorkflowRunId
-from research_platform.execution.workflow.providers import SQLiteWorkflowProgressStore
+from noetrium_platform.research.execution.command.api import CommandConflict, CommandCorruption, CommandId, ExecutionCommand
+from noetrium_platform.research.execution.command.providers import SQLiteCommandStore
+from noetrium_platform.research.execution.operation.api import OperationConflict, OperationCorruption, OperationId
+from noetrium_platform.research.execution.operation.providers import SQLiteOperationStore
+from noetrium_platform.research.execution.operation.runtime import OperationOwner
+from noetrium_platform.research.execution.workflow.api import WorkflowProgress, WorkflowProgressConflict, WorkflowProgressCorruption, WorkflowRunId
+from noetrium_platform.research.execution.workflow.providers import SQLiteWorkflowProgressStore
 
 class TrackingConnection(sqlite3.Connection):
     tracker: dict[str, object]

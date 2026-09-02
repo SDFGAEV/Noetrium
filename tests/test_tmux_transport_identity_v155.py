@@ -7,16 +7,16 @@ import hashlib
 from tempfile import TemporaryDirectory
 import unittest
 
-from research_platform.runtime.server.lifecycle.runtime import ImmutableServerReleaseLayout, ServerRuntimeBootstrap, ServerSessionPolicyMismatch
-from research_platform.governance.release.runtime.active_pin_store import ActiveReleasePinStore
-from research_platform.runtime.host.bootstrap.runtime import DirectoryServerBootstrapStateStore, ServerBootstrapTransaction
-from research_platform.runtime.session.api import PersistentSessionEffectUncertain, PersistentSessionSpec, ServerSessionPolicy
-from research_platform.runtime.session.runtime import (
+from noetrium_platform.infrastructure.lifecycle.server.lifecycle.runtime import ImmutableServerReleaseLayout, ServerRuntimeBootstrap, ServerSessionPolicyMismatch
+from noetrium_platform.foundation.governance.release.runtime.active_pin_store import ActiveReleasePinStore
+from noetrium_platform.infrastructure.lifecycle.host.bootstrap.runtime import DirectoryServerBootstrapStateStore, ServerBootstrapTransaction
+from noetrium_platform.infrastructure.lifecycle.session.api import PersistentSessionEffectUncertain, PersistentSessionSpec, ServerSessionPolicy
+from noetrium_platform.infrastructure.lifecycle.session.runtime import (
     BoundPersistentSessionStatusProbe, DirectoryPersistentSessionBindingStore,
     PersistentSessionManager, TmuxPersistentSessionControl, TmuxBinaryIdentityMismatch, TmuxCommandFailed, TmuxCommandResult,
     RuntimePersistentSessionHost,
 )
-from research_platform.runtime.session.runtime.tmux_contracts import TmuxCommandTimeout
+from noetrium_platform.infrastructure.lifecycle.session.runtime.tmux_contracts import TmuxCommandTimeout
 
 TEST_TMUX_EXECUTABLE = "/definitely/missing/tmux"
 

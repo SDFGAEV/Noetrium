@@ -4,9 +4,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from research_platform.runtime.session.api import RuntimeControllerCommand
-from research_platform.runtime.session.api import PersistentSessionSpec
-from research_platform.runtime.session.api import PersistentSessionSpec
+from noetrium_platform.infrastructure.lifecycle.session.api import RuntimeControllerCommand
+from noetrium_platform.infrastructure.lifecycle.session.api import PersistentSessionSpec
+from noetrium_platform.infrastructure.lifecycle.session.api import PersistentSessionSpec
 
 
 class ControllerLauncherIdentityTests(unittest.TestCase):

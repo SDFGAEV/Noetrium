@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from components.agent import (
+from components.single_agent.agent import (
     AgentAction,
     AgentActionKind,
     AgentDecision,
@@ -9,14 +9,14 @@ from components.agent import (
     ReActAgent,
     RegistryAgentToolPort,
 )
-from components.memory import MemoryItem, VectorMemoryStore, WorkingMemory
-from components.multi_agent import (
+from components.single_agent.memory import MemoryItem, VectorMemoryStore, WorkingMemory
+from components.orchestration.multi_agent import (
     CommunicationEdge,
     CommunicationTopology,
     MultiAgentCoordinator,
     MultiAgentMessage,
 )
-from components.tools import ToolArguments, ToolDefinition, ToolRegistry, ToolResult
+from components.single_agent.tools import ToolArguments, ToolDefinition, ToolRegistry, ToolResult
 
 
 class _Policy:
@@ -86,7 +86,7 @@ def test_multi_agent_layer_delivers_only_over_declared_topology() -> None:
 def test_component_stress_retrieval_and_tool_calls_remain_bounded() -> None:
     from concurrent.futures import ThreadPoolExecutor
     from time import perf_counter
-    from components.memory import EpisodicMemoryStore
+    from components.single_agent.memory import EpisodicMemoryStore
 
     started = perf_counter()
     episodes = EpisodicMemoryStore()

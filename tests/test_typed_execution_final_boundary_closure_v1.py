@@ -2,16 +2,16 @@ import math
 
 import pytest
 
-from research_platform.execution.admission.api import (
+from noetrium_platform.research.execution.admission.api import (
     AdmissionBudget,
     AdmissionIdentity,
     AdmissionIntent,
     AdmissionMode,
 )
-from research_platform.execution.admission.runtime import HierarchicalAdmissionAuthority
-from research_platform.execution.runtime.manager import RunLaunchIdentity
-from research_platform.execution.scheduling.api import ExecutionPriority, SchedulingCandidate
-from research_platform.execution.scheduling.runtime import FairPrioritySchedulingPolicy
+from noetrium_platform.research.execution.admission.runtime import HierarchicalAdmissionAuthority
+from noetrium_platform.research.execution.runtime.manager import RunLaunchIdentity
+from noetrium_platform.research.execution.scheduling.api import ExecutionPriority, SchedulingCandidate
+from noetrium_platform.research.execution.scheduling.runtime import FairPrioritySchedulingPolicy
 
 
 def test_admission_budget_rejects_numeric_coercion():
@@ -81,7 +81,7 @@ def test_run_launch_identity_canonicalizes_sha256_and_rejects_non_text():
 
 
 def test_decision_cycle_identity_is_canonical_and_random_ids_keep_full_entropy():
-    from research_platform.execution.decision.cycle_identity import (
+    from noetrium_platform.research.execution.decision.cycle_identity import (
         DecisionCycleIdentity,
         RandomDecisionCycleIdentityProvider,
     )

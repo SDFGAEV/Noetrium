@@ -10,11 +10,11 @@ import tempfile
 import unittest
 
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
-from research_platform.platform.composition.operation_forensics import OperationForensicFailureSink
-from research_platform.platform.composition.context_action import context_action_failure_classifier_chain
-from research_platform.platform.kernel import OperationExecutor, OperationFailure
-from research_platform.experimentation.experiment.runtime import ExperimentRuntime
-from research_platform.experimentation.experiment.api import ExperimentSpec
+from noetrium_platform.foundation.kernel.composition.operation_forensics import OperationForensicFailureSink
+from noetrium_platform.foundation.kernel.composition.context_action import context_action_failure_classifier_chain
+from noetrium_platform.foundation.kernel.kernel import OperationExecutor, OperationFailure
+from noetrium_platform.research.experimentation.experiment.runtime import ExperimentRuntime
+from noetrium_platform.research.experimentation.experiment.api import ExperimentSpec
 
 
 class BrokenFactory:

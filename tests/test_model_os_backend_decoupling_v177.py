@@ -4,10 +4,10 @@ from contextlib import nullcontext
 from dataclasses import dataclass
 import unittest
 
-from research_platform.platform.kernel import ImmutableModelIdentity
-from research_platform.model.serving.api import ModelPhase, ModelRunState, RecoveryPlan, RecoveryStep
-from research_platform.model.serving.runtime import DurableExactRecoveryRunner, ModelSupervisor
-from research_platform.model.serving.api.recovery_state import DurableRecoveryAttempt
+from noetrium_platform.foundation.kernel.kernel import ImmutableModelIdentity
+from noetrium_platform.capabilities.model.serving.api import ModelPhase, ModelRunState, RecoveryPlan, RecoveryStep
+from noetrium_platform.capabilities.model.serving.runtime import DurableExactRecoveryRunner, ModelSupervisor
+from noetrium_platform.capabilities.model.serving.api.recovery_state import DurableRecoveryAttempt
 
 
 class MemoryRecoveryStore:

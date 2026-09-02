@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 import unittest
 
-from research_platform.participant.method.api import MethodIdentity, MethodRuntimeIdentity
-from research_platform.participant.method.runtime import MethodRuntimeEndpoint
+from noetrium_platform.capabilities.participant.method.api import MethodIdentity, MethodRuntimeIdentity
+from noetrium_platform.capabilities.participant.method.runtime import MethodRuntimeEndpoint
 from tests_support import context_action_runtime_bindings, frozen_runtime_manifest, run_launch_manifest
 
 

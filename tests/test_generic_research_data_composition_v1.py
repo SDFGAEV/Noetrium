@@ -4,20 +4,20 @@ import hashlib
 
 import pytest
 
-from research_platform.artifact.catalog.api import ArtifactKind, ArtifactRecord
-from research_platform.artifact.catalog.runtime import InMemoryArtifactRegistry
-from research_platform.artifact.content.api import ArtifactStorageVerificationError
-from research_platform.artifact.content.composition import (
+from noetrium_platform.evidence.artifact.catalog.api import ArtifactKind, ArtifactRecord
+from noetrium_platform.evidence.artifact.catalog.runtime import InMemoryArtifactRegistry
+from noetrium_platform.evidence.artifact.content.api import ArtifactStorageVerificationError
+from noetrium_platform.evidence.artifact.content.composition import (
     compose_filesystem_artifact_storage_bindings,
 )
-from research_platform.data.dataset.api import DatasetIdentity, DatasetVersion
-from research_platform.data.dataset.runtime import InMemoryDatasetRegistry
-from research_platform.data.query.api import ResearchResultKind, ResearchResultQuery
-from research_platform.data.query.cross.composition import (
+from noetrium_platform.evidence.data.dataset.api import DatasetIdentity, DatasetVersion
+from noetrium_platform.evidence.data.dataset.runtime import InMemoryDatasetRegistry
+from noetrium_platform.evidence.data.query.api import ResearchResultKind, ResearchResultQuery
+from noetrium_platform.evidence.data.query.cross.composition import (
     compose_builtin_research_result_query,
 )
-from research_platform.scope.api import PLATFORM_SCOPE
-from research_platform.scope.runtime import InMemoryScopeRegistry
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE
+from noetrium_platform.foundation.scope.runtime import InMemoryScopeRegistry
 
 
 def _sha(payload: bytes) -> str:

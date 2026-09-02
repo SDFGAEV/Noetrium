@@ -38,7 +38,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[test]"
       - name: Compile source
-        run: python -m compileall -q research_platform tests
+        run: python -m compileall -q noetrium_platform tests
       - name: Run full Python test suite
         id: pytest
         run: |

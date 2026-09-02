@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from research_platform.participant.agent.api import (
+from noetrium_platform.capabilities.participant.agent.api import (
     AgentActionSequence,
     AgentActionStep,
     AgentCognitionError,
@@ -15,10 +15,10 @@ from research_platform.participant.agent.api import (
     AgentSkillSelection,
     AgentStepReceipt,
 )
-from research_platform.participant.agent.runtime import AgentCognitionLoop
-from research_platform.participant.agent.runtime.cognition_action import CognitionActionPhase
-from research_platform.participant.agent.runtime.cognition_observation import CognitionObservationPhase
-from research_platform.platform.kernel import ExecutionContext
+from noetrium_platform.capabilities.participant.agent.runtime import AgentCognitionLoop
+from noetrium_platform.capabilities.participant.agent.runtime.cognition_action import CognitionActionPhase
+from noetrium_platform.capabilities.participant.agent.runtime.cognition_observation import CognitionObservationPhase
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
 
 
 _CONTEXT = ExecutionContext("run:1", "trace:1", "span:1")

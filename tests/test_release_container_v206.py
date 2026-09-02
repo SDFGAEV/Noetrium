@@ -44,7 +44,7 @@ def _smoke(*, uid: int = 10001, gid: int = 10001,
            wheel: str = WHEEL_SHA, verified: int = 2557) -> dict:
     return {
         "actions": list(container._ACTIONS),
-        "module_file": "/usr/local/lib/python3.12/site-packages/research_platform/api.py",
+        "module_file": "/usr/local/lib/python3.12/site-packages/noetrium_platform/api.py",
         "package_version": "0.43.1",
         "python_version": "3.12.10",
         "wheel_sha256": wheel,
@@ -65,7 +65,7 @@ def _fake_outputs(inspect_document: list[dict], smoke: dict):
 def test_container_definition_uses_only_prebuilt_distribution_wheel():
     dockerfile = (ROOT / "deploy" / "Dockerfile").read_text(encoding="utf-8")
     assert "COPY *.whl" in dockerfile
-    assert "COPY research_platform " not in dockerfile
+    assert "COPY noetrium_platform " not in dockerfile
     assert "python -m pip wheel" not in dockerfile
     assert "PLATFORM_WHEEL_SHA256" in dockerfile
     assert "PLATFORM_DISTRIBUTION_EVIDENCE_SHA256" in dockerfile
@@ -212,7 +212,7 @@ def test_prepare_context_rejects_distribution_wheel_byte_drift(monkeypatch):
         root = Path(td)
         dist = root / "dist"
         dist.mkdir()
-        wheel = dist / "research_platform-1.0-py3-none-any.whl"
+        wheel = dist / "noetrium_platform-1.0-py3-none-any.whl"
         wheel.write_bytes(b"actual-wheel")
         _write_distribution_evidence(
             dist, wheel, wheel_sha=hashlib.sha256(b"other-wheel").hexdigest(), tree_sha="d" * 64
@@ -229,7 +229,7 @@ def test_prepare_context_uses_exact_git_blobs_not_mutable_checkout(monkeypatch):
         root = Path(td)
         dist = root / "dist"
         dist.mkdir()
-        wheel = dist / "research_platform-1.0-py3-none-any.whl"
+        wheel = dist / "noetrium_platform-1.0-py3-none-any.whl"
         wheel.write_bytes(b"exact-wheel")
         wheel_sha = hashlib.sha256(wheel.read_bytes()).hexdigest()
         evidence_path = _write_distribution_evidence(
@@ -271,7 +271,7 @@ def test_prepare_context_rejects_tampered_distribution_evidence_sidecar(monkeypa
         root = Path(td)
         dist = root / "dist"
         dist.mkdir()
-        wheel = dist / "research_platform-1.0-py3-none-any.whl"
+        wheel = dist / "noetrium_platform-1.0-py3-none-any.whl"
         wheel.write_bytes(b"exact-wheel")
         _write_distribution_evidence(
             dist,
@@ -291,7 +291,7 @@ def test_prepare_context_rejects_tampered_distribution_evidence_sidecar(monkeypa
 def test_prepare_context_rejects_missing_oss_metadata_authority(tmp_path: Path) -> None:
     dist = tmp_path / "dist"
     dist.mkdir()
-    wheel = dist / "research_platform-1.0-py3-none-any.whl"
+    wheel = dist / "noetrium_platform-1.0-py3-none-any.whl"
     wheel.write_bytes(b"exact-wheel")
     evidence_path = _write_distribution_evidence(
         dist,

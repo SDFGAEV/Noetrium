@@ -3,11 +3,11 @@ import time
 
 import pytest
 
-from research_platform.model.serving.runtime import (
+from noetrium_platform.capabilities.model.serving.runtime import (
     ModelAdmissionClosed,
     ModelAdmissionController,
 )
-from research_platform.platform.concurrency.api import TaskCancelled
+from noetrium_platform.foundation.kernel.concurrency.api import TaskCancelled
 
 
 class _Cancellation:

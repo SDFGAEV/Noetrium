@@ -9,9 +9,9 @@ from unittest import mock
 
 import pytest
 
-from research_platform.artifact.catalog.api import ArtifactKind
-from research_platform.artifact.catalog.runtime import InMemoryArtifactRegistry
-from research_platform.artifact.content.api import (
+from noetrium_platform.evidence.artifact.catalog.api import ArtifactKind
+from noetrium_platform.evidence.artifact.catalog.runtime import InMemoryArtifactRegistry
+from noetrium_platform.evidence.artifact.content.api import (
     ArtifactAcquisitionError,
     ArtifactAcquisitionRequest,
     ArtifactAcquisitionResult,
@@ -19,13 +19,13 @@ from research_platform.artifact.content.api import (
     ArtifactStorageBindingCorruptionError,
     ArtifactStorageVerificationError,
 )
-from research_platform.artifact.content.composition import compose_artifact_acquisition
-from research_platform.artifact.content.providers import (
+from noetrium_platform.evidence.artifact.content.composition import compose_artifact_acquisition
+from noetrium_platform.evidence.artifact.content.providers import (
     FilesystemArtifactStoragePlacementVerifier,
     SQLiteArtifactStorageBindingStore,
     download as download_provider,
 )
-from research_platform.scope.api import PLATFORM_SCOPE
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE
 
 
 class _Response:

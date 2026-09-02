@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from research_platform.runtime.server.identity.api import ServerCommandResult, ServerConnectionProfile
-from research_platform.runtime.server.lifecycle.api import ServerReleaseLayout
-from research_platform.runtime.server.lifecycle.providers import SSHServerReleaseDirectory
+from noetrium_platform.infrastructure.lifecycle.server.identity.api import ServerCommandResult, ServerConnectionProfile
+from noetrium_platform.infrastructure.lifecycle.server.lifecycle.api import ServerReleaseLayout
+from noetrium_platform.infrastructure.lifecycle.server.lifecycle.providers import SSHServerReleaseDirectory
 
 
 class FakeConnection:
@@ -36,7 +36,7 @@ def test_remote_release_directory_is_verified_through_observation_port() -> None
 
 
 def test_remote_release_directory_failure_is_fail_closed() -> None:
-    from research_platform.runtime.server.lifecycle.runtime import ServerReleaseLayoutError
+    from noetrium_platform.infrastructure.lifecycle.server.lifecycle.runtime import ServerReleaseLayoutError
 
     provider = SSHServerReleaseDirectory(
         FakeConnection(success=False),

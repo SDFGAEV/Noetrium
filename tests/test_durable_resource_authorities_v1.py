@@ -4,21 +4,21 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
 
-from research_platform.platform.composition.platform_meta import build_durable_platform_meta
-from research_platform.resource.allocation.api import EndpointAllocationRequest, EndpointProbeResult, NetworkEndpoint
-from research_platform.resource.providers import SQLiteEndpointAllocationStore
-from research_platform.resource.allocation.runtime import AtomicEndpointAllocator
-from research_platform.resource.lease.api import (
+from noetrium_platform.foundation.kernel.composition.platform_meta import build_durable_platform_meta
+from noetrium_platform.infrastructure.resources.allocation.api import EndpointAllocationRequest, EndpointProbeResult, NetworkEndpoint
+from noetrium_platform.infrastructure.resources.providers import SQLiteEndpointAllocationStore
+from noetrium_platform.infrastructure.resources.allocation.runtime import AtomicEndpointAllocator
+from noetrium_platform.infrastructure.resources.lease.api import (
     ResourceIdentity,
     ResourceKind,
     ResourceLease,
     ResourceOwner,
     ResourceOwnership,
 )
-from research_platform.resource.providers import SQLiteResourceLeaseRegistry
-from research_platform.resource.lease.runtime import ResourceLeaseConflict
-from research_platform.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
-from research_platform.scope.providers import SQLiteScopeRegistry
+from noetrium_platform.infrastructure.resources.providers import SQLiteResourceLeaseRegistry
+from noetrium_platform.infrastructure.resources.lease.runtime import ResourceLeaseConflict
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
+from noetrium_platform.foundation.scope.providers import SQLiteScopeRegistry
 
 
 class _AvailableProbe:

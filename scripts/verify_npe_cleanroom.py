@@ -236,9 +236,9 @@ def verify_npe_cleanroom(artifact: Path) -> NpeCleanRoomReceipt:
             return _blocked_receipt(artifact, commands=commands, blockers=["ARTIFACT_INSTALL_FAILED"])
 
         metadata_code = (
-            "import importlib.metadata,json,research_platform.api;"
+            "import importlib.metadata,json,noetrium_platform.api;"
             "print(json.dumps({'version':importlib.metadata.version('noetrium'),"
-            "'module_file':research_platform.api.__file__}))"
+            "'module_file':noetrium_platform.api.__file__}))"
         )
         metadata = _run(
             "installed-metadata",

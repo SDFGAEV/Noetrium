@@ -2,19 +2,19 @@ from __future__ import annotations
 
 import pytest
 
-from research_platform.environment.runtime.api import ActionRequest, ActionResult, Observation
-from research_platform.experimentation.experiment.api import ExperimentTaskSpec, FailureScope
-from research_platform.experimentation.workload import (
+from noetrium_platform.capabilities.environment.runtime.api import ActionRequest, ActionResult, Observation
+from noetrium_platform.research.experimentation.experiment.api import ExperimentTaskSpec, FailureScope
+from noetrium_platform.research.experimentation.workload import (
     GenericWorkloadTaskRunner,
     WorkloadDecision,
     WorkloadTaskRunError,
 )
-from research_platform.participant.method.api import (
+from noetrium_platform.capabilities.participant.method.api import (
     MethodTaskCompletionReceipt,
     MethodTaskOutcome,
     RecallResult,
 )
-from research_platform.platform.kernel import ExecutionContext
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
 
 
 class _Method:

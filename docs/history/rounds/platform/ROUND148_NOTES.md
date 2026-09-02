@@ -6,7 +6,7 @@ Date: 2026-08-28
 
 The initial 0.43.0 repository extraction incorrectly treated the reusable Minecraft environment provider as downstream-owned. The project split rule is narrower: benchmark/task/scientific composition is downstream, while a provider that is independently reusable across projects may remain upstream.
 
-Version 0.43.1 restores `research_platform/environment/minecraft`, its active infrastructure docs and provider tests from the preserved pre-split Git state. SEM/project-specific Minecraft composition remains downstream.
+Version 0.43.1 restores `noetrium_platform/capabilities/environment/minecraft`, its active infrastructure docs and provider tests from the preserved pre-split Git state. SEM/project-specific Minecraft composition remains downstream.
 
 ## Packaging and runtime
 

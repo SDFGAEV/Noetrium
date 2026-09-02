@@ -7,10 +7,10 @@ from threading import Event, Thread
 from unittest import mock
 
 from tests._concurrency_support import telemetry_backend
-from research_platform.platform.kernel import ExecutionContext
-from research_platform.observability.telemetry.metric.api import TelemetryMetricCorruptionError
-from research_platform.observability.telemetry.metric.composition import build_default_registry
-from research_platform.observability.telemetry.metric.runtime import TelemetryAudit, TelemetryStore
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
+from noetrium_platform.evidence.observability.telemetry.metric.api import TelemetryMetricCorruptionError
+from noetrium_platform.evidence.observability.telemetry.metric.composition import build_default_registry
+from noetrium_platform.evidence.observability.telemetry.metric.runtime import TelemetryAudit, TelemetryStore
 
 
 class TelemetryStoreTests(unittest.TestCase):

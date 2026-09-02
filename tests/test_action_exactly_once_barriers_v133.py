@@ -8,7 +8,7 @@ from tests_support import participant_component
 from tests_support import environment_effect_intent
 
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
-from research_platform.reliability.effect.api import PreparedEffectHandle
+from noetrium_platform.infrastructure.reliability.effect.api import PreparedEffectHandle
 
 from tests_support import context_action_spec
 
@@ -17,11 +17,11 @@ import tempfile
 
 import pytest
 
-from research_platform.platform.composition.operation_forensics import OperationForensicFailureSink
-from research_platform.platform.composition.context_action import context_action_failure_classifier_chain
-from research_platform.reliability.effect.api import EffectIntent, EffectIntentPhase
-from research_platform.reliability.effect.runtime import InMemoryEffectIntentJournal, SQLiteEffectIntentJournal
-from research_platform.environment.runtime.api import (
+from noetrium_platform.foundation.kernel.composition.operation_forensics import OperationForensicFailureSink
+from noetrium_platform.foundation.kernel.composition.context_action import context_action_failure_classifier_chain
+from noetrium_platform.infrastructure.reliability.effect.api import EffectIntent, EffectIntentPhase
+from noetrium_platform.infrastructure.reliability.effect.runtime import InMemoryEffectIntentJournal, SQLiteEffectIntentJournal
+from noetrium_platform.capabilities.environment.runtime.api import (
     ActionReconciliationDisposition,
     ActionReconciliationResult,
     ActionRequest,
@@ -30,11 +30,11 @@ from research_platform.environment.runtime.api import (
     Observation,
     action_request_digest,
 )
-from research_platform.platform.kernel import ComponentIdentity, EffectCertainty, EffectClass, EffectReceipt, ExecutionContext, OperationExecutor, OperationFailure
-from research_platform.participant.method.api import MethodIdentity, MethodTaskCompletionReceipt, RecallResult, TaskCompletionSafetyCapabilityMissing
-from research_platform.experimentation.experiment.runtime import ExperimentRuntime
-from research_platform.experimentation.experiment.api import ExperimentSpec
-from research_platform.execution.decision import FixedDecisionCycleIdentityProvider, DecisionCycleIdentity
+from noetrium_platform.foundation.kernel.kernel import ComponentIdentity, EffectCertainty, EffectClass, EffectReceipt, ExecutionContext, OperationExecutor, OperationFailure
+from noetrium_platform.capabilities.participant.method.api import MethodIdentity, MethodTaskCompletionReceipt, RecallResult, TaskCompletionSafetyCapabilityMissing
+from noetrium_platform.research.experimentation.experiment.runtime import ExperimentRuntime
+from noetrium_platform.research.experimentation.experiment.api import ExperimentSpec
+from noetrium_platform.research.execution.decision import FixedDecisionCycleIdentityProvider, DecisionCycleIdentity
 
 
 def _effect(request: ActionRequest) -> EffectReceipt:
@@ -245,7 +245,7 @@ def test_sqlite_unresolved_scope_excludes_terminal_rows_and_exact_recovery_inten
         journal.record_result(intent.intent_id, request_digest=intent.request_digest, effect=_effect(request))
         completion = MethodTaskCompletionReceipt("cycle:run:dc", "mg")
         # Convert the method receipt to the journal's cross-component proof.
-        from research_platform.reliability.effect.api import EffectCompletionEvidence
+        from noetrium_platform.infrastructure.reliability.effect.api import EffectCompletionEvidence
         journal.record_consumed(
             intent.intent_id,
             request_digest=intent.request_digest,

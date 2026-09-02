@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from research_platform.model.api import (
+from noetrium_platform.capabilities.model.api import (
     ModelPromotionDecision,
     ModelPromotionDisposition,
     ModelRevisionConflictError,
@@ -21,8 +21,8 @@ from research_platform.model.api import (
     ModelUpdateProposal,
     PreparedModelRevision,
 )
-from research_platform.model.catalog.revision.providers import SQLiteModelRevisionAuthority
-from research_platform.platform.kernel import (
+from noetrium_platform.capabilities.model.catalog.revision.providers import SQLiteModelRevisionAuthority
+from noetrium_platform.foundation.kernel.kernel import (
     CanonicalDecodingError, CanonicalDecodingFailureKind, ImmutableModelIdentity,
 )
 

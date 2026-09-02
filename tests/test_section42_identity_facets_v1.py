@@ -5,15 +5,15 @@ import hashlib
 
 import pytest
 
-from research_platform.artifact.content.api import ArtifactStorageBinding
-from research_platform.artifact.content.providers import FilesystemArtifactStoragePlacementVerifier
-from research_platform.data.dataset.api import DatasetIdentity, DatasetVersion
-from research_platform.experimentation.run.api import RunArtifactKind, RunArtifactSnapshotReceipt
-from research_platform.experimentation.run.manifest.api import EvidenceBundleManifest, EvidenceBundleStatus, EvidenceStreamDescriptor
-from research_platform.scope.api import ScopeIdentity, ScopeKind
+from noetrium_platform.evidence.artifact.content.api import ArtifactStorageBinding
+from noetrium_platform.evidence.artifact.content.providers import FilesystemArtifactStoragePlacementVerifier
+from noetrium_platform.evidence.data.dataset.api import DatasetIdentity, DatasetVersion
+from noetrium_platform.research.experimentation.run.api import RunArtifactKind, RunArtifactSnapshotReceipt
+from noetrium_platform.research.experimentation.run.manifest.api import EvidenceBundleManifest, EvidenceBundleStatus, EvidenceStreamDescriptor
+from noetrium_platform.foundation.scope.api import ScopeIdentity, ScopeKind
 
-from research_platform.experimentation.run.api import ExperimentRunSpec
-from research_platform.experimentation.study.api import (
+from noetrium_platform.research.experimentation.run.api import ExperimentRunSpec
+from noetrium_platform.research.experimentation.study.api import (
     AnalysisDefinition,
     AnalysisResult,
     BenchmarkTaskSet,

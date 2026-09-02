@@ -6,19 +6,19 @@ import json
 
 import pytest
 
-from research_platform.execution.capability.runtime import (
+from noetrium_platform.research.execution.capability.runtime import (
     CapabilityInvocationPipeline,
     ScopedRegistrationRuntime,
 )
-from research_platform.execution.workflow.implementations.agent_turn.capability_operations import (
+from noetrium_platform.research.execution.workflow.implementations.agent_turn.capability_operations import (
     CapabilityOperationAdapter,
 )
-from research_platform.execution.workflow.implementations.agent_turn.capability_routing import (
+from noetrium_platform.research.execution.workflow.implementations.agent_turn.capability_routing import (
     CapabilitySessionBinding,
     StudyCapabilityRouter,
 )
-from research_platform.execution.workflow.runtime import KernelOperationDispatcher
-from research_platform.participant.capability.api import (
+from noetrium_platform.research.execution.workflow.runtime import KernelOperationDispatcher
+from noetrium_platform.capabilities.participant.capability.api import (
     CapabilityDescriptor,
     CapabilityExportSession,
     CapabilityPolicySet,
@@ -31,8 +31,8 @@ from research_platform.participant.capability.api import (
     decode_typed_capability_result,
     make_typed_capability_request,
 )
-from research_platform.participant.capability.providers import FunctionalTypedCapabilityProvider
-from research_platform.platform.kernel import (
+from noetrium_platform.capabilities.participant.capability.providers import FunctionalTypedCapabilityProvider
+from noetrium_platform.foundation.kernel.kernel import (
     ComponentIdentity,
     EffectClass,
     ExecutionContext,
@@ -423,7 +423,7 @@ def test_provider_requires_runtime_participant_generation() -> None:
 
 import multiprocessing
 from pathlib import Path
-from research_platform.participant.capability.api import CapabilityResult
+from noetrium_platform.capabilities.participant.capability.api import CapabilityResult
 
 
 class FileTransport:

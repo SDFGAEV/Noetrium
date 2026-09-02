@@ -3,14 +3,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from research_platform.observability.status.api import HealthState
-from research_platform.observability.status.runtime import (
+from noetrium_platform.evidence.observability.status.api import HealthState
+from noetrium_platform.evidence.observability.status.runtime import (
     InMemoryStatusEventBus,
     JsonStateStatusProbe,
     RecoveryLeaseStatusProbe,
 )
-from research_platform.reliability.recovery.api.lease import RecoveryLease
-from research_platform.reliability.recovery.composition import compose_recovery_lease_status_probe
+from noetrium_platform.infrastructure.reliability.recovery.api.lease import RecoveryLease
+from noetrium_platform.infrastructure.reliability.recovery.composition import compose_recovery_lease_status_probe
 
 
 class Source:

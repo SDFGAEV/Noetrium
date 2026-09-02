@@ -4,7 +4,7 @@ Use the channel that matches the kind of help you need.
 
 ## Questions and design discussion
 
-Use [GitHub Discussions](https://github.com/SDFGAEV/noetrium/discussions) for setup questions, architecture discussion, research integration ideas, and open-ended design topics.
+Use [GitHub Discussions](https://github.com/Xalzeroph/noetrium/discussions) for setup questions, architecture discussion, research integration ideas, and open-ended design topics.
 
 ## Bugs
 

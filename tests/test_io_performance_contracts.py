@@ -6,12 +6,12 @@ import unittest
 from unittest import mock
 
 from tests._concurrency_support import telemetry_backend
-from research_platform.reliability.forensics.providers import HashChainError, HashChainedJSONL
-import research_platform.reliability.forensics.providers.hashlog as hashlog_module
-from research_platform.platform.kernel import ExecutionContext
-from research_platform.observability.telemetry.metric.composition import build_default_registry
-from research_platform.observability.telemetry.metric.runtime import TelemetryBatchRecorder, TelemetryStore
-from research_platform.observability.telemetry.metric.providers.sqlite_schema import initialize_telemetry_schema
+from noetrium_platform.infrastructure.reliability.forensics.providers import HashChainError, HashChainedJSONL
+import noetrium_platform.infrastructure.reliability.forensics.providers.hashlog as hashlog_module
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
+from noetrium_platform.evidence.observability.telemetry.metric.composition import build_default_registry
+from noetrium_platform.evidence.observability.telemetry.metric.runtime import TelemetryBatchRecorder, TelemetryStore
+from noetrium_platform.evidence.observability.telemetry.metric.providers.sqlite_schema import initialize_telemetry_schema
 
 
 class IOPerformanceContractTests(unittest.TestCase):

@@ -5,18 +5,18 @@ import time
 import unittest
 import hashlib
 
-from research_platform.platform.kernel import ImmutableModelIdentity
-from research_platform.model.serving.api import (
+from noetrium_platform.foundation.kernel.kernel import ImmutableModelIdentity
+from noetrium_platform.capabilities.model.serving.api import (
     DeploymentPlacement, ModelPhase, ModelRunState,
     QualificationCertificate, QualifiedDeploymentManifest, RecoveryStep,
     ResourceEnvelope, RoleModelAssignment, RoleModelManifest,
 )
-from research_platform.model.stack import ModelArtifactClosure, ModelStackSpec, RuntimeBuildIdentity
-from research_platform.model.serving.runtime import (
+from noetrium_platform.capabilities.model.stack import ModelArtifactClosure, ModelStackSpec, RuntimeBuildIdentity
+from noetrium_platform.capabilities.model.serving.runtime import (
     DurableExactRecoveryRunner, ModelAdmissionController, ModelAdmissionTimeout, RecoveryPlanner,
 )
 
-from research_platform.model.serving.providers.recovery_storage import FileDurableRecoveryStore
+from noetrium_platform.capabilities.model.serving.providers.recovery_storage import FileDurableRecoveryStore
 
 
 def stack_parts():

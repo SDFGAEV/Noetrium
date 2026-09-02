@@ -7,14 +7,14 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from research_platform.participant.core.api.contracts import ParticipantImplementationIdentity
-from research_platform.participant.core.api.frozen_manifests import ParticipantImplementationInventory, ParticipantRuntimeBindingManifest, ParticipantRuntimeInventory
-from research_platform.model.request.prompt.runtime import DurablePromptRegistry, PromptPromotionEvidence
-from research_platform.model.request.prompt.runtime import default_block_policies, default_output_schemas, default_prompt_specs
-from research_platform.model.request.prompt.runtime.qualification import PromptQualification
-from research_platform.governance.release.runtime.manifest import build_release_manifest
-from research_platform.governance.release.runtime.verification import SourceTreeReleaseEvidenceReader
-from research_platform.execution.runtime.manager import (
+from noetrium_platform.capabilities.participant.core.api.contracts import ParticipantImplementationIdentity
+from noetrium_platform.capabilities.participant.core.api.frozen_manifests import ParticipantImplementationInventory, ParticipantRuntimeBindingManifest, ParticipantRuntimeInventory
+from noetrium_platform.capabilities.model.request.prompt.runtime import DurablePromptRegistry, PromptPromotionEvidence
+from noetrium_platform.capabilities.model.request.prompt.runtime import default_block_policies, default_output_schemas, default_prompt_specs
+from noetrium_platform.capabilities.model.request.prompt.runtime.qualification import PromptQualification
+from noetrium_platform.foundation.governance.release.runtime.manifest import build_release_manifest
+from noetrium_platform.foundation.governance.release.runtime.verification import SourceTreeReleaseEvidenceReader
+from noetrium_platform.research.execution.runtime.manager import (
     ActivePromptPromotionVerifier,
     FrozenParticipantBindingVerificationPort,
     FrozenParticipantImplementationVerificationPort,

@@ -114,7 +114,7 @@ flowchart LR
 
 每份 durable state 只有一个 owner；不确定的外部 effect 在 reconciliation 证明之前保持 `UNKNOWN`。
 
-`research_platform/governance/system_registry/catalog.json`
+`noetrium_platform/foundation/governance/system_registry/catalog.json`
 
 <!-- readme-section:downstream -->
 
@@ -149,7 +149,7 @@ noetrium
 ### 1. Clone 并安装
 
 ```bash
-git clone https://github.com/SDFGAEV/noetrium.git
+git clone https://github.com/Xalzeroph/noetrium.git
 cd noetrium
 python -m venv .venv
 source .venv/bin/activate
@@ -182,7 +182,7 @@ research-platform-architecture-gate
 python scripts/check_readme_i18n.py
 ```
 
-Python distribution metadata 名为 `noetrium`；当前 import namespace 仍为 `research_platform`，产品 identity 与 runtime contract 独立演进。
+Python distribution metadata 名为 `noetrium`；当前 import namespace 仍为 `noetrium_platform`，产品 identity 与 runtime contract 独立演进。
 
 <!-- readme-section:containers -->
 
@@ -216,16 +216,16 @@ docker compose -f deploy/compose.yaml -f deploy/compose.minecraft.yaml run --rm 
 
 | Path | Responsibility |
 | --- | --- |
-| `research_platform/` | 可复用平台实现与公共系统边界 |
+| `noetrium_platform/` | 可复用平台实现与公共系统边界 |
 | `configs/` | 版本化配置示例与非机密模板 |
 | `deploy/` | 容器镜像、Compose runtime 与部署引导资产 |
 | `docs/` | 架构、基础设施、治理、状态与历史文档 |
 | `scripts/` | 轻量 operator、audit、release 与维护入口 |
 | `tests/` | 分层回归与 contract 测试 |
-| `research_platform/environment/minecraft/` | 内置可复用 Minecraft 环境 Provider |
+| `noetrium_platform/capabilities/environment/minecraft/` | 内置可复用 Minecraft 环境 Provider |
 | `LICENSE` / `NOTICE` / `THIRD_PARTY_NOTICES.md` | Apache-2.0 与第三方许可说明 |
 
-`research_platform/` is the reusable package boundary; project-specific code stays downstream.
+`noetrium_platform/` is the reusable package boundary; project-specific code stays downstream.
 
 <!-- readme-section:testing -->
 

@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from research_platform.participant.agent.api import (
+from noetrium_platform.capabilities.participant.agent.api import (
     AGENT_SKILL_LIBRARY_CHECKPOINT_SCHEMA,
     AgentSkillLibraryCheckpoint,
     AgentSkillRecord,
 )
-from research_platform.participant.agent.runtime import InMemorySkillLibrary
+from noetrium_platform.capabilities.participant.agent.runtime import InMemorySkillLibrary
 
 
 def _record(skill_id: str, *, success: int = 1) -> AgentSkillRecord:
@@ -64,7 +64,7 @@ def test_skill_restore_rejects_capacity_mismatch_without_mutation() -> None:
 
 
 def test_skill_record_rejects_non_finite_recipe_values_before_checkpoint() -> None:
-    from research_platform.platform.kernel import CanonicalEncodingError
+    from noetrium_platform.foundation.kernel.kernel import CanonicalEncodingError
     with pytest.raises(CanonicalEncodingError, match="non-finite"):
         AgentSkillRecord(
             skill_id="skill.bad",

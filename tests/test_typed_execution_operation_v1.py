@@ -1,5 +1,5 @@
-from research_platform.execution.command.api import ExecutionCommand
-from research_platform.execution.operation.api import (
+from noetrium_platform.research.execution.command.api import ExecutionCommand
+from noetrium_platform.research.execution.operation.api import (
     EffectId, IllegalOperationTransition, OperationEffectCertainty, OperationEffectProfile, OperationFailure,
     OperationFailureKind, OperationId, OperationSnapshot, OperationState, revise_operation, transition_operation,
 )

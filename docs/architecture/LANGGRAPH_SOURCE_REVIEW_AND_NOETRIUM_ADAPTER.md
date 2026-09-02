@@ -86,7 +86,7 @@ measurements, artifacts, or evidence receipts.
 ## Noetrium public boundary
 
 The following public types are now available from
-`research_platform.participant.method.api`:
+`noetrium_platform.capabilities.participant.method.api`:
 
 - `MethodGraphRequest[TaskT, InputT, ResumeT]`: typed task/input, explicit
   ExecutionContext, session and invocation identity, optional resume value.

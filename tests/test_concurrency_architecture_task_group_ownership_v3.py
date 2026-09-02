@@ -4,7 +4,7 @@ import ast
 from pathlib import Path
 
 
-RUNTIME = Path(__file__).parents[1] / "research_platform/platform/concurrency/runtime"
+RUNTIME = Path(__file__).parents[1] / "noetrium_platform/foundation/kernel/concurrency/runtime"
 
 
 def _class_assignments(path: Path, class_name: str) -> set[str]:

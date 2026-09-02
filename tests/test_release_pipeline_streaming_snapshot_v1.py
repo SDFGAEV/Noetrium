@@ -5,17 +5,17 @@ import tempfile
 
 import pytest
 
-from research_platform.governance.release.api import ReleaseQualityEvidence
-from research_platform.governance.release.runtime.evidence import build_release_evidence
-from research_platform.governance.release.runtime.authority import publish_release_authority
-from research_platform.governance.release.runtime.manifest import build_release_manifest
-from research_platform.governance.release.runtime.pipeline import ReleasePipeline
+from noetrium_platform.foundation.governance.release.api import ReleaseQualityEvidence
+from noetrium_platform.foundation.governance.release.runtime.evidence import build_release_evidence
+from noetrium_platform.foundation.governance.release.runtime.authority import publish_release_authority
+from noetrium_platform.foundation.governance.release.runtime.manifest import build_release_manifest
+from noetrium_platform.foundation.governance.release.runtime.pipeline import ReleasePipeline
 
 
 def _tree(root: Path) -> None:
-    (root / "research_platform").mkdir(parents=True)
-    (root / "research_platform" / "__init__.py").write_text("", encoding="utf-8")
-    (root / "research_platform" / "x.py").write_text("x=1\n", encoding="utf-8")
+    (root / "noetrium_platform").mkdir(parents=True)
+    (root / "noetrium_platform" / "__init__.py").write_text("", encoding="utf-8")
+    (root / "noetrium_platform" / "x.py").write_text("x=1\n", encoding="utf-8")
     (root / "pyproject.toml").write_text(
         '[project]\nname="release-fixture"\nversion="1.2.3"\nrequires-python=">=3.11"\n',
         encoding="utf-8",
@@ -60,7 +60,7 @@ def _write_authorities(root: Path) -> None:
 def test_pipeline_does_not_rerun_quality_during_packaging(monkeypatch) -> None:
     # Packaging consumes already-generated clean evidence.  Static analyzers must
     # not execute a second time at this stage.
-    import research_platform.platform.composition.release_quality as quality_module
+    import noetrium_platform.foundation.kernel.composition.release_quality as quality_module
 
     def forbidden(*_args, **_kwargs):
         raise AssertionError("quality analyzer must not run during packaging")

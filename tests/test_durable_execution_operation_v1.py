@@ -1,15 +1,15 @@
 from pathlib import Path
 import sqlite3
 
-from research_platform.execution.command.api import CommandId
-from research_platform.execution.operation.api import (
+from noetrium_platform.research.execution.command.api import CommandId
+from noetrium_platform.research.execution.operation.api import (
     EffectId, IllegalOperationTransition, OperationConflict, OperationCorruption, OperationEffectCertainty, OperationEffectProfile,
     OperationFailure, OperationFailureKind, OperationId, OperationSnapshot, OperationState,
 )
-from research_platform.execution.operation.providers import SQLiteOperationStore
-from research_platform.execution.operation.runtime import OperationOwner
-from research_platform.platform.kernel.operation import EffectCertainty, EffectClass, EffectReceipt
-from research_platform.reliability.effect.api import EffectReconciliationDisposition, EffectReconciliationProof
+from noetrium_platform.research.execution.operation.providers import SQLiteOperationStore
+from noetrium_platform.research.execution.operation.runtime import OperationOwner
+from noetrium_platform.foundation.kernel.kernel.operation import EffectCertainty, EffectClass, EffectReceipt
+from noetrium_platform.infrastructure.reliability.effect.api import EffectReconciliationDisposition, EffectReconciliationProof
 
 
 def _command_id(value: str = "cmd-1") -> CommandId:

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from research_platform.platform.kernel.canonical import (
+from noetrium_platform.foundation.kernel.kernel.canonical import (
     CanonicalEncodingError,
     canonical_digest,
     canonical_text,
@@ -66,7 +66,7 @@ def test_native_path_contract_is_not_claimed_portable() -> None:
     assert canonical_text(path) == canonical_text(str(path))
 
 def test_strict_json_decode_rejects_duplicates_nonfinite_and_bom() -> None:
-    from research_platform.platform.kernel import (
+    from noetrium_platform.foundation.kernel.kernel import (
         CanonicalDecodingError, CanonicalDecodingFailureKind, strict_json_loads,
     )
 
@@ -91,7 +91,7 @@ def test_strict_json_decode_rejects_duplicates_nonfinite_and_bom() -> None:
 
 def test_frozen_json_is_deeply_immutable_and_alias_free() -> None:
     from collections.abc import Mapping
-    from research_platform.platform.kernel import freeze_json, thaw_json
+    from noetrium_platform.foundation.kernel.kernel import freeze_json, thaw_json
 
     source = {"nested": {"items": [1, {"value": 2}]}}
     frozen = freeze_json(source)
@@ -109,7 +109,7 @@ def test_frozen_json_is_deeply_immutable_and_alias_free() -> None:
 
 
 def test_frozen_json_rejects_cycles_nonfinite_and_non_string_keys() -> None:
-    from research_platform.platform.kernel import CanonicalEncodingError, freeze_json
+    from noetrium_platform.foundation.kernel.kernel import CanonicalEncodingError, freeze_json
 
     cycle: list[object] = []
     cycle.append(cycle)
@@ -122,7 +122,7 @@ def test_frozen_json_rejects_cycles_nonfinite_and_non_string_keys() -> None:
 
 
 def test_sha256_digest_requires_canonical_lowercase_text() -> None:
-    from research_platform.platform.kernel import DigestValidationError, Sha256Digest, require_sha256
+    from noetrium_platform.foundation.kernel.kernel import DigestValidationError, Sha256Digest, require_sha256
 
     value = "a" * 64
     assert require_sha256(value, "content_sha256") == value
@@ -135,7 +135,7 @@ def test_sha256_digest_requires_canonical_lowercase_text() -> None:
 def test_strict_finite_json_bytes_and_digest_form_kernel_authority_contract() -> None:
     import hashlib
 
-    from research_platform.platform.kernel import strict_finite_json_bytes, strict_finite_json_digest
+    from noetrium_platform.foundation.kernel.kernel import strict_finite_json_bytes, strict_finite_json_digest
 
     values = (
         None,
@@ -152,8 +152,8 @@ def test_strict_finite_json_bytes_and_digest_form_kernel_authority_contract() ->
 
 
 def test_strict_finite_json_bytes_and_digest_match_data_overlap() -> None:
-    from research_platform.data._canonical import canonical_bytes as data_bytes, canonical_digest as data_digest
-    from research_platform.platform.kernel import strict_finite_json_bytes, strict_finite_json_digest
+    from noetrium_platform.evidence.data._canonical import canonical_bytes as data_bytes, canonical_digest as data_digest
+    from noetrium_platform.foundation.kernel.kernel import strict_finite_json_bytes, strict_finite_json_digest
 
     values = (
         None,
@@ -172,7 +172,7 @@ def test_strict_finite_json_bytes_and_digest_match_data_overlap() -> None:
 
 
 def test_strict_finite_json_encoder_rejects_wider_canonical_domain() -> None:
-    from research_platform.platform.kernel import (
+    from noetrium_platform.foundation.kernel.kernel import (
         CanonicalEncodingError, strict_finite_json_bytes, strict_finite_json_digest,
     )
 
@@ -204,7 +204,7 @@ def test_strict_finite_json_encoder_rejects_wider_canonical_domain() -> None:
 
 
 def test_freeze_json_rejects_enum_subclasses_even_when_they_are_json_scalars() -> None:
-    from research_platform.platform.kernel import CanonicalEncodingError, freeze_json
+    from noetrium_platform.foundation.kernel.kernel import CanonicalEncodingError, freeze_json
 
     class StringKind(StrEnum):
         A = "a"
@@ -217,7 +217,7 @@ def test_freeze_json_rejects_enum_subclasses_even_when_they_are_json_scalars() -
             freeze_json(value)  # type: ignore[arg-type]
 
 def test_strict_json_decode_rejects_values_outside_canonical_domain() -> None:
-    from research_platform.platform.kernel import (
+    from noetrium_platform.foundation.kernel.kernel import (
         CanonicalDecodingError, CanonicalDecodingFailureKind, strict_json_loads,
     )
 
@@ -234,8 +234,8 @@ def test_strict_json_decode_rejects_values_outside_canonical_domain() -> None:
 
 
 def test_role01_consumers_do_not_reimplement_kernel_json_or_sha_primitives() -> None:
-    portfolio = Path(__file__).resolve().parents[1] / "research_platform/portfolio/api/contracts.py"
-    leaf = Path(__file__).resolve().parents[1] / "research_platform/platform/kernel/leaf_contract.py"
+    portfolio = Path(__file__).resolve().parents[1] / "noetrium_platform/foundation/portfolio/api/contracts.py"
+    leaf = Path(__file__).resolve().parents[1] / "noetrium_platform/foundation/kernel/kernel/leaf_contract.py"
     portfolio_source = portfolio.read_text(encoding="utf-8")
     leaf_source = leaf.read_text(encoding="utf-8")
     assert "_SHA256 =" not in portfolio_source

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from research_platform.model.request.prompt.runtime import (
+from noetrium_platform.capabilities.model.request.prompt.runtime import (
     PromptBlock,
     PromptBlockKind,
     PromptBudgetExceeded,

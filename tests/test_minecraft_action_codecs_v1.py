@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from research_platform.environment.minecraft.api.action_codecs import ACTION_CODECS
-from research_platform.environment.minecraft.api import (
+from noetrium_platform.capabilities.environment.minecraft.api.action_codecs import ACTION_CODECS
+from noetrium_platform.capabilities.environment.minecraft.api import (
     MINECRAFT_ACTION_TYPES,
     MinecraftActionContractError,
     validate_minecraft_action,

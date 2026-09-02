@@ -7,24 +7,24 @@ from uuid import uuid4
 
 import pytest
 
-from research_platform.model.request.api import ContentRef, ModelRequestEnvelope
-from research_platform.model.serving.api import ResourceEnvelope
-from research_platform.model.serving.endpoint import (
+from noetrium_platform.capabilities.model.request.api import ContentRef, ModelRequestEnvelope
+from noetrium_platform.capabilities.model.serving.api import ResourceEnvelope
+from noetrium_platform.capabilities.model.serving.endpoint import (
     JsonHttpResponse,
     ModelEndpointError,
     ModelEndpointRequest,
     ModelEndpointResponse,
     ModelEndpointRoute,
 )
-from research_platform.model.serving.endpoint.api import QualifiedModelEndpointBinding
-from research_platform.model.serving.endpoint.composition import build_openai_compatible_qualified_endpoint
-from research_platform.model.serving.endpoint.providers import OpenAICompatibleModelEndpoint
-from research_platform.model.serving.runtime import (
+from noetrium_platform.capabilities.model.serving.endpoint.api import QualifiedModelEndpointBinding
+from noetrium_platform.capabilities.model.serving.endpoint.composition import build_openai_compatible_qualified_endpoint
+from noetrium_platform.capabilities.model.serving.endpoint.providers import OpenAICompatibleModelEndpoint
+from noetrium_platform.capabilities.model.serving.runtime import (
     ModelAdmissionController,
     ModelAdmissionRegistry,
 )
-from research_platform.platform.concurrency.composition import build_concurrency_runtime
-from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity
+from noetrium_platform.foundation.kernel.concurrency.composition import build_concurrency_runtime
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext, ImmutableModelIdentity
 
 
 def _envelope(request_id: str = "request") -> ModelRequestEnvelope:

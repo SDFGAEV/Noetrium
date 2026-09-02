@@ -5,20 +5,20 @@ from pathlib import Path
 
 import pytest
 
-from research_platform.environment.python.api import (
+from noetrium_platform.capabilities.environment.python.api import (
     EnvironmentCommandResult,
     PythonEnvironmentOwnership,
     PythonEnvironmentSpec,
 )
-from research_platform.environment.python.runtime import build_python_environment_authorities
-from research_platform.environment.python.runtime.lifecycle_transaction import (
+from noetrium_platform.capabilities.environment.python.runtime import build_python_environment_authorities
+from noetrium_platform.capabilities.environment.python.runtime.lifecycle_transaction import (
     PythonEnvironmentLifecycleTransaction,
     PythonEnvironmentLifecycleTransactionStore,
 )
-from research_platform.environment.python.runtime.registry import PythonEnvironmentRegistry
-from research_platform.resource.directory.api import DirectoryLayout, ManagedDirectoryKind
-from research_platform.resource.directory.runtime import build_local_directory_authorities
-from research_platform.scope.api import PLATFORM_SCOPE
+from noetrium_platform.capabilities.environment.python.runtime.registry import PythonEnvironmentRegistry
+from noetrium_platform.infrastructure.resources.directory.api import DirectoryLayout, ManagedDirectoryKind
+from noetrium_platform.infrastructure.resources.directory.runtime import build_local_directory_authorities
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE
 
 
 def _layout(root: Path) -> DirectoryLayout:

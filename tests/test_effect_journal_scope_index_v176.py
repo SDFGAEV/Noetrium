@@ -5,9 +5,9 @@ from pathlib import Path
 import sqlite3
 import tempfile
 
-from research_platform.reliability.effect.api import EffectCompletionEvidence, EffectIntent
-from research_platform.reliability.effect.runtime import InMemoryEffectIntentJournal, SQLiteEffectIntentJournal
-from research_platform.platform.kernel import ComponentIdentity, EffectCertainty, EffectClass, EffectReceipt, ExecutionContext
+from noetrium_platform.infrastructure.reliability.effect.api import EffectCompletionEvidence, EffectIntent
+from noetrium_platform.infrastructure.reliability.effect.runtime import InMemoryEffectIntentJournal, SQLiteEffectIntentJournal
+from noetrium_platform.foundation.kernel.kernel import ComponentIdentity, EffectCertainty, EffectClass, EffectReceipt, ExecutionContext
 
 
 def _intent(*, request_id: str, run_id: str, lifetime_id: str | None) -> EffectIntent:

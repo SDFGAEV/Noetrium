@@ -37,7 +37,7 @@ def test_citation_tracks_project_identity_and_version() -> None:
     assert '- name: "Noetrium contributors"' in citation
     assert f'version: "{project["version"]}"' in citation
     assert "license: Apache-2.0" in citation
-    assert 'repository-code: "https://github.com/SDFGAEV/noetrium"' in citation
+    assert 'repository-code: "https://github.com/Xalzeroph/noetrium"' in citation
 
 
 def test_issue_forms_are_structured_and_route_sensitive_reports() -> None:
@@ -52,8 +52,8 @@ def test_issue_forms_are_structured_and_route_sensitive_reports() -> None:
     assert "Noetrium version or exact commit" in bug
     assert "Ownership and contract boundary" in feature
     assert "blank_issues_enabled: false" in chooser
-    assert "https://github.com/SDFGAEV/noetrium/discussions" in chooser
-    assert "https://github.com/SDFGAEV/noetrium/security/policy" in chooser
+    assert "https://github.com/Xalzeroph/noetrium/discussions" in chooser
+    assert "https://github.com/Xalzeroph/noetrium/security/policy" in chooser
 
 
 def test_pull_request_template_requires_review_evidence() -> None:
@@ -81,7 +81,7 @@ def test_readme_surfaces_community_entry_points() -> None:
 
 def test_project_metadata_surfaces_community_urls() -> None:
     urls = tomllib.loads(_text("pyproject.toml"))["project"]["urls"]
-    assert urls["Discussions"] == "https://github.com/SDFGAEV/noetrium/discussions"
-    assert urls["Security"] == "https://github.com/SDFGAEV/noetrium/security/policy"
+    assert urls["Discussions"] == "https://github.com/Xalzeroph/noetrium/discussions"
+    assert urls["Security"] == "https://github.com/Xalzeroph/noetrium/security/policy"
     assert urls["Contributing"].endswith("/CONTRIBUTING.md")
     assert urls["Citation"].endswith("/CITATION.cff")

@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from research_platform.environment.runtime.api import (
+from noetrium_platform.capabilities.environment.runtime.api import (
     ActionIdentityViolation,
     ActionRequest,
     StateMachineDynamicsIdentity,
@@ -13,10 +13,10 @@ from research_platform.environment.runtime.api import (
     StateTransition,
     thaw_json_mapping,
 )
-from research_platform.environment.runtime.composition import (
+from noetrium_platform.capabilities.environment.runtime.composition import (
     compose_state_machine_environment,
 )
-from research_platform.platform.kernel import ExecutionContext, canonical_digest
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext, canonical_digest
 
 
 class _CounterDynamics:

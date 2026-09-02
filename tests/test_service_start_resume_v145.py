@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from research_platform.runtime.service.api import ServiceLaunchContract, ServiceProcessIdentity
+from noetrium_platform.infrastructure.lifecycle.service.api import ServiceLaunchContract, ServiceProcessIdentity
 from service_os_test_support import make_service_supervisor, ready_evidence
 
 from dataclasses import replace
@@ -8,8 +8,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from research_platform.runtime.service.runtime.state_storage import FileServiceStateStore
-from research_platform.runtime.service.runtime import (
+from noetrium_platform.infrastructure.lifecycle.service.runtime.state_storage import FileServiceStateStore
+from noetrium_platform.infrastructure.lifecycle.service.runtime import (
     ExactServiceSupervisor,
     ServicePhase,
     ServiceStartRecoveryRequired,
@@ -132,7 +132,7 @@ if __name__ == "__main__":
 class ServiceStopResumeV145Tests(unittest.TestCase):
     def test_uncertain_start_cannot_be_misreported_as_exited(self) -> None:
         with TemporaryDirectory() as td:
-            from research_platform.runtime.service.runtime import ServiceStopRecoveryRequired
+            from noetrium_platform.infrastructure.lifecycle.service.runtime import ServiceStopRecoveryRequired
 
             launch = contract()
             store = FileServiceStateStore(Path(td) / "service.json")

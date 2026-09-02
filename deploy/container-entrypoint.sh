@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 ROOT=/opt/research-platform
-PACKAGE_ROOT="$(python -c 'from pathlib import Path; import research_platform; print(Path(research_platform.__file__).resolve().parent)')"
+PACKAGE_ROOT="$(python -c 'from pathlib import Path; import noetrium_platform; print(Path(noetrium_platform.__file__).resolve().parent)')"
 STATE_DIR="${PLATFORM_STATE_DIR:-/var/lib/research-platform}"
 
 die() {
@@ -14,10 +14,10 @@ doctor() {
   python --version
   python - <<'PY'
 from importlib.metadata import version
-import research_platform
+import noetrium_platform
 
-print(f"research_platform_import={research_platform.__name__}")
-print(f"research_platform_version={version('noetrium')}")
+print(f"noetrium_platform_import={noetrium_platform.__name__}")
+print(f"noetrium_platform_version={version('noetrium')}")
 PY
   research --help >/dev/null
   research-platform-manage --help >/dev/null

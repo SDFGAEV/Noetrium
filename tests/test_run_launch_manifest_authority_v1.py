@@ -5,15 +5,15 @@ import unittest
 
 import pytest
 
-from research_platform.experimentation.run.manifest.api import CompositionPlanReference
-from research_platform.execution.runtime.manager import RunLaunchIdentity
+from noetrium_platform.research.experimentation.run.manifest.api import CompositionPlanReference
+from noetrium_platform.research.execution.runtime.manager import RunLaunchIdentity
 from tests_support import frozen_runtime_manifest
 
 
 class RunLaunchManifestAuthorityV1Tests(unittest.TestCase):
     def test_only_the_run_manifest_system_owns_launch_identity(self):
-        from research_platform.execution.runtime import manager
-        from research_platform.governance.release import api as release_api
+        from noetrium_platform.research.execution.runtime import manager
+        from noetrium_platform.foundation.governance.release import api as release_api
 
         self.assertFalse(hasattr(manager, "FrozenRuntimeManifest"))
         self.assertFalse(hasattr(release_api, "RunLaunchManifest"))

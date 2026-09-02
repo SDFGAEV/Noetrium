@@ -5,19 +5,19 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
-from research_platform.scope.api import PLATFORM_SCOPE
-from research_platform.scope.runtime import InMemoryScopeRegistry
-from research_platform.resource.directory.api import DirectoryLayout, ManagedDirectoryKind
-from research_platform.resource.directory.runtime import build_local_directory_authorities
-from research_platform.model.asset.api import ModelAssetMode, ModelSourceSpec
-from research_platform.model.api import ModelAuthorities
-from research_platform.model.deployment.api import ModelDeploymentLogs, ModelDeploymentSelector, ModelDeploymentSpec, ModelDesiredState, ModelRuntimeState
-from research_platform.resource.compute.api import GpuDeviceStatus, GpuProcessStatus, GpuRuntimeSnapshot
-from research_platform.model.asset.providers import HuggingFaceCliModelSource
-from research_platform.model.asset.runtime import LocalModelAssetStorage, ModelAssetManager, ModelAssetRegistry
-from research_platform.model.composition import DeploymentModelAssetReferences
-from research_platform.model.assignment.runtime import ModelAssignmentManager
-from research_platform.model.deployment.runtime import (
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE
+from noetrium_platform.foundation.scope.runtime import InMemoryScopeRegistry
+from noetrium_platform.infrastructure.resources.directory.api import DirectoryLayout, ManagedDirectoryKind
+from noetrium_platform.infrastructure.resources.directory.runtime import build_local_directory_authorities
+from noetrium_platform.capabilities.model.asset.api import ModelAssetMode, ModelSourceSpec
+from noetrium_platform.capabilities.model.api import ModelAuthorities
+from noetrium_platform.capabilities.model.deployment.api import ModelDeploymentLogs, ModelDeploymentSelector, ModelDeploymentSpec, ModelDesiredState, ModelRuntimeState
+from noetrium_platform.infrastructure.resources.compute.api import GpuDeviceStatus, GpuProcessStatus, GpuRuntimeSnapshot
+from noetrium_platform.capabilities.model.asset.providers import HuggingFaceCliModelSource
+from noetrium_platform.capabilities.model.asset.runtime import LocalModelAssetStorage, ModelAssetManager, ModelAssetRegistry
+from noetrium_platform.capabilities.model.composition import DeploymentModelAssetReferences
+from noetrium_platform.capabilities.model.assignment.runtime import ModelAssignmentManager
+from noetrium_platform.capabilities.model.deployment.runtime import (
     AppliedModelDeploymentStore,
     FileModelControllerStateStore,
     ModelDesiredStateController,
@@ -31,11 +31,11 @@ from research_platform.model.deployment.runtime import (
     sglang_deployment,
     vllm_deployment,
 )
-from research_platform.resource.compute.providers import NvidiaSmiGpuRuntimeObserver
-from research_platform.environment.python.api import EnvironmentCommandResult, PythonEnvironmentOwnership, PythonEnvironmentSpec
-from research_platform.environment.python.runtime import CondaEnvironmentBackend, build_python_environment_authorities
-from research_platform.platform.kernel.process import LocalCommandResult
-from research_platform.runtime.service.api import (
+from noetrium_platform.infrastructure.resources.compute.providers import NvidiaSmiGpuRuntimeObserver
+from noetrium_platform.capabilities.environment.python.api import EnvironmentCommandResult, PythonEnvironmentOwnership, PythonEnvironmentSpec
+from noetrium_platform.capabilities.environment.python.runtime import CondaEnvironmentBackend, build_python_environment_authorities
+from noetrium_platform.foundation.kernel.kernel.process import LocalCommandResult
+from noetrium_platform.infrastructure.lifecycle.service.api import (
     ServiceProcessIdentity,
     ServiceReconcileObservation,
     ServiceStartOutcome,
@@ -464,7 +464,7 @@ class ManagementTests(unittest.TestCase):
             )
             assignments = ModelAssignmentManager(InMemoryScopeRegistry())
             models = ModelAuthorities(assets, assignments, catalog, runtime, fleet, logs, resources, controller)
-            with patch("research_platform.model.asset.providers.huggingface_cli.shutil.which", return_value="/usr/bin/hf"):
+            with patch("noetrium_platform.capabilities.model.asset.providers.huggingface_cli.shutil.which", return_value="/usr/bin/hf"):
                 asset = models.assets.fetch_model(
                     "example-model",
                     PLATFORM_SCOPE,
@@ -491,10 +491,10 @@ class ManagementTests(unittest.TestCase):
                 return LocalCommandResult(tuple(argv), 0, self.outputs.pop(0), "")
 
         observer = NvidiaSmiGpuRuntimeObserver(FakeCommandRunner())
-        with patch("research_platform.resource.compute.providers.nvidia_smi.shutil.which", return_value=None):
+        with patch("noetrium_platform.infrastructure.resources.compute.providers.nvidia_smi.shutil.which", return_value=None):
             self.assertFalse(observer.snapshot().available)
         observer = NvidiaSmiGpuRuntimeObserver(FakeCommandRunner())
-        with patch("research_platform.resource.compute.providers.nvidia_smi.shutil.which", return_value="/usr/bin/nvidia-smi"):
+        with patch("noetrium_platform.infrastructure.resources.compute.providers.nvidia_smi.shutil.which", return_value="/usr/bin/nvidia-smi"):
             snapshot = observer.snapshot()
         self.assertTrue(snapshot.available)
         self.assertEqual(snapshot.devices[0].memory_free_mb, 80896)

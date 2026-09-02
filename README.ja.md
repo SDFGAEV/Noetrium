@@ -114,7 +114,7 @@ flowchart LR
 
 durable state には一つの owner があり、不確実な外部 effect は reconciliation で証明されるまで `UNKNOWN` のままです。
 
-`research_platform/governance/system_registry/catalog.json`
+`noetrium_platform/foundation/governance/system_registry/catalog.json`
 
 <!-- readme-section:downstream -->
 
@@ -149,7 +149,7 @@ noetrium
 ### 1. Clone とインストール
 
 ```bash
-git clone https://github.com/SDFGAEV/noetrium.git
+git clone https://github.com/Xalzeroph/noetrium.git
 cd noetrium
 python -m venv .venv
 source .venv/bin/activate
@@ -182,7 +182,7 @@ research-platform-architecture-gate
 python scripts/check_readme_i18n.py
 ```
 
-Python distribution metadata の名前は `noetrium` です。現在の import namespace は `research_platform` のままで、product identity と runtime contract は独立して進化します。
+Python distribution metadata の名前は `noetrium` です。現在の import namespace は `noetrium_platform` のままで、product identity と runtime contract は独立して進化します。
 
 <!-- readme-section:containers -->
 
@@ -216,16 +216,16 @@ docker compose -f deploy/compose.yaml -f deploy/compose.minecraft.yaml run --rm 
 
 | Path | Responsibility |
 | --- | --- |
-| `research_platform/` | 再利用可能なプラットフォーム実装と公開システム境界 |
+| `noetrium_platform/` | 再利用可能なプラットフォーム実装と公開システム境界 |
 | `configs/` | バージョン管理された設定例と非機密テンプレート |
 | `deploy/` | コンテナイメージ、Compose runtime、deployment bootstrap |
 | `docs/` | Architecture、infrastructure、governance、status、history 文書 |
 | `scripts/` | 薄い operator、audit、release、maintenance entry point |
 | `tests/` | 階層型 regression / contract tests |
-| `research_platform/environment/minecraft/` | 再利用可能な Minecraft environment provider |
+| `noetrium_platform/capabilities/environment/minecraft/` | 再利用可能な Minecraft environment provider |
 | `LICENSE` / `NOTICE` / `THIRD_PARTY_NOTICES.md` | Apache-2.0 と第三者ライセンス通知 |
 
-`research_platform/` is the reusable package boundary; project-specific code stays downstream.
+`noetrium_platform/` is the reusable package boundary; project-specific code stays downstream.
 
 <!-- readme-section:testing -->
 

@@ -114,7 +114,7 @@ flowchart LR
 
 각 durable state에는 하나의 owner만 있고, 불확실한 외부 effect는 reconciliation으로 증명되기 전까지 `UNKNOWN`으로 남습니다.
 
-`research_platform/governance/system_registry/catalog.json`
+`noetrium_platform/foundation/governance/system_registry/catalog.json`
 
 <!-- readme-section:downstream -->
 
@@ -149,7 +149,7 @@ Downstream 코드는 public platform contract를 사용하고 프로젝트 소�
 ### 1. Clone 및 설치
 
 ```bash
-git clone https://github.com/SDFGAEV/noetrium.git
+git clone https://github.com/Xalzeroph/noetrium.git
 cd noetrium
 python -m venv .venv
 source .venv/bin/activate
@@ -182,7 +182,7 @@ research-platform-architecture-gate
 python scripts/check_readme_i18n.py
 ```
 
-Python distribution metadata 이름은 `noetrium`이며 현재 import namespace는 `research_platform`입니다. Product identity와 runtime contract는 독립적으로 진화합니다.
+Python distribution metadata 이름은 `noetrium`이며 현재 import namespace는 `noetrium_platform`입니다. Product identity와 runtime contract는 독립적으로 진화합니다.
 
 <!-- readme-section:containers -->
 
@@ -216,16 +216,16 @@ docker compose -f deploy/compose.yaml -f deploy/compose.minecraft.yaml run --rm 
 
 | Path | Responsibility |
 | --- | --- |
-| `research_platform/` | 재사용 가능한 플랫폼 구현과 공개 시스템 경계 |
+| `noetrium_platform/` | 재사용 가능한 플랫폼 구현과 공개 시스템 경계 |
 | `configs/` | 버전 관리 설정 예제와 비밀이 아닌 템플릿 |
 | `deploy/` | 컨테이너 이미지, Compose runtime, deployment bootstrap |
 | `docs/` | Architecture, infrastructure, governance, status, history 문서 |
 | `scripts/` | 얇은 operator, audit, release, maintenance entry point |
 | `tests/` | 계층형 regression / contract tests |
-| `research_platform/environment/minecraft/` | 재사용 가능한 Minecraft environment provider |
+| `noetrium_platform/capabilities/environment/minecraft/` | 재사용 가능한 Minecraft environment provider |
 | `LICENSE` / `NOTICE` / `THIRD_PARTY_NOTICES.md` | Apache-2.0 및 서드파티 라이선스 고지 |
 
-`research_platform/` is the reusable package boundary; project-specific code stays downstream.
+`noetrium_platform/` is the reusable package boundary; project-specific code stays downstream.
 
 <!-- readme-section:testing -->
 

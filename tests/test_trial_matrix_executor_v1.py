@@ -1,7 +1,7 @@
 import pytest
 
-from research_platform.artifact.reference.api import ArtifactReference
-from research_platform.experimentation.api import (
+from noetrium_platform.evidence.artifact.reference.api import ArtifactReference
+from noetrium_platform.research.experimentation.api import (
     ResearchBindingContribution,
     ResearchBindingRequirements,
     ResearchCapabilityBinding,
@@ -10,11 +10,11 @@ from research_platform.experimentation.api import (
     compile_research_plan,
     resolve_research_requirements,
 )
-from research_platform.experimentation.experiment.api import (
+from noetrium_platform.research.experimentation.experiment.api import (
     ExperimentParticipantSpec,
     ExperimentTrialProtocolIdentity,
 )
-from research_platform.experimentation.study.api import (
+from noetrium_platform.research.experimentation.study.api import (
     BenchmarkTaskSet,
     FactorLevelSpec,
     MeasurementDefinition,
@@ -28,20 +28,20 @@ from research_platform.experimentation.study.api import (
     TaskDefinition,
     TrialExecutionReceipt,
 )
-from research_platform.experimentation.study.runtime import TrialMatrixExecutor
-from research_platform.governance.architecture.api import BindingProof, CompositionSubject
-from research_platform.governance.system_registry.api import SystemIdentity
-from research_platform.participant.api.project import (
+from noetrium_platform.research.experimentation.study.runtime import TrialMatrixExecutor
+from noetrium_platform.foundation.governance.architecture.api import BindingProof, CompositionSubject
+from noetrium_platform.foundation.governance.system_registry.api import SystemIdentity
+from noetrium_platform.capabilities.participant.api.project import (
     ParticipantProviderProfile,
     ParticipantRequirement,
     ProjectParticipantBinding,
 )
-from research_platform.participant.core.api.contracts import (
+from noetrium_platform.capabilities.participant.core.api.contracts import (
     ParticipantImplementationIdentity,
     ParticipantSessionRuntimeIdentity,
 )
-from research_platform.platform.kernel import Sha256Digest, canonical_digest
-from research_platform.portfolio.api import (
+from noetrium_platform.foundation.kernel.kernel import Sha256Digest, canonical_digest
+from noetrium_platform.foundation.portfolio.api import (
     ProjectCapabilityRequirement,
     ProjectIdentity,
     ProjectManifest,
@@ -50,7 +50,7 @@ from research_platform.portfolio.api import (
     ProjectSpec,
     ProjectToolProvenance,
 )
-from research_platform.scope.api import ScopeIdentity, ScopeKind
+from noetrium_platform.foundation.scope.api import ScopeIdentity, ScopeKind
 
 
 AGENT_CFG = "1" * 64

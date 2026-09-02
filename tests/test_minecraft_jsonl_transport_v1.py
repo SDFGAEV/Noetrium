@@ -6,12 +6,12 @@ import json
 import pytest
 
 from tests._concurrency_support import make_task_group
-from research_platform.environment.minecraft.api import MinecraftBridgeSpec
-from research_platform.environment.minecraft.providers.jsonl_transport import (
+from noetrium_platform.capabilities.environment.minecraft.api import MinecraftBridgeSpec
+from noetrium_platform.capabilities.environment.minecraft.providers.jsonl_transport import (
     JsonlProcessTransport,
     MinecraftBridgeError,
 )
-from research_platform.runtime.host.providers import LocalOperatingSystemRoute
+from noetrium_platform.infrastructure.lifecycle.host.providers import LocalOperatingSystemRoute
 
 
 class _ExitedProcess:

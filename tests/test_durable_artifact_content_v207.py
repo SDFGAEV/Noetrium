@@ -7,12 +7,12 @@ from pathlib import Path
 import tarfile
 import threading
 
-from research_platform.artifact.content.api import (
+from noetrium_platform.evidence.artifact.content.api import (
     ArchiveMaterializationError,
     ArchiveMaterializationRequest,
 )
-from research_platform.artifact.content.providers import SafeTarArchiveMaterializer
-from research_platform.artifact.content.providers._tar_plan import plan_tar_archive
+from noetrium_platform.evidence.artifact.content.providers import SafeTarArchiveMaterializer
+from noetrium_platform.evidence.artifact.content.providers._tar_plan import plan_tar_archive
 
 
 def _archive(path: Path, payload: bytes = b"verified-java\n") -> None:

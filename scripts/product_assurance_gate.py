@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from research_platform.governance.release.runtime.manifest import build_release_manifest
+from noetrium_platform.foundation.governance.release.runtime.manifest import build_release_manifest
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,7 +161,7 @@ def evaluate(*, full: bool, include_architecture: bool = True) -> ProductAssuran
         commands.append(
             (
                 "architecture",
-                [sys.executable, "-m", "research_platform.governance.architecture.gate"],
+                [sys.executable, "-m", "noetrium_platform.foundation.governance.architecture.gate"],
             )
         )
     if full:

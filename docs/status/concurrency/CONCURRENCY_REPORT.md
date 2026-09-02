@@ -21,5 +21,5 @@
 
 ## Hotspots
 
-### `research_platform/runtime/server/identity/providers/ssh.py::SSHServerConnection.run_interactive`
+### `noetrium_platform/infrastructure/lifecycle/server/identity/providers/ssh.py::SSHServerConnection.run_interactive`
 - **P2** `timeoutless-wait` line 371: blocking wait has no explicit deadline/timeout

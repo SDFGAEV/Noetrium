@@ -4,8 +4,8 @@ import json, tempfile, unittest
 from unittest.mock import patch
 
 from tests._concurrency_support import segmented_byte_capture
-from research_platform.runtime.process.api import CaptureIntegrityError
-from research_platform.runtime.process.capture.storage import CaptureStorage
+from noetrium_platform.infrastructure.lifecycle.process.api import CaptureIntegrityError
+from noetrium_platform.infrastructure.lifecycle.process.capture.storage import CaptureStorage
 
 
 class ProcessCaptureV53Tests(unittest.TestCase):

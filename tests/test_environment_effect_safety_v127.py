@@ -7,11 +7,11 @@ from tests_support import context_action_spec
 
 import pytest
 
-from research_platform.environment.runtime.api import action_request_digest, ActionResult, EnvironmentIdentity, Observation
-from research_platform.platform.kernel import EffectCertainty, EffectClass, EffectReceipt, OperationFailure
-from research_platform.participant.method.api import MethodIdentity, RecallResult
-from research_platform.experimentation.experiment.runtime import ExperimentRuntime
-from research_platform.experimentation.experiment.api import ExperimentSpec
+from noetrium_platform.capabilities.environment.runtime.api import action_request_digest, ActionResult, EnvironmentIdentity, Observation
+from noetrium_platform.foundation.kernel.kernel import EffectCertainty, EffectClass, EffectReceipt, OperationFailure
+from noetrium_platform.capabilities.participant.method.api import MethodIdentity, RecallResult
+from noetrium_platform.research.experimentation.experiment.runtime import ExperimentRuntime
+from noetrium_platform.research.experimentation.experiment.api import ExperimentSpec
 
 
 class MSession:

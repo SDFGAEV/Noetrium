@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from research_platform.environment.python.api import EnvironmentCommandResult
-from research_platform.model.qualification.api import (
+from noetrium_platform.capabilities.environment.python.api import EnvironmentCommandResult
+from noetrium_platform.capabilities.model.qualification.api import (
     CudaFacts,
     DeploymentCapabilityFacts,
     DeploymentQualificationApplicationReceipt,
@@ -22,20 +22,20 @@ from research_platform.model.qualification.api import (
     QualificationMaterializationStatus,
     RuntimeCheckReceipt,
 )
-from research_platform.model.qualification.providers.qualification_application import (
+from noetrium_platform.capabilities.model.qualification.providers.qualification_application import (
     FileDeploymentQualificationApplicationStore,
 )
-from research_platform.model.qualification.providers.qualification_evidence import (
+from noetrium_platform.capabilities.model.qualification.providers.qualification_evidence import (
     FileDeploymentQualificationEvidenceStore,
 )
-from research_platform.model.qualification.providers.qualification_runtime import (
+from noetrium_platform.capabilities.model.qualification.providers.qualification_runtime import (
     FileDeploymentQualificationRuntimeStore,
 )
-from research_platform.model.qualification.providers.python_runtime_probe import (
+from noetrium_platform.capabilities.model.qualification.providers.python_runtime_probe import (
     PythonEnvironmentRuntimeProbe,
 )
-from research_platform.model.qualification.runtime.qualification import DeploymentQualificationResolver
-from research_platform.model.qualification.runtime.runtime_qualification import (
+from noetrium_platform.capabilities.model.qualification.runtime.qualification import DeploymentQualificationResolver
+from noetrium_platform.capabilities.model.qualification.runtime.runtime_qualification import (
     DeploymentQualificationRuntimeVerifier,
 )
 
@@ -64,7 +64,7 @@ class _Execution:
 
 
 def _request() -> object:
-    from research_platform.model.qualification.api import DeploymentQualificationRequest
+    from noetrium_platform.capabilities.model.qualification.api import DeploymentQualificationRequest
 
     return DeploymentQualificationRequest(
         "example-model",

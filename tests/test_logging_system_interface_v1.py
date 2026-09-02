@@ -1,23 +1,23 @@
 from __future__ import annotations
 
-from research_platform.governance.system_registry.api import SystemIdentity
-from research_platform.observability.logging.composition import (
+from noetrium_platform.foundation.governance.system_registry.api import SystemIdentity
+from noetrium_platform.evidence.observability.logging.composition import (
     ExceptionDescriptorBinding,
     LogQueryBinding,
     LogSinkBinding,
     compose_logging_system,
 )
-from research_platform.observability.logging.context.api import DiagnosticAddress
-from research_platform.observability.logging.record.api import ExceptionDescriptorPort, LogLevel
-from research_platform.observability.logging.storage.runtime import InMemoryLogStore
-from research_platform.platform.composition.platform_meta import build_in_memory_platform_meta
-from research_platform.platform.kernel import canonical_digest
-from research_platform.scope.api import PLATFORM_SCOPE
+from noetrium_platform.evidence.observability.logging.context.api import DiagnosticAddress
+from noetrium_platform.evidence.observability.logging.record.api import ExceptionDescriptorPort, LogLevel
+from noetrium_platform.evidence.observability.logging.storage.runtime import InMemoryLogStore
+from noetrium_platform.foundation.kernel.composition.platform_meta import build_in_memory_platform_meta
+from noetrium_platform.foundation.kernel.kernel import canonical_digest
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE
 
 
 class MarkerExceptionDescriptor(ExceptionDescriptorPort):
     def describe(self, exc: BaseException):
-        from research_platform.platform.kernel.errors import SafeExceptionDescriptor
+        from noetrium_platform.foundation.kernel.kernel.errors import SafeExceptionDescriptor
 
         return SafeExceptionDescriptor(
             error_type="custom",

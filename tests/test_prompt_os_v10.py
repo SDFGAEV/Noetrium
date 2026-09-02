@@ -4,11 +4,11 @@ import json
 import hashlib
 import tempfile
 
-from research_platform.model.request.prompt.runtime.generation_codec import decode_generation, encode_generation
+from noetrium_platform.capabilities.model.request.prompt.runtime.generation_codec import decode_generation, encode_generation
 import unittest
 
-from research_platform.platform.kernel import ImmutableModelIdentity, canonical_bytes
-from research_platform.model.request.prompt.runtime import (
+from noetrium_platform.foundation.kernel.kernel import ImmutableModelIdentity, canonical_bytes
+from noetrium_platform.capabilities.model.request.prompt.runtime import (
     CanaryObservation, CanarySuite, DurablePromptRegistry, OutputSchemaSpec, PromptBlock,
     PromptBlockKind, PromptBudgetExceeded, PromptBudgetPlanner, PromptCanary, PromptCompiler,
     PromptPublicationError, PromptPromotionEvidence, PromptQualification, PromptRegistry, build_execution_contract, default_block_policies,
@@ -46,8 +46,8 @@ class PromptOSV10Tests(unittest.TestCase):
         compiled=PromptCompiler().compile(b,default_block_policies()["planner"],blocks)
         schema=default_output_schemas().require(b.output_schema)
         model=ImmutableModelIdentity("m","id","rev","sglang","1","bfloat16",None,262144)
-        from research_platform.model.request.prompt.runtime import PromptCompilationReceipt
-        budget=__import__("research_platform.model.request.prompt.runtime.budget",fromlist=["PromptBudgetPlanner"]).PromptBudgetPlanner().check(b,blocks,context_length=262144)
+        from noetrium_platform.capabilities.model.request.prompt.runtime import PromptCompilationReceipt
+        budget=__import__("noetrium_platform.capabilities.model.request.prompt.runtime.budget",fromlist=["PromptBudgetPlanner"]).PromptBudgetPlanner().check(b,blocks,context_length=262144)
         receipt=PromptCompilationReceipt("g10",b.prompt_id,b.digest,schema.schema_id,schema.digest(),compiled,budget)
         c=build_execution_contract(request_id="r",compilation=receipt,resolution=r.resolve("planner.v6"),model=model,request_body={"messages":[]})
         self.assertEqual(c.dynamic_digest,compiled.dynamic_digest); self.assertEqual(c.schema_digest,schema.digest()); self.assertEqual(c.model_resume_key,model.resume_key())
@@ -80,7 +80,7 @@ class PromptOSV10Tests(unittest.TestCase):
         with self.assertRaises(TypeError): list.append(spec.schema["required"],"bypassed")
         recursive={}
         recursive["self"]=recursive
-        from research_platform.platform.kernel import CanonicalEncodingError
+        from noetrium_platform.foundation.kernel.kernel import CanonicalEncodingError
         with self.assertRaisesRegex(CanonicalEncodingError,"cyclic"):
             OutputSchemaSpec("recursive","1",recursive)
 

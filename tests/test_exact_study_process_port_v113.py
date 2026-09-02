@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from research_platform.runtime.service.api import ServiceLaunchContract, ServiceProcessIdentity
+from noetrium_platform.infrastructure.lifecycle.service.api import ServiceLaunchContract, ServiceProcessIdentity
 from service_os_test_support import make_service_supervisor, ready_evidence
 
 from tests_support import context_action_runtime_bindings, frozen_runtime_manifest
@@ -11,10 +11,10 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from research_platform.execution.runtime.manager import ExactRunProcessPort, RunLaunchIdentity, RunProcessBinding, RunProcessBindingError
-from research_platform.runtime.service.runtime.state_storage import FileServiceStateStore
-from research_platform.runtime.service.runtime.runtime_endpoint import ExactServiceRuntimeEndpoint
-from research_platform.runtime.service.runtime import ExactServiceSupervisor
+from noetrium_platform.research.execution.runtime.manager import ExactRunProcessPort, RunLaunchIdentity, RunProcessBinding, RunProcessBindingError
+from noetrium_platform.infrastructure.lifecycle.service.runtime.state_storage import FileServiceStateStore
+from noetrium_platform.infrastructure.lifecycle.service.runtime.runtime_endpoint import ExactServiceRuntimeEndpoint
+from noetrium_platform.infrastructure.lifecycle.service.runtime import ExactServiceSupervisor
 
 
 def h(v): return hashlib.sha256(v.encode()).hexdigest()

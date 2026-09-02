@@ -7,9 +7,9 @@ from pathlib import Path
 import sqlite3
 from tempfile import TemporaryDirectory
 
-from research_platform.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
-from research_platform.scope.providers import SQLiteScopeRegistry
-from research_platform.scope.runtime import InMemoryScopeRegistry
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
+from noetrium_platform.foundation.scope.providers import SQLiteScopeRegistry
+from noetrium_platform.foundation.scope.runtime import InMemoryScopeRegistry
 
 
 def _register_many_children(registry, *, count: int = 64) -> tuple[ScopeIdentity, ...]:

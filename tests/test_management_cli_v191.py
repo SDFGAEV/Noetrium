@@ -5,8 +5,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from research_platform.environment.python.api import EnvironmentCommandResult
-from research_platform.operator.maintenance.runtime.management_cli import _require_command_success, main
+from noetrium_platform.capabilities.environment.python.api import EnvironmentCommandResult
+from noetrium_platform.product.operator.maintenance.runtime.management_cli import _require_command_success, main
 
 
 class ManagementCliTests(unittest.TestCase):

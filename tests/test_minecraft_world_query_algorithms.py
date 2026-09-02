@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from research_platform.environment.minecraft.runtime.world import (
+from noetrium_platform.capabilities.environment.minecraft.runtime.world import (
     MinecraftRoutine,
     MinecraftRoutineController,
     MinecraftWorldQuery,

@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-from research_platform.runtime.server.identity.api import (
+from noetrium_platform.infrastructure.lifecycle.server.identity.api import (
     ServerCommandResult,
     ServerTransportFailureKind,
 )
-from research_platform.runtime.server.lifecycle.api import (
+from noetrium_platform.infrastructure.lifecycle.server.lifecycle.api import (
     ServerRepositorySyncError,
     ServerRepositorySyncRequest,
 )
-from research_platform.runtime.server.lifecycle.providers import SSHGitRepositorySynchronizer
+from noetrium_platform.infrastructure.lifecycle.server.lifecycle.providers import SSHGitRepositorySynchronizer
 
 
 REVISION = "a" * 40
-URL = "https://github.com/SDFGAEV/noetrium.git"
+URL = "https://github.com/Xalzeroph/noetrium.git"
 
 
 def test_repository_request_requires_exact_github_revision() -> None:

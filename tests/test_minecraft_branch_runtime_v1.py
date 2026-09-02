@@ -5,7 +5,7 @@ import inspect
 
 import pytest
 
-from research_platform.environment.minecraft.api import (
+from noetrium_platform.capabilities.environment.minecraft.api import (
     MinecraftAgentSpec,
     MinecraftBranchRuntimeRequest,
     MinecraftBridgeSpec,
@@ -15,26 +15,26 @@ from research_platform.environment.minecraft.api import (
     MinecraftRconEndpoint,
     MinecraftWorldBranch,
 )
-from research_platform.environment.minecraft.composition import (
+from noetrium_platform.capabilities.environment.minecraft.composition import (
     MinecraftBranchRuntimeFactory,
     MinecraftEnvironmentAssembly,
 )
-from research_platform.environment.minecraft.runtime import MinecraftEnvironmentImplementation
-from research_platform.environment.runtime.api import DurablePreparedActionSession
-from research_platform.resource.allocation.api import (
+from noetrium_platform.capabilities.environment.minecraft.runtime import MinecraftEnvironmentImplementation
+from noetrium_platform.capabilities.environment.runtime.api import DurablePreparedActionSession
+from noetrium_platform.infrastructure.resources.allocation.api import (
     EndpointAllocationRequest,
     EndpointAllocationState,
     EndpointProbeResult,
     NetworkEndpoint,
 )
-from research_platform.resource.allocation.runtime import InMemoryEndpointAllocator
-from research_platform.resource.lease.runtime import InMemoryResourceLeaseRegistry
-from research_platform.runtime.service.api import (
+from noetrium_platform.infrastructure.resources.allocation.runtime import InMemoryEndpointAllocator
+from noetrium_platform.infrastructure.resources.lease.runtime import InMemoryResourceLeaseRegistry
+from noetrium_platform.infrastructure.lifecycle.service.api import (
     ServiceProcessIdentity,
     ServiceReadyObservation,
     ServiceStartOutcome,
 )
-from research_platform.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
 
 
 class AlwaysAvailableProbe:

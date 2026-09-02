@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from research_platform.runtime.server.identity.api import ServerCommandResult
-from research_platform.runtime.server.lifecycle.api import ServerRepositoryCommandRequest
-from research_platform.runtime.server.lifecycle.providers import SSHGitRepositoryCommandRunner
+from noetrium_platform.infrastructure.lifecycle.server.identity.api import ServerCommandResult
+from noetrium_platform.infrastructure.lifecycle.server.lifecycle.api import ServerRepositoryCommandRequest
+from noetrium_platform.infrastructure.lifecycle.server.lifecycle.providers import SSHGitRepositoryCommandRunner
 
 
 REVISION = "b" * 40

@@ -7,10 +7,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from research_platform.runtime.session.api import RuntimeControllerCommand
-from research_platform.runtime.session.runtime import RuntimePersistentSessionHost
-from research_platform.runtime.session.api import PersistentSessionDrift, PersistentSessionSpec
-from research_platform.runtime.session.runtime import (
+from noetrium_platform.infrastructure.lifecycle.session.api import RuntimeControllerCommand
+from noetrium_platform.infrastructure.lifecycle.session.runtime import RuntimePersistentSessionHost
+from noetrium_platform.infrastructure.lifecycle.session.api import PersistentSessionDrift, PersistentSessionSpec
+from noetrium_platform.infrastructure.lifecycle.session.runtime import (
     DirectoryPersistentSessionBindingStore,
     PersistentSessionManager,
     TmuxPersistentSessionControl,
@@ -101,7 +101,7 @@ class TmuxServerSessionTests(unittest.TestCase):
             store = DirectoryPersistentSessionBindingStore(root / "bindings")
             first = PersistentSessionSpec("rp-race", ("/bin/echo", "one"), "/tmp", "c", "2" * 64)
             second = PersistentSessionSpec("rp-race", ("/bin/echo", "two"), "/tmp", "c", "2" * 64)
-            from research_platform.runtime.session.api import PersistentSessionBinding
+            from noetrium_platform.infrastructure.lifecycle.session.api import PersistentSessionBinding
             a = PersistentSessionBinding.from_spec(first, "3" * 64)
             b = PersistentSessionBinding.from_spec(second, "3" * 64)
             self.assertEqual(store.bind_once(a), a)

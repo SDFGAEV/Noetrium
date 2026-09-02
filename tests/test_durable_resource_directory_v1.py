@@ -5,17 +5,17 @@ from pathlib import Path
 
 import pytest
 
-from research_platform.platform.kernel.durability.checksummed_document import (
+from noetrium_platform.foundation.kernel.kernel.durability.checksummed_document import (
     encode_checksummed_document,
 )
-from research_platform.resource.directory.api import (
+from noetrium_platform.infrastructure.resources.directory.api import (
     DirectoryLayout,
     ManagedDirectoryKind,
     WorkspaceMetadataError,
     WorkspaceMetadataFailureCode,
 )
-from research_platform.resource.directory.runtime import build_local_directory_authorities
-from research_platform.scope.api import ScopeIdentity, ScopeKind, scope_to_data
+from noetrium_platform.infrastructure.resources.directory.runtime import build_local_directory_authorities
+from noetrium_platform.foundation.scope.api import ScopeIdentity, ScopeKind, scope_to_data
 
 
 def _layout(root: Path) -> DirectoryLayout:

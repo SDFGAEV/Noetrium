@@ -8,7 +8,7 @@ def test_minecraft_bridge_assets_are_declared_as_package_data() -> None:
     root = Path(__file__).resolve().parents[1]
     pyproject = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
     package_data = pyproject["tool"]["setuptools"]["package-data"]
-    patterns = set(package_data["research_platform.environment.minecraft.providers"])
+    patterns = set(package_data["noetrium_platform.capabilities.environment.minecraft.providers"])
     assert "assets/mineflayer_bridge/*.js" in patterns
     assert "assets/mineflayer_bridge/package.json" in patterns
     assert "assets/mineflayer_bridge/package-lock.json" in patterns

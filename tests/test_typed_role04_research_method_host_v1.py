@@ -6,7 +6,7 @@ from typing import Protocol
 
 import pytest
 
-from research_platform.participant.method.api import (
+from noetrium_platform.capabilities.participant.method.api import (
     MethodIdentity,
     MethodProgramIdentity,
     MethodProgramIdentityMismatch,
@@ -14,15 +14,15 @@ from research_platform.participant.method.api import (
     ResearchMethodProgram,
     StatefulResearchMethodProgram,
 )
-from research_platform.platform.kernel import ComponentIdentity, ExecutionContext
-from research_platform.participant.api import (
+from noetrium_platform.foundation.kernel.kernel import ComponentIdentity, ExecutionContext
+from noetrium_platform.capabilities.participant.api import (
     MethodProjectDefinition, ParticipantRequirement, method_program_identity_for_requirement,
     method_program_identity_for_runtime_binding, require_method_program_runtime_binding,
 )
-from research_platform.participant.core.api.checkpoint import (
+from noetrium_platform.capabilities.participant.core.api.checkpoint import (
     ParticipantCheckpoint, ParticipantCheckpointIdentityMismatch,
 )
-from research_platform.participant.core.api.contracts import (
+from noetrium_platform.capabilities.participant.core.api.contracts import (
     ParticipantImplementationIdentity, ParticipantRuntimeBinding, ParticipantSessionRuntimeIdentity,
 )
 

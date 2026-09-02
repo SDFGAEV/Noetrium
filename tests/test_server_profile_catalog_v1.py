@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from research_platform.runtime.server.identity.api import ServerProfileCatalogError
-from research_platform.runtime.server.identity.providers import build_server_profile_catalog
+from noetrium_platform.infrastructure.lifecycle.server.identity.api import ServerProfileCatalogError
+from noetrium_platform.infrastructure.lifecycle.server.identity.providers import build_server_profile_catalog
 
 
 def test_profile_catalog_projects_explicit_membership_without_cross_server_values() -> None:

@@ -6,12 +6,12 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from research_platform.observability.telemetry.metric.api import TelemetryMetricCorruptionError
-from research_platform.observability.telemetry.metric.composition import build_default_registry
-from research_platform.observability.telemetry.metric.providers import SQLiteTelemetryReader
-from research_platform.observability.telemetry.metric.providers.sqlite_schema import initialize_telemetry_schema
-from research_platform.observability.telemetry.metric.runtime import TelemetryStore
-from research_platform.platform.kernel import ExecutionContext
+from noetrium_platform.evidence.observability.telemetry.metric.api import TelemetryMetricCorruptionError
+from noetrium_platform.evidence.observability.telemetry.metric.composition import build_default_registry
+from noetrium_platform.evidence.observability.telemetry.metric.providers import SQLiteTelemetryReader
+from noetrium_platform.evidence.observability.telemetry.metric.providers.sqlite_schema import initialize_telemetry_schema
+from noetrium_platform.evidence.observability.telemetry.metric.runtime import TelemetryStore
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
 from tests._concurrency_support import telemetry_backend
 
 
@@ -174,7 +174,7 @@ class TelemetryQuerySummaryTests(unittest.TestCase):
                         )
             finally:
                 db.close()
-            from research_platform.observability.telemetry.metric.providers.sqlite_reader import TelemetryReadSession
+            from noetrium_platform.evidence.observability.telemetry.metric.providers.sqlite_reader import TelemetryReadSession
             session = TelemetryReadSession(lambda: sqlite3.connect(path))
             try:
                 rows = session.query(run_id="run", metric="latency", decision_cycle_id=None, limit=5)
@@ -203,7 +203,7 @@ class TelemetryQuerySummaryTests(unittest.TestCase):
                     )
             finally:
                 db.close()
-            from research_platform.observability.telemetry.metric.providers.sqlite_reader import TelemetryReadSession
+            from noetrium_platform.evidence.observability.telemetry.metric.providers.sqlite_reader import TelemetryReadSession
             session = TelemetryReadSession(lambda: sqlite3.connect(path))
             try:
                 with self.assertRaises(TelemetryMetricCorruptionError):

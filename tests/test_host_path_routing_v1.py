@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from research_platform.runtime.host.api import OperatingSystemFamily
-from research_platform.platform.composition.platform_meta import build_in_memory_platform_meta
-from research_platform.runtime.host.composition import compose_local_host
-from research_platform.scope.path.api import (
+from noetrium_platform.infrastructure.lifecycle.host.api import OperatingSystemFamily
+from noetrium_platform.foundation.kernel.composition.platform_meta import build_in_memory_platform_meta
+from noetrium_platform.infrastructure.lifecycle.host.composition import compose_local_host
+from noetrium_platform.foundation.scope.path.api import (
     PathFlavor,
     is_absolute_target_path,
     require_absolute_target_path,
 )
-from research_platform.scope.path.composition import build_target_path_resolver
+from noetrium_platform.foundation.scope.path.composition import build_target_path_resolver
 
 
 def test_target_path_contract_accepts_both_remote_path_flavors() -> None:

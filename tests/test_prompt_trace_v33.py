@@ -2,16 +2,16 @@ from pathlib import Path
 import tempfile, unittest
 
 from tests._concurrency_support import telemetry_backend
-from research_platform.platform.kernel import ExecutionContext
-from research_platform.model.request.prompt.runtime import (
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
+from noetrium_platform.capabilities.model.request.prompt.runtime import (
     PromptBlock, PromptBlockKind, PromptCompiler, PromptRegistry, PromptRequestTrace,
     default_block_policies, default_prompt_specs,
 )
-from research_platform.model.request.prompt.api import PromptTraceStage
-from research_platform.platform.composition.prompt_trace_observability import PromptTelemetryObserver
+from noetrium_platform.capabilities.model.request.prompt.api import PromptTraceStage
+from noetrium_platform.foundation.kernel.composition.prompt_trace_observability import PromptTelemetryObserver
 from tests._concurrency_support import raw_observation_lake
-from research_platform.observability.telemetry.metric.composition import build_default_registry
-from research_platform.observability.telemetry.metric.runtime import TelemetryStore
+from noetrium_platform.evidence.observability.telemetry.metric.composition import build_default_registry
+from noetrium_platform.evidence.observability.telemetry.metric.runtime import TelemetryStore
 
 class PromptTraceV33Tests(unittest.TestCase):
     def _ctx(self): return ExecutionContext(run_id='r',trace_id='tr',span_id='sp',task_id='task',decision_cycle_id='dc',operation_id='op',component_id='llm.runtime')

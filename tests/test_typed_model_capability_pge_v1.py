@@ -5,7 +5,7 @@ import math
 
 import pytest
 
-from research_platform.model.api import (
+from noetrium_platform.capabilities.model.api import (
     EmbeddingInput,
     EmbeddingOutput,
     EmbeddingVector,
@@ -43,11 +43,11 @@ from research_platform.model.api import (
     ValueInferenceInput,
     ValueInferenceOutput,
 )
-from research_platform.model.providers import (
+from noetrium_platform.capabilities.model.providers import (
     FunctionalModelCapabilityProvider, QualifiedStructuredGenerationCapabilityProvider,
 )
-from research_platform.model.request.api import ContentRef, ModelRequestEnvelope
-from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity
+from noetrium_platform.capabilities.model.request.api import ContentRef, ModelRequestEnvelope
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext, ImmutableModelIdentity
 
 
 D = {name: char * 64 for name, char in {
@@ -265,8 +265,8 @@ def test_binding_capability_or_schema_drift_fails_before_handler() -> None:
 
 
 def test_generation_provider_rejects_non_generation_before_binding_lookup() -> None:
-    from research_platform.model.api import ModelBindingDiagnosticCode
-    from research_platform.model.providers import QualifiedModelProjectProvider
+    from noetrium_platform.capabilities.model.api import ModelBindingDiagnosticCode
+    from noetrium_platform.capabilities.model.providers import QualifiedModelProjectProvider
 
     class ForbiddenBindingLookup:
         def binding_for(self, **kwargs):

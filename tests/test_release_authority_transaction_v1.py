@@ -3,14 +3,14 @@ import tempfile
 
 import pytest
 
-from research_platform.governance.release.api import ReleaseQualityEvidence
-from research_platform.governance.release.runtime.authority import (
+from noetrium_platform.foundation.governance.release.api import ReleaseQualityEvidence
+from noetrium_platform.foundation.governance.release.runtime.authority import (
     ReleaseAuthorityMismatch,
     load_verified_release_authority,
     publish_release_authority,
 )
-from research_platform.governance.release.runtime.evidence import build_release_evidence
-from research_platform.governance.release.runtime.manifest import build_release_manifest
+from noetrium_platform.foundation.governance.release.runtime.evidence import build_release_evidence
+from noetrium_platform.foundation.governance.release.runtime.manifest import build_release_manifest
 
 
 def _quality() -> ReleaseQualityEvidence:
@@ -18,8 +18,8 @@ def _quality() -> ReleaseQualityEvidence:
 
 
 def _tree(root: Path) -> None:
-    (root / "research_platform").mkdir()
-    (root / "research_platform" / "__init__.py").write_text("", encoding="utf-8")
+    (root / "noetrium_platform").mkdir()
+    (root / "noetrium_platform" / "__init__.py").write_text("", encoding="utf-8")
     (root / "pyproject.toml").write_text(
         '[project]\nname="x"\nversion="1.0.0"\nrequires-python=">=3.11"\n', encoding="utf-8"
     )

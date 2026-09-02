@@ -3,11 +3,11 @@ from __future__ import annotations
 import time
 import unittest
 
-from research_platform.model.serving import build_runtime_qualification_receipt
-from research_platform.execution.runtime.manager import RuntimeAction, exact_runtime_plan
-from research_platform.execution.runtime.manager.heartbeat import ServiceHeartbeat
-from research_platform.model.serving.runtime.recovery import RecoveryPlanner, RecoveryStep
-from research_platform.model.serving.api.state import ModelPhase, ModelRunState
+from noetrium_platform.capabilities.model.serving import build_runtime_qualification_receipt
+from noetrium_platform.research.execution.runtime.manager import RuntimeAction, exact_runtime_plan
+from noetrium_platform.research.execution.runtime.manager.heartbeat import ServiceHeartbeat
+from noetrium_platform.capabilities.model.serving.runtime.recovery import RecoveryPlanner, RecoveryStep
+from noetrium_platform.capabilities.model.serving.api.state import ModelPhase, ModelRunState
 
 from test_server_runtime_control_v29 import deployment
 

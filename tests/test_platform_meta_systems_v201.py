@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from research_platform.portfolio.api import ProgramSpec, WorkspaceSpec
-from research_platform.portfolio.runtime import InMemoryPortfolioCatalog, PortfolioNotFound
-from research_platform.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
-from research_platform.scope.runtime import InMemoryScopeRegistry, ScopeRegistryConflict
+from noetrium_platform.foundation.portfolio.api import ProgramSpec, WorkspaceSpec
+from noetrium_platform.foundation.portfolio.runtime import InMemoryPortfolioCatalog, PortfolioNotFound
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
+from noetrium_platform.foundation.scope.runtime import InMemoryScopeRegistry, ScopeRegistryConflict
 
 
 def test_portfolio_does_not_publish_metadata_when_scope_link_conflicts() -> None:

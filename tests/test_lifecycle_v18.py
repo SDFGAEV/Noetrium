@@ -2,8 +2,8 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from research_platform.platform.kernel import ExecutionContext
-from research_platform.execution.lifecycle import (
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
+from noetrium_platform.research.execution.lifecycle import (
     ComponentHealthRecord, ComponentHealthStore, HealthClassification, HealthMonitor,
     LifecycleGraphError, LifecycleManager, LifecyclePhase, LifecycleSpec, LifecycleStartError, ResourceHealth,
 )

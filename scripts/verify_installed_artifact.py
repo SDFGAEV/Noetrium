@@ -118,9 +118,9 @@ def verify_installed_artifact(artifact: Path) -> InstalledArtifactReceipt:
         )
         commands.append(_run([str(research), "--help"], cwd=work, env=env))
         metadata_code = (
-            "import importlib.metadata,json,research_platform.api;"
+            "import importlib.metadata,json,noetrium_platform.api;"
             "print(json.dumps({'version':importlib.metadata.version('noetrium'),"
-            "'module_file':research_platform.api.__file__}))"
+            "'module_file':noetrium_platform.api.__file__}))"
         )
         metadata_receipt = _run(
             [str(python), "-I", "-c", metadata_code],
@@ -143,7 +143,7 @@ def verify_installed_artifact(artifact: Path) -> InstalledArtifactReceipt:
         prefix = [
             str(research),
             "--application",
-            "research_platform.operator.reference:build_reference_application",
+            "noetrium_platform.product.operator.reference:build_reference_application",
             "--application-config",
             str(reference_config),
         ]

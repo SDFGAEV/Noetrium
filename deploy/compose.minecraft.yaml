@@ -8,7 +8,7 @@ services:
     image: ${PLATFORM_MINECRAFT_IMAGE:-research-platform-minecraft:local}
     environment:
       MC_DATA_DIR: /var/lib/minecraft
-      MC_BRIDGE_DIR: /opt/research-platform/research_platform/environment/minecraft/providers/assets/mineflayer_bridge
+      MC_BRIDGE_DIR: /opt/research-platform/noetrium_platform/capabilities/environment/minecraft/providers/assets/mineflayer_bridge
     volumes:
       - type: bind
         source: ${PLATFORM_HOST_DATA_ROOT:-./.runtime}/minecraft

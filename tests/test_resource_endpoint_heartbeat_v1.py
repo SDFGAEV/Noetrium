@@ -5,20 +5,20 @@ from threading import Event
 
 import pytest
 
-from research_platform.resource.allocation.api import (
+from noetrium_platform.infrastructure.resources.allocation.api import (
     EndpointAllocation,
     EndpointAllocationState,
     EndpointLeasePolicy,
     EndpointProtocol,
     NetworkEndpoint,
 )
-from research_platform.platform.concurrency.api import ConcurrencyBudget
-from research_platform.platform.concurrency.composition import build_concurrency_runtime
-from research_platform.resource.allocation.runtime import (
+from noetrium_platform.foundation.kernel.concurrency.api import ConcurrencyBudget
+from noetrium_platform.foundation.kernel.concurrency.composition import build_concurrency_runtime
+from noetrium_platform.infrastructure.resources.allocation.runtime import (
     EndpointLeaseHeartbeatError,
     EndpointLeaseHeartbeatGuard,
 )
-from research_platform.scope.api import ScopeIdentity, ScopeKind
+from noetrium_platform.foundation.scope.api import ScopeIdentity, ScopeKind
 
 
 class _RenewingAllocations:

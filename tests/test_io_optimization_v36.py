@@ -3,10 +3,10 @@ from pathlib import Path
 import tempfile, unittest
 from unittest import mock
 from tests._concurrency_support import telemetry_backend
-from research_platform.platform.kernel import ExecutionContext
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
 from tests._concurrency_support import segmented_byte_capture
-from research_platform.observability.telemetry.metric.composition import build_default_registry
-from research_platform.observability.telemetry.metric.runtime import TelemetryBatchRecorder, TelemetryStore
+from noetrium_platform.evidence.observability.telemetry.metric.composition import build_default_registry
+from noetrium_platform.evidence.observability.telemetry.metric.runtime import TelemetryBatchRecorder, TelemetryStore
 
 class IOOptimizationV36Tests(unittest.TestCase):
     def test_capture_uses_cached_active_size_across_many_appends(self):

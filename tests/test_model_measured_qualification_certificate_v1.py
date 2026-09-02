@@ -4,12 +4,12 @@ from dataclasses import replace
 
 import pytest
 
-from research_platform.model.serving.api import (
+from noetrium_platform.capabilities.model.serving.api import (
     PerformanceSample, QualificationEvidence, QualificationPolicy,
     ResourceQualificationMeasurements, RoleCanaryResult,
 )
-from research_platform.model.serving.composition import issue_measured_qualification_certificate
-from research_platform.platform.kernel import canonical_digest
+from noetrium_platform.capabilities.model.serving.composition import issue_measured_qualification_certificate
+from noetrium_platform.foundation.kernel.kernel import canonical_digest
 
 
 def _evidence(*, passed: int = 100, error_rate: float = 0.0) -> QualificationEvidence:

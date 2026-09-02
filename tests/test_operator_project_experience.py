@@ -6,13 +6,13 @@ import subprocess
 
 import pytest
 
-from research_platform.governance.repository_boundary import audit_downstream_project_imports
-from research_platform.operator.api import (
+from noetrium_platform.foundation.governance.repository_boundary import audit_downstream_project_imports
+from noetrium_platform.product.operator.api import (
     ProjectCreateRequest, ProjectDoctorDisposition, ProjectTemplateProfile, ProjectTestStage,
 )
-from research_platform.operator.runtime import project_doctor, project_scaffold, project_testing
-from research_platform.operator.runtime.project_platform_identity import InstalledPlatformIdentity
-from research_platform.portfolio.api import (
+from noetrium_platform.product.operator.runtime import project_doctor, project_scaffold, project_testing
+from noetrium_platform.product.operator.runtime.project_platform_identity import InstalledPlatformIdentity
+from noetrium_platform.foundation.portfolio.api import (
     decode_project_manifest_bytes,
     encode_project_manifest,
     project_manifest_document,
@@ -150,7 +150,7 @@ def test_project_doctor_rejects_manifest_and_private_import_drift(
     manifest_path = root / "project.manifest.json"
     manifest_path.write_bytes(manifest_path.read_bytes() + b"\n")
     private_source = root / "src" / "demo_project" / "private_import.py"
-    private_source.write_text("from research_platform.operator.runtime import research_cli\n", encoding="utf-8")
+    private_source.write_text("from noetrium_platform.product.operator.runtime import research_cli\n", encoding="utf-8")
 
     drifted = project_doctor.doctor_project(root)
     drifted_checks = _checks(drifted)
@@ -206,7 +206,7 @@ def test_project_doctor_projects_typed_provider_diagnostics(
     assert rows["application_binding"].disposition is ProjectDoctorDisposition.BLOCKED
 
 def test_root_product_api_exports_project_test_stage_types() -> None:
-    from research_platform.api import ProjectTestStage, ProjectTestStageReceipt
+    from noetrium_platform.api import ProjectTestStage, ProjectTestStageReceipt
 
     receipt = ProjectTestStageReceipt(ProjectTestStage.BUILD_INSTALL, ("python",), 0)
     assert receipt.stage is ProjectTestStage.BUILD_INSTALL
@@ -229,7 +229,7 @@ def test_project_cli_test_emits_one_strict_json_document(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capfd
 ) -> None:
     import json
-    from research_platform.operator.composition.research import main
+    from noetrium_platform.product.operator.composition.research import main
 
     _bind_fixed_platform(monkeypatch)
     root = tmp_path / "strict-project-test"
@@ -281,7 +281,7 @@ def test_project_cli_create_and_doctor_fail_closed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys
 ) -> None:
     import json
-    from research_platform.operator.composition.research import main
+    from noetrium_platform.product.operator.composition.research import main
 
     _bind_fixed_platform(monkeypatch)
     root = tmp_path / "demo-project"
@@ -306,7 +306,7 @@ def test_project_cli_loads_explicit_project_application_and_defaults_target(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys
 ) -> None:
     import json
-    from research_platform.operator.composition.research import main
+    from noetrium_platform.product.operator.composition.research import main
 
     _bind_fixed_platform(monkeypatch)
     root = tmp_path / "project-route"
@@ -316,7 +316,7 @@ def test_project_cli_loads_explicit_project_application_and_defaults_target(
     ))
     application = root / "src" / "project_route" / "application.py"
     application.write_text(
-        "from research_platform.api import ResearchResult\n\n"
+        "from noetrium_platform.api import ResearchResult\n\n"
         "class Application:\n"
         "    def execute(self, request):\n"
         "        return ResearchResult(request.action, request.target, 'accepted', {'route': 'project'})\n\n"
@@ -338,7 +338,7 @@ def test_author_project_lifecycle_route_is_compiler_blocked_not_application_driv
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys
 ) -> None:
     import json
-    from research_platform.operator.composition.research import main
+    from noetrium_platform.product.operator.composition.research import main
 
     _bind_fixed_platform(monkeypatch)
     root = tmp_path / "author-route"
@@ -355,7 +355,7 @@ def test_author_project_lifecycle_route_is_compiler_blocked_not_application_driv
 def test_project_cli_rejects_ambiguous_application_source(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys
 ) -> None:
-    from research_platform.operator.composition.research import main
+    from noetrium_platform.product.operator.composition.research import main
 
     _bind_fixed_platform(monkeypatch)
     root = tmp_path / "ambiguous-route"
@@ -408,7 +408,7 @@ def test_project_cli_provider_template_is_explicit(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys
 ) -> None:
     import json
-    from research_platform.operator.composition.research import main
+    from noetrium_platform.product.operator.composition.research import main
 
     _bind_fixed_platform(monkeypatch)
     root = tmp_path / "provider-cli"

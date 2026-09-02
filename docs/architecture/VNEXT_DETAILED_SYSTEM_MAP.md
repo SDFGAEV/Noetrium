@@ -194,7 +194,7 @@ Runtime control/history, process identity/launch/lifecycle, session binding/iden
 
 ## Scientific semantics convergence
 
-`Scientific` is no longer an independent platform system. ROLE03 Trial/Study convergence folds reusable research-design, measurement, analysis and trial-protocol semantics into `experimentation/study`; concrete method/agent/provider behavior remains behind Participant and downstream project contracts. The historical `research_platform.scientific/**` shell is deleted rather than retained as a compatibility authority.
+`Scientific` is no longer an independent platform system. ROLE03 Trial/Study convergence folds reusable research-design, measurement, analysis and trial-protocol semantics into `experimentation/study`; concrete method/agent/provider behavior remains behind Participant and downstream project contracts. The historical `noetrium_platform.research.scientific/**` shell is deleted rather than retained as a compatibility authority.
 
 ## Scope System
 

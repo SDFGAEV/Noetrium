@@ -4,19 +4,19 @@ from dataclasses import dataclass
 
 import pytest
 
-from research_platform.artifact.api import ArtifactContentIdentity
-from research_platform.artifact.catalog.api import ArtifactNotFound
-from research_platform.artifact.content.api import (
+from noetrium_platform.evidence.artifact.api import ArtifactContentIdentity
+from noetrium_platform.evidence.artifact.catalog.api import ArtifactNotFound
+from noetrium_platform.evidence.artifact.content.api import (
     ArtifactContentIdentityVerificationError,
     ArtifactStorageBinding,
     ArtifactStorageBindingNotFound,
     ArtifactStorageVerificationError,
     VerifiedArtifactStoragePlacement,
 )
-from research_platform.artifact.content.api import ArtifactContentIdentityResolverPort
-from research_platform.artifact.content.composition import compose_artifact_content_identity_resolver
-from research_platform.artifact.reference.api import ArtifactReference, ArtifactReferenceNotFound
-from research_platform.scope.api import ScopeIdentity, ScopeKind
+from noetrium_platform.evidence.artifact.content.api import ArtifactContentIdentityResolverPort
+from noetrium_platform.evidence.artifact.content.composition import compose_artifact_content_identity_resolver
+from noetrium_platform.evidence.artifact.reference.api import ArtifactReference, ArtifactReferenceNotFound
+from noetrium_platform.foundation.scope.api import ScopeIdentity, ScopeKind
 
 
 DIGEST = "a" * 64
@@ -366,7 +366,7 @@ def test_composed_resolver_exposes_one_typed_fail_closed_surface() -> None:
 
 
 def test_removed_function_style_identity_entrypoints_are_not_public() -> None:
-    import research_platform.artifact.content.composition as composition
+    import noetrium_platform.evidence.artifact.content.composition as composition
 
     for old_name in (
         "verify_artifact_content_identity",
@@ -377,7 +377,7 @@ def test_removed_function_style_identity_entrypoints_are_not_public() -> None:
 
 
 def test_content_identity_is_owned_only_by_top_level_artifact_api() -> None:
-    import research_platform.artifact.content.api as content_api
+    import noetrium_platform.evidence.artifact.content.api as content_api
 
     assert ArtifactContentIdentity("artifact-1", DIGEST).artifact_id == "artifact-1"
     assert not hasattr(content_api, "ArtifactContentIdentity")

@@ -35,16 +35,16 @@ if sys.version_info < (3, 11):
     raise SystemExit(2)
 
 from scripts.server_common import compose_script_server, load_script_environment, server_cli_concurrency_scope
-from research_platform.platform.kernel.errors import describe_exception
-from research_platform.runtime.server.api import (
+from noetrium_platform.foundation.kernel.kernel.errors import describe_exception
+from noetrium_platform.infrastructure.lifecycle.server.api import (
     ServerOperationResolved,
     ServerOperationResolution,
 )
-from research_platform.runtime.server.identity.api import (
+from noetrium_platform.infrastructure.lifecycle.server.identity.api import (
     ServerIdentityConfigurationError,
     server_environment_prefix,
 )
-from research_platform.runtime.server.runtime import JsonlServerOperationJournal
+from noetrium_platform.infrastructure.lifecycle.server.runtime import JsonlServerOperationJournal
 
 
 def _record_payload(record) -> dict[str, object]:

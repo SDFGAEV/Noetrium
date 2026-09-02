@@ -1,19 +1,19 @@
 from __future__ import annotations
-from research_platform.platform.composition.experiment_runtime import build_experiment_runtime
+from noetrium_platform.foundation.kernel.composition.experiment_runtime import build_experiment_runtime
 from tests_support import participant
 
 from dataclasses import replace
 
-from research_platform.platform.kernel import ComponentIdentity
-from research_platform.participant.core.api.checkpoint import ParticipantCheckpoint
-from research_platform.participant.core.api.runtime import ParticipantRuntimeHandle
-from research_platform.experimentation.checkpoint.providers.directory_store import DirectoryRunCheckpointStore
-from research_platform.execution.decision.cycle_identity import DecisionCycleIdentity
-from research_platform.experimentation.run.identity.api import RunIdentity
-from research_platform.experimentation.experiment.runtime import ExperimentRuntime
-from research_platform.experimentation.experiment.api import ExperimentParticipantTopology
-from research_platform.execution.workflow.api import TrialCycleExecution
-from research_platform.experimentation.experiment.api import ExperimentParticipantSpec, ExperimentSpec
+from noetrium_platform.foundation.kernel.kernel import ComponentIdentity
+from noetrium_platform.capabilities.participant.core.api.checkpoint import ParticipantCheckpoint
+from noetrium_platform.capabilities.participant.core.api.runtime import ParticipantRuntimeHandle
+from noetrium_platform.research.experimentation.checkpoint.providers.directory_store import DirectoryRunCheckpointStore
+from noetrium_platform.research.execution.decision.cycle_identity import DecisionCycleIdentity
+from noetrium_platform.research.experimentation.run.identity.api import RunIdentity
+from noetrium_platform.research.experimentation.experiment.runtime import ExperimentRuntime
+from noetrium_platform.research.experimentation.experiment.api import ExperimentParticipantTopology
+from noetrium_platform.research.execution.workflow.api import TrialCycleExecution
+from noetrium_platform.research.experimentation.experiment.api import ExperimentParticipantSpec, ExperimentSpec
 
 
 class SidecarPlugin:

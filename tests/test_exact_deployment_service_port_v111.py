@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from research_platform.runtime.service.api import ServiceLaunchContract, ServiceProcessIdentity
+from noetrium_platform.infrastructure.lifecycle.service.api import ServiceLaunchContract, ServiceProcessIdentity
 from service_os_test_support import make_service_supervisor, ready_evidence
 
 from tests_support import frozen_runtime_manifest
@@ -10,19 +10,19 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from research_platform.platform.composition.model_deployments import freeze_model_deployment_set
-from research_platform.platform.kernel.identity import ImmutableModelIdentity
-from research_platform.model.serving.api.qualified_deployment import QualificationCertificate, QualifiedDeploymentManifest, ResourceEnvelope, RoleModelAssignment, RoleModelManifest
-from research_platform.model.serving.api.placement import DeploymentPlacement
-from research_platform.model.stack.api import ModelArtifactClosure, ModelStackSpec, RuntimeBuildIdentity
-from research_platform.execution.runtime.manager import (
+from noetrium_platform.foundation.kernel.composition.model_deployments import freeze_model_deployment_set
+from noetrium_platform.foundation.kernel.kernel.identity import ImmutableModelIdentity
+from noetrium_platform.capabilities.model.serving.api.qualified_deployment import QualificationCertificate, QualifiedDeploymentManifest, ResourceEnvelope, RoleModelAssignment, RoleModelManifest
+from noetrium_platform.capabilities.model.serving.api.placement import DeploymentPlacement
+from noetrium_platform.capabilities.model.stack.api import ModelArtifactClosure, ModelStackSpec, RuntimeBuildIdentity
+from noetrium_platform.research.execution.runtime.manager import (
     DeploymentServiceBinding,
     DeploymentServiceBindingError,
     ExactDeploymentServicePort,
 )
-from research_platform.runtime.service.runtime.state_storage import FileServiceStateStore
-from research_platform.runtime.service.runtime.runtime_endpoint import ExactServiceRuntimeEndpoint
-from research_platform.runtime.service.runtime import ExactServiceSupervisor
+from noetrium_platform.infrastructure.lifecycle.service.runtime.state_storage import FileServiceStateStore
+from noetrium_platform.infrastructure.lifecycle.service.runtime.runtime_endpoint import ExactServiceRuntimeEndpoint
+from noetrium_platform.infrastructure.lifecycle.service.runtime import ExactServiceSupervisor
 
 
 def h(v): return hashlib.sha256(v.encode()).hexdigest()

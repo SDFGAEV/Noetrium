@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from research_platform.model.asset.api import ManagedModelAsset, ModelAssetMode, ModelAssetOrigin
-from research_platform.model.asset.runtime.codec import decode_model_asset, encode_model_asset
-from research_platform.model.deployment.api import (
+from noetrium_platform.capabilities.model.asset.api import ManagedModelAsset, ModelAssetMode, ModelAssetOrigin
+from noetrium_platform.capabilities.model.asset.runtime.codec import decode_model_asset, encode_model_asset
+from noetrium_platform.capabilities.model.deployment.api import (
     ModelControllerPhase,
     ModelControllerState,
     ModelDeploymentSpec,
@@ -16,16 +16,16 @@ from research_platform.model.deployment.api import (
     ModelReconcileCycle,
     ModelRuntimeState,
 )
-from research_platform.model.deployment.runtime.applied import AppliedModelDeployment
-from research_platform.model.deployment.runtime.codec import (
+from noetrium_platform.capabilities.model.deployment.runtime.applied import AppliedModelDeployment
+from noetrium_platform.capabilities.model.deployment.runtime.codec import (
     decode_applied,
     decode_deployment,
     deployment_to_data,
     encode_applied,
 )
-from research_platform.model.deployment.runtime.controller_state import FileModelControllerStateStore
-from research_platform.runtime.service.api import ServiceLaunchContract
-from research_platform.scope.api import PLATFORM_SCOPE
+from noetrium_platform.capabilities.model.deployment.runtime.controller_state import FileModelControllerStateStore
+from noetrium_platform.infrastructure.lifecycle.service.api import ServiceLaunchContract
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE
 
 
 _DIGEST = "a" * 64
@@ -214,13 +214,13 @@ def test_controller_state_rejects_nested_status_shape_drift(tmp_path: Path) -> N
 
 
 def test_qualification_application_decoder_rejects_coercive_receipt_state() -> None:
-    from research_platform.model.qualification.api import (
+    from noetrium_platform.capabilities.model.qualification.api import (
         DeploymentQualificationApplicationReceipt,
         InstallPackage,
         QualificationCommandReceipt,
         QualificationMaterializationStatus,
     )
-    from research_platform.model.qualification.providers.qualification_application import (
+    from noetrium_platform.capabilities.model.qualification.providers.qualification_application import (
         FileDeploymentQualificationApplicationStore,
     )
 
@@ -245,12 +245,12 @@ def test_qualification_application_decoder_rejects_coercive_receipt_state() -> N
 
 
 def test_qualification_runtime_decoder_rejects_coercive_receipt_state() -> None:
-    from research_platform.model.qualification.api import (
+    from noetrium_platform.capabilities.model.qualification.api import (
         DeploymentQualificationRuntimeReceipt,
         DeploymentRuntimeQualificationStatus,
         RuntimeCheckReceipt,
     )
-    from research_platform.model.qualification.providers.qualification_runtime import (
+    from noetrium_platform.capabilities.model.qualification.providers.qualification_runtime import (
         FileDeploymentQualificationRuntimeStore,
     )
 

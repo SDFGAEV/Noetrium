@@ -91,7 +91,7 @@ def _bind_fake_venv(monkeypatch) -> dict[str, Path]:
 
 
 def test_clean_room_reports_missing_venv_as_environment_blocker(tmp_path: Path, monkeypatch) -> None:
-    artifact = tmp_path / "research_platform.whl"
+    artifact = tmp_path / "noetrium_platform.whl"
     artifact.write_bytes(b"wheel")
     monkeypatch.setattr(npe, "_create_venv", lambda root: False)
     monkeypatch.setattr(
@@ -110,7 +110,7 @@ def test_clean_room_reports_missing_venv_as_environment_blocker(tmp_path: Path, 
 def test_clean_room_records_level0_binding_blocker_without_false_pass(
     tmp_path: Path, monkeypatch
 ) -> None:
-    artifact = tmp_path / "research_platform.whl"
+    artifact = tmp_path / "noetrium_platform.whl"
     artifact.write_bytes(b"wheel")
     venv_state = _bind_fake_venv(monkeypatch)
     rows = {
@@ -125,7 +125,7 @@ def test_clean_room_records_level0_binding_blocker_without_false_pass(
     def fake_run(name, argv, cwd, env):
         del argv, cwd, env
         if name == "installed-metadata":
-            module_file = venv_state["root"] / "Lib" / "site-packages" / "research_platform" / "api.py"
+            module_file = venv_state["root"] / "Lib" / "site-packages" / "noetrium_platform" / "api.py"
             return _receipt(name, 0, {"version": "0.43.1", "module_file": str(module_file)})
         return rows[name]
     monkeypatch.setattr(npe, "_run", fake_run)
@@ -142,7 +142,7 @@ def test_clean_room_records_level0_binding_blocker_without_false_pass(
 def test_clean_room_does_not_claim_npe_when_level0_doctor_is_ready_but_lifecycle_gate_is_unbound(
     tmp_path: Path, monkeypatch
 ) -> None:
-    artifact = tmp_path / "research_platform.whl"
+    artifact = tmp_path / "noetrium_platform.whl"
     artifact.write_bytes(b"wheel")
     venv_state = _bind_fake_venv(monkeypatch)
     rows = {
@@ -154,7 +154,7 @@ def test_clean_room_does_not_claim_npe_when_level0_doctor_is_ready_but_lifecycle
     def fake_run(name, argv, cwd, env):
         del argv, cwd, env
         if name == "installed-metadata":
-            module_file = venv_state["root"] / "Lib" / "site-packages" / "research_platform" / "api.py"
+            module_file = venv_state["root"] / "Lib" / "site-packages" / "noetrium_platform" / "api.py"
             return _receipt(name, 0, {"version": "0.43.1", "module_file": str(module_file)})
         return rows[name]
     monkeypatch.setattr(npe, "_run", fake_run)
@@ -167,7 +167,7 @@ def test_clean_room_does_not_claim_npe_when_level0_doctor_is_ready_but_lifecycle
 def test_clean_room_rejects_installed_import_outside_verification_venv(
     tmp_path: Path, monkeypatch
 ) -> None:
-    artifact = tmp_path / "research_platform.whl"
+    artifact = tmp_path / "noetrium_platform.whl"
     artifact.write_bytes(b"wheel")
     _bind_fake_venv(monkeypatch)
 
@@ -179,7 +179,7 @@ def test_clean_room_rejects_installed_import_outside_verification_venv(
             return _receipt(
                 name,
                 0,
-                {"version": "0.43.1", "module_file": str(tmp_path / "checkout" / "research_platform" / "api.py")},
+                {"version": "0.43.1", "module_file": str(tmp_path / "checkout" / "noetrium_platform" / "api.py")},
             )
         raise AssertionError(name)
 

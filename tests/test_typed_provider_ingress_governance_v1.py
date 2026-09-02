@@ -4,8 +4,8 @@ import hashlib
 
 import pytest
 
-from research_platform.governance.api import RepositorySourceBlob, RepositorySourceSnapshot
-from research_platform.governance.architecture.api import (
+from noetrium_platform.foundation.governance.api import RepositorySourceBlob, RepositorySourceSnapshot
+from noetrium_platform.foundation.governance.architecture.api import (
     BindingProof,
     CompositionSubject,
     ProviderIngressBoundary,
@@ -17,8 +17,8 @@ from research_platform.governance.architecture.api import (
     ProviderRevisionKind,
     provider_implementation_from_repository_source,
 )
-from research_platform.governance.architecture import audit_provider_ingress_boundaries
-from research_platform.platform.kernel import Sha256Digest
+from noetrium_platform.foundation.governance.architecture import audit_provider_ingress_boundaries
+from noetrium_platform.foundation.kernel.kernel import Sha256Digest
 
 
 def _digest(ch: str) -> Sha256Digest:
@@ -124,33 +124,33 @@ def test_provider_qualification_profile_binds_source_adapter_contract_and_eviden
 
 def test_provider_native_imports_are_confined_to_declared_adapter_boundary() -> None:
     source = RepositorySourceSnapshot(tuple(sorted((
-        _blob("research_platform/environment/providers/example/adapter.py", "import vendor_mcp.client\n"),
-        _blob("research_platform/environment/providers/example/runtime.py", "from .adapter import object\n"),
-        _blob("research_platform/environment/api/contracts.py", "from vendor_mcp import types\n"),
-        _blob("research_platform/environment/composition/example.py", "import vendor_sdk.session\n"),
+        _blob("noetrium_platform/capabilities/environment/providers/example/adapter.py", "import vendor_mcp.client\n"),
+        _blob("noetrium_platform/capabilities/environment/providers/example/runtime.py", "from .adapter import object\n"),
+        _blob("noetrium_platform/capabilities/environment/api/contracts.py", "from vendor_mcp import types\n"),
+        _blob("noetrium_platform/capabilities/environment/composition/example.py", "import vendor_sdk.session\n"),
     ), key=lambda item: item.relative_path)))
     boundary = ProviderIngressBoundary(
         provider_identity="provider.example/v1",
         ingress=ProviderIngressProtocol("mcp"),
-        adapter_module_prefix="research_platform.environment.providers.example",
+        adapter_module_prefix="noetrium_platform.capabilities.environment.providers.example",
         implementation_import_prefixes=("vendor_mcp", "vendor_sdk"),
     )
     violations = audit_provider_ingress_boundaries(source, (boundary,))
     assert [(row.path, row.imported_module) for row in violations] == [
-        ("research_platform/environment/api/contracts.py", "vendor_mcp"),
-        ("research_platform/environment/composition/example.py", "vendor_sdk.session"),
+        ("noetrium_platform/capabilities/environment/api/contracts.py", "vendor_mcp"),
+        ("noetrium_platform/capabilities/environment/composition/example.py", "vendor_sdk.session"),
     ]
     assert all(row.code == "provider_native_import_escaped_adapter" for row in violations)
 
 
 def test_provider_ingress_audit_fails_closed_on_unparseable_source() -> None:
     source = RepositorySourceSnapshot((
-        _blob("research_platform/environment/providers/example/adapter.py", "def broken(:\n"),
+        _blob("noetrium_platform/capabilities/environment/providers/example/adapter.py", "def broken(:\n"),
     ))
     boundary = ProviderIngressBoundary(
         provider_identity="provider.example/v1",
         ingress=ProviderIngressProtocol("sdk.python"),
-        adapter_module_prefix="research_platform.environment.providers.example",
+        adapter_module_prefix="noetrium_platform.capabilities.environment.providers.example",
         implementation_import_prefixes=("vendor_sdk",),
     )
     violations = audit_provider_ingress_boundaries(source, (boundary,))
@@ -172,6 +172,6 @@ def test_provider_ingress_boundaries_reject_ambiguous_or_invalid_declarations() 
         ProviderIngressBoundary(
             provider_identity="provider.example/v1",
             ingress=ProviderIngressProtocol("mcp"),
-            adapter_module_prefix="research_platform.environment.providers.example",
+            adapter_module_prefix="noetrium_platform.capabilities.environment.providers.example",
             implementation_import_prefixes=("vendor", "vendor.client"),
         )

@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from research_platform.runtime.server.identity.api import ServerCommandResult, server_environment_prefix
-from research_platform.runtime.server.lifecycle.api import ServerRemoteProfile
-from research_platform.runtime.server.providers import ProfileBoundServerConnection
-from research_platform.runtime.session.providers import (
+from noetrium_platform.infrastructure.lifecycle.server.identity.api import ServerCommandResult, server_environment_prefix
+from noetrium_platform.infrastructure.lifecycle.server.lifecycle.api import ServerRemoteProfile
+from noetrium_platform.infrastructure.lifecycle.server.providers import ProfileBoundServerConnection
+from noetrium_platform.infrastructure.lifecycle.session.providers import (
     SSHRemoteTmuxCommandRunner,
     SSHRemoteTmuxSessionControl,
 )

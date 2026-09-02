@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from research_platform.platform.composition.platform_meta import build_in_memory_platform_meta
-from research_platform.data.dataset.api import DatasetIdentity, DatasetQuery, DatasetVersion
-from research_platform.governance.architecture.system_graphs import declared_subsystem_graph, declared_system_graph
-from research_platform.resource.compute.api import ComputeGPU, ComputeHost, ComputeRequirement
-from research_platform.resource.lease.api import ResourceIdentity, ResourceKind, ResourceLease, ResourceOwner
-from research_platform.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
+from noetrium_platform.foundation.kernel.composition.platform_meta import build_in_memory_platform_meta
+from noetrium_platform.evidence.data.dataset.api import DatasetIdentity, DatasetQuery, DatasetVersion
+from noetrium_platform.foundation.governance.architecture.system_graphs import declared_subsystem_graph, declared_system_graph
+from noetrium_platform.infrastructure.resources.compute.api import ComputeGPU, ComputeHost, ComputeRequirement
+from noetrium_platform.infrastructure.resources.lease.api import ResourceIdentity, ResourceKind, ResourceLease, ResourceOwner
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
 
 
 def test_platform_meta_composes_independent_authorities() -> None:

@@ -5,21 +5,21 @@ from pathlib import Path
 
 import pytest
 
-from research_platform.model.deployment.api import (
+from noetrium_platform.capabilities.model.deployment.api import (
     ModelControllerPhase,
     ModelControllerState,
     ModelDeploymentSpec,
     ModelDesiredState,
 )
-from research_platform.model.qualification.api import DeploymentQualificationRequest
-from research_platform.model.request.prompt.runtime.spec import PromptSection, PromptSpec
-from research_platform.model.serving.api import PerformanceSample, QualificationPolicy, ResourceEnvelope
-from research_platform.model.serving.endpoint import ModelEndpointRoute
-from research_platform.participant.agent.api import AgentGoal
-from research_platform.participant.agent.runtime.action_manager import ActionExecutionPolicy
-from research_platform.participant.agent.runtime.self_prompter import SelfPrompterLifecycle, SelfPrompterState
-from research_platform.participant.agent.runtime.vision import VisionInterpretation
-from research_platform.scope.api import PLATFORM_SCOPE
+from noetrium_platform.capabilities.model.qualification.api import DeploymentQualificationRequest
+from noetrium_platform.capabilities.model.request.prompt.runtime.spec import PromptSection, PromptSpec
+from noetrium_platform.capabilities.model.serving.api import PerformanceSample, QualificationPolicy, ResourceEnvelope
+from noetrium_platform.capabilities.model.serving.endpoint import ModelEndpointRoute
+from noetrium_platform.capabilities.participant.agent.api import AgentGoal
+from noetrium_platform.capabilities.participant.agent.runtime.action_manager import ActionExecutionPolicy
+from noetrium_platform.capabilities.participant.agent.runtime.self_prompter import SelfPrompterLifecycle, SelfPrompterState
+from noetrium_platform.capabilities.participant.agent.runtime.vision import VisionInterpretation
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE
 
 
 NON_FINITE = (nan, inf, -inf)
@@ -183,43 +183,43 @@ def test_qualification_rates_remain_bounded_probabilities() -> None:
         QualificationPolicy(minimum_role_pass_rate=1.01)
 
 
-from research_platform.model.request.prompt.api.request import PromptBodyContext
-from research_platform.model.request.prompt.api.trace import (
+from noetrium_platform.capabilities.model.request.prompt.api.request import PromptBodyContext
+from noetrium_platform.capabilities.model.request.prompt.api.trace import (
     PromptTracePoint,
     PromptTraceStage,
     PromptTraceSummary,
 )
-from research_platform.model.request.prompt.runtime.outcome import (
+from noetrium_platform.capabilities.model.request.prompt.runtime.outcome import (
     PromptOutcomeLink,
     PromptOutcomeSummary,
 )
-from research_platform.model.request.prompt.runtime.promotion_contracts import (
+from noetrium_platform.capabilities.model.request.prompt.runtime.promotion_contracts import (
     PromptPromotionEvidence,
     PromptPromotionRecord,
 )
-from research_platform.model.request.prompt.runtime.request_contract import PromptRequestContract
-from research_platform.model.request.prompt.runtime.runtime_contracts import ActivePromptBundle
-from research_platform.model.serving.api.heartbeat import ServiceHeartbeat
-from research_platform.model.serving.api.inventory import (
+from noetrium_platform.capabilities.model.request.prompt.runtime.request_contract import PromptRequestContract
+from noetrium_platform.capabilities.model.request.prompt.runtime.runtime_contracts import ActivePromptBundle
+from noetrium_platform.capabilities.model.serving.api.heartbeat import ServiceHeartbeat
+from noetrium_platform.capabilities.model.serving.api.inventory import (
     CPUInventory,
     CPUNode,
     GPUFabricLink,
     GPUInventory,
 )
-from research_platform.model.serving.api.inventory import (
+from noetrium_platform.capabilities.model.serving.api.inventory import (
     HostInventory,
     HostLimits,
     MemoryInventory,
     MountInventory,
     RuntimeInventory,
 )
-from research_platform.model.serving.api.recovery_state import (
+from noetrium_platform.capabilities.model.serving.api.recovery_state import (
     DurableRecoveryAttempt,
     DurableRecoveryPhase,
 )
-from research_platform.model.serving.api.state import ModelPhase, ModelRunState
-from research_platform.model.serving.endpoint.api.qualification import QualifiedModelEndpointBinding
-from research_platform.model.qualification.api import (
+from noetrium_platform.capabilities.model.serving.api.state import ModelPhase, ModelRunState
+from noetrium_platform.capabilities.model.serving.endpoint.api.qualification import QualifiedModelEndpointBinding
+from noetrium_platform.capabilities.model.qualification.api import (
     CudaFacts,
     DeploymentCapabilityFacts,
     GpuCapabilityFacts,
@@ -229,7 +229,7 @@ from research_platform.model.qualification.api import (
     PythonRuntimeFacts,
     StorageCapabilityFacts,
 )
-from research_platform.platform.kernel import ImmutableModelIdentity
+from noetrium_platform.foundation.kernel.kernel import ImmutableModelIdentity
 
 
 def _model_identity() -> ImmutableModelIdentity:

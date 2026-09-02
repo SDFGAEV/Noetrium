@@ -1,8 +1,8 @@
 from pathlib import Path
 import tempfile
 import unittest
-from research_platform.reliability.forensics.providers import SegmentedHashChainedJSONL
-from research_platform.reliability.forensics.providers.segment_verifier import scan_segment_chain
+from noetrium_platform.infrastructure.reliability.forensics.providers import SegmentedHashChainedJSONL
+from noetrium_platform.infrastructure.reliability.forensics.providers.segment_verifier import scan_segment_chain
 
 class SegmentVerifierV21Tests(unittest.TestCase):
     def test_pure_scanner_matches_writer_tail_without_manifest_write(self):
@@ -14,7 +14,7 @@ class SegmentVerifierV21Tests(unittest.TestCase):
 
 class VerifiedLedgerSliceContractTests(unittest.TestCase):
     def test_single_file_ledger_exposes_named_verified_cut(self):
-        from research_platform.reliability.forensics.providers import HashChainedJSONL
+        from noetrium_platform.infrastructure.reliability.forensics.providers import HashChainedJSONL
 
         with tempfile.TemporaryDirectory() as td:
             log = HashChainedJSONL(Path(td) / "failures.jsonl")
@@ -29,7 +29,7 @@ class VerifiedLedgerSliceContractTests(unittest.TestCase):
 
 
     def test_single_file_verified_cut_streams_fixed_bounded_batches(self):
-        from research_platform.reliability.forensics.providers import HashChainedJSONL
+        from noetrium_platform.infrastructure.reliability.forensics.providers import HashChainedJSONL
 
         with tempfile.TemporaryDirectory() as td:
             log = HashChainedJSONL(Path(td) / "failures.jsonl")
@@ -47,7 +47,7 @@ class VerifiedLedgerSliceContractTests(unittest.TestCase):
             self.assertEqual(cut.suffix_rows, 7)
 
     def test_single_file_stream_rejects_prefix_changed_after_verified_cut(self):
-        from research_platform.reliability.forensics.providers import HashChainError, HashChainedJSONL
+        from noetrium_platform.infrastructure.reliability.forensics.providers import HashChainError, HashChainedJSONL
 
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "failures.jsonl"
@@ -61,7 +61,7 @@ class VerifiedLedgerSliceContractTests(unittest.TestCase):
                 list(log.iter_verified_payload_batches(cut, batch_size=2))
 
     def test_contract_rejects_incoherent_row_count_or_digest(self):
-        from research_platform.reliability.forensics.api import VerifiedLedgerSlice
+        from noetrium_platform.infrastructure.reliability.forensics.api import VerifiedLedgerSlice
 
         with self.assertRaises(ValueError):
             VerifiedLedgerSlice(2, 1, "0" * 64, "0" * 64, ())

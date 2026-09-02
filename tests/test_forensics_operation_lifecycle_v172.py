@@ -7,9 +7,9 @@ import tempfile
 import pytest
 
 from tests._concurrency_support import OwnedForensicStore as ForensicStore, owned_task_group
-from research_platform.reliability.forensics.composition import rebuild_forensic_index
-from research_platform.platform.kernel import ExecutionContext
-from research_platform.observability.api import EventEnvelope
+from noetrium_platform.infrastructure.reliability.forensics.composition import rebuild_forensic_index
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
+from noetrium_platform.evidence.observability.api import EventEnvelope
 
 
 def _ctx(run_id: str = "run-1") -> ExecutionContext:

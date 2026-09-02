@@ -2,20 +2,20 @@ from __future__ import annotations
 
 import pytest
 
-from research_platform.artifact.api import ArtifactContentIdentity
-from research_platform.artifact.catalog.api import (
+from noetrium_platform.evidence.artifact.api import ArtifactContentIdentity
+from noetrium_platform.evidence.artifact.catalog.api import (
     ArtifactKind,
     ArtifactRecord,
     ArtifactRetention,
 )
-from research_platform.data.dataset.api import DatasetIdentity, DatasetVersion
-from research_platform.data.fact.api import DurableFact, FactCriticality, FactDecoderPort, FactSchema
-from research_platform.data.fact.runtime import FactDecoderRegistry
-from research_platform.data.record.api import ExecutionRecordPlane
-from research_platform.observability.api import EventEnvelope
-from research_platform.observability.status.api import HealthState, SubsystemSnapshot
-from research_platform.platform.kernel import ExecutionContext, canonical_bytes, canonical_digest
-from research_platform.scope.api import ScopeIdentity, ScopeKind
+from noetrium_platform.evidence.data.dataset.api import DatasetIdentity, DatasetVersion
+from noetrium_platform.evidence.data.fact.api import DurableFact, FactCriticality, FactDecoderPort, FactSchema
+from noetrium_platform.evidence.data.fact.runtime import FactDecoderRegistry
+from noetrium_platform.evidence.data.record.api import ExecutionRecordPlane
+from noetrium_platform.evidence.observability.api import EventEnvelope
+from noetrium_platform.evidence.observability.status.api import HealthState, SubsystemSnapshot
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext, canonical_bytes, canonical_digest
+from noetrium_platform.foundation.scope.api import ScopeIdentity, ScopeKind
 
 
 def _run_scope() -> ScopeIdentity:
@@ -176,7 +176,7 @@ def test_fact_decoder_rejects_schema_mismatch_before_decode() -> None:
 
 
 def test_role05_canonical_encoding_uses_kernel_exact_bytes() -> None:
-    from research_platform.data._canonical import canonical_bytes as data_canonical_bytes
+    from noetrium_platform.evidence.data._canonical import canonical_bytes as data_canonical_bytes
     payload = {"b": (2, 3), "a": {"nested": True}, "finite": 1.25}
     expected = b'{"a":{"nested":true},"b":[2,3],"finite":1.25}'
     assert canonical_bytes(payload) == expected
@@ -184,8 +184,8 @@ def test_role05_canonical_encoding_uses_kernel_exact_bytes() -> None:
 
 
 def test_data_strict_decoder_rejects_duplicate_keys_and_nonfinite_constants() -> None:
-    from research_platform.data._canonical import DataCanonicalDecodingError, strict_json_loads
-    from research_platform.platform.kernel import CanonicalDecodingFailureKind
+    from noetrium_platform.evidence.data._canonical import DataCanonicalDecodingError, strict_json_loads
+    from noetrium_platform.foundation.kernel.kernel import CanonicalDecodingFailureKind
 
     with pytest.raises(DataCanonicalDecodingError) as duplicate:
         strict_json_loads('{"a":1,"a":2}')

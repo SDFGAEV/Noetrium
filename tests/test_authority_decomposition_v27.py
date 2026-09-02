@@ -2,14 +2,14 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from research_platform.reliability.forensics.providers.index import ForensicIndex
+from noetrium_platform.infrastructure.reliability.forensics.providers.index import ForensicIndex
 from tests._concurrency_support import forensic_index
-from research_platform.reliability.forensics.providers.index_reader import ForensicIndexReader
-from research_platform.reliability.forensics.providers.index_writer import ForensicIndexWriter
-from research_platform.model.request.prompt.runtime.active_pointer import ActivePromptPointer
-from research_platform.model.request.prompt.runtime.generation_store import PromptGenerationStore
-from research_platform.model.request.prompt.runtime.promotion_record_store import PromotionRecordStore
-from research_platform.model.request.prompt.runtime.promotion_store import PromptPromotionStore
+from noetrium_platform.infrastructure.reliability.forensics.providers.index_reader import ForensicIndexReader
+from noetrium_platform.infrastructure.reliability.forensics.providers.index_writer import ForensicIndexWriter
+from noetrium_platform.capabilities.model.request.prompt.runtime.active_pointer import ActivePromptPointer
+from noetrium_platform.capabilities.model.request.prompt.runtime.generation_store import PromptGenerationStore
+from noetrium_platform.capabilities.model.request.prompt.runtime.promotion_record_store import PromotionRecordStore
+from noetrium_platform.capabilities.model.request.prompt.runtime.promotion_store import PromptPromotionStore
 
 
 class AuthorityDecompositionV27Tests(unittest.TestCase):

@@ -150,7 +150,7 @@ root = Path(sys.argv[1])
 )
 PY
 for action in run inspect stop resume reconcile evidence; do
-  research --application research_platform.operator.reference:build_reference_application \
+  research --application noetrium_platform.product.operator.reference:build_reference_application \
     --application-config "$work/reference.json" "$action" container-reference > "$work/$action.json"
 done
 python - "$work" <<'PY'
@@ -158,7 +158,7 @@ import importlib.metadata
 import json
 import sys
 from pathlib import Path
-import research_platform.api
+import noetrium_platform.api
 root = Path(sys.argv[1])
 provenance = json.loads((root / "provenance.json").read_text(encoding="utf-8"))
 actions = ("run", "inspect", "stop", "resume", "reconcile", "evidence")
@@ -168,7 +168,7 @@ for action in actions:
         raise SystemExit(f"invalid container lifecycle receipt: {action}")
 print("CONTAINER_PRODUCT_SMOKE=" + json.dumps({
     "actions": actions,
-    "module_file": research_platform.api.__file__,
+    "module_file": noetrium_platform.api.__file__,
     "package_version": importlib.metadata.version("noetrium"),
     "python_version": sys.version.split()[0],
     **provenance,

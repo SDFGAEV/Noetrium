@@ -8,8 +8,8 @@ import pytest
 
 from tests._concurrency_support import make_task_group
 
-from research_platform.environment.minecraft.api import MinecraftRconEndpoint, MinecraftServerSpec
-from research_platform.environment.minecraft.composition import (
+from noetrium_platform.capabilities.environment.minecraft.api import MinecraftRconEndpoint, MinecraftServerSpec
+from noetrium_platform.capabilities.environment.minecraft.composition import (
     MinecraftServerServiceError,
     MinecraftServerServiceFactory,
     MinecraftServerServiceFactoryConfig,
@@ -17,9 +17,9 @@ from research_platform.environment.minecraft.composition import (
     MinecraftTcpReadinessProbe,
     build_server_service_contract,
 )
-from research_platform.environment.minecraft.providers.server_files import MinecraftServerPreparationError, sha256_file
-from research_platform.runtime.host.providers import LocalOperatingSystemRoute
-from research_platform.runtime.service.runtime.environment import MaterializedServiceEnvironment
+from noetrium_platform.capabilities.environment.minecraft.providers.server_files import MinecraftServerPreparationError, sha256_file
+from noetrium_platform.infrastructure.lifecycle.host.providers import LocalOperatingSystemRoute
+from noetrium_platform.infrastructure.lifecycle.service.runtime.environment import MaterializedServiceEnvironment
 
 
 def _spec(root: Path) -> MinecraftServerSpec:
@@ -166,7 +166,7 @@ def test_tcp_readiness_runs_network_connect_on_async_io_lane(monkeypatch, tmp_pa
         return object(), writer
 
     monkeypatch.setattr(
-        "research_platform.environment.minecraft.composition.server_service.asyncio.open_connection",
+        "noetrium_platform.capabilities.environment.minecraft.composition.server_service.asyncio.open_connection",
         open_connection,
     )
 
@@ -211,7 +211,7 @@ def test_tcp_readiness_identity_is_unique_across_probe_instances_sharing_one_gro
         return object(), Writer()
 
     monkeypatch.setattr(
-        "research_platform.environment.minecraft.composition.server_service.asyncio.open_connection",
+        "noetrium_platform.capabilities.environment.minecraft.composition.server_service.asyncio.open_connection",
         open_connection,
     )
 

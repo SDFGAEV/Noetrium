@@ -2,18 +2,18 @@ from __future__ import annotations
 
 import pytest
 
-from research_platform.participant.agent.api import (
+from noetrium_platform.capabilities.participant.agent.api import (
     AgentCognitionError,
     AgentGoal,
     AgentLoopTerminationReason,
     AgentObservation,
 )
-from research_platform.participant.agent.runtime.cognition_checkpoint import (
+from noetrium_platform.capabilities.participant.agent.runtime.cognition_checkpoint import (
     CognitionCheckpointPhase,
     build_cognition_result,
 )
-from research_platform.participant.agent.runtime.cognition_state import CognitionCounters
-from research_platform.platform.kernel import ExecutionContext
+from noetrium_platform.capabilities.participant.agent.runtime.cognition_state import CognitionCounters
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
 
 
 _CONTEXT = ExecutionContext("run:state", "trace:state", "span:state")

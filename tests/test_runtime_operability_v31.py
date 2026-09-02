@@ -3,12 +3,12 @@ from runtime_manager_test_support import make_runtime_control_store, runtime_his
 from pathlib import Path
 import tempfile, time, unittest
 
-from research_platform.execution.runtime.manager.heartbeat_storage import FileServiceHeartbeatStore
-from research_platform.execution.runtime.manager.heartbeat import assert_exact_heartbeat
-from research_platform.execution.runtime.manager import RuntimeControlStore, ServiceHeartbeat
-from research_platform.reliability.recovery.api.lease import RecoveryLeaseBusy
-from research_platform.reliability.recovery.providers.lease_store import RecoveryLeaseStore
-from research_platform.reliability.primitives import CrashClass, CrashEvidence, classify_crash
+from noetrium_platform.research.execution.runtime.manager.heartbeat_storage import FileServiceHeartbeatStore
+from noetrium_platform.research.execution.runtime.manager.heartbeat import assert_exact_heartbeat
+from noetrium_platform.research.execution.runtime.manager import RuntimeControlStore, ServiceHeartbeat
+from noetrium_platform.infrastructure.reliability.recovery.api.lease import RecoveryLeaseBusy
+from noetrium_platform.infrastructure.reliability.recovery.providers.lease_store import RecoveryLeaseStore
+from noetrium_platform.infrastructure.reliability.primitives import CrashClass, CrashEvidence, classify_crash
 
 class RuntimeOperabilityV31Tests(unittest.TestCase):
     def test_runtime_state_writes_always_append_hash_chained_history(self):

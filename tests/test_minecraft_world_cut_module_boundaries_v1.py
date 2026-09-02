@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import research_platform.environment.minecraft.providers as providers
-import research_platform.environment.minecraft.providers.world_copy as world_copy
-import research_platform.environment.minecraft.providers.world_cut as world_cut
-import research_platform.environment.minecraft.providers.world_cut_integrity as integrity
+import noetrium_platform.capabilities.environment.minecraft.providers as providers
+import noetrium_platform.capabilities.environment.minecraft.providers.world_copy as world_copy
+import noetrium_platform.capabilities.environment.minecraft.providers.world_cut as world_cut
+import noetrium_platform.capabilities.environment.minecraft.providers.world_cut_integrity as integrity
 
 
 def test_world_cut_facade_preserves_public_copier_and_error_identities() -> None:
@@ -25,7 +25,7 @@ def test_world_cut_facade_keeps_manifest_diagnostic_aliases() -> None:
 
 
 def test_world_cut_facade_reexports_provider_module_identity() -> None:
-    import research_platform.environment.minecraft.providers.world_cut_provider as provider
+    import noetrium_platform.capabilities.environment.minecraft.providers.world_cut_provider as provider
 
     assert (
         world_cut.FilesystemMinecraftWorldCutProvider
@@ -38,8 +38,8 @@ def test_world_cut_facade_reexports_provider_module_identity() -> None:
 
 
 def test_world_cut_facade_reexports_checkpoint_module_identity() -> None:
-    import research_platform.environment.minecraft.providers.branch_checkpoint as checkpoint
-    import research_platform.environment.minecraft.providers.branch_checkpoint_factory as factory
+    import noetrium_platform.capabilities.environment.minecraft.providers.branch_checkpoint as checkpoint
+    import noetrium_platform.capabilities.environment.minecraft.providers.branch_checkpoint_factory as factory
 
     assert (
         world_cut.FilesystemMinecraftBranchCheckpointProvider

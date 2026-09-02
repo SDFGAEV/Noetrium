@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from research_platform.environment.minecraft.providers.readiness import probe_node
+from noetrium_platform.capabilities.environment.minecraft.providers.readiness import probe_node
 
 
 def test_readiness_runner_failure_keeps_bounded_redacted_fingerprint() -> None:

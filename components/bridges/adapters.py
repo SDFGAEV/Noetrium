@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from components.agent import AgentDecision, AgentDecisionPort, AgentState
+from components.single_agent.agent import AgentDecision, AgentDecisionPort, AgentState
 
 
 class LangGraphRunnable(Protocol):

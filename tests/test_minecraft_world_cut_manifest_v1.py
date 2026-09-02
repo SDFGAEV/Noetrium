@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-import research_platform.environment.minecraft.providers.world_cut as world_cut
+import noetrium_platform.capabilities.environment.minecraft.providers.world_cut as world_cut
 
 
 def _legacy_manifest(root: Path) -> tuple[dict[str, object], ...]:

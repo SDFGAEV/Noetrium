@@ -7,12 +7,12 @@ from tempfile import TemporaryDirectory
 import time
 import unittest
 
-from research_platform.model.serving.api import ServiceHeartbeat
-from research_platform.platform.kernel.durability import ChecksummedDocumentFailureCode
-from research_platform.execution.runtime.manager.heartbeat_storage import FileServiceHeartbeatStore
-from research_platform.reliability.recovery.providers.lease_store import RecoveryLeaseStore
-from research_platform.execution.runtime.manager.heartbeat_codec import ServiceHeartbeatIntegrityError
-from research_platform.reliability.recovery.providers.lease_codec import RecoveryLeaseIntegrityError
+from noetrium_platform.capabilities.model.serving.api import ServiceHeartbeat
+from noetrium_platform.foundation.kernel.kernel.durability import ChecksummedDocumentFailureCode
+from noetrium_platform.research.execution.runtime.manager.heartbeat_storage import FileServiceHeartbeatStore
+from noetrium_platform.infrastructure.reliability.recovery.providers.lease_store import RecoveryLeaseStore
+from noetrium_platform.research.execution.runtime.manager.heartbeat_codec import ServiceHeartbeatIntegrityError
+from noetrium_platform.infrastructure.reliability.recovery.providers.lease_codec import RecoveryLeaseIntegrityError
 
 
 class RuntimeSmallStateCodecV144Tests(unittest.TestCase):

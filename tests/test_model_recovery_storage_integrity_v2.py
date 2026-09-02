@@ -3,15 +3,15 @@ from pathlib import Path
 
 import pytest
 
-from research_platform.model.serving.api import RecoveryPlan, RecoveryStep
-from research_platform.model.serving.api.recovery_state import new_recovery_attempt
-from research_platform.model.serving.providers.recovery_storage import (
+from noetrium_platform.capabilities.model.serving.api import RecoveryPlan, RecoveryStep
+from noetrium_platform.capabilities.model.serving.api.recovery_state import new_recovery_attempt
+from noetrium_platform.capabilities.model.serving.providers.recovery_storage import (
     FileDurableRecoveryStore,
     RecoveryStateIntegrityError,
 )
-from research_platform.model.serving.providers.recovery_storage_codec import _SCHEMA
-from research_platform.platform.kernel import ImmutableModelIdentity
-from research_platform.platform.kernel.durability import (
+from noetrium_platform.capabilities.model.serving.providers.recovery_storage_codec import _SCHEMA
+from noetrium_platform.foundation.kernel.kernel import ImmutableModelIdentity
+from noetrium_platform.foundation.kernel.kernel.durability import (
     decode_checksummed_document,
     encode_checksummed_document,
 )

@@ -22,7 +22,7 @@ _METADATA = (
 
 
 def _write_wheel(path: Path, *, metadata: bytes = _METADATA, omit: str | None = None) -> None:
-    prefix = "research_platform-0.43.1.dist-info"
+    prefix = "noetrium_platform-0.43.1.dist-info"
     with zipfile.ZipFile(path, "w") as archive:
         archive.writestr(f"{prefix}/METADATA", metadata)
         for name in distribution._REQUIRED_LICENSE_FILES:
@@ -37,7 +37,7 @@ def _add_tar_bytes(archive: tarfile.TarFile, name: str, raw: bytes) -> None:
 
 
 def _write_sdist(path: Path, *, metadata: bytes = _METADATA, omit: str | None = None) -> None:
-    prefix = "research_platform-0.43.1"
+    prefix = "noetrium_platform-0.43.1"
     with tarfile.open(path, "w:gz") as archive:
         _add_tar_bytes(archive, f"{prefix}/PKG-INFO", metadata)
         for name in distribution._REQUIRED_LICENSE_FILES:
@@ -46,8 +46,8 @@ def _write_sdist(path: Path, *, metadata: bytes = _METADATA, omit: str | None = 
 
 
 def test_distribution_oss_metadata_requires_pep639_and_packaged_legal_files(tmp_path: Path) -> None:
-    wheel = tmp_path / "research_platform-0.43.1-py3-none-any.whl"
-    sdist = tmp_path / "research_platform-0.43.1.tar.gz"
+    wheel = tmp_path / "noetrium_platform-0.43.1-py3-none-any.whl"
+    sdist = tmp_path / "noetrium_platform-0.43.1.tar.gz"
     _write_wheel(wheel)
     _write_sdist(sdist)
 
@@ -62,8 +62,8 @@ def test_distribution_oss_metadata_requires_pep639_and_packaged_legal_files(tmp_
 
 
 def test_distribution_oss_metadata_rejects_missing_license_expression(tmp_path: Path) -> None:
-    wheel = tmp_path / "research_platform-0.43.1-py3-none-any.whl"
-    sdist = tmp_path / "research_platform-0.43.1.tar.gz"
+    wheel = tmp_path / "noetrium_platform-0.43.1-py3-none-any.whl"
+    sdist = tmp_path / "noetrium_platform-0.43.1.tar.gz"
     metadata = _METADATA.replace(b"License-Expression: Apache-2.0\n", b"")
     _write_wheel(wheel, metadata=metadata)
     _write_sdist(sdist)
@@ -73,8 +73,8 @@ def test_distribution_oss_metadata_rejects_missing_license_expression(tmp_path: 
 
 
 def test_distribution_oss_metadata_rejects_missing_wheel_legal_file(tmp_path: Path) -> None:
-    wheel = tmp_path / "research_platform-0.43.1-py3-none-any.whl"
-    sdist = tmp_path / "research_platform-0.43.1.tar.gz"
+    wheel = tmp_path / "noetrium_platform-0.43.1-py3-none-any.whl"
+    sdist = tmp_path / "noetrium_platform-0.43.1.tar.gz"
     _write_wheel(wheel, omit="NOTICE")
     _write_sdist(sdist)
 
@@ -83,8 +83,8 @@ def test_distribution_oss_metadata_rejects_missing_wheel_legal_file(tmp_path: Pa
 
 
 def test_distribution_oss_metadata_rejects_missing_sdist_legal_file(tmp_path: Path) -> None:
-    wheel = tmp_path / "research_platform-0.43.1-py3-none-any.whl"
-    sdist = tmp_path / "research_platform-0.43.1.tar.gz"
+    wheel = tmp_path / "noetrium_platform-0.43.1-py3-none-any.whl"
+    sdist = tmp_path / "noetrium_platform-0.43.1.tar.gz"
     _write_wheel(wheel)
     _write_sdist(sdist, omit="THIRD_PARTY_NOTICES.md")
 

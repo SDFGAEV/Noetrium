@@ -6,16 +6,16 @@ import threading
 
 import pytest
 
-from research_platform.governance.release.api import ReleaseQualityEvidence, ReleaseRegressionEvidence
-from research_platform.governance.release.runtime.generation import ReleaseEvidenceCoordinator
-from research_platform.platform.concurrency.api import ConcurrencyBudget
-from research_platform.platform.concurrency.composition import build_concurrency_runtime
+from noetrium_platform.foundation.governance.release.api import ReleaseQualityEvidence, ReleaseRegressionEvidence
+from noetrium_platform.foundation.governance.release.runtime.generation import ReleaseEvidenceCoordinator
+from noetrium_platform.foundation.kernel.concurrency.api import ConcurrencyBudget
+from noetrium_platform.foundation.kernel.concurrency.composition import build_concurrency_runtime
 
 
 def _tree(root: Path) -> None:
-    (root / "research_platform").mkdir(parents=True)
-    (root / "research_platform" / "__init__.py").write_text("", encoding="utf-8")
-    (root / "research_platform" / "x.py").write_text("x = 1\n", encoding="utf-8")
+    (root / "noetrium_platform").mkdir(parents=True)
+    (root / "noetrium_platform" / "__init__.py").write_text("", encoding="utf-8")
+    (root / "noetrium_platform" / "x.py").write_text("x = 1\n", encoding="utf-8")
     (root / "pyproject.toml").write_text(
         '[project]\nname="x"\nversion="1.2.3"\nrequires-python=">=3.11"\n',
         encoding="utf-8",
@@ -103,7 +103,7 @@ def test_source_drift_during_concurrent_verification_fails_closed():
     class Quality:
         def build(self, root: Path):
             quality_started.set()
-            (root / "research_platform" / "x.py").write_text("x = 2\n", encoding="utf-8")
+            (root / "noetrium_platform" / "x.py").write_text("x = 2\n", encoding="utf-8")
             mutation_done.set()
             return _quality()
 

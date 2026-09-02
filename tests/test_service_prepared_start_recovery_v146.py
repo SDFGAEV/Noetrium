@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from research_platform.runtime.service.api import ServiceLaunchContract, ServiceProcessIdentity
+from noetrium_platform.infrastructure.lifecycle.service.api import ServiceLaunchContract, ServiceProcessIdentity
 from service_os_test_support import make_service_supervisor, ready_evidence
 
 import hashlib
@@ -8,15 +8,15 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from research_platform.runtime.service.runtime.state_storage import FileServiceStateStore
-from research_platform.runtime.service.runtime import (
+from noetrium_platform.infrastructure.lifecycle.service.runtime.state_storage import FileServiceStateStore
+from noetrium_platform.infrastructure.lifecycle.service.runtime import (
     ExactServiceSupervisor,
     PreparedServiceStartReconcileResult,
     PreparedServiceStartStatus,
     ServicePhase,
     ServiceStartRecoveryHandle,
 )
-from research_platform.runtime.service.runtime.start_intent_store import DirectoryServiceStartIntentStore
+from noetrium_platform.infrastructure.lifecycle.service.runtime.start_intent_store import DirectoryServiceStartIntentStore
 
 
 def h(value: str) -> str:
@@ -167,7 +167,7 @@ class ServicePreparedStartRecoveryV146Tests(unittest.TestCase):
             self.assertEqual(first.start_calls, 1)
 
             second = LegacyCrashAdapter()
-            from research_platform.runtime.service.runtime import ServiceStartRecoveryRequired
+            from noetrium_platform.infrastructure.lifecycle.service.runtime import ServiceStartRecoveryRequired
 
             with self.assertRaises(ServiceStartRecoveryRequired):
                 make_service_supervisor(state_store, second).start_exact(contract())

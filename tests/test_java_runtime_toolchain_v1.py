@@ -9,28 +9,28 @@ from pathlib import Path
 
 import pytest
 
-from research_platform.artifact.content.api import (
+from noetrium_platform.evidence.artifact.content.api import (
     ArchiveMaterializationError,
     ArchiveMaterializationRequest,
 )
-from research_platform.artifact.content.composition import compose_artifact_acquisition
-from research_platform.artifact.content.providers import SafeTarArchiveMaterializer
-from research_platform.runtime.toolchain.api import (
+from noetrium_platform.evidence.artifact.content.composition import compose_artifact_acquisition
+from noetrium_platform.evidence.artifact.content.providers import SafeTarArchiveMaterializer
+from noetrium_platform.infrastructure.lifecycle.toolchain.api import (
     JavaRuntimePlatform,
     JavaRuntimeProvisioningRequest,
     JavaRuntimeReceipt,
     RuntimeToolchainError,
 )
-from research_platform.runtime.toolchain.composition import (
+from noetrium_platform.infrastructure.lifecycle.toolchain.composition import (
     compose_eclipse_adoptium_java_runtime,
 )
-from research_platform.runtime.toolchain.providers import AdoptiumMetadataResolver
-from research_platform.runtime.toolchain.providers.java_receipt import (
+from noetrium_platform.infrastructure.lifecycle.toolchain.providers import AdoptiumMetadataResolver
+from noetrium_platform.infrastructure.lifecycle.toolchain.providers.java_receipt import (
     encode_java_runtime_receipt,
     load_java_runtime_receipt,
 )
-from research_platform.runtime.toolchain.providers.java_verifier import JavaRuntimeVerifier
-from research_platform.scope.api import PLATFORM_SCOPE
+from noetrium_platform.infrastructure.lifecycle.toolchain.providers.java_verifier import JavaRuntimeVerifier
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE
 
 
 class _Response:

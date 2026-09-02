@@ -1,7 +1,7 @@
 import pytest
 
-from research_platform.participant.agent.api import AgentObservation
-from research_platform.platform.kernel import canonical_bytes
+from noetrium_platform.capabilities.participant.agent.api import AgentObservation
+from noetrium_platform.foundation.kernel.kernel import canonical_bytes
 
 
 def test_agent_observation_preserves_evidence_payload_without_mixing_it_into_state():

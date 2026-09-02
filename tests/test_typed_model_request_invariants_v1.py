@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from research_platform.model.request.api import ContentRef, ModelRequestEnvelope
-from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity
+from noetrium_platform.capabilities.model.request.api import ContentRef, ModelRequestEnvelope
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext, ImmutableModelIdentity
 
 
 _SHA = "a" * 64

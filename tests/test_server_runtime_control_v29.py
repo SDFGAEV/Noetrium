@@ -9,23 +9,23 @@ import tempfile
 import unittest
 import hashlib
 
-from research_platform.platform.composition.model_deployments import freeze_model_deployment_set
-from research_platform.platform.kernel.identity import ImmutableModelIdentity
-from research_platform.model.serving.api.qualified_deployment import (
+from noetrium_platform.foundation.kernel.composition.model_deployments import freeze_model_deployment_set
+from noetrium_platform.foundation.kernel.kernel.identity import ImmutableModelIdentity
+from noetrium_platform.capabilities.model.serving.api.qualified_deployment import (
     QualificationCertificate, QualifiedDeploymentManifest, ResourceEnvelope,
     RoleModelAssignment, RoleModelManifest,
 )
-from research_platform.model.serving.api.placement import DeploymentPlacement
-from research_platform.model.serving.api.inventory import (
+from noetrium_platform.capabilities.model.serving.api.placement import DeploymentPlacement
+from noetrium_platform.capabilities.model.serving.api.inventory import (
     CPUInventory, CPUNode, GPUInventory, HostLimits, MemoryInventory, MountInventory, RuntimeInventory, HostInventory,
 )
-from research_platform.model.serving.providers.host_verification_storage import DirectoryHostInventoryEvidenceStore
-from research_platform.platform.composition.host_runtime_verification import HostInventoryRuntimeVerification
-from research_platform.model.stack.api import ModelArtifactClosure, RuntimeBuildIdentity, ModelStackSpec
-from research_platform.model.serving.api import FrozenDeploymentSet
-from research_platform.model.serving.api.host_verification import build_host_inventory_receipt
-from research_platform.platform.kernel.durability import decode_checksummed_document, encode_checksummed_document
-from research_platform.execution.runtime.manager import (
+from noetrium_platform.capabilities.model.serving.providers.host_verification_storage import DirectoryHostInventoryEvidenceStore
+from noetrium_platform.foundation.kernel.composition.host_runtime_verification import HostInventoryRuntimeVerification
+from noetrium_platform.capabilities.model.stack.api import ModelArtifactClosure, RuntimeBuildIdentity, ModelStackSpec
+from noetrium_platform.capabilities.model.serving.api import FrozenDeploymentSet
+from noetrium_platform.capabilities.model.serving.api.host_verification import build_host_inventory_receipt
+from noetrium_platform.foundation.kernel.kernel.durability import decode_checksummed_document, encode_checksummed_document
+from noetrium_platform.research.execution.runtime.manager import (
     ExactRuntimeController, RuntimeAction,
     RuntimeControlStore, RuntimePlatformAuthorities, ServerRuntimeAdapter, ServerRuntimeControlPlane,
 )

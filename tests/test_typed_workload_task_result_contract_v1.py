@@ -5,7 +5,7 @@ import math
 
 import pytest
 
-from research_platform.experimentation.workload.api import WorkloadDecision, WorkloadTaskResult
+from noetrium_platform.research.experimentation.workload.api import WorkloadDecision, WorkloadTaskResult
 
 
 def _result() -> WorkloadTaskResult:

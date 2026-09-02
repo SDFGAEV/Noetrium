@@ -1,9 +1,9 @@
-from research_platform.platform.composition.method_telemetry_sink import RawLakeMethodObservationSink
+from noetrium_platform.foundation.kernel.composition.method_telemetry_sink import RawLakeMethodObservationSink
 from pathlib import Path
 import json, tempfile, unittest
 
-from research_platform.platform.kernel import ExecutionContext
-from research_platform.participant.method.api import MethodObservation
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
+from noetrium_platform.capabilities.participant.method.api import MethodObservation
 from tests._concurrency_support import raw_observation_lake
 
 

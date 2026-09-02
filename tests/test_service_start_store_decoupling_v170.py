@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from research_platform.runtime.service.api import ServiceLaunchContract, ServiceProcessIdentity
+from noetrium_platform.infrastructure.lifecycle.service.api import ServiceLaunchContract, ServiceProcessIdentity
 import hashlib
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from research_platform.runtime.service.composition import build_service_supervisor
+from noetrium_platform.infrastructure.lifecycle.service.composition import build_service_supervisor
 from service_os_test_support import ready_evidence
-from research_platform.runtime.service.runtime.state_storage import FileServiceStateStore
-from research_platform.runtime.service.runtime import ServicePhase
-from research_platform.runtime.service.runtime.start_intent_store import DirectoryServiceStartIntentStore
+from noetrium_platform.infrastructure.lifecycle.service.runtime.state_storage import FileServiceStateStore
+from noetrium_platform.infrastructure.lifecycle.service.runtime import ServicePhase
+from noetrium_platform.infrastructure.lifecycle.service.runtime.start_intent_store import DirectoryServiceStartIntentStore
 
 
 def _sha(value: str) -> str:

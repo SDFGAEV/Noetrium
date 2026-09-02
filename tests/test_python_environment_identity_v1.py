@@ -7,20 +7,20 @@ from unittest.mock import patch
 
 import pytest
 
-from research_platform.environment.python.api import (
+from noetrium_platform.capabilities.environment.python.api import (
     EnvironmentCommandResult,
     PythonEnvironmentSpec,
 )
-from research_platform.environment.python.runtime import (
+from noetrium_platform.capabilities.environment.python.runtime import (
     CondaEnvironmentBackend,
     VenvEnvironmentBackend,
     build_python_environment_authorities,
 )
-from research_platform.environment.python.runtime.registry import PythonEnvironmentRegistry
-from research_platform.resource.directory.api import DirectoryLayout, ManagedDirectoryKind
-from research_platform.resource.directory.runtime import build_local_directory_authorities
-from research_platform.scope.api import PLATFORM_SCOPE
-from research_platform.scope.api import scope_to_data
+from noetrium_platform.capabilities.environment.python.runtime.registry import PythonEnvironmentRegistry
+from noetrium_platform.infrastructure.resources.directory.api import DirectoryLayout, ManagedDirectoryKind
+from noetrium_platform.infrastructure.resources.directory.runtime import build_local_directory_authorities
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE
+from noetrium_platform.foundation.scope.api import scope_to_data
 
 
 def _layout(root: Path) -> DirectoryLayout:
@@ -166,7 +166,7 @@ def test_python_backends_route_interpreters_by_controller_os() -> None:
     conda_root = Path("C:/env")
     venv_expected = venv_root / "Scripts/python.exe"
     conda_expected = conda_root / "python.exe"
-    with patch("research_platform.environment.python.runtime.venv_backend.os.name", "nt"):
+    with patch("noetrium_platform.capabilities.environment.python.runtime.venv_backend.os.name", "nt"):
         assert VenvEnvironmentBackend(runner).python_path(venv_root) == venv_expected
-    with patch("research_platform.environment.python.runtime.conda_backend.os.name", "nt"):
+    with patch("noetrium_platform.capabilities.environment.python.runtime.conda_backend.os.name", "nt"):
         assert CondaEnvironmentBackend(runner).python_path(conda_root) == conda_expected

@@ -1,6 +1,6 @@
 """Discoverable public entrypoint for the Noetrium research platform."""
 
-from research_platform.experimentation.api import (
+from noetrium_platform.research.experimentation.api import (
     ResearchMethodHost,
     ResearchMethodHostPort,
     ExperimentRunner,
@@ -11,17 +11,17 @@ from research_platform.experimentation.api import (
     diff_research_plans,
     resolve_research_requirements,
 )
-from components.agent import (
+from components.single_agent.agent import (
     AgentAction, AgentActionKind, AgentDecision, AgentMessage, AgentRunResult,
     AgentState, AgentStatus, PlanAndSolveAgent, ReActAgent, ReflexionAgent,
     RegistryAgentToolPort,
 )
-from components.memory import EpisodicMemoryStore, MemoryItem, VectorMemoryStore, WorkingMemory
-from components.tools import ToolArguments, ToolDefinition, ToolRegistry, ToolResult
+from components.single_agent.memory import EpisodicMemoryStore, MemoryItem, VectorMemoryStore, WorkingMemory
+from components.single_agent.tools import ToolArguments, ToolDefinition, ToolRegistry, ToolResult
 from components.bridges import (
     AutoGenDecisionAdapter, CrewAIDecisionAdapter, LangGraphDecisionAdapter,
 )
-from components.multi_agent import (
+from components.orchestration.multi_agent import (
     CommunicationEdge, CommunicationTopology, DebateCoordinator,
     GroupChatCoordinator, HierarchicalCoordinator, MultiAgentCoordinator,
     MultiAgentMessage, MultiAgentRunResult,

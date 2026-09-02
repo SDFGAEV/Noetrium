@@ -3,10 +3,10 @@ import tempfile
 import unittest
 
 from tests._concurrency_support import OwnedForensicStore as ForensicStore
-from research_platform.observability.api import EventEnvelope
-from research_platform.reliability.forensics.providers import HashChainError
-from research_platform.reliability.forensics.api import MutationRecord
-from research_platform.platform.kernel import ExecutionContext
+from noetrium_platform.evidence.observability.api import EventEnvelope
+from noetrium_platform.infrastructure.reliability.forensics.providers import HashChainError
+from noetrium_platform.infrastructure.reliability.forensics.api import MutationRecord
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
 
 
 class ForensicsOSTests(unittest.TestCase):

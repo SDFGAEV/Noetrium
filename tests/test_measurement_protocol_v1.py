@@ -4,9 +4,9 @@ from dataclasses import replace
 
 import pytest
 
-from research_platform.artifact.reference.api import ArtifactReference
-from research_platform.experimentation.identity import OptionalIdentityFacet
-from research_platform.experimentation.study.api import (
+from noetrium_platform.evidence.artifact.reference.api import ArtifactReference
+from noetrium_platform.research.experimentation.identity import OptionalIdentityFacet
+from noetrium_platform.research.experimentation.study.api import (
     MeasurementContentReference,
     MeasurementDefinition,
     MeasurementProtocol,
@@ -14,7 +14,7 @@ from research_platform.experimentation.study.api import (
     MeasurementValue,
     MeasurementValueKind,
 )
-from research_platform.scope.api import ScopeIdentity, ScopeKind
+from noetrium_platform.foundation.scope.api import ScopeIdentity, ScopeKind
 
 SHA_A = "a" * 64
 SHA_B = "b" * 64

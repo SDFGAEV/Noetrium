@@ -9,7 +9,7 @@ import time
 
 import pytest
 
-from research_platform.platform.concurrency.api import (
+from noetrium_platform.foundation.kernel.concurrency.api import (
     ConcurrencyBudget,
     Deadline,
     ExecutionLaneKind,
@@ -22,14 +22,14 @@ from research_platform.platform.concurrency.api import (
     TaskFailurePolicy,
     TaskState,
 )
-from research_platform.platform.concurrency.composition import build_concurrency_runtime
-from research_platform.platform.concurrency.providers import (
+from noetrium_platform.foundation.kernel.concurrency.composition import build_concurrency_runtime
+from noetrium_platform.foundation.kernel.concurrency.providers import (
     AsyncIoExecutor,
     BoundedThreadExecutor,
     HeapTimerScheduler,
     SharedSerialExecutionLaneFactory,
 )
-from research_platform.platform.kernel.durability.file_lock import InterprocessFileLock, InterprocessLockBusy
+from noetrium_platform.foundation.kernel.kernel.durability.file_lock import InterprocessFileLock, InterprocessLockBusy
 
 
 
@@ -1493,8 +1493,8 @@ def test_windows_interprocess_lock_unifies_extended_length_path_alias(tmp_path: 
 def test_deadline_residual_cancel_surfaces_logical_deadline_failure() -> None:
     from concurrent.futures import CancelledError
     from types import SimpleNamespace
-    from research_platform.platform.concurrency.runtime.cancellation import _DeadlineOwner
-    from research_platform.platform.concurrency.runtime.task_handles import _OwnedTaskHandle
+    from noetrium_platform.foundation.kernel.concurrency.runtime.cancellation import _DeadlineOwner
+    from noetrium_platform.foundation.kernel.concurrency.runtime.task_handles import _OwnedTaskHandle
 
     failure = TaskDeadlineExceeded("task deadline exceeded: race-group/race-task")
 
@@ -1535,7 +1535,7 @@ def test_deadline_residual_cancel_surfaces_logical_deadline_failure() -> None:
 def test_owned_task_handle_lane_kind_annotation_resolves_runtime_contract() -> None:
     from typing import get_type_hints
 
-    from research_platform.platform.concurrency.runtime.task_handles import _OwnedTaskHandle
+    from noetrium_platform.foundation.kernel.concurrency.runtime.task_handles import _OwnedTaskHandle
 
     hints = get_type_hints(_OwnedTaskHandle.lane_kind.fget)
     assert hints["return"] is ExecutionLaneKind

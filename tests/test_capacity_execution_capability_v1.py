@@ -1,7 +1,7 @@
-from research_platform.execution.capability.api import (
+from noetrium_platform.research.execution.capability.api import (
     CapabilityLifetime, CapabilityRegistration, CapabilityTypeMismatch, RegistrationKey,
 )
-from research_platform.execution.capability.runtime import ScopedRegistrationRuntime
+from noetrium_platform.research.execution.capability.runtime import ScopedRegistrationRuntime
 
 
 def test_typed_capability_registration_enforces_contract_and_lifetime():

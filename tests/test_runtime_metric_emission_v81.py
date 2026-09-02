@@ -6,22 +6,22 @@ import tempfile
 import unittest
 
 from tests._concurrency_support import telemetry_backend
-from research_platform.platform.kernel import ExecutionContext
-from research_platform.platform.composition.runtime_observability import MetricRuntimeObserver
-from research_platform.platform.composition.model_deployments import freeze_model_deployment_set
-from research_platform.model.serving.api.qualified_deployment import RoleModelAssignment, RoleModelManifest
-from research_platform.execution.runtime.manager import (
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
+from noetrium_platform.foundation.kernel.composition.runtime_observability import MetricRuntimeObserver
+from noetrium_platform.foundation.kernel.composition.model_deployments import freeze_model_deployment_set
+from noetrium_platform.capabilities.model.serving.api.qualified_deployment import RoleModelAssignment, RoleModelManifest
+from noetrium_platform.research.execution.runtime.manager import (
     ExactRuntimeController,
     OneClickRuntimeManager,
     RuntimeControlStore,
     ServerRuntimeAdapter,
     ServerRuntimeControlPlane,
 )
-from research_platform.reliability.recovery.api.lease import RecoveryLeaseBusy
-from research_platform.reliability.recovery.providers.lease_store import RecoveryLeaseStore
-from research_platform.reliability.recovery.execution.runtime.file_lock import FileLockedRecoveryExecutionFactory
-from research_platform.observability.telemetry.metric.composition import build_default_registry
-from research_platform.observability.telemetry.metric.runtime import TelemetryStore
+from noetrium_platform.infrastructure.reliability.recovery.api.lease import RecoveryLeaseBusy
+from noetrium_platform.infrastructure.reliability.recovery.providers.lease_store import RecoveryLeaseStore
+from noetrium_platform.infrastructure.reliability.recovery.execution.runtime.file_lock import FileLockedRecoveryExecutionFactory
+from noetrium_platform.evidence.observability.telemetry.metric.composition import build_default_registry
+from noetrium_platform.evidence.observability.telemetry.metric.runtime import TelemetryStore
 
 from test_server_runtime_control_v29 import CallRecorder, authorities, deployment, manifest, runtime_adapter
 

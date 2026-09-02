@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from research_platform.model.qualification.providers.qualification_index_snapshot import (
+from noetrium_platform.capabilities.model.qualification.providers.qualification_index_snapshot import (
     TargetPackageIndexSnapshotProbe,
     decode_snapshot_output,
 )

@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from research_platform.environment.python.api import EnvironmentCommandResult
-from research_platform.model.qualification.api import (
+from noetrium_platform.capabilities.environment.python.api import EnvironmentCommandResult
+from noetrium_platform.capabilities.model.qualification.api import (
     CudaFacts,
     DeploymentCapabilityFacts,
     DeploymentQualificationApplicationRequest,
@@ -20,17 +20,17 @@ from research_platform.model.qualification.api import (
     QualificationCommandReceipt,
     QualificationMaterializationStatus,
 )
-from research_platform.model.qualification.providers.qualification_application import (
+from noetrium_platform.capabilities.model.qualification.providers.qualification_application import (
     FileDeploymentQualificationApplicationStore,
 )
-from research_platform.model.qualification.providers.qualification_evidence import (
+from noetrium_platform.capabilities.model.qualification.providers.qualification_evidence import (
     FileDeploymentQualificationEvidenceStore,
 )
-from research_platform.model.qualification.providers.python_package_installer import (
+from noetrium_platform.capabilities.model.qualification.providers.python_package_installer import (
     PythonEnvironmentQualificationPackageInstaller,
 )
-from research_platform.model.qualification.runtime.application import DeploymentQualificationPlanApplier
-from research_platform.model.qualification.runtime.qualification import DeploymentQualificationResolver
+from noetrium_platform.capabilities.model.qualification.runtime.application import DeploymentQualificationPlanApplier
+from noetrium_platform.capabilities.model.qualification.runtime.qualification import DeploymentQualificationResolver
 
 
 class _Installer:

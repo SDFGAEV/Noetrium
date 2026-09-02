@@ -3,20 +3,20 @@ import sqlite3
 
 import pytest
 
-from research_platform.execution.command.api import CommandId
-from research_platform.execution.operation.api import (
+from noetrium_platform.research.execution.command.api import CommandId
+from noetrium_platform.research.execution.operation.api import (
     EffectId, OperationEffectCertainty, OperationEffectProfile, OperationId, OperationState,
 )
-from research_platform.execution.operation.providers import SQLiteOperationStore
-from research_platform.execution.operation.runtime import OperationOwner
-from research_platform.execution.workflow.api import (
+from noetrium_platform.research.execution.operation.providers import SQLiteOperationStore
+from noetrium_platform.research.execution.operation.runtime import OperationOwner
+from noetrium_platform.research.execution.workflow.api import (
     WorkflowGraph, WorkflowOperationBinding, WorkflowProgress, WorkflowProgressConflict,
     WorkflowProgressCorruption, WorkflowRunId, WorkflowStep,
 )
-from research_platform.execution.workflow.providers import SQLiteWorkflowProgressStore
-from research_platform.execution.workflow.runtime import WorkflowProgressOwner
-from research_platform.platform.kernel.operation import EffectCertainty, EffectClass, EffectReceipt
-from research_platform.reliability.effect.api import EffectReconciliationDisposition, EffectReconciliationProof
+from noetrium_platform.research.execution.workflow.providers import SQLiteWorkflowProgressStore
+from noetrium_platform.research.execution.workflow.runtime import WorkflowProgressOwner
+from noetrium_platform.foundation.kernel.kernel.operation import EffectCertainty, EffectClass, EffectReceipt
+from noetrium_platform.infrastructure.reliability.effect.api import EffectReconciliationDisposition, EffectReconciliationProof
 
 DIGEST = "d" * 64
 

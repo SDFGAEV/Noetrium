@@ -2,7 +2,7 @@
 
 This directory owns the final platform architecture and its topology-facing
 design. The source-of-truth topology remains
-`research_platform/governance/system_registry/catalog.json`; the JSON mirror in
+`noetrium_platform/foundation/governance/system_registry/catalog.json`; the JSON mirror in
 this directory is generated and checked against it.
 
 Use these documents for recursive ownership, composition-time binding,
@@ -55,7 +55,7 @@ verifies declarations that exist and guards the canonical registry.
 
 ## Architecture complexity budget
 
-`research_platform/governance/architecture/ARCHITECTURE_BUDGET.json` is a v3
+`noetrium_platform/foundation/governance/architecture/ARCHITECTURE_BUDGET.json` is a v3
 migration proposal ledger, not an approval authority or editable global ceiling.
 The immutable baseline binds an exact Git SHA, canonical source digest and
 recomputable complexity projection. Proposal rows describe signed architectural

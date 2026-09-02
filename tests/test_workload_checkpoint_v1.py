@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from research_platform.experimentation.checkpoint.api import WorkloadExecutionCut
-from research_platform.experimentation.checkpoint.providers import DirectoryWorkloadCheckpointStore
-from research_platform.experimentation.checkpoint.runtime import (
+from noetrium_platform.research.experimentation.checkpoint.api import WorkloadExecutionCut
+from noetrium_platform.research.experimentation.checkpoint.providers import DirectoryWorkloadCheckpointStore
+from noetrium_platform.research.experimentation.checkpoint.runtime import (
     WorkloadCheckpointCoordinator,
     WorkloadCheckpointIdentityMismatch,
 )
-from research_platform.platform.kernel import ExecutionContext
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
 
 
 @dataclass

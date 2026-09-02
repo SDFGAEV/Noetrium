@@ -5,11 +5,11 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from research_platform.environment.runtime.api import freeze_json_mapping
-from research_platform.environment.runtime.runtime.state_machine import (
+from noetrium_platform.capabilities.environment.runtime.api import freeze_json_mapping
+from noetrium_platform.capabilities.environment.runtime.runtime.state_machine import (
     StateMachineCheckpointError as FacadeCheckpointError,
 )
-from research_platform.environment.runtime.runtime.state_machine_checkpoint import (
+from noetrium_platform.capabilities.environment.runtime.runtime.state_machine_checkpoint import (
     DecodedStateMachineCheckpoint,
     StateMachineCheckpointCodec,
     StateMachineCheckpointError,

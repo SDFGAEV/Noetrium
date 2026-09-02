@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from research_platform.governance.release.runtime.manifest import _iter_release_files
+from noetrium_platform.foundation.governance.release.runtime.manifest import _iter_release_files
 
 
 def test_release_file_projection_excludes_controller_state_and_local_profiles(tmp_path: Path) -> None:

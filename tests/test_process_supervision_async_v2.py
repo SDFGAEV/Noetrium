@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from research_platform.platform.concurrency.api import (
+from noetrium_platform.foundation.kernel.concurrency.api import (
     ConcurrencyBudget,
     Deadline,
     ExecutionLaneKind,
@@ -15,9 +15,9 @@ from research_platform.platform.concurrency.api import (
     TaskFailurePolicy,
     TaskFailureScope,
 )
-from research_platform.platform.concurrency.composition import build_concurrency_runtime
-from research_platform.runtime.process.supervision.api import ProcessTerminationPolicy
-from research_platform.runtime.process.supervision.composition import build_process_supervisor
+from noetrium_platform.foundation.kernel.concurrency.composition import build_concurrency_runtime
+from noetrium_platform.infrastructure.lifecycle.process.supervision.api import ProcessTerminationPolicy
+from noetrium_platform.infrastructure.lifecycle.process.supervision.composition import build_process_supervisor
 
 
 class _FakeProcess:
@@ -142,7 +142,7 @@ def test_async_process_supervisor_escalates_terminate_to_kill_without_blocking_w
 def test_process_command_admission_deadline_prevents_late_spawn(tmp_path) -> None:
     import asyncio
     import sys
-    from research_platform.runtime.process.supervision.runtime import AsyncProcessCommandRunner
+    from noetrium_platform.infrastructure.lifecycle.process.supervision.runtime import AsyncProcessCommandRunner
 
     runtime = build_concurrency_runtime(
         budget=ConcurrencyBudget(
@@ -191,7 +191,7 @@ def test_process_command_admission_deadline_prevents_late_spawn(tmp_path) -> Non
 
 
 def test_process_command_rejects_non_finite_or_unbounded_timeouts() -> None:
-    from research_platform.runtime.process.supervision.runtime import AsyncProcessCommandRunner
+    from noetrium_platform.infrastructure.lifecycle.process.supervision.runtime import AsyncProcessCommandRunner
 
     runtime = _runtime()
     group = runtime.open_task_group(
@@ -209,7 +209,7 @@ def test_process_command_rejects_non_finite_or_unbounded_timeouts() -> None:
 
 def test_async_process_command_runner_executes_and_captures_without_blocking_worker() -> None:
     import sys
-    from research_platform.runtime.process.supervision.composition import build_process_command_runner
+    from noetrium_platform.infrastructure.lifecycle.process.supervision.composition import build_process_command_runner
 
     runtime = _runtime()
     group = runtime.open_task_group("process-command", failure_policy=TaskFailurePolicy.COLLECT_ALL)
@@ -231,7 +231,7 @@ def test_async_process_command_runner_executes_and_captures_without_blocking_wor
 
 def test_async_process_command_runner_timeout_terminates_and_reaps_child() -> None:
     import sys
-    from research_platform.runtime.process.supervision.composition import build_process_command_runner
+    from noetrium_platform.infrastructure.lifecycle.process.supervision.composition import build_process_command_runner
 
     runtime = _runtime()
     group = runtime.open_task_group("process-command-timeout", failure_policy=TaskFailurePolicy.COLLECT_ALL)
@@ -253,7 +253,7 @@ def test_async_process_command_runner_timeout_reaps_spawned_process_group(tmp_pa
     import sys
     from pathlib import Path
     import pytest
-    from research_platform.runtime.process.supervision.composition import build_process_command_runner
+    from noetrium_platform.infrastructure.lifecycle.process.supervision.composition import build_process_command_runner
 
     if os.name != "posix":
         pytest.skip("process-group cleanup proof is POSIX-specific")
@@ -303,7 +303,7 @@ def test_process_command_cancellation_reaps_descendant_tree(tmp_path) -> None:
     import subprocess
     import sys
     from pathlib import Path
-    from research_platform.runtime.process.supervision.composition import build_process_command_runner
+    from noetrium_platform.infrastructure.lifecycle.process.supervision.composition import build_process_command_runner
 
     runtime = _runtime()
     group = runtime.open_task_group("process-command-cancel-tree", failure_policy=TaskFailurePolicy.COLLECT_ALL)
@@ -355,7 +355,7 @@ def test_process_command_cancellation_reaps_descendant_tree(tmp_path) -> None:
 
 def test_async_process_command_runner_bounds_retained_pipe_memory_but_counts_all_bytes() -> None:
     import sys
-    from research_platform.runtime.process.supervision.composition import build_process_command_runner
+    from noetrium_platform.infrastructure.lifecycle.process.supervision.composition import build_process_command_runner
 
     runtime = _runtime()
     group = runtime.open_task_group("process-command-output-budget", failure_policy=TaskFailurePolicy.COLLECT_ALL)
@@ -387,7 +387,7 @@ def test_async_process_command_runner_bounds_retained_pipe_memory_but_counts_all
 
 def test_async_process_command_runner_timeout_drains_chatty_child_without_pipe_deadlock() -> None:
     import sys
-    from research_platform.runtime.process.supervision.composition import build_process_command_runner
+    from noetrium_platform.infrastructure.lifecycle.process.supervision.composition import build_process_command_runner
 
     runtime = _runtime()
     group = runtime.open_task_group("process-command-chatty-timeout", failure_policy=TaskFailurePolicy.COLLECT_ALL)
@@ -421,7 +421,7 @@ def test_windows_process_command_timeout_reaps_descendant_tree(tmp_path) -> None
     import sys
     from pathlib import Path
     import pytest
-    from research_platform.runtime.process.supervision.composition import build_process_command_runner
+    from noetrium_platform.infrastructure.lifecycle.process.supervision.composition import build_process_command_runner
 
     if os.name != "nt":
         pytest.skip("Windows Job Object proof is Windows-specific")

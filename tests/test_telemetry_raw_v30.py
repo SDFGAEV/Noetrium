@@ -3,9 +3,9 @@ import json
 import tempfile
 import unittest
 
-from research_platform.platform.kernel import ExecutionContext
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext
 from tests._concurrency_support import raw_observation_lake
-from research_platform.observability.telemetry.metric.composition import build_default_registry
+from noetrium_platform.evidence.observability.telemetry.metric.composition import build_default_registry
 
 
 class RawTelemetryV30Tests(unittest.TestCase):

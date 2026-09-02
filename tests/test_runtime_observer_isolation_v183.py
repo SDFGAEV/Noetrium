@@ -5,10 +5,10 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from runtime_manager_test_support import make_runtime_control_store
-from research_platform.execution.runtime.manager import ExactRuntimeController
-from research_platform.execution.runtime.manager.one_click import OneClickRuntimeManager
-from research_platform.reliability.recovery.execution.runtime.file_lock import FileLockedRecoveryExecutionFactory
-from research_platform.reliability.recovery.providers.lease_store import RecoveryLeaseStore
+from noetrium_platform.research.execution.runtime.manager import ExactRuntimeController
+from noetrium_platform.research.execution.runtime.manager.one_click import OneClickRuntimeManager
+from noetrium_platform.infrastructure.reliability.recovery.execution.runtime.file_lock import FileLockedRecoveryExecutionFactory
+from noetrium_platform.infrastructure.reliability.recovery.providers.lease_store import RecoveryLeaseStore
 from tests_support import frozen_runtime_manifest
 
 

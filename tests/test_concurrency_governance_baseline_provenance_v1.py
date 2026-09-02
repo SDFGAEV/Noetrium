@@ -8,23 +8,23 @@ from types import SimpleNamespace
 
 import pytest
 
-from research_platform.governance.api import (
+from noetrium_platform.foundation.governance.api import (
     GovernanceBaselineApproval,
     GovernanceBaselineApprovalSet,
     GovernanceBaselineLane,
     governance_baseline_semantic_digest,
 )
-from research_platform.governance.concurrency.api import ConcurrencyBaseline, ConcurrencySnapshot
-from research_platform.governance.concurrency.runtime import (
+from noetrium_platform.foundation.governance.concurrency.api import ConcurrencyBaseline, ConcurrencySnapshot
+from noetrium_platform.foundation.governance.concurrency.runtime import (
     ConcurrencyBaselineApprovalMissing,
     ConcurrencyGovernanceService,
 )
-from research_platform.governance.performance.api import PerformanceBaseline, PerformanceSnapshot
-from research_platform.governance.performance.runtime import (
+from noetrium_platform.foundation.governance.performance.api import PerformanceBaseline, PerformanceSnapshot
+from noetrium_platform.foundation.governance.performance.runtime import (
     PerformanceBaselineApprovalMissing,
     PerformanceGovernanceService,
 )
-from research_platform.governance.providers import (
+from noetrium_platform.foundation.governance.providers import (
     GovernanceBaselineApprovalError,
     load_governance_baseline_approval_set,
 )
@@ -346,13 +346,13 @@ def test_duplicate_approved_governance_baseline_identity_is_rejected() -> None:
         )
 
 def test_reproducible_concurrency_observation_is_not_implicitly_accepted() -> None:
-    from research_platform.governance.concurrency.api import (
+    from noetrium_platform.foundation.governance.concurrency.api import (
         ConcurrencyFinding, ConcurrencyHotspot, ConcurrencyMetrics, ConcurrencyPriority,
     )
     finding = ConcurrencyFinding(ConcurrencyPriority.P1, "historical-risk", "must remain blocking", 2)
     hotspot = ConcurrencyHotspot(
         hotspot_id="pkg/a.py::f", relative_path="pkg/a.py", language=__import__(
-            "research_platform.governance.concurrency.api", fromlist=["ConcurrencyLanguage"]
+            "noetrium_platform.foundation.governance.concurrency.api", fromlist=["ConcurrencyLanguage"]
         ).ConcurrencyLanguage.PYTHON, qualified_name="f", line_start=1, line_end=2,
         metrics=ConcurrencyMetrics(), findings=(finding,),
     )
@@ -374,7 +374,7 @@ def test_reproducible_concurrency_observation_is_not_implicitly_accepted() -> No
 
 
 def test_reproducible_performance_observation_is_not_implicitly_accepted() -> None:
-    from research_platform.governance.performance.api import (
+    from noetrium_platform.foundation.governance.performance.api import (
         PerformanceFinding, PerformanceHotspot, PerformanceLanguage, PerformanceMetrics, PerformancePriority,
     )
     finding = PerformanceFinding(PerformancePriority.P1, "historical-risk", "must remain blocking", 20)
@@ -400,11 +400,11 @@ def test_reproducible_performance_observation_is_not_implicitly_accepted() -> No
 
 
 def test_lane_implementation_digest_covers_lane_source_bytes(tmp_path: Path) -> None:
-    from research_platform.governance.api import GovernanceBaselineLane
-    from research_platform.governance.providers import RepositorySourceTree
-    from research_platform.governance.runtime import governance_lane_implementation_digest
+    from noetrium_platform.foundation.governance.api import GovernanceBaselineLane
+    from noetrium_platform.foundation.governance.providers import RepositorySourceTree
+    from noetrium_platform.foundation.governance.runtime import governance_lane_implementation_digest
 
-    source = tmp_path / "research_platform" / "governance" / "concurrency" / "runtime" / "x.py"
+    source = tmp_path / "noetrium_platform" / "governance" / "concurrency" / "runtime" / "x.py"
     source.parent.mkdir(parents=True)
     source.write_text("VALUE = 1\n", encoding="utf-8")
     first = governance_lane_implementation_digest(
@@ -418,11 +418,11 @@ def test_lane_implementation_digest_covers_lane_source_bytes(tmp_path: Path) -> 
 
 
 def test_lane_implementation_digest_is_line_ending_independent(tmp_path: Path) -> None:
-    from research_platform.governance.api import GovernanceBaselineLane
-    from research_platform.governance.providers import RepositorySourceTree
-    from research_platform.governance.runtime import governance_lane_implementation_digest
+    from noetrium_platform.foundation.governance.api import GovernanceBaselineLane
+    from noetrium_platform.foundation.governance.providers import RepositorySourceTree
+    from noetrium_platform.foundation.governance.runtime import governance_lane_implementation_digest
 
-    source = tmp_path / "research_platform" / "governance" / "performance" / "runtime" / "x.py"
+    source = tmp_path / "noetrium_platform" / "governance" / "performance" / "runtime" / "x.py"
     source.parent.mkdir(parents=True)
     source.write_bytes(b"VALUE = 1\r\n")
     crlf = governance_lane_implementation_digest(

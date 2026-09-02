@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from research_platform.governance.concurrency.api import ConcurrencyDocument, ConcurrencyLanguage
-from research_platform.governance.concurrency.composition import build_concurrency_governance
-from research_platform.governance.concurrency.runtime import PythonConcurrencyAnalyzer
+from noetrium_platform.foundation.governance.concurrency.api import ConcurrencyDocument, ConcurrencyLanguage
+from noetrium_platform.foundation.governance.concurrency.composition import build_concurrency_governance
+from noetrium_platform.foundation.governance.concurrency.runtime import PythonConcurrencyAnalyzer
 
 
-def _analyze(text: str, path: str = "research_platform/example/runtime/x.py"):
+def _analyze(text: str, path: str = "noetrium_platform/example/runtime/x.py"):
     doc = ConcurrencyDocument(path, ConcurrencyLanguage.PYTHON, "0" * 64, text)
     return PythonConcurrencyAnalyzer().analyze(doc)
 
@@ -36,7 +36,7 @@ from threading import Thread
 def f():
     return Thread(target=lambda: None, daemon=False)
 """,
-        "research_platform/platform/concurrency/providers/example.py",
+        "noetrium_platform/foundation/kernel/concurrency/providers/example.py",
     )
     assert "unmanaged-thread" not in _codes(result)
 
@@ -68,7 +68,7 @@ class X:
 
 
 def test_baseline_gate_blocks_new_p0_p1(tmp_path: Path) -> None:
-    source = tmp_path / "research_platform" / "x.py"
+    source = tmp_path / "noetrium_platform" / "x.py"
     source.parent.mkdir(parents=True)
     source.write_text("def f():\n    return 1\n")
     service = build_concurrency_governance(tmp_path, state_root=tmp_path / ".state")
@@ -184,14 +184,14 @@ async def stop(process):
 
 
 def test_concurrency_inventory_excludes_local_server_state(tmp_path: Path) -> None:
-    from research_platform.governance.concurrency.providers import RepositoryConcurrencySourceInventory
-    from research_platform.governance.providers import RepositorySourceTree
-    (tmp_path / "research_platform").mkdir()
+    from noetrium_platform.foundation.governance.concurrency.providers import RepositoryConcurrencySourceInventory
+    from noetrium_platform.foundation.governance.providers import RepositorySourceTree
+    (tmp_path / "noetrium_platform").mkdir()
     (tmp_path / ".server-state").mkdir()
-    (tmp_path / "research_platform" / "ok.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (tmp_path / "noetrium_platform" / "ok.py").write_text("VALUE = 1\n", encoding="utf-8")
     (tmp_path / ".server-state" / "foreign.py").write_text("import threading\nthreading.Thread()\n", encoding="utf-8")
     paths = [doc.relative_path for doc in RepositoryConcurrencySourceInventory(RepositorySourceTree(tmp_path)).documents()]
-    assert paths == ["research_platform/ok.py"]
+    assert paths == ["noetrium_platform/ok.py"]
 
 
 def test_multi_hop_local_blocking_helper_chain_is_detected_under_lock() -> None:

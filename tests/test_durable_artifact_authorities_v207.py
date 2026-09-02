@@ -6,25 +6,25 @@ import sqlite3
 
 import pytest
 
-from research_platform.artifact.api import ArtifactContentIdentity
-from research_platform.artifact.catalog.api import ArtifactRetention
-from research_platform.artifact.lineage.relation.api import (
+from noetrium_platform.evidence.artifact.api import ArtifactContentIdentity
+from noetrium_platform.evidence.artifact.catalog.api import ArtifactRetention
+from noetrium_platform.evidence.artifact.lineage.relation.api import (
     ArtifactLineageCorruptionError,
     ArtifactLineageCycle,
     ArtifactLineageEdge,
 )
-from research_platform.artifact.lineage.relation.providers import SQLiteArtifactLineageStore
-from research_platform.artifact.reference.api import (
+from noetrium_platform.evidence.artifact.lineage.relation.providers import SQLiteArtifactLineageStore
+from noetrium_platform.evidence.artifact.reference.api import (
     ArtifactReferenceConflict,
     ArtifactReferenceCorruptionError,
 )
-from research_platform.artifact.reference.providers import SQLiteArtifactReferenceStore
-from research_platform.artifact.retention.api import (
+from noetrium_platform.evidence.artifact.reference.providers import SQLiteArtifactReferenceStore
+from noetrium_platform.evidence.artifact.retention.api import (
     ArtifactRetentionConflict,
     ArtifactRetentionCorruptionError,
 )
-from research_platform.artifact.retention.providers import SQLiteArtifactRetentionStore
-from research_platform.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
+from noetrium_platform.evidence.artifact.retention.providers import SQLiteArtifactRetentionStore
+from noetrium_platform.foundation.scope.api import PLATFORM_SCOPE, ScopeIdentity, ScopeKind
 
 
 def _content(artifact_id: str, char: str) -> ArtifactContentIdentity:

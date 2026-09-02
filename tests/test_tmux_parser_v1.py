@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from research_platform.runtime.session.runtime.tmux_parser import parse_tmux_snapshot
+from noetrium_platform.infrastructure.lifecycle.session.runtime.tmux_parser import parse_tmux_snapshot
 
 
 def test_parser_accepts_literal_tmux_30a_format_escape() -> None:

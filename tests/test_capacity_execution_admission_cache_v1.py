@@ -1,10 +1,10 @@
 from threading import Thread
 import time
 
-from research_platform.execution.admission.api import AdmissionBudget, AdmissionIdentity
-from research_platform.execution.admission.runtime import HierarchicalAdmissionAuthority
-from research_platform.execution.scheduling.runtime import FairPrioritySchedulingPolicy
-from research_platform.platform.concurrency.api import Deadline, ExecutionLaneKind
+from noetrium_platform.research.execution.admission.api import AdmissionBudget, AdmissionIdentity
+from noetrium_platform.research.execution.admission.runtime import HierarchicalAdmissionAuthority
+from noetrium_platform.research.execution.scheduling.runtime import FairPrioritySchedulingPolicy
+from noetrium_platform.foundation.kernel.concurrency.api import Deadline, ExecutionLaneKind
 
 
 class _CountingAdmissionAuthority(HierarchicalAdmissionAuthority):

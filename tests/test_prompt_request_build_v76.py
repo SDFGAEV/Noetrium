@@ -4,9 +4,9 @@ import unittest
 from pathlib import Path
 import tempfile
 
-from research_platform.model.request.runtime import DirectoryContentAddressedStore, DirectoryModelRequestLedger, ReconstructableModelRequestRecorder
-from research_platform.platform.kernel import ExecutionContext, ImmutableModelIdentity
-from research_platform.model.request.prompt.runtime import (
+from noetrium_platform.capabilities.model.request.runtime import DirectoryContentAddressedStore, DirectoryModelRequestLedger, ReconstructableModelRequestRecorder
+from noetrium_platform.foundation.kernel.kernel import ExecutionContext, ImmutableModelIdentity
+from noetrium_platform.capabilities.model.request.prompt.runtime import (
     PromptBlock,
     PromptBlockKind,
     PromptRegistry,
