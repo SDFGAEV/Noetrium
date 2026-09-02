@@ -15,6 +15,7 @@ A downstream repository may add project-local documentation, but it is not part 
 ## Documentation hierarchy
 
 - [`architecture/`](architecture/README.md) — recursive platform architecture, topology, composition, data flow, repository boundaries, and migration contracts.
+- [`COMPONENT_LAYERS.md`](architecture/COMPONENT_LAYERS.md) — reusable single-agent components and higher-tier multi-agent orchestration.
 - [`infrastructure/`](infrastructure/README.md) — reusable model, runtime, server, observability, storage, and execution infrastructure.
 - [`governance/`](governance/README.md) — architecture gates, forensic evidence, debugging policy, no-degradation rules, and documentation policy.
 - [`status/`](status/README.md) — current platform baseline and generated governance reports.

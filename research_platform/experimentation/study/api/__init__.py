@@ -28,6 +28,7 @@ from .trial import (
     TrialExecutionReceipt, TrialExecutionRequest,
     TrialMatrixExecutionReport, TrialProviderPort,
 )
+from .research_read import StudyResearchReadPort, StudyResearchReadSnapshot
 from .ports import (
     StudyArtifactPublicationPort,
     StudyAssignmentPort,
@@ -58,6 +59,8 @@ __all__ = [
     "ResearchParticipantRequirement",
     "ResearchRequirementResolution",
     "TrialProviderPort",
+    "StudyResearchReadPort",
+    "StudyResearchReadSnapshot",
     "TrialMatrixExecutionReport",
     "TrialExecutionRequest",
     "TrialExecutionReceipt",

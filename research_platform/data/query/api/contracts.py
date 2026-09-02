@@ -12,6 +12,7 @@ class ResearchDimensionKind(StrEnum):
     VARIANT = "variant"
     ASSIGNMENT = "assignment"
     RUN = "run"
+    TRIAL = "trial"
     METHOD = "method"
     COMPONENT = "component"
     MODEL = "model"
@@ -28,6 +29,7 @@ class ResearchDimensionKind(StrEnum):
 
 class ResearchResultKind(StrEnum):
     RUN = "run"
+    TRIAL = "trial"
     TASK = "task"
     ACTION = "action"
     OBSERVATION = "observation"

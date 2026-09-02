@@ -14,6 +14,7 @@ from .research_compiler import (
     diff_research_plans, resolve_research_requirements,
 )
 from .method_host import ResearchMethodHost, ResearchMethodHostPort
+from .runner import ExperimentPlanExecutionPort, ExperimentRunner, ExperimentRunnerPort
 from .construction import (
     ProjectIdentityProjection,
     ProjectManifestProjection,
@@ -65,6 +66,9 @@ __all__ = [
     "CompiledResearchPlan",
     "ResearchMethodHost",
     "ResearchMethodHostPort",
+    "ExperimentPlanExecutionPort",
+    "ExperimentRunner",
+    "ExperimentRunnerPort",
     "StudyIntervention",
     "StudyFactorSpec",
     "ResearchStudyDefinition",

@@ -38,7 +38,7 @@
 
 <p align="center">
   <a href="https://www.python.org/"><img alt="Python >=3.11" src="https://img.shields.io/badge/Python-%3E%3D3.11-3776AB?logo=python&logoColor=white"></a>
-  <a href="pyproject.toml"><img alt="Version 0.43.1" src="https://img.shields.io/badge/version-0.43.1-blue"></a>
+  <a href="pyproject.toml"><img alt="Version 0.44.0" src="https://img.shields.io/badge/version-0.44.0-blue"></a>
   <a href="docs/architecture/PLATFORM_ARCHITECTURE.md"><img alt="Contract-driven architecture" src="https://img.shields.io/badge/architecture-contract--driven-6f42c1"></a>
   <a href="LICENSE"><img alt="Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-green"></a>
 </p>
@@ -90,6 +90,10 @@ Noetrium is deliberately broader than an agent workflow library: experiment desi
 - Reliability — classified failures, effect certainty, reconciliation, replay, incidents and fail-closed recovery.
 - Observability — structured logs, events, metrics, traces, diagnostics, projections and health signals.
 - Governance — architecture, dependency, algorithm, concurrency, performance, forensic, release and no-degradation gates.
+
+### Reusable method components
+
+The sibling `components/` package is the practical method layer: `components.agent` provides ReAct, Reflexion and Plan-and-Solve; `components.memory` provides bounded working, episodic and vector memory; and `components.tools` provides an explicit typed Tool Registry. `components.multi_agent` is a higher tier for explicit GroupChat, Debate and Hierarchical topologies. All components depend one-way on the Platform, while downstream projects can replace only the novel policy/component or the whole method. See [`docs/architecture/COMPONENT_LAYERS.md`](docs/architecture/COMPONENT_LAYERS.md).
 
 <!-- readme-section:architecture -->
 

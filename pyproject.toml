@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "noetrium"
-version = "0.43.1"
+version = "0.44.0"
 description = "Reproducible Research Infrastructure for AI Agents"
 readme = "README.md"
 keywords = ["ai-agents", "agent-research", "research-infrastructure", "reproducibility", "experiment-management", "multi-agent-systems", "agent-evaluation", "ai-infrastructure", "evidence", "scientific-computing"]
@@ -36,7 +36,7 @@ research-platform-performance = "research_platform.governance.performance.cli:ma
 research-platform-repository-boundary = "research_platform.governance.repository_boundary.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["research_platform*"]
+include = ["research_platform*", "components*", "noetrium*"]
 
 [tool.setuptools.package-data]
 "research_platform.governance.system_registry" = ["catalog.json"]
