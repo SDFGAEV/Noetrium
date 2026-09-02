@@ -88,7 +88,7 @@ def verify_installed_artifact(artifact: Path) -> InstalledArtifactReceipt:
     if not artifact.is_file():
         raise FileNotFoundError(artifact)
     commands: list[CommandReceipt] = []
-    with tempfile.TemporaryDirectory(prefix="research-installed-") as td:
+    with tempfile.TemporaryDirectory(prefix="noetrium-installed-") as td:
         root = Path(td)
         venv_root = root / "venv"
         work = root / "work"
