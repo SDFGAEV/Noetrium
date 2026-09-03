@@ -818,9 +818,7 @@ class ResearchLifecycle:
         if type(evaluation) is not ResearchEvaluation:
             raise TypeError("research lifecycle evaluation must be ResearchEvaluation")
         if table_renderer is None or figure_renderer is None:
-            from ..providers import StandardTableRenderer, SvgFigureRenderer
-            table_renderer = table_renderer or StandardTableRenderer()
-            figure_renderer = figure_renderer or SvgFigureRenderer()
+            raise ValueError("render requires explicit table_renderer and figure_renderer ports")
         if not callable(getattr(table_renderer, "render", None)):
             raise TypeError("table_renderer must provide render(table, format)")
         if not callable(getattr(figure_renderer, "render", None)):

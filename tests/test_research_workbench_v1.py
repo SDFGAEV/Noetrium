@@ -241,7 +241,11 @@ def test_research_lifecycle_renders_one_identity_bound_package():
     evaluation = ResearchLifecycle().evaluate(
         table, context, metric="score", figures=(figure,),
     )
-    rendered = ResearchLifecycle().render(evaluation)
+    rendered = ResearchLifecycle().render(
+        evaluation,
+        table_renderer=StandardTableRenderer(),
+        figure_renderer=SvgFigureRenderer(),
+    )
     assert rendered.evaluation_digest == evaluation.evaluation_digest
     assert rendered.table_format == "markdown"
     assert "| variant | score | step |" in rendered.table_text
