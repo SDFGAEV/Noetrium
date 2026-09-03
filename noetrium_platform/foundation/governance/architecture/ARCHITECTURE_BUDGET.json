@@ -1,14 +1,14 @@
 {
   "schema_version": "architecture-complexity-budget.v3",
   "baseline": {
-    "git_sha": "1e960223c87f6e7013f58d83d1f2f6a76c9e4479",
-    "source_digest": "ad385a01eabece930b5f9a9735378034dc9533909fa4d95bc3dedd384ae05e4f",
+    "git_sha": "6320936680b805040bd6f6a09a00e6fda5d82714",
+    "source_digest": "0b0bba5b6eb9c04b330b43b67046d901a8b00fb3cd799271724b8eeabcea9604",
     "complexity": {
       "top_level_systems": 18,
       "subsystems": 142,
       "contract_declarations": 152,
       "authorities": 160,
-      "import_edges": 4905
+      "import_edges": 4906
     }
   },
   "migrations": [
