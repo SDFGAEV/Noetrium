@@ -700,12 +700,14 @@ def _formal_scope_budget_violations(
     for migration in budget.migrations:
         if migration.module_prefixes and migration.module_prefixes not in scopes:
             scopes.append(migration.module_prefixes)
+    registered_extension_scopes = _registered_extension_scopes()
+    registered_extension_roots = {scope[0] for scope in registered_extension_scopes}
     extension_prefixes = {
         source.split(".", 1)[0]
         for source, _target in pairs
-        if source.split(".", 1)[0] in {"components", "orchestration"}
+        if source.split(".", 1)[0] in registered_extension_roots
     }
-    for extension_scope in _registered_extension_scopes():
+    for extension_scope in registered_extension_scopes:
         if extension_scope[0] in extension_prefixes and extension_scope not in scopes:
             scopes.append(extension_scope)
     for index, left in enumerate(scopes):
