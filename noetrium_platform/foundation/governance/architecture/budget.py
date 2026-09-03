@@ -460,18 +460,20 @@ def _scope_owns_catalog(module_prefixes: Iterable[str]) -> bool:
 
 
 def _registered_extension_scopes() -> tuple[tuple[str, ...], ...]:
-    """Return package roots registered outside the platform namespace.
+    """Return registered downstream and public-contract source roots.
 
-    Reference components and orchestration are downstream extension planes. They
-    participate in import-budget partitioning, but they do not own the platform
-    catalog dimensions.
+    Reference components and orchestration are downstream extension planes. The
+    ``noetrium`` package is the stable public-contract plane consumed by those
+    extensions and operator adapters. All three participate in import-budget
+    partitioning, but none owns the platform catalog dimensions.
     """
-    prefixes = sorted({
+    prefixes = {
         row.package_prefix
         for row in system_catalog()
         if row.package_prefix and not row.package_prefix.startswith("noetrium_platform.")
-    })
-    return tuple((prefix,) for prefix in prefixes)
+    }
+    prefixes.add("noetrium")
+    return tuple((prefix,) for prefix in sorted(prefixes))
 
 
 def scoped_architecture_complexity(
