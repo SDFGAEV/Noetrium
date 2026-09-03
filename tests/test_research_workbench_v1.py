@@ -223,6 +223,29 @@ def test_research_lifecycle_binds_baseline_identity_and_publishes_one_report():
     assert result.report.figures == (figure,)
 
 
+def test_research_lifecycle_renders_one_identity_bound_package():
+    table = _table()
+    context = EvaluationContext(
+        "project", "experiment", "study", "treatment", EvaluationStage.DEVELOPMENT,
+        SHA_A, SHA_B, SHA_B, "commit", SHA_B, "seed-1",
+    )
+    figure = FigureSpec(
+        "scores", "Scores", FigureKind.BAR,
+        (FigureSeries("treatment", (FigurePoint("treatment", 6.0),)),),
+        source_digests=(table.table_digest,),
+    )
+    evaluation = ResearchLifecycle().evaluate(
+        table, context, metric="score", figures=(figure,),
+    )
+    rendered = ResearchLifecycle().render(evaluation)
+    assert rendered.evaluation_digest == evaluation.evaluation_digest
+    assert rendered.table_format == "markdown"
+    assert "| variant | score | step |" in rendered.table_text
+    assert rendered.figures[0][0] == "scores"
+    assert rendered.figures[0][1].startswith("<svg ")
+    assert len(rendered.render_digest) == 64
+
+
 def test_research_lifecycle_rejects_baseline_protocol_drift():
     lifecycle = ResearchLifecycle()
     lifecycle.baselines.register(BaselineSpec(

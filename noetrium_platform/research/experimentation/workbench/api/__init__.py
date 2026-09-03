@@ -3,7 +3,7 @@ from .contracts import (
     DataColumn, DataTable, EvaluationContext, EvaluationStage, FigureCell, FigureKind,
     FigurePoint, FigureRendererPort, FigureSeries, FigureSpec, GroupComparison,
     InferenceResult, MetricSummary, MissingValuePolicy, PairedComparison,
-    ResearchEvaluation, ResearchReport, ReportTableRendererPort, SplitStrategy,
+    RenderedResearchPackage, ResearchEvaluation, ResearchReport, ReportTableRendererPort, SplitStrategy,
     TableAnalysisPort, TableReaderPort, TableTransformPort,
 )
 
@@ -12,7 +12,7 @@ __all__ = [
     "DataColumn", "DataTable", "EvaluationContext", "EvaluationStage",
     "FigureCell", "FigureKind", "FigurePoint", "FigureRendererPort",
     "FigureSeries", "FigureSpec", "GroupComparison", "InferenceResult", "MetricSummary",
-    "MissingValuePolicy", "PairedComparison", "ResearchEvaluation", "ResearchReport",
+    "MissingValuePolicy", "PairedComparison", "RenderedResearchPackage", "ResearchEvaluation", "ResearchReport",
     "ReportTableRendererPort", "SplitStrategy", "TableAnalysisPort",
     "TableReaderPort", "TableTransformPort",
 ]

@@ -60,6 +60,7 @@ from noetrium_platform.research.experimentation.workbench import (
     MeasurementRecordTableAdapter, StudyObservationTableAdapter,
     MissingValuePolicy,
     PairedComparison,
+    RenderedResearchPackage,
     ResearchEvaluation,
     ResearchLifecycle,
     ResearchReport,
@@ -124,7 +125,7 @@ __all__ = [
     "AggregationFunction", "AggregationSpec", "BaselineRegistryPort", "BaselineSpec", "CsvTableReader", "DataColumn", "DataTable", "EvaluationContext", "EvaluationStage", "FigureCell", "FigureKind", "FigurePoint",
     "FigureSeries", "FigureSpec", "GroupComparison", "InferenceResult", "JsonlTableReader",
     "MetricSummary", "MeasurementRecordTableAdapter", "MissingValuePolicy",
-    "PairedComparison", "ResearchEvaluation", "ResearchLifecycle", "ResearchReport", "StudyObservationTableAdapter",
+    "PairedComparison", "RenderedResearchPackage", "ResearchEvaluation", "ResearchLifecycle", "ResearchReport", "StudyObservationTableAdapter",
     "ScientificStatistics", "SplitStrategy", "StandardTableRenderer", "SvgFigureRenderer",
     "TablePipeline",
 ]

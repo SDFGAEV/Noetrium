@@ -537,8 +537,10 @@ class ResearchLifecycle:
             raise TypeError("research lifecycle table must be DataTable")
         if type(context) is not EvaluationContext:
             raise TypeError("research lifecycle context must be EvaluationContext")
-        if table.source_digest is not None and table.source_digest != context.dataset_digest:
-            raise ValueError("evaluation table source digest does not match dataset identity")
+        table_metadata = dict(table.metadata)
+        pinned_dataset = table_metadata.get("dataset_digest")
+        if pinned_dataset is not None and pinned_dataset != context.dataset_digest:
+            raise ValueError("evaluation table dataset metadata does not match dataset identity")
         self._baselines.validate(context)
         summaries = self._statistics.summarize(
             table, metric, group_by=group_by, missing=missing
@@ -584,6 +586,35 @@ class ResearchLifecycle:
             report=report,
         )
 
+    def run_and_evaluate(
+        self,
+        executor: Any,
+        *,
+        run_spec: Any,
+        context: EvaluationContext,
+        unit_adapter: Any,
+        protocol: Any | None = None,
+        plan: Any | None = None,
+        **kwargs: Any,
+    ) -> ResearchEvaluation:
+        """Execute one frozen run, then route its observations through this facade."""
+        if type(context) is not EvaluationContext:
+            raise TypeError("research lifecycle context must be EvaluationContext")
+        result = executor.execute(
+            run_spec=run_spec,
+            protocol=protocol,
+            plan=plan,
+            unit_adapter=unit_adapter,
+        )
+        report = getattr(result, "study_report", None)
+        observations = getattr(report, "observations", None)
+        if observations is None:
+            raise TypeError("run executor returned no study observations")
+        protocol_digest = getattr(result, "protocol_digest", None)
+        if protocol_digest != context.protocol_digest:
+            raise ValueError("run result protocol does not match evaluation context")
+        return self.evaluate_study_observations(observations, context, **kwargs)
+
     def evaluate_study_observations(
         self,
         observations: tuple[Any, ...],
@@ -595,6 +626,39 @@ class ResearchLifecycle:
 
         table = StudyObservationTableAdapter().to_table(observations)
         return self.evaluate(table, context, **kwargs)
+
+    def render(
+        self,
+        evaluation: ResearchEvaluation,
+        *,
+        table_format: str = "markdown",
+        table_renderer: Any | None = None,
+        figure_renderer: Any | None = None,
+    ) -> Any:
+        """Render one evaluation through injected or standard output adapters."""
+        from ..api import RenderedResearchPackage
+
+        if type(evaluation) is not ResearchEvaluation:
+            raise TypeError("research lifecycle evaluation must be ResearchEvaluation")
+        if table_renderer is None or figure_renderer is None:
+            from ..providers import StandardTableRenderer, SvgFigureRenderer
+            table_renderer = table_renderer or StandardTableRenderer()
+            figure_renderer = figure_renderer or SvgFigureRenderer()
+        if not callable(getattr(table_renderer, "render", None)):
+            raise TypeError("table_renderer must provide render(table, format)")
+        if not callable(getattr(figure_renderer, "render", None)):
+            raise TypeError("figure_renderer must provide render(figure)")
+        table_text = table_renderer.render(evaluation.table, table_format)
+        figures = tuple(
+            (figure.figure_id, figure_renderer.render(figure))
+            for figure in evaluation.report.figures
+        )
+        return RenderedResearchPackage(
+            evaluation_digest=evaluation.evaluation_digest,
+            table_format=table_format,
+            table_text=table_text,
+            figures=figures,
+        )
 
 
 __all__ = [

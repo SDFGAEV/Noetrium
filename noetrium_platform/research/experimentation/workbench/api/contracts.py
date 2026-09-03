@@ -579,6 +579,36 @@ class ResearchEvaluation:
         }))
 
 
+@dataclass(frozen=True, slots=True)
+class RenderedResearchPackage:
+    """Backend-neutral rendered outputs bound to one evaluation identity."""
+
+    evaluation_digest: str
+    table_format: str
+    table_text: str
+    figures: tuple[tuple[str, str], ...]
+    render_digest: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        _sha(self.evaluation_digest, "rendered research evaluation_digest")
+        _text(self.table_format, "rendered research table_format")
+        if type(self.table_text) is not str:
+            raise TypeError("rendered research table_text must be a string")
+        if type(self.figures) is not tuple:
+            raise TypeError("rendered research figures must be a tuple")
+        figure_ids = tuple(item[0] for item in self.figures)
+        if any(type(item) is not tuple or len(item) != 2 or not isinstance(item[0], str) or not item[0].strip() or type(item[1]) is not str for item in self.figures):
+            raise TypeError("rendered research figures must contain string id/content pairs")
+        if len(figure_ids) != len(set(figure_ids)):
+            raise ValueError("rendered research figure ids must be unique")
+        object.__setattr__(self, "render_digest", canonical_digest({
+            "evaluation_digest": self.evaluation_digest,
+            "table_format": self.table_format,
+            "table_text": self.table_text,
+            "figures": self.figures,
+        }))
+
+
 class FigureRendererPort(Protocol):
     def render(self, figure: FigureSpec) -> str: ...
 
@@ -592,7 +622,7 @@ __all__ = [
     "DataColumn", "DataTable", "EvaluationContext", "EvaluationStage",
     "FigureCell", "FigureKind", "FigurePoint", "FigureRendererPort",
     "FigureSeries", "FigureSpec", "GroupComparison", "InferenceResult", "MetricSummary",
-    "MissingValuePolicy", "PairedComparison", "ResearchEvaluation", "ResearchReport",
-    "ReportTableRendererPort", "SplitStrategy",
+    "MissingValuePolicy", "PairedComparison", "RenderedResearchPackage", "ResearchEvaluation",
+    "ResearchReport", "ReportTableRendererPort", "SplitStrategy",
     "TableAnalysisPort", "TableReaderPort", "TableTransformPort",
 ]
