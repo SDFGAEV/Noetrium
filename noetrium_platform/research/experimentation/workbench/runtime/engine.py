@@ -10,9 +10,10 @@ from typing import Any
 
 from noetrium_platform.foundation.kernel.kernel import canonical_digest, freeze_json
 from ..api import (
-    AggregationFunction, AggregationSpec, DataColumn, DataTable, GroupComparison,
+    AggregationFunction, AggregationSpec, BaselineRegistryPort, BaselineSpec,
+    DataColumn, DataTable, EvaluationContext, FigureSpec, GroupComparison,
     InferenceResult, MetricSummary, MissingValuePolicy, PairedComparison,
-    SplitStrategy,
+    ResearchEvaluation, ResearchReport, SplitStrategy,
 )
 
 
@@ -137,7 +138,27 @@ class TablePipeline:
             return buckets
 
         if strategy is SplitStrategy.TEMPORAL:
-            ordered = sorted(table.rows, key=lambda row: tuple(repr(freeze_json(row[table.column_index(name)])) for name in order_by))
+            order_indexes = tuple(table.column_index(name) for name in order_by)
+
+            def temporal_key(row: tuple[Any, ...]) -> tuple[tuple[int, object], ...]:
+                components: list[tuple[int, object]] = []
+                for index in order_indexes:
+                    value = row[index]
+                    if value is None:
+                        raise ValueError("temporal split order columns cannot contain null")
+                    if type(value) is bool:
+                        components.append((0, int(value)))
+                    elif isinstance(value, (int, float)):
+                        if not math.isfinite(float(value)):
+                            raise ValueError("temporal split order columns must be finite")
+                        components.append((1, float(value)))
+                    elif type(value) is str:
+                        components.append((2, value))
+                    else:
+                        components.append((3, repr(freeze_json(value))))
+                return tuple(components)
+
+            ordered = sorted(table.rows, key=temporal_key)
             buckets = allocate(ordered, shuffle_rows=False)
         elif strategy is SplitStrategy.STRATIFIED:
             strata: dict[tuple[str, ...], list[tuple[Any, ...]]] = defaultdict(list)
@@ -435,4 +456,150 @@ class ScientificStatistics:
                                p_value, None, 0.0)
 
 
-__all__ = ["ScientificStatistics", "TablePipeline"]
+class InMemoryBaselineRegistry(BaselineRegistryPort):
+    """Single-process baseline authority; durable implementations can use the port."""
+
+    def __init__(self) -> None:
+        self._baselines: dict[str, BaselineSpec] = {}
+
+    def register(self, baseline: BaselineSpec) -> BaselineSpec:
+        if type(baseline) is not BaselineSpec:
+            raise TypeError("baseline registry accepts BaselineSpec")
+        existing = self._baselines.get(baseline.baseline_id)
+        if existing is not None and existing.baseline_digest != baseline.baseline_digest:
+            raise ValueError(f"baseline identity is already registered: {baseline.baseline_id}")
+        self._baselines[baseline.baseline_id] = baseline
+        return baseline
+
+    def resolve(self, baseline_id: str) -> BaselineSpec:
+        if type(baseline_id) is not str or not baseline_id.strip():
+            raise ValueError("baseline_id must be non-empty")
+        try:
+            return self._baselines[baseline_id]
+        except KeyError as exc:
+            raise KeyError(f"baseline is not registered: {baseline_id}") from exc
+
+    def validate(self, context: EvaluationContext) -> None:
+        if type(context) is not EvaluationContext:
+            raise TypeError("baseline validation requires EvaluationContext")
+        if context.baseline_id is None:
+            return
+        baseline = self.resolve(context.baseline_id)
+        if baseline.dataset_digest != context.dataset_digest:
+            raise ValueError("baseline dataset digest does not match evaluation context")
+        if baseline.protocol_digest != context.protocol_digest:
+            raise ValueError("baseline protocol digest does not match evaluation context")
+        if baseline.baseline_id == context.candidate_id:
+            raise ValueError("evaluation candidate cannot be its own baseline")
+
+
+class ResearchLifecycle:
+    """One downstream-facing seam for run outputs, analysis, comparison and reports."""
+
+    def __init__(
+        self,
+        *,
+        pipeline: TablePipeline | None = None,
+        statistics: ScientificStatistics | None = None,
+        baselines: BaselineRegistryPort | None = None,
+    ) -> None:
+        self._pipeline = pipeline or TablePipeline()
+        self._statistics = statistics or ScientificStatistics()
+        self._baselines = baselines or InMemoryBaselineRegistry()
+
+    @property
+    def pipeline(self) -> TablePipeline:
+        return self._pipeline
+
+    @property
+    def statistics(self) -> ScientificStatistics:
+        return self._statistics
+
+    @property
+    def baselines(self) -> BaselineRegistryPort:
+        return self._baselines
+
+    def evaluate(
+        self,
+        table: DataTable,
+        context: EvaluationContext,
+        *,
+        metric: str,
+        group_by: tuple[str, ...] = (),
+        comparison_group: str | None = None,
+        baseline_value: Any | None = None,
+        candidate_value: Any | None = None,
+        figures: tuple[Any, ...] = (),
+        report_id: str | None = None,
+        missing: MissingValuePolicy = MissingValuePolicy.REJECT,
+    ) -> ResearchEvaluation:
+        if type(table) is not DataTable:
+            raise TypeError("research lifecycle table must be DataTable")
+        if type(context) is not EvaluationContext:
+            raise TypeError("research lifecycle context must be EvaluationContext")
+        if table.source_digest is not None and table.source_digest != context.dataset_digest:
+            raise ValueError("evaluation table source digest does not match dataset identity")
+        self._baselines.validate(context)
+        summaries = self._statistics.summarize(
+            table, metric, group_by=group_by, missing=missing
+        )
+        comparison = None
+        if comparison_group is not None:
+            if baseline_value is None or candidate_value is None:
+                raise ValueError("comparison requires baseline_value and candidate_value")
+            comparison = self._statistics.compare(
+                table, metric, comparison_group,
+                baseline=baseline_value, candidate=candidate_value,
+                missing=missing,
+            )
+        if type(figures) is not tuple:
+            raise TypeError("research lifecycle figures must be a tuple")
+        if any(type(figure) is not FigureSpec for figure in figures):
+            raise TypeError("research lifecycle figures must contain FigureSpec")
+        active_report_id = report_id or (
+            f"{context.project_id}:{context.study_id}:{context.candidate_id}:{context.stage.value}"
+        )
+        metadata = (
+            ("context_digest", context.context_digest),
+            ("candidate_id", context.candidate_id),
+            ("stage", context.stage.value),
+            ("dataset_digest", context.dataset_digest),
+            ("split_digest", context.split_digest),
+            ("protocol_digest", context.protocol_digest),
+            ("code_commit", context.code_commit),
+            ("configuration_digest", context.configuration_digest),
+            ("seed", context.seed),
+        )
+        report = ResearchReport(
+            active_report_id,
+            tables=(table,),
+            figures=figures,
+            metadata=metadata,
+        )
+        return ResearchEvaluation(
+            context=context,
+            table=table,
+            summaries=summaries,
+            comparison=comparison,
+            report=report,
+        )
+
+    def evaluate_study_observations(
+        self,
+        observations: tuple[Any, ...],
+        context: EvaluationContext,
+        **kwargs: Any,
+    ) -> ResearchEvaluation:
+        """Adapt generic Study observations once, then use the shared lifecycle."""
+        from ..providers import StudyObservationTableAdapter
+
+        table = StudyObservationTableAdapter().to_table(observations)
+        return self.evaluate(table, context, **kwargs)
+
+
+__all__ = [
+    "InMemoryBaselineRegistry",
+    "ResearchLifecycle",
+    "ScientificStatistics",
+    "TablePipeline",
+]

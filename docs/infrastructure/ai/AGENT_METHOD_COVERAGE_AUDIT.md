@@ -133,3 +133,38 @@ When a future paper is evaluated, check the full chain rather than the algorithm
 method input -> model/environment seam -> trial/run -> measurement/evidence -> analysis -> table/figure -> report
 
 A green method seam with a red analysis or publication seam is not a complete paper implementation. Conversely, a backend-specific implementation is acceptable when it is isolated behind the shared ports and does not duplicate lifecycle, lineage, comparison, or plotting semantics.
+
+## Lifecycle convergence update
+
+The public research seam now adds the missing identity and orchestration layer:
+
+- EvaluationContext binds project, experiment, study, candidate, stage, dataset cut, split, protocol, code revision, configuration, seed, and optional run identity into one digest. Test, shadow, and live stages are explicitly marked locked.
+- BaselineSpec and BaselineRegistryPort define one reusable reference-method authority. InMemoryBaselineRegistry is the portable default; durable catalogs can implement the same port. Dataset and protocol drift is rejected before comparison.
+- ResearchLifecycle is the downstream-facing aggregate. It validates identity, adapts study observations into the shared table, computes summaries and baseline/candidate effects, and returns one ResearchEvaluation containing the immutable table, statistics, figures, and ResearchReport.
+- The study public __all__ surface was corrected so wildcard imports do not advertise symbols that are not defined by that package. Compiler contracts remain owned by the experimentation API.
+- Temporal splits now sort typed numeric, boolean, and text keys by value rather than by repr, preventing chronological leakage caused by lexicographic ordering such as 10 before 2.
+
+This preserves the existing aggregation: ExperimentRunApplication remains the run/study execution owner, StudyMatrixExecutor remains the matrix/concurrency owner, Measurement and Evidence remain result/provenance owners, and the workbench remains the analysis/publication owner. The new lifecycle is a facade over those authorities, not a second implementation of them.
+
+## Cross-system convergence findings
+
+The large directory counts are not, by themselves, duplicate execution systems. The audited boundaries are:
+
+| Concern | One execution/semantic authority | Other layers |
+|---|---|---|
+| Structured concurrency | foundation.kernel.concurrency runtime and task-group ports | governance scans, admission/scheduling composition, and provider executors |
+| Study parallelism | StudyMatrixExecutor plus StudyConcurrencyPolicy | kernel task group supplies execution capacity |
+| Logging | StructuredLoggingSystem / LoggingSystemPort | record, sink, query, retention and diagnostic projections |
+| Runtime metrics | telemetry metric contracts and ContextMetricSink | composition observers emit domain facts |
+| Raw method observations | RawObservationLake and capture receipts | method sink is only an adapter |
+| Scientific measurements | MeasurementProtocol / MeasurementRecord | workbench adapters project them once into DataTable |
+| Artifacts and evidence | artifact/reference and evidence-bundle authorities | run publication composes immutable receipts |
+| Experiment lifecycle | run → study → trial hierarchy | environment/model/method providers realize injected capabilities |
+
+The rule for future additions is strict: a new subsystem may add a provider, projection, or adapter, but it may not introduce a second scheduler, logger, metric ledger, measurement aggregator, baseline catalog, table authority, figure semantic model, or provenance digest. If a new paper needs a richer backend, it must implement the existing port and return the existing identity-bearing result types.
+
+## Current strength boundary
+
+The platform is strong enough for downstream implementation of the control graph and complete common paper workflow across ReAct/tool use, RAG, memory/skills/reflection, planning/search, long-horizon agents, benchmark matrices, ablations, seed/repetition studies, and environment/model-provider variants. It is intentionally not a replacement for the provider's tensor kernels, simulator, browser/robotics SDK, embedding/vector index, or journal-specific statistics/renderer.
+
+Supported therefore means: the paper's novel method can be injected through the typed method/model/environment/participant seams; every run enters the shared assignment, checkpoint, measurement/evidence and artifact paths; and every claim can be reproduced through the shared evaluation context, data table, analysis, figure and report identities. A provider-specific algorithm is acceptable only behind these ports.

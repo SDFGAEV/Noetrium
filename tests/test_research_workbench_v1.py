@@ -5,8 +5,9 @@ import tempfile
 from pathlib import Path
 
 from noetrium.contracts.research import (
-    AggregationFunction, AggregationSpec, DataColumn, DataTable, FigureCell,
-    FigureKind, FigurePoint, FigureSeries, FigureSpec, MissingValuePolicy,
+    AggregationFunction, AggregationSpec, BaselineSpec, DataColumn, DataTable,
+    EvaluationContext, EvaluationStage, FigureCell, FigureKind, FigurePoint,
+    FigureSeries, FigureSpec, MissingValuePolicy, ResearchLifecycle,
     ScientificStatistics, SplitStrategy, StandardTableRenderer,
     StudyObservationTableAdapter, SvgFigureRenderer, TablePipeline,
 )
@@ -191,3 +192,62 @@ def test_study_observation_adapter_feeds_shared_statistics_and_figures():
         FigureSeries("candidate", (FigurePoint("candidate", 6.0),)),
     ), source_digests=(table.table_digest,))
     assert table.table_digest in figure.source_digests
+
+
+def test_research_lifecycle_binds_baseline_identity_and_publishes_one_report():
+    table = _table()
+    lifecycle = ResearchLifecycle()
+    lifecycle.baselines.register(BaselineSpec(
+        "control", "fixed-control", SHA_B, SHA_A, SHA_B,
+    ))
+    context = EvaluationContext(
+        "project", "experiment", "study", "treatment", EvaluationStage.TEST,
+        SHA_A, SHA_B, SHA_B, "commit", SHA_B, "seed-1",
+        baseline_id="control", run_id="run-1",
+    )
+    figure = FigureSpec(
+        "scores", "Scores", FigureKind.BAR,
+        (FigureSeries("treatment", (FigurePoint("treatment", 6.0),)),
+        ),
+        source_digests=(table.table_digest,),
+    )
+    result = lifecycle.evaluate(
+        table, context, metric="score", group_by=("variant",),
+        comparison_group="variant", baseline_value="control",
+        candidate_value="treatment", figures=(figure,),
+    )
+    assert result.context.locked
+    assert result.comparison is not None
+    assert result.comparison.difference == 4.0
+    assert result.report.tables == (table,)
+    assert result.report.figures == (figure,)
+
+
+def test_research_lifecycle_rejects_baseline_protocol_drift():
+    lifecycle = ResearchLifecycle()
+    lifecycle.baselines.register(BaselineSpec(
+        "control", "fixed-control", SHA_B, SHA_A, SHA_B,
+    ))
+    context = EvaluationContext(
+        "project", "experiment", "study", "treatment", EvaluationStage.TEST,
+        SHA_A, SHA_B, "c" * 64, "commit", SHA_B, "seed-1",
+        baseline_id="control",
+    )
+    import pytest
+    with pytest.raises(ValueError, match="protocol digest"):
+        lifecycle.baselines.validate(context)
+
+
+def test_temporal_split_orders_numeric_time_without_string_lexicographic_drift():
+    table = DataTable(
+        "numeric-time",
+        (DataColumn("time", "int", False), DataColumn("score", "float", False)),
+        ((2, 2.0), (10, 10.0), (11, 11.0)),
+    )
+    splits = TablePipeline().split(
+        table, seed=0, fractions=(("train", 2 / 3), ("test", 1 / 3)),
+        operation_id="numeric-time", configuration_digest=SHA_B,
+        strategy=SplitStrategy.TEMPORAL, order_by=("time",),
+    )
+    assert [row[0] for row in splits["train"].rows] == [2, 10]
+    assert [row[0] for row in splits["test"].rows] == [11]

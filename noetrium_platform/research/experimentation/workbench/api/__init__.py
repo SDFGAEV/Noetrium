@@ -1,13 +1,18 @@
 from .contracts import (
-    AggregationFunction, AggregationSpec, DataColumn, DataTable, FigureCell, FigureKind, FigurePoint, FigureRendererPort,
-    FigureSeries, FigureSpec, GroupComparison, InferenceResult, MetricSummary,
-    MissingValuePolicy, PairedComparison, ResearchReport, ReportTableRendererPort,
-    SplitStrategy, TableAnalysisPort, TableReaderPort, TableTransformPort,
+    AggregationFunction, AggregationSpec, BaselineRegistryPort, BaselineSpec,
+    DataColumn, DataTable, EvaluationContext, EvaluationStage, FigureCell, FigureKind,
+    FigurePoint, FigureRendererPort, FigureSeries, FigureSpec, GroupComparison,
+    InferenceResult, MetricSummary, MissingValuePolicy, PairedComparison,
+    ResearchEvaluation, ResearchReport, ReportTableRendererPort, SplitStrategy,
+    TableAnalysisPort, TableReaderPort, TableTransformPort,
 )
 
 __all__ = [
-    "AggregationFunction", "AggregationSpec", "DataColumn", "DataTable", "FigureCell", "FigureKind", "FigurePoint", "FigureRendererPort",
+    "AggregationFunction", "AggregationSpec", "BaselineRegistryPort", "BaselineSpec",
+    "DataColumn", "DataTable", "EvaluationContext", "EvaluationStage",
+    "FigureCell", "FigureKind", "FigurePoint", "FigureRendererPort",
     "FigureSeries", "FigureSpec", "GroupComparison", "InferenceResult", "MetricSummary",
-    "MissingValuePolicy", "PairedComparison", "ResearchReport", "ReportTableRendererPort",
-    "SplitStrategy", "TableAnalysisPort", "TableReaderPort", "TableTransformPort",
+    "MissingValuePolicy", "PairedComparison", "ResearchEvaluation", "ResearchReport",
+    "ReportTableRendererPort", "SplitStrategy", "TableAnalysisPort",
+    "TableReaderPort", "TableTransformPort",
 ]

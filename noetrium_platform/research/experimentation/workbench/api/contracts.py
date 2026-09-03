@@ -139,6 +139,103 @@ class SplitStrategy(StrEnum):
     TEMPORAL = "temporal"
 
 
+class EvaluationStage(StrEnum):
+    DEVELOPMENT = "development"
+    VALIDATION = "validation"
+    TEST = "test"
+    SHADOW = "shadow"
+    LIVE = "live"
+
+
+@dataclass(frozen=True, slots=True)
+class EvaluationContext:
+    """Immutable identity shared by every paper evaluation and comparison."""
+
+    project_id: str
+    experiment_id: str
+    study_id: str
+    candidate_id: str
+    stage: EvaluationStage
+    dataset_digest: str
+    split_digest: str
+    protocol_digest: str
+    code_commit: str
+    configuration_digest: str
+    seed: str
+    baseline_id: str | None = None
+    run_id: str | None = None
+    context_digest: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("project_id", self.project_id), ("experiment_id", self.experiment_id),
+            ("study_id", self.study_id), ("candidate_id", self.candidate_id),
+            ("code_commit", self.code_commit), ("seed", self.seed),
+        ):
+            _text(value, f"evaluation context {name}")
+        if not isinstance(self.stage, EvaluationStage):
+            raise TypeError("evaluation context stage must be EvaluationStage")
+        for name, value in (
+            ("dataset_digest", self.dataset_digest),
+            ("split_digest", self.split_digest),
+            ("protocol_digest", self.protocol_digest),
+            ("configuration_digest", self.configuration_digest),
+        ):
+            _sha(value, f"evaluation context {name}")
+        if self.baseline_id is not None:
+            _text(self.baseline_id, "evaluation context baseline_id")
+        if self.run_id is not None:
+            _text(self.run_id, "evaluation context run_id")
+        object.__setattr__(self, "context_digest", canonical_digest({
+            "project_id": self.project_id, "experiment_id": self.experiment_id,
+            "study_id": self.study_id, "candidate_id": self.candidate_id,
+            "stage": self.stage.value, "dataset_digest": self.dataset_digest,
+            "split_digest": self.split_digest, "protocol_digest": self.protocol_digest,
+            "code_commit": self.code_commit, "configuration_digest": self.configuration_digest,
+            "seed": self.seed, "baseline_id": self.baseline_id, "run_id": self.run_id,
+        }))
+
+    @property
+    def locked(self) -> bool:
+        return self.stage in {EvaluationStage.TEST, EvaluationStage.SHADOW, EvaluationStage.LIVE}
+
+
+@dataclass(frozen=True, slots=True)
+class BaselineSpec:
+    """One canonical reference method; downstream code must not redefine it."""
+
+    baseline_id: str
+    implementation_id: str
+    configuration_digest: str
+    dataset_digest: str
+    protocol_digest: str
+    description: str = ""
+    baseline_digest: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        _text(self.baseline_id, "baseline baseline_id")
+        _text(self.implementation_id, "baseline implementation_id")
+        _sha(self.configuration_digest, "baseline configuration_digest")
+        _sha(self.dataset_digest, "baseline dataset_digest")
+        _sha(self.protocol_digest, "baseline protocol_digest")
+        if type(self.description) is not str:
+            raise TypeError("baseline description must be a string")
+        object.__setattr__(self, "baseline_digest", canonical_digest({
+            "baseline_id": self.baseline_id, "implementation_id": self.implementation_id,
+            "configuration_digest": self.configuration_digest,
+            "dataset_digest": self.dataset_digest, "protocol_digest": self.protocol_digest,
+            "description": self.description,
+        }))
+
+
+class BaselineRegistryPort(Protocol):
+    def register(self, baseline: BaselineSpec) -> BaselineSpec: ...
+
+    def resolve(self, baseline_id: str) -> BaselineSpec: ...
+
+    def validate(self, context: EvaluationContext) -> None: ...
+
+
 class AggregationFunction(StrEnum):
     COUNT = "count"
     SUM = "sum"
@@ -447,6 +544,41 @@ class ResearchReport:
         }))
 
 
+@dataclass(frozen=True, slots=True)
+class ResearchEvaluation:
+    """Complete, identity-bound evaluation projection for downstream authors."""
+
+    context: EvaluationContext
+    table: DataTable
+    summaries: tuple[MetricSummary, ...]
+    comparison: GroupComparison | None
+    report: ResearchReport
+    evaluation_digest: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        if type(self.context) is not EvaluationContext:
+            raise TypeError("research evaluation context must be EvaluationContext")
+        if type(self.table) is not DataTable:
+            raise TypeError("research evaluation table must be DataTable")
+        if type(self.summaries) is not tuple or any(type(item) is not MetricSummary for item in self.summaries):
+            raise TypeError("research evaluation summaries must contain MetricSummary")
+        if self.comparison is not None and type(self.comparison) is not GroupComparison:
+            raise TypeError("research evaluation comparison must be GroupComparison or None")
+        if type(self.report) is not ResearchReport:
+            raise TypeError("research evaluation report must be ResearchReport")
+        if self.table.table_digest not in {
+            digest for figure in self.report.figures for digest in figure.source_digests
+        } and self.report.tables != (self.table,):
+            raise ValueError("research evaluation report must retain the evaluated table lineage")
+        object.__setattr__(self, "evaluation_digest", canonical_digest({
+            "context": self.context.context_digest,
+            "table": self.table.table_digest,
+            "summaries": self.summaries,
+            "comparison": self.comparison,
+            "report": self.report.report_digest,
+        }))
+
+
 class FigureRendererPort(Protocol):
     def render(self, figure: FigureSpec) -> str: ...
 
@@ -456,9 +588,11 @@ class ReportTableRendererPort(Protocol):
 
 
 __all__ = [
-    "AggregationFunction", "AggregationSpec", "DataColumn", "DataTable", "FigureCell", "FigureKind", "FigurePoint", "FigureRendererPort",
+    "AggregationFunction", "AggregationSpec", "BaselineRegistryPort", "BaselineSpec",
+    "DataColumn", "DataTable", "EvaluationContext", "EvaluationStage",
+    "FigureCell", "FigureKind", "FigurePoint", "FigureRendererPort",
     "FigureSeries", "FigureSpec", "GroupComparison", "InferenceResult", "MetricSummary",
-    "MissingValuePolicy", "PairedComparison", "ResearchReport", "ReportTableRendererPort",
-    "SplitStrategy",
+    "MissingValuePolicy", "PairedComparison", "ResearchEvaluation", "ResearchReport",
+    "ReportTableRendererPort", "SplitStrategy",
     "TableAnalysisPort", "TableReaderPort", "TableTransformPort",
 ]

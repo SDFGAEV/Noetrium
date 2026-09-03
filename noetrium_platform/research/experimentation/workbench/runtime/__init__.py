@@ -1,3 +1,8 @@
-from .engine import ScientificStatistics, TablePipeline
+from .engine import InMemoryBaselineRegistry, ResearchLifecycle, ScientificStatistics, TablePipeline
 
-__all__ = ["ScientificStatistics", "TablePipeline"]
+__all__ = [
+    "InMemoryBaselineRegistry",
+    "ResearchLifecycle",
+    "ScientificStatistics",
+    "TablePipeline",
+]

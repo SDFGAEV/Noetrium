@@ -1,21 +1,24 @@
 """Aggregated downstream research workbench facade."""
 from .api import (
-    AggregationFunction, AggregationSpec, DataColumn, DataTable, FigureCell, FigureKind, FigurePoint,
+    AggregationFunction, AggregationSpec, BaselineRegistryPort, BaselineSpec, DataColumn,
+    DataTable, EvaluationContext, EvaluationStage, FigureCell, FigureKind, FigurePoint,
     FigureSeries, FigureSpec, GroupComparison, InferenceResult, MetricSummary,
-    MissingValuePolicy, PairedComparison, ResearchReport, SplitStrategy,
+    MissingValuePolicy, PairedComparison, ResearchEvaluation, ResearchReport, SplitStrategy,
 )
 from .providers import (
     CsvTableReader, JsonlTableReader, MeasurementRecordTableAdapter,
     StandardTableRenderer, StudyObservationTableAdapter, SvgFigureRenderer,
 )
-from .runtime import ScientificStatistics, TablePipeline
+from .runtime import InMemoryBaselineRegistry, ResearchLifecycle, ScientificStatistics, TablePipeline
 
 __all__ = [
-    "AggregationFunction", "AggregationSpec", "CsvTableReader", "DataColumn", "DataTable",
+    "AggregationFunction", "AggregationSpec", "BaselineRegistryPort", "BaselineSpec",
+    "CsvTableReader", "DataColumn", "DataTable", "EvaluationContext", "EvaluationStage",
     "FigureCell", "FigureKind", "FigurePoint", "FigureSeries", "FigureSpec",
     "GroupComparison", "InferenceResult", "JsonlTableReader", "MetricSummary",
     "MeasurementRecordTableAdapter", "MissingValuePolicy", "PairedComparison",
-    "ResearchReport", "SplitStrategy", "StudyObservationTableAdapter",
+    "ResearchEvaluation", "ResearchReport", "SplitStrategy",
+    "StudyObservationTableAdapter", "InMemoryBaselineRegistry", "ResearchLifecycle",
     "ScientificStatistics", "StandardTableRenderer", "SvgFigureRenderer",
     "TablePipeline",
 ]
