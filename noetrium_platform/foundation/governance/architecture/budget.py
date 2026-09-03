@@ -459,6 +459,21 @@ def _scope_owns_catalog(module_prefixes: Iterable[str]) -> bool:
     return "noetrium_platform.foundation.governance" in tuple(module_prefixes)
 
 
+def _registered_extension_scopes() -> tuple[tuple[str, ...], ...]:
+    """Return package roots registered outside the platform namespace.
+
+    Reference components and orchestration are downstream extension planes. They
+    participate in import-budget partitioning, but they do not own the platform
+    catalog dimensions.
+    """
+    prefixes = sorted({
+        row.package_prefix
+        for row in system_catalog()
+        if row.package_prefix and not row.package_prefix.startswith("noetrium_platform.")
+    })
+    return tuple((prefix,) for prefix in prefixes)
+
+
 def scoped_architecture_complexity(
     global_complexity: ArchitectureComplexity,
     *,
@@ -683,6 +698,14 @@ def _formal_scope_budget_violations(
     for migration in budget.migrations:
         if migration.module_prefixes and migration.module_prefixes not in scopes:
             scopes.append(migration.module_prefixes)
+    extension_prefixes = {
+        source.split(".", 1)[0]
+        for source, _target in pairs
+        if source.split(".", 1)[0] in {"components", "orchestration"}
+    }
+    for extension_scope in _registered_extension_scopes():
+        if extension_scope[0] in extension_prefixes and extension_scope not in scopes:
+            scopes.append(extension_scope)
     for index, left in enumerate(scopes):
         for right in scopes[index + 1:]:
             if _scopes_overlap(left, right):

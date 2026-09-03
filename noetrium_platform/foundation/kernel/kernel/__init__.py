@@ -1,6 +1,13 @@
 from .semantic_policy import OperationSemanticPolicyViolation
 from .context import ExecutionContext
-from .identity import ComponentIdentity, ImmutableModelIdentity
+from .identity import (
+    ComponentIdentity,
+    ImmutableModelIdentity,
+    SystemIdentity,
+    SystemPort,
+    SystemService,
+    SystemSpec,
+)
 from .operation import (
     EffectCertainty,
     EffectClass,
@@ -39,5 +46,6 @@ __all__ = [
     "strict_finite_json_bytes", "strict_finite_json_digest", "strict_finite_json_text", "strict_json_loads",
     "DigestValidationError", "Sha256Digest", "require_sha256", "freeze_json", "thaw_json",
     "OperationExecutor", "OperationFailure", "FailureRecordReceipt", "OperationFailureSink", "OperationObserver", "OperationAuxiliaryFailureSink",
+    "SystemIdentity", "SystemPort", "SystemService", "SystemSpec",
     "JsonDocument", "JsonInput", "JsonMutableValue", "JsonObject", "JsonScalar", "JsonValue",
 ]

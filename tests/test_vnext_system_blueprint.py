@@ -6,6 +6,7 @@ TOP_LEVEL_SYSTEMS = {
     "platform", "scope", "portfolio", "experimentation", "execution", "participant",
     "resource", "environment", "model", "runtime", "data", "artifact",
     "reliability", "observability", "governance", "operator",
+    "components", "orchestration",
 }
 
 

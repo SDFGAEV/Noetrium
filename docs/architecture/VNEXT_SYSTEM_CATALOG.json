@@ -2629,6 +2629,48 @@
     ],
     "components": []
   },
+  "components": {
+    "authority": "reference_component_library",
+    "must_not_own": "platform authority mutation, project semantics, provider credentials or scientific result acceptance",
+    "owns": "reusable single-agent methods, memory, tools and external-framework bridges",
+    "package_prefix": "components",
+    "parent": null,
+    "shape": [
+      "api",
+      "runtime",
+      "providers",
+      "composition"
+    ],
+    "requires": [
+      "platform"
+    ],
+    "provides": [
+      "reference.agent.components",
+      "reference.agent.runtime.bridge"
+    ],
+    "components": []
+  },
+  "orchestration": {
+    "authority": "multi_agent_orchestration",
+    "must_not_own": "single-agent cognition, memory, model providers, scientific truth or platform authority",
+    "owns": "multi-agent topology, communication, group/debate/hierarchical coordination and transport seams",
+    "package_prefix": "orchestration",
+    "parent": null,
+    "shape": [
+      "api",
+      "runtime",
+      "providers",
+      "composition"
+    ],
+    "requires": [
+      "components",
+      "platform"
+    ],
+    "provides": [
+      "multi_agent.orchestration"
+    ],
+    "components": []
+  },
   "scope": {
     "authority": "scope_tree",
     "must_not_own": "business metadata and runtime state",

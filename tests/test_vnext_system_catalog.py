@@ -18,7 +18,10 @@ def test_each_node_declares_one_authority_and_standard_package_shape():
     for row in system_catalog():
         assert len(row.authorities)==1
         assert row.authorities[0].authority_id
-        assert row.package_prefix.startswith('noetrium_platform.')
+        assert (
+            row.package_prefix.startswith('noetrium_platform.')
+            or row.package_prefix in {'components', 'orchestration'}
+        )
         assert row.owns
         assert row.must_not_own
         assert row.shape == ('api', 'runtime', 'providers', 'composition')
@@ -49,7 +52,8 @@ def test_catalog_covers_all_top_level_systems():
     assert tops == {
         'platform','scope','portfolio','experimentation','execution','participant',
         'resource','environment','model','runtime','data','artifact',
-        'reliability','observability','governance','operator'
+        'reliability','observability','governance','operator',
+        'components','orchestration'
     }
 
 def test_shared_kernel_consumers_declare_platform_dependency_at_parent_system():

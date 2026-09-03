@@ -21,7 +21,7 @@
 
 <!-- readme-locale:pt-BR -->
 
-<!-- readme-source-sha256:74a850fb4b71a9b952e2155b201943b01f657d96149c345c2086c11368ec780b -->
+<!-- readme-source-sha256:8e8c68b8a6974f340bd0c15a55bcc88b0fa0e57b2891aac0cc72e32390fb6f51 -->
 
 <p align="center">
   <strong>Construa agentes. Execute experimentos. Verifique resultados.</strong><br>
