@@ -17,7 +17,7 @@ from noetrium_platform.research.experimentation.run.api import (
     RunArtifactKind,
     RunArtifactSnapshotReceipt,
 )
-from noetrium_platform.research.workbench import (
+from noetrium_platform.research.experimentation.workbench import (
     CsvTableReader,
     DataColumn,
     DataTable,

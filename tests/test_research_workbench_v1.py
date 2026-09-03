@@ -9,7 +9,7 @@ from noetrium.contracts.research import (
     MissingValuePolicy, ScientificStatistics, StandardTableRenderer,
     SvgFigureRenderer, TablePipeline,
 )
-from noetrium_platform.research.workbench.providers import CsvTableReader
+from noetrium_platform.research.experimentation.workbench.providers import CsvTableReader
 
 
 SHA_A = "a" * 64
