@@ -7,8 +7,8 @@ from pathlib import Path
 from noetrium.contracts.research import (
     AggregationFunction, AggregationSpec, BaselineSpec, DataColumn, DataTable,
     EvaluationContext, EvaluationStage, FigureCell, FigureKind, FigurePoint,
-    FigureSeries, FigureSpec, MissingValuePolicy, ResearchLifecycle,
-    ScientificStatistics, SplitStrategy, StandardTableRenderer,
+    FigureSeries, FigureSpec, FigureStyle, MissingValuePolicy, ResearchFigureFactory,
+    ResearchLifecycle, ScientificStatistics, SplitStrategy, StandardTableRenderer,
     StudyObservationTableAdapter, SvgFigureRenderer, TablePipeline,
 )
 from noetrium_platform.research.experimentation.identity import OptionalIdentityFacet
@@ -347,3 +347,49 @@ def test_temporal_split_orders_numeric_time_without_string_lexicographic_drift()
     )
     assert [row[0] for row in splits["train"].rows] == [2, 10]
     assert [row[0] for row in splits["test"].rows] == [11]
+
+
+def test_figure_factory_centralizes_publication_semantics_and_style():
+    table = DataTable(
+        "curve-data",
+        (DataColumn("step", "int", False), DataColumn("method", "text", False), DataColumn("score", "float", False)),
+        ((1, "A", 1.0), (2, "A", 3.0), (1, "B", 2.0), (2, "B", 4.0)),
+    )
+    factory = ResearchFigureFactory(style=FigureStyle.science())
+    curve = factory.curve(table, x_column="step", y_column="score", series_column="method")
+    assert curve.kind is FigureKind.LINE
+    assert curve.style.name == "science"
+    assert [point.x for point in curve.series[0].points] == [1, 2]
+    benchmark = factory.benchmark(table, method_column="method", metric_column="score")
+    assert benchmark.kind is FigureKind.BAR
+    violin = factory.distribution(table, value_column="score", group_column="method", kind=FigureKind.VIOLIN)
+    assert "fill-opacity" in SvgFigureRenderer().render(violin)
+    matrix = factory.matrix(
+        DataTable("matrix", (DataColumn("row", "text"), DataColumn("col", "text"), DataColumn("value", "float")),
+                  (("r", "c", 1.0),)),
+        row_column="row", column_column="col", value_column="value",
+        kind=FigureKind.CONFUSION_MATRIX,
+    )
+    assert "rgb(" in SvgFigureRenderer().render(matrix)
+
+
+def test_baseline_catalog_is_deterministic_and_auditable():
+    lifecycle = ResearchLifecycle()
+    lifecycle.baselines.register(BaselineSpec(
+        "z-baseline", "impl-z", SHA_A, SHA_A, SHA_B,
+        reference="Paper Z", source_uri="https://example.invalid/z",
+        license="MIT", tags=("classic", "retrieval"),
+    ))
+    lifecycle.baselines.register(BaselineSpec(
+        "a-baseline", "impl-a", SHA_B, SHA_A, SHA_B,
+        reference="Paper A", source_uri="https://example.invalid/a",
+        license="Apache-2.0", tags=("strong",),
+    ))
+    catalog = lifecycle.baselines.catalog()
+    assert tuple(item.baseline_id for item in catalog) == ("a-baseline", "z-baseline")
+    assert catalog[0].reference == "Paper A"
+    assert catalog[0].baseline_digest != BaselineSpec(
+        "a-baseline", "impl-a", SHA_B, SHA_A, SHA_B,
+        reference="Paper A", source_uri="https://example.invalid/a",
+        license="BSD-3-Clause", tags=("strong",),
+    ).baseline_digest

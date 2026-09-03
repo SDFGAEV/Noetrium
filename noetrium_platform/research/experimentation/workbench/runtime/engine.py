@@ -505,6 +505,10 @@ class InMemoryBaselineRegistry(BaselineRegistryPort):
         self._baselines[baseline.baseline_id] = baseline
         return baseline
 
+    def catalog(self) -> tuple[BaselineSpec, ...]:
+        """Return a deterministic, auditable baseline catalog."""
+        return tuple(self._baselines[key] for key in sorted(self._baselines))
+
     def resolve(self, baseline_id: str) -> BaselineSpec:
         if type(baseline_id) is not str or not baseline_id.strip():
             raise ValueError("baseline_id must be non-empty")

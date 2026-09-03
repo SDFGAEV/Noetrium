@@ -185,3 +185,22 @@ compiled research plan -> StudyMatrixExecutor or TrialProvider -> Measurement/St
 This is the intended level of decoupling. Method authors can replace the model, simulator, retrieval index, tensor trainer, browser, robotics environment, advanced statistics backend, or publication renderer through ports. They cannot accidentally create a second measurement ledger, comparison authority, table schema, plot semantic model, or provenance digest.
 
 The remaining boundary is deliberate: a paper requiring mixed-effects models, multiple-comparison correction, power analysis, causal estimands, or a domain-specific media/database backend should implement the existing analysis/reader/renderer port and return identity-bound results. It should not copy the lifecycle or add a parallel scheduler/logger/metric registry.
+
+## Third-round closure: publication and baseline strength
+
+The publication seam now exposes two stronger high-level authorities:
+
+- ResearchFigureFactory converts an immutable DataTable into semantic learning curves, repetition-aware benchmark bars, distributions, matrices/confusion matrices, Pareto plots and baseline effect/forest plots. It computes mean and 95% intervals through one shared path, pins source table digests, and leaves renderer-specific types behind FigureRendererPort.
+- FigureStyle provides deterministic Nature and Science-oriented palettes, typography, spacing tokens, grid/background controls, uncertainty styling and transparent-output policy. SvgFigureRenderer consumes these tokens and adds violin and ECDF rendering while retaining the same FigureSpec identity. Matplotlib/Seaborn/Plotly/journal backends can implement the same port without redefining semantics.
+
+Baseline management is also strengthened without introducing a second catalog authority:
+
+- BaselineSpec now records reference, source URI, license and tags in its digest, so a baseline comparison is traceable as a scientific object rather than only an implementation name.
+- BaselineRegistryPort.catalog() and the deterministic in-memory implementation expose the complete registered baseline catalog for audit, selection and report generation.
+- Dataset/protocol compatibility remains validated before evaluation; baseline metadata cannot silently change an existing baseline identity.
+
+The intended downstream path is now:
+
+method/provider -> frozen run/study matrix -> authoritative measurements -> DataTable projection -> shared statistics -> ResearchFigureFactory -> FigureSpec + FigureStyle -> renderer adapter -> ResearchReport/RenderedResearchPackage.
+
+This adds public strength at the semantic layer while preserving the convergence rule: no downstream paper creates its own figure model, confidence-interval implementation, baseline registry, measurement ledger, scheduler, logger, or provenance digest.

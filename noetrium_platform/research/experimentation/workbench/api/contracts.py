@@ -210,6 +210,10 @@ class BaselineSpec:
     dataset_digest: str
     protocol_digest: str
     description: str = ""
+    reference: str = ""
+    source_uri: str = ""
+    license: str = ""
+    tags: tuple[str, ...] = ()
     baseline_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -218,13 +222,22 @@ class BaselineSpec:
         _sha(self.configuration_digest, "baseline configuration_digest")
         _sha(self.dataset_digest, "baseline dataset_digest")
         _sha(self.protocol_digest, "baseline protocol_digest")
-        if type(self.description) is not str:
-            raise TypeError("baseline description must be a string")
+        for name, value in (
+            ("description", self.description), ("reference", self.reference),
+            ("source_uri", self.source_uri), ("license", self.license),
+        ):
+            if type(value) is not str:
+                raise TypeError(f"baseline {name} must be a string")
+        if type(self.tags) is not tuple or any(type(tag) is not str or not tag.strip() for tag in self.tags):
+            raise TypeError("baseline tags must contain non-empty strings")
+        if len(set(self.tags)) != len(self.tags):
+            raise ValueError("baseline tags must be unique")
         object.__setattr__(self, "baseline_digest", canonical_digest({
             "baseline_id": self.baseline_id, "implementation_id": self.implementation_id,
             "configuration_digest": self.configuration_digest,
             "dataset_digest": self.dataset_digest, "protocol_digest": self.protocol_digest,
-            "description": self.description,
+            "description": self.description, "reference": self.reference,
+            "source_uri": self.source_uri, "license": self.license, "tags": self.tags,
         }))
 
 
@@ -232,6 +245,8 @@ class BaselineRegistryPort(Protocol):
     def register(self, baseline: BaselineSpec) -> BaselineSpec: ...
 
     def resolve(self, baseline_id: str) -> BaselineSpec: ...
+
+    def catalog(self) -> tuple[BaselineSpec, ...]: ...
 
     def validate(self, context: EvaluationContext) -> None: ...
 
@@ -409,7 +424,15 @@ class FigureKind(StrEnum):
     SCATTER = "scatter"
     HISTOGRAM = "histogram"
     BOXPLOT = "boxplot"
+    VIOLIN = "violin"
+    ECDF = "ecdf"
     HEATMAP = "heatmap"
+    CONFUSION_MATRIX = "confusion_matrix"
+    ROC = "roc"
+    PRECISION_RECALL = "precision_recall"
+    CALIBRATION = "calibration"
+    PARETO = "pareto"
+    FOREST = "forest"
 
 
 @dataclass(frozen=True, slots=True)
@@ -468,6 +491,63 @@ class FigureCell:
 
 
 @dataclass(frozen=True, slots=True)
+class FigureStyle:
+    """Publication-oriented style tokens; renderers may map them to native backends."""
+
+    name: str = "nature"
+    palette: tuple[str, ...] = (
+        "#0072B2", "#D55E00", "#009E73", "#CC79A7",
+        "#E69F00", "#56B4E9", "#F0E442", "#000000",
+    )
+    background: str = "#FFFFFF"
+    foreground: str = "#1F2937"
+    grid: str = "#D9E1EA"
+    font_family: str = "Arial"
+    title_size: int = 16
+    label_size: int = 12
+    tick_size: int = 10
+    legend_size: int = 10
+    line_width: float = 2.2
+    marker_size: float = 4.0
+    show_grid: bool = True
+    transparent: bool = False
+
+    def __post_init__(self) -> None:
+        _text(self.name, "figure style name")
+        if type(self.palette) is not tuple or not self.palette:
+            raise ValueError("figure style palette must be a non-empty tuple")
+        for color in self.palette + (self.background, self.foreground, self.grid):
+            if type(color) is not str or len(color) != 7 or color[0] != "#" or any(char not in _HEX for char in color[1:].lower()):
+                raise ValueError("figure style colors must be lowercase or uppercase hex colors")
+        if type(self.font_family) is not str or not self.font_family.strip():
+            raise ValueError("figure style font_family must be non-empty")
+        for name, value in (
+            ("title_size", self.title_size), ("label_size", self.label_size),
+            ("tick_size", self.tick_size), ("legend_size", self.legend_size),
+        ):
+            if type(value) is not int or value < 6:
+                raise ValueError(f"figure style {name} must be an integer >= 6")
+        if isinstance(self.line_width, bool) or not isinstance(self.line_width, (int, float)) or self.line_width <= 0:
+            raise ValueError("figure style line_width must be positive")
+        if isinstance(self.marker_size, bool) or not isinstance(self.marker_size, (int, float)) or self.marker_size <= 0:
+            raise ValueError("figure style marker_size must be positive")
+        if type(self.show_grid) is not bool or type(self.transparent) is not bool:
+            raise TypeError("figure style boolean options must be bool")
+
+    @classmethod
+    def nature(cls) -> "FigureStyle":
+        return cls(name="nature")
+
+    @classmethod
+    def science(cls) -> "FigureStyle":
+        return cls(
+            name="science",
+            palette=("#0B3C5D", "#328CC1", "#D9B310", "#1D2731", "#984447", "#6B7A8F"),
+            grid="#D7DEE7",
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class FigureSpec:
     figure_id: str
     title: str
@@ -481,6 +561,7 @@ class FigureSpec:
     caption: str = ""
     source_digests: tuple[str, ...] = ()
     metadata: tuple[tuple[str, str], ...] = ()
+    style: FigureStyle = field(default_factory=FigureStyle.nature)
     figure_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -490,16 +571,19 @@ class FigureSpec:
             raise TypeError("figure kind must be FigureKind")
         if type(self.series) is not tuple or any(type(item) is not FigureSeries for item in self.series):
             raise TypeError("figure series must be a tuple of FigureSeries")
-        if not self.series and self.kind is not FigureKind.HEATMAP:
-            raise ValueError("non-heatmap figures require at least one series")
+        matrix_kinds = {FigureKind.HEATMAP, FigureKind.CONFUSION_MATRIX}
+        if not self.series and self.kind not in matrix_kinds:
+            raise ValueError("non-matrix figures require at least one series")
         if type(self.width) is not int or self.width < 240 or type(self.height) is not int or self.height < 180:
             raise ValueError("figure dimensions are too small")
         if type(self.cells) is not tuple or any(type(item) is not FigureCell for item in self.cells):
             raise TypeError("figure cells must contain FigureCell")
-        if self.kind is FigureKind.HEATMAP and not self.cells:
-            raise ValueError("heatmap figures require cells")
+        if self.kind in matrix_kinds and not self.cells:
+            raise ValueError("matrix figures require cells")
         if type(self.caption) is not str or type(self.source_digests) is not tuple or type(self.metadata) is not tuple:
             raise TypeError("figure caption, source_digests, and metadata have invalid types")
+        if type(self.style) is not FigureStyle:
+            raise TypeError("figure style must be FigureStyle")
         for digest in self.source_digests:
             _sha(digest, "figure source digest")
         if len(set(self.source_digests)) != len(self.source_digests):
@@ -513,6 +597,7 @@ class FigureSpec:
             "series": self.series, "cells": self.cells, "x_label": self.x_label, "y_label": self.y_label,
             "width": self.width, "height": self.height, "caption": self.caption,
             "source_digests": self.source_digests, "metadata": self.metadata,
+            "style": self.style,
         }))
 
 
@@ -631,7 +716,7 @@ __all__ = [
     "AggregationFunction", "AggregationSpec", "BaselineRegistryPort", "BaselineSpec",
     "DataColumn", "DataTable", "EvaluationContext", "EvaluationStage",
     "FigureCell", "FigureKind", "FigurePoint", "FigureRendererPort",
-    "FigureSeries", "FigureSpec", "GroupComparison", "InferenceResult", "MetricSummary",
+    "FigureSeries", "FigureSpec", "FigureStyle", "GroupComparison", "InferenceResult", "MetricSummary",
     "MissingValuePolicy", "PairedComparison", "RenderedResearchPackage", "ResearchEvaluation",
     "ResearchReport", "ReportTableRendererPort", "SplitStrategy",
     "TableAnalysisPort", "TableReaderPort", "TableTransformPort",
