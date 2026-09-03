@@ -553,6 +553,7 @@ class ResearchEvaluation:
     summaries: tuple[MetricSummary, ...]
     comparison: GroupComparison | None
     report: ResearchReport
+    comparisons: tuple[GroupComparison, ...] = ()
     evaluation_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -566,6 +567,14 @@ class ResearchEvaluation:
             raise TypeError("research evaluation comparison must be GroupComparison or None")
         if type(self.report) is not ResearchReport:
             raise TypeError("research evaluation report must be ResearchReport")
+        if type(self.comparisons) is not tuple or any(type(item) is not GroupComparison for item in self.comparisons):
+            raise TypeError("research evaluation comparisons must contain GroupComparison")
+        if self.comparison is not None and self.comparisons and self.comparison not in self.comparisons:
+            raise ValueError("research evaluation primary comparison must be in comparisons")
+        if self.comparison is None and self.comparisons:
+            raise ValueError("research evaluation comparisons require a primary comparison")
+        if len({(item.group_column, item.baseline, item.candidate) for item in self.comparisons}) != len(self.comparisons):
+            raise ValueError("research evaluation comparisons must be unique")
         if self.table.table_digest not in {
             digest for figure in self.report.figures for digest in figure.source_digests
         } and self.report.tables != (self.table,):
@@ -575,6 +584,7 @@ class ResearchEvaluation:
             "table": self.table.table_digest,
             "summaries": self.summaries,
             "comparison": self.comparison,
+            "comparisons": self.comparisons,
             "report": self.report.report_digest,
         }))
 

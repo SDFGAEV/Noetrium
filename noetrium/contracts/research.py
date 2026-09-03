@@ -32,6 +32,10 @@ from noetrium_platform.research.experimentation.study.api import (
     StudyVariantSpec,
     VariantBinding,
     VariantKind,
+    MeasurementRecord,
+    MeasurementValue,
+    MeasurementValueKind,
+    TrialMatrixExecutionReport,
 )
 from noetrium_platform.research.experimentation.study.runtime import (
     BasicStudyMetricAggregator,
@@ -120,7 +124,8 @@ __all__ = [
     "StudyAssignment", "StudyConcurrencyPolicy", "StudyExecutionUnit",
     "StudyMatrixExecutionReport", "StudyMetricAggregate", "StudyMetricObservation",
     "StudyProtocol", "StudyVariantExecutionPort", "StudyVariantSpec", "VariantBinding",
-    "VariantKind", "BasicStudyMetricAggregator", "DeterministicStudyAssignment",
+    "VariantKind", "MeasurementRecord", "MeasurementValue", "MeasurementValueKind",
+    "TrialMatrixExecutionReport", "BasicStudyMetricAggregator", "DeterministicStudyAssignment",
     "StudyMatrixExecutor",
     "AggregationFunction", "AggregationSpec", "BaselineRegistryPort", "BaselineSpec", "CsvTableReader", "DataColumn", "DataTable", "EvaluationContext", "EvaluationStage", "FigureCell", "FigureKind", "FigurePoint",
     "FigureSeries", "FigureSpec", "GroupComparison", "InferenceResult", "JsonlTableReader",

@@ -168,3 +168,20 @@ The rule for future additions is strict: a new subsystem may add a provider, pro
 The platform is strong enough for downstream implementation of the control graph and complete common paper workflow across ReAct/tool use, RAG, memory/skills/reflection, planning/search, long-horizon agents, benchmark matrices, ablations, seed/repetition studies, and environment/model-provider variants. It is intentionally not a replacement for the provider's tensor kernels, simulator, browser/robotics SDK, embedding/vector index, or journal-specific statistics/renderer.
 
 Supported therefore means: the paper's novel method can be injected through the typed method/model/environment/participant seams; every run enters the shared assignment, checkpoint, measurement/evidence and artifact paths; and every claim can be reproduced through the shared evaluation context, data table, analysis, figure and report identities. A provider-specific algorithm is acceptable only behind these ports.
+
+## Second-round closure
+
+The follow-up audit found two practical weaknesses in the first public seam and closed them without adding a second authority:
+
+- ScientificStatistics.compare_many and the optional candidate_values argument now compare every declared method against one baseline in one deterministic operation. The result preserves the legacy primary comparison while exposing the complete comparison tuple, so downstream papers do not silently report only the first candidate.
+- ResearchLifecycle.evaluate_measurement_records and evaluate_trial_report now bridge authoritative scalar MeasurementRecord and TrialMatrixExecutionReport values into the same DataTable/statistics/figure/report path. Project, study, and optional run identity are checked before projection; the lower-level measurement system remains the sole owner of measurement semantics.
+- RenderedResearchPackage is now reachable from the stable top-level contracts, and the lifecycle render facade binds table and figure output to the evaluation digest.
+- Public trial/measurement contracts are exported through the stable research contract surface, so downstream authors do not need to import internal package paths.
+
+The resulting downstream lifecycle is:
+
+compiled research plan -> StudyMatrixExecutor or TrialProvider -> Measurement/Study report -> ResearchLifecycle -> one or many baseline comparisons -> immutable report -> renderer package
+
+This is the intended level of decoupling. Method authors can replace the model, simulator, retrieval index, tensor trainer, browser, robotics environment, advanced statistics backend, or publication renderer through ports. They cannot accidentally create a second measurement ledger, comparison authority, table schema, plot semantic model, or provenance digest.
+
+The remaining boundary is deliberate: a paper requiring mixed-effects models, multiple-comparison correction, power analysis, causal estimands, or a domain-specific media/database backend should implement the existing analysis/reader/renderer port and return identity-bound results. It should not copy the lifecycle or add a parallel scheduler/logger/metric registry.

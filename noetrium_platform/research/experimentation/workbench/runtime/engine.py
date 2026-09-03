@@ -346,6 +346,40 @@ class ScientificStatistics:
                                difference / pooled if pooled else None,
                                difference - 1.96 * standard_error, difference + 1.96 * standard_error)
 
+    def compare_many(
+        self,
+        table: DataTable,
+        value_column: str,
+        group_column: str,
+        *,
+        baseline: Any,
+        candidates: tuple[Any, ...] | None = None,
+        missing: MissingValuePolicy = MissingValuePolicy.REJECT,
+    ) -> tuple[GroupComparison, ...]:
+        """Compare one declared baseline with every candidate under one policy."""
+        if candidates is None:
+            group_index = table.column_index(group_column)
+            candidates = tuple(sorted({
+                freeze_json(row[group_index])
+                for row in table.rows
+                if row[group_index] != baseline
+            }, key=repr))
+        if type(candidates) is not tuple or not candidates:
+            raise ValueError("compare_many requires at least one candidate")
+        if baseline in candidates:
+            raise ValueError("compare_many candidates cannot include the baseline")
+        return tuple(
+            self.compare(
+                table,
+                value_column,
+                group_column,
+                baseline=baseline,
+                candidate=candidate,
+                missing=missing,
+            )
+            for candidate in candidates
+        )
+
     @staticmethod
     def _normal_p(value: float, standard_error: float) -> float | None:
         if standard_error == 0.0:
@@ -529,6 +563,7 @@ class ResearchLifecycle:
         comparison_group: str | None = None,
         baseline_value: Any | None = None,
         candidate_value: Any | None = None,
+        candidate_values: tuple[Any, ...] | None = None,
         figures: tuple[Any, ...] = (),
         report_id: str | None = None,
         missing: MissingValuePolicy = MissingValuePolicy.REJECT,
@@ -538,22 +573,39 @@ class ResearchLifecycle:
         if type(context) is not EvaluationContext:
             raise TypeError("research lifecycle context must be EvaluationContext")
         table_metadata = dict(table.metadata)
-        pinned_dataset = table_metadata.get("dataset_digest")
-        if pinned_dataset is not None and pinned_dataset != context.dataset_digest:
-            raise ValueError("evaluation table dataset metadata does not match dataset identity")
+        for metadata_key, expected, error in (
+            ("dataset_digest", context.dataset_digest, "dataset identity"),
+            ("split_digest", context.split_digest, "split identity"),
+            ("protocol_digest", context.protocol_digest, "protocol identity"),
+        ):
+            pinned = table_metadata.get(metadata_key)
+            if pinned is not None and pinned != expected:
+                raise ValueError(f"evaluation table metadata does not match {error}")
         self._baselines.validate(context)
         summaries = self._statistics.summarize(
             table, metric, group_by=group_by, missing=missing
         )
         comparison = None
+        comparisons = ()
         if comparison_group is not None:
-            if baseline_value is None or candidate_value is None:
-                raise ValueError("comparison requires baseline_value and candidate_value")
-            comparison = self._statistics.compare(
+            if baseline_value is None:
+                raise ValueError("comparison requires baseline_value")
+            if candidate_values is not None and candidate_value is not None:
+                raise ValueError("provide candidate_value or candidate_values, not both")
+            if candidate_values is None:
+                if candidate_value is None:
+                    raise ValueError("comparison requires candidate_value or candidate_values")
+                candidate_values = (candidate_value,)
+            if type(candidate_values) is not tuple or not candidate_values:
+                raise ValueError("candidate_values must be a non-empty tuple")
+            comparisons = self._statistics.compare_many(
                 table, metric, comparison_group,
-                baseline=baseline_value, candidate=candidate_value,
+                baseline=baseline_value, candidates=candidate_values,
                 missing=missing,
             )
+            comparison = comparisons[0]
+        elif candidate_values is not None or candidate_value is not None or baseline_value is not None:
+            raise ValueError("comparison values require comparison_group")
         if type(figures) is not tuple:
             raise TypeError("research lifecycle figures must be a tuple")
         if any(type(figure) is not FigureSpec for figure in figures):
@@ -584,6 +636,7 @@ class ResearchLifecycle:
             summaries=summaries,
             comparison=comparison,
             report=report,
+            comparisons=comparisons,
         )
 
     def run_and_evaluate(
@@ -626,6 +679,74 @@ class ResearchLifecycle:
 
         table = StudyObservationTableAdapter().to_table(observations)
         return self.evaluate(table, context, **kwargs)
+
+    def evaluate_measurement_records(
+        self,
+        records: tuple[Any, ...],
+        context: EvaluationContext,
+        *,
+        measurement_id: str,
+        group_by: tuple[str, ...] = ("variant_id",),
+        **kwargs: Any,
+    ) -> ResearchEvaluation:
+        """Project authoritative scalar records into the shared lifecycle once."""
+        from ..providers import MeasurementRecordTableAdapter
+
+        if type(records) is not tuple or not records:
+            raise ValueError("measurement records must be a non-empty tuple")
+        from ...study.api import MeasurementRecord
+
+        if any(type(record) is not MeasurementRecord for record in records):
+            raise TypeError("measurement records must contain MeasurementRecord")
+        if type(measurement_id) is not str or not measurement_id.strip():
+            raise ValueError("measurement_id must be non-empty")
+        selected = tuple(record for record in records if record.measurement_id == measurement_id)
+        if not selected:
+            raise ValueError("no measurement record matches measurement_id")
+        for record in selected:
+            if record.project_id != context.project_id:
+                raise ValueError("measurement record project does not match evaluation context")
+            if record.study_id != context.study_id:
+                raise ValueError("measurement record study does not match evaluation context")
+            if context.run_id is not None and record.run_id != context.run_id:
+                raise ValueError("measurement record run does not match evaluation context")
+        table = MeasurementRecordTableAdapter().to_table(
+            selected,
+            table_id=f"measurement:{measurement_id}",
+        )
+        return self.evaluate(
+            table,
+            context,
+            metric="value",
+            group_by=group_by,
+            **kwargs,
+        )
+
+    def evaluate_trial_report(
+        self,
+        report: Any,
+        context: EvaluationContext,
+        *,
+        measurement_id: str,
+        group_by: tuple[str, ...] = ("variant_id",),
+        **kwargs: Any,
+    ) -> ResearchEvaluation:
+        """Bridge trial receipts without bypassing Measurement authority."""
+        from ...study.api import TrialMatrixExecutionReport
+
+        if type(report) is not TrialMatrixExecutionReport:
+            raise TypeError("trial report must be TrialMatrixExecutionReport")
+        if report.project_id != context.project_id:
+            raise ValueError("trial report project does not match evaluation context")
+        if context.run_id is not None and report.run_id != context.run_id:
+            raise ValueError("trial report run does not match evaluation context")
+        return self.evaluate_measurement_records(
+            report.records,
+            context,
+            measurement_id=measurement_id,
+            group_by=group_by,
+            **kwargs,
+        )
 
     def render(
         self,

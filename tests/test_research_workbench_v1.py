@@ -11,8 +11,12 @@ from noetrium.contracts.research import (
     ScientificStatistics, SplitStrategy, StandardTableRenderer,
     StudyObservationTableAdapter, SvgFigureRenderer, TablePipeline,
 )
+from noetrium_platform.research.experimentation.identity import OptionalIdentityFacet
 from noetrium_platform.research.experimentation.workbench.providers import CsvTableReader
-from noetrium_platform.research.experimentation.study.api import StudyAssignment, StudyMetricObservation
+from noetrium_platform.research.experimentation.study.api import (
+    MeasurementRecord, MeasurementValue, MeasurementValueKind,
+    StudyAssignment, StudyMetricObservation,
+)
 
 
 SHA_A = "a" * 64
@@ -244,6 +248,75 @@ def test_research_lifecycle_renders_one_identity_bound_package():
     assert rendered.figures[0][0] == "scores"
     assert rendered.figures[0][1].startswith("<svg ")
     assert len(rendered.render_digest) == 64
+
+
+def test_research_lifecycle_compares_all_candidates_against_one_baseline():
+    table = DataTable(
+        "multi-method",
+        (DataColumn("variant", "text", False), DataColumn("score", "float", False)),
+        (("control", 1.0), ("candidate-a", 2.0), ("candidate-b", 4.0)),
+    )
+    context = EvaluationContext(
+        "project", "experiment", "study", "candidate-a", EvaluationStage.VALIDATION,
+        SHA_A, SHA_B, SHA_B, "commit", SHA_B, "seed-1",
+    )
+    evaluation = ResearchLifecycle().evaluate(
+        table,
+        context,
+        metric="score",
+        comparison_group="variant",
+        baseline_value="control",
+        candidate_values=("candidate-a", "candidate-b"),
+    )
+    assert evaluation.comparison is evaluation.comparisons[0]
+    assert tuple(item.candidate for item in evaluation.comparisons) == (
+        "candidate-a", "candidate-b",
+    )
+    assert tuple(item.difference for item in evaluation.comparisons) == (1.0, 3.0)
+
+
+def test_research_lifecycle_adapts_authoritative_measurement_records_once():
+    assignments = (
+        StudyAssignment("study", "control", 0, "seed-1"),
+        StudyAssignment("study", "candidate-a", 0, "seed-1"),
+    )
+    records = tuple(
+        MeasurementRecord(
+            "project",
+            "study",
+            "run-1",
+            assignment.assignment_digest,
+            assignment.variant_id,
+            "method-provider",
+            SHA_B,
+            "return",
+            "scalar-return",
+            SHA_B,
+            SHA_B,
+            MeasurementValue(MeasurementValueKind.SCALAR, scalar=value),
+            "step-0",
+            OptionalIdentityFacet(),
+            OptionalIdentityFacet(),
+        )
+        for assignment, value in zip(assignments, (1.0, 3.5), strict=True)
+    )
+    context = EvaluationContext(
+        "project", "experiment", "study", "candidate-a", EvaluationStage.TEST,
+        SHA_A, SHA_B, SHA_B, "commit", SHA_B, "seed-1", run_id="run-1",
+    )
+    evaluation = ResearchLifecycle().evaluate_measurement_records(
+        records,
+        context,
+        measurement_id="return",
+        comparison_group="variant_id",
+        baseline_value="control",
+        candidate_value="candidate-a",
+    )
+    assert evaluation.table.column_names[3:7] == (
+        "variant_id", "measurement_id", "logical_time", "value",
+    )
+    assert evaluation.comparison is not None
+    assert evaluation.comparison.difference == 2.5
 
 
 def test_research_lifecycle_rejects_baseline_protocol_drift():
