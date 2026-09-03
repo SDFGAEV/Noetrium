@@ -147,6 +147,8 @@ from .research import (
     FigureStyle,
     GroupComparison,
     InferenceResult,
+    MultipleComparisonMethod,
+    MultipleComparisonResult,
     JsonlTableReader,
     MetricSummary,
     MeasurementRecordTableAdapter,

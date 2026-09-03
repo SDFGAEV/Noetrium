@@ -1,3 +1,4 @@
+from .adapters import MeasurementRecordTableAdapter, StudyObservationTableAdapter
 from .contracts import (
     AggregationFunction, AggregationSpec, BaselineRegistryPort, BaselineSpec,
     DataColumn, DataTable, EvaluationContext, EvaluationStage, FigureCell, FigureKind,
@@ -16,5 +17,6 @@ __all__ = [
     "MissingValuePolicy", "MultipleComparisonMethod", "MultipleComparisonResult", "PairedComparison",
     "RenderedResearchPackage", "ResearchEvaluation", "ResearchReport",
     "ReportTableRendererPort", "SplitStrategy", "TableAnalysisPort",
-    "TableReaderPort", "TableTransformPort",
+    "TableReaderPort", "TableTransformPort", "MeasurementRecordTableAdapter",
+    "StudyObservationTableAdapter",
 ]

@@ -5,10 +5,10 @@ from .api import (
     FigureSeries, FigureSpec, FigureStyle, GroupComparison, InferenceResult, MetricSummary,
     MissingValuePolicy, MultipleComparisonMethod, MultipleComparisonResult, PairedComparison,
     RenderedResearchPackage, ResearchEvaluation, ResearchReport, SplitStrategy,
+    MeasurementRecordTableAdapter, StudyObservationTableAdapter,
 )
 from .providers import (
-    CsvTableReader, JsonlTableReader, MeasurementRecordTableAdapter,
-    StandardTableRenderer, StudyObservationTableAdapter, SvgFigureRenderer,
+    CsvTableReader, JsonlTableReader, StandardTableRenderer, SvgFigureRenderer,
 )
 from .runtime import InMemoryBaselineRegistry, ResearchFigureFactory, ResearchLifecycle, ScientificStatistics, TablePipeline
 

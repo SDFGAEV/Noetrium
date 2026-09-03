@@ -731,7 +731,7 @@ class ResearchLifecycle:
         **kwargs: Any,
     ) -> ResearchEvaluation:
         """Adapt generic Study observations once, then use the shared lifecycle."""
-        from ..providers import StudyObservationTableAdapter
+        from ..api import StudyObservationTableAdapter
 
         table = StudyObservationTableAdapter().to_table(observations)
         return self.evaluate(table, context, **kwargs)
@@ -746,7 +746,7 @@ class ResearchLifecycle:
         **kwargs: Any,
     ) -> ResearchEvaluation:
         """Project authoritative scalar records into the shared lifecycle once."""
-        from ..providers import MeasurementRecordTableAdapter
+        from ..api import MeasurementRecordTableAdapter
 
         if type(records) is not tuple or not records:
             raise ValueError("measurement records must be a non-empty tuple")
