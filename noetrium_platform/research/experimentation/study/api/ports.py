@@ -32,6 +32,12 @@ class StudyUnitExecutionPort(Protocol):
     def execute(self, unit: StudyExecutionUnit) -> tuple[StudyMetricObservation, ...]: ...
 
 
+class StudyVariantExecutionPort(Protocol):
+    """Optional adapter used when independent variants are run concurrently."""
+
+    def execute_variant(self, assignment: StudyAssignment) -> StudyMetricObservation: ...
+
+
 class BoundStudyUnitExecutionPort(Protocol):
     """Environment adapter for a compiled plan and all of its arm bindings."""
 
@@ -41,6 +47,17 @@ class BoundStudyUnitExecutionPort(Protocol):
         bindings: tuple[VariantBinding, ...],
         plan_digest: str,
     ) -> tuple[StudyMetricObservation, ...]: ...
+
+
+class BoundStudyVariantExecutionPort(Protocol):
+    """Compiled-plan counterpart for concurrent variant execution."""
+
+    def execute_bound_variant(
+        self,
+        assignment: StudyAssignment,
+        binding: VariantBinding,
+        plan_digest: str,
+    ) -> StudyMetricObservation: ...
 
 
 class StudyMatrixExecutionPort(Protocol):
@@ -88,4 +105,6 @@ __all__ = [
     "StudyMetricAggregationPort",
     "StudyMatrixExecutionPort",
     "StudyUnitExecutionPort",
+    "StudyVariantExecutionPort",
+    "BoundStudyVariantExecutionPort",
 ]

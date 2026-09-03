@@ -36,6 +36,8 @@ from .ports import (
     StudyMetricAggregationPort,
     StudyMatrixExecutionPort,
     StudyUnitExecutionPort,
+    StudyVariantExecutionPort,
+    BoundStudyVariantExecutionPort,
 )
 from .plan import (
     ExperimentPlan,
@@ -101,6 +103,8 @@ __all__ = [
     "StudyProtocol",
     "StudyVariantSpec",
     "StudyUnitExecutionPort",
+    "StudyVariantExecutionPort",
+    "BoundStudyVariantExecutionPort",
     "VariantKind",
     "ExperimentPlan",
     "VariantBinding",

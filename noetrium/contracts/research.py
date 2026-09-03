@@ -17,6 +17,27 @@ from noetrium_platform.research.experimentation.run.api import (
     RunArtifactKind,
     RunArtifactSnapshotReceipt,
 )
+from noetrium_platform.research.experimentation.study.api import (
+    BoundStudyUnitExecutionPort,
+    BoundStudyVariantExecutionPort,
+    ExperimentPlan,
+    StudyAssignment,
+    StudyConcurrencyPolicy,
+    StudyExecutionUnit,
+    StudyMatrixExecutionReport,
+    StudyMetricAggregate,
+    StudyMetricObservation,
+    StudyProtocol,
+    StudyVariantExecutionPort,
+    StudyVariantSpec,
+    VariantBinding,
+    VariantKind,
+)
+from noetrium_platform.research.experimentation.study.runtime import (
+    BasicStudyMetricAggregator,
+    DeterministicStudyAssignment,
+    StudyMatrixExecutor,
+)
 from noetrium_platform.research.experimentation.workbench import (
     AggregationFunction,
     AggregationSpec,
@@ -32,6 +53,7 @@ from noetrium_platform.research.experimentation.workbench import (
     InferenceResult,
     JsonlTableReader,
     MetricSummary,
+    MeasurementRecordTableAdapter, StudyObservationTableAdapter,
     MissingValuePolicy,
     PairedComparison,
     ResearchReport,
@@ -87,9 +109,16 @@ __all__ = [
     "RunScientificValidity", "RunTaskOutcome", "DerivedEvidenceArtifact",
     "EvidenceBundleManifest", "EvidenceBundleReceipt", "EvidenceBundleStatus",
     "EvidenceStreamDescriptor",
+    "BoundStudyUnitExecutionPort", "BoundStudyVariantExecutionPort", "ExperimentPlan",
+    "StudyAssignment", "StudyConcurrencyPolicy", "StudyExecutionUnit",
+    "StudyMatrixExecutionReport", "StudyMetricAggregate", "StudyMetricObservation",
+    "StudyProtocol", "StudyVariantExecutionPort", "StudyVariantSpec", "VariantBinding",
+    "VariantKind", "BasicStudyMetricAggregator", "DeterministicStudyAssignment",
+    "StudyMatrixExecutor",
     "AggregationFunction", "AggregationSpec", "CsvTableReader", "DataColumn", "DataTable", "FigureCell", "FigureKind", "FigurePoint",
     "FigureSeries", "FigureSpec", "GroupComparison", "InferenceResult", "JsonlTableReader",
-    "MetricSummary", "MissingValuePolicy", "PairedComparison", "ResearchReport",
+    "MetricSummary", "MeasurementRecordTableAdapter", "MissingValuePolicy",
+    "PairedComparison", "ResearchReport", "StudyObservationTableAdapter",
     "ScientificStatistics", "SplitStrategy", "StandardTableRenderer", "SvgFigureRenderer",
     "TablePipeline",
 ]

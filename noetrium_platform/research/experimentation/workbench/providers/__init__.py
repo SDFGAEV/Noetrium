@@ -1,3 +1,9 @@
-from .stdlib import CsvTableReader, JsonlTableReader, StandardTableRenderer, SvgFigureRenderer
+from .stdlib import (
+    CsvTableReader, JsonlTableReader, MeasurementRecordTableAdapter,
+    StandardTableRenderer, StudyObservationTableAdapter, SvgFigureRenderer,
+)
 
-__all__ = ["CsvTableReader", "JsonlTableReader", "StandardTableRenderer", "SvgFigureRenderer"]
+__all__ = [
+    "CsvTableReader", "JsonlTableReader", "MeasurementRecordTableAdapter",
+    "StandardTableRenderer", "StudyObservationTableAdapter", "SvgFigureRenderer",
+]

@@ -181,3 +181,115 @@ def test_assignment_order_is_frozen_plan_authority_not_implicitly_sorted():
     reversed_plan = ExperimentPlan.compile(protocol, bindings, tuple(reversed(assignments)))
     assert forward.assignment_digest != reversed_plan.assignment_digest
     assert forward.plan_digest != reversed_plan.plan_digest
+
+
+def test_parallel_variant_policy_fans_out_candidates_with_bounded_deterministic_merge() -> None:
+    protocol = StudyProtocol(
+        "study-variant-parallel",
+        "workload-variant-parallel",
+        (
+            StudyVariantSpec("control", VariantKind.CONTROL, "fixed", "a" * 64),
+            StudyVariantSpec("treatment", VariantKind.TREATMENT, "candidate", "b" * 64),
+        ),
+        2,
+        "c" * 64,
+        ("score",),
+        "d" * 64,
+        concurrency_policy=StudyConcurrencyPolicy(
+            parallel_variants=True,
+            max_parallel_variants=2,
+        ),
+    )
+    assignments = DeterministicStudyAssignment().assignments(protocol)
+    runtime = build_concurrency_runtime(
+        budget=ConcurrencyBudget(
+            max_blocking_io_workers=2,
+            max_cpu_workers=1,
+            default_queue_capacity=4,
+        )
+    )
+    group = runtime.open_task_group("study-variant-execution", failure_policy=TaskFailurePolicy.COLLECT_ALL)
+    active = 0
+    max_active = 0
+    lock = Lock()
+
+    class VariantAdapter:
+        def execute_variant(self, assignment):
+            nonlocal active, max_active
+            with lock:
+                active += 1
+                max_active = max(max_active, active)
+            try:
+                time.sleep(0.04)
+                return StudyMetricObservation(assignment, (("score", float(assignment.repetition + 1)),))
+            finally:
+                with lock:
+                    active -= 1
+
+    try:
+        report = StudyMatrixExecutor(BasicStudyMetricAggregator(), task_group=group).execute(
+            protocol, assignments, VariantAdapter()
+        )
+        assert max_active == 2
+        assert [(item.assignment.repetition, item.assignment.variant_id) for item in report.observations] == [
+            (0, "control"), (0, "treatment"), (1, "control"), (1, "treatment")
+        ]
+    finally:
+        group.close()
+        runtime.close()
+
+
+def test_parallel_variant_policy_fails_closed_without_variant_adapter() -> None:
+    protocol = StudyProtocol(
+        "study-variant-contract",
+        "workload-variant-contract",
+        _protocol().variants,
+        1,
+        "c" * 64,
+        ("score",),
+        "d" * 64,
+        concurrency_policy=StudyConcurrencyPolicy(parallel_variants=True, max_parallel_variants=2),
+    )
+    assignments = DeterministicStudyAssignment().assignments(protocol)
+    with pytest.raises(TypeError, match="execute_variant"):
+        StudyMatrixExecutor(BasicStudyMetricAggregator()).execute(protocol, assignments, _Adapter())
+
+
+def test_parallel_compiled_variants_receive_binding_and_plan_digest() -> None:
+    base = _protocol()
+    protocol = StudyProtocol(
+        base.study_id,
+        base.workload_id,
+        base.variants,
+        base.repetitions,
+        base.seed_schedule_digest,
+        base.metric_names,
+        base.task_manifest_digest,
+        concurrency_policy=StudyConcurrencyPolicy(parallel_variants=True, max_parallel_variants=2),
+    )
+    bindings = tuple(
+        VariantBinding(v, "e" * 64, f"provider-{v.variant_id}", "none", v.kind.value)
+        for v in protocol.variants
+    )
+    assignments = DeterministicStudyAssignment().assignments(protocol)
+    plan = ExperimentPlan.compile(protocol, bindings, assignments)
+
+    class BoundVariantAdapter:
+        def execute_bound_variant(self, assignment, binding, plan_digest):
+            assert binding.variant.variant_id == assignment.variant_id
+            assert plan_digest == plan.plan_digest
+            return StudyMetricObservation(assignment, (("score", 1.0),))
+
+    runtime = build_concurrency_runtime(
+        budget=ConcurrencyBudget(max_blocking_io_workers=2, max_cpu_workers=1, default_queue_capacity=4)
+    )
+    group = runtime.open_task_group("compiled-variant-execution", failure_policy=TaskFailurePolicy.COLLECT_ALL)
+    try:
+        report = StudyMatrixExecutor(
+            BasicStudyMetricAggregator(), task_group=group
+        ).execute_plan(plan, assignments, BoundVariantAdapter())
+    finally:
+        group.close()
+        runtime.close()
+    assert report.plan_digest == plan.plan_digest
+    assert len(report.observations) == len(assignments)

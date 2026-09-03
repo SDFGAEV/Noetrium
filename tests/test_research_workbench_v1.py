@@ -8,9 +8,10 @@ from noetrium.contracts.research import (
     AggregationFunction, AggregationSpec, DataColumn, DataTable, FigureCell,
     FigureKind, FigurePoint, FigureSeries, FigureSpec, MissingValuePolicy,
     ScientificStatistics, SplitStrategy, StandardTableRenderer,
-    SvgFigureRenderer, TablePipeline,
+    StudyObservationTableAdapter, SvgFigureRenderer, TablePipeline,
 )
 from noetrium_platform.research.experimentation.workbench.providers import CsvTableReader
+from noetrium_platform.research.experimentation.study.api import StudyAssignment, StudyMetricObservation
 
 
 SHA_A = "a" * 64
@@ -168,3 +169,25 @@ def test_table_schema_rejects_wrong_types_and_non_nullable_nulls():
         DataTable("bad-type", (DataColumn("score", "float", False),), (("not-number",),))
     with pytest.raises(ValueError):
         DataTable("bad-null", (DataColumn("score", "float", False),), ((None,),))
+
+def test_study_observation_adapter_feeds_shared_statistics_and_figures():
+    observations = tuple(
+        StudyMetricObservation(
+            StudyAssignment("study", variant, repetition, f"seed-{repetition}"),
+            (("return", float(score)), ("latency", float(10 + repetition))),
+        )
+        for repetition, (variant, score) in enumerate(
+            (("control", 1), ("control", 3), ("candidate", 4), ("candidate", 8))
+        )
+    )
+    table = StudyObservationTableAdapter().to_table(observations)
+    summaries = ScientificStatistics().summarize(table, "return", group_by=("variant_id",))
+    assert {dict(row.group)["variant_id"]: row.mean for row in summaries} == {
+        "control": 2.0,
+        "candidate": 6.0,
+    }
+    figure = FigureSpec("returns", "Returns", FigureKind.BAR, (
+        FigureSeries("control", (FigurePoint("control", 2.0),)),
+        FigureSeries("candidate", (FigurePoint("candidate", 6.0),)),
+    ), source_digests=(table.table_digest,))
+    assert table.table_digest in figure.source_digests

@@ -104,6 +104,7 @@ class StudyConcurrencyPolicy:
     model_admission_policy: str = "runtime-hierarchical-v1"
     scheduler_policy: str = "deterministic-priority-fair-v1"
     repetition_timeout_seconds: float = 3600.0
+    max_parallel_variants: int = 1
 
     def __post_init__(self) -> None:
         _require_positive_int(
@@ -111,9 +112,10 @@ class StudyConcurrencyPolicy:
         )
         if type(self.parallel_variants) is not bool:
             raise TypeError("parallel_variants must be boolean")
-        if self.parallel_variants:
+        _require_positive_int(self.max_parallel_variants, "max_parallel_variants")
+        if self.parallel_variants and self.max_parallel_variants < 2:
             raise ValueError(
-                "parallel variant execution is not supported by the study-unit boundary"
+                "parallel_variants requires max_parallel_variants greater than one"
             )
         timeout = _require_finite_number(
             self.repetition_timeout_seconds, "repetition_timeout_seconds"

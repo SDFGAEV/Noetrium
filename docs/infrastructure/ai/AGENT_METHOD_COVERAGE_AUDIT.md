@@ -104,10 +104,11 @@ The common paper path is now:
 1. Reader adapter produces a schema-bound DataTable with source digest.
 2. TablePipeline performs explicit transforms, joins, aggregation, and split policy; each output carries parent and configuration lineage.
 3. Trial/run emits typed measurements and durable evidence/artifacts.
-4. The study matrix repeats variants, seeds, repetitions, and workload cuts under one plan.
-5. ScientificStatistics creates summaries, paired effects, and reproducible resampling results.
-6. FigureSpec consumes semantic series/cells, including uncertainty, and a renderer emits SVG or a downstream backend emits publication styling.
-7. ResearchReport binds the tables/figures and exposes one report digest.
+4. The study matrix repeats variants, seeds, repetitions, and workload cuts under one plan; `StudyConcurrencyPolicy` freezes both repetition-level and variant-level fanout.
+5. Independent variant fanout uses `StudyVariantExecutionPort` (or its compiled-plan counterpart) and the injected structured task group; a missing capability fails closed instead of silently serializing or bypassing the plan.
+6. ScientificStatistics creates summaries, paired effects, and reproducible resampling results.
+7. FigureSpec consumes semantic series/cells, including uncertainty, and a renderer emits SVG or a downstream backend emits publication styling.
+8. ResearchReport binds the tables/figures and exposes one report digest.
 
 This is the aggregation boundary: paper projects should not create a second data frame authority, metric aggregation authority, plotting authority, or provenance scheme.
 
