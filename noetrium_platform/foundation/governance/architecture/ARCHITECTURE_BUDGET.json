@@ -1,8 +1,8 @@
 {
   "schema_version": "architecture-complexity-budget.v3",
   "baseline": {
-    "git_sha": "baa289339965f01613ed61d5ac90cce593a0ea5c",
-    "source_digest": "70d4a92fb26c2dc973f2a9d18133c3582c1809e8638ab0ecc07667acef6dd43a",
+    "git_sha": "f751bde643ea28f255eb3359038e90c8ec702d60",
+    "source_digest": "3fd357cfc6f5f6b4e34d8a9d28fedb8e4500d805f99b69082cf22a73cfbed09c",
     "complexity": {
       "top_level_systems": 18,
       "subsystems": 142,
