@@ -26,6 +26,20 @@ def _sha(value: object, field_name: str, *, optional: bool = False) -> str | Non
     return value
 
 
+def _schema_accepts(data_type: str, value: JsonValue) -> bool:
+    if data_type == "unknown":
+        return True
+    if data_type in {"text", "string"}:
+        return type(value) is str
+    if data_type in {"int", "integer"}:
+        return type(value) is int
+    if data_type in {"float", "number", "numeric"}:
+        return type(value) in {int, float}
+    if data_type in {"bool", "boolean"}:
+        return type(value) is bool
+    return True
+
+
 @dataclass(frozen=True, slots=True)
 class DataColumn:
     name: str
@@ -67,7 +81,14 @@ class DataTable:
         for row in self.rows:
             if type(row) is not tuple or len(row) != width:
                 raise ValueError("data table rows must match schema width")
-            frozen_rows.append(tuple(freeze_json(value) for value in row))
+            frozen = tuple(freeze_json(value) for value in row)
+            for column, value in zip(self.columns, frozen, strict=True):
+                if value is None:
+                    if not column.nullable:
+                        raise ValueError(f"non-nullable column {column.name!r} contains null")
+                elif not _schema_accepts(column.data_type.lower(), value):
+                    raise TypeError(f"column {column.name!r} rejects value for data_type {column.data_type!r}")
+            frozen_rows.append(frozen)
         object.__setattr__(self, "rows", tuple(frozen_rows))
         _sha(self.source_digest, "data table source_digest", optional=True)
         if type(self.lineage_digests) is not tuple:
@@ -78,7 +99,7 @@ class DataTable:
             raise ValueError("data table lineage_digests must be unique")
         if type(self.metadata) is not tuple:
             raise TypeError("data table metadata must be a tuple")
-        if any(type(item) is not tuple or len(item) != 2 or not item[0].strip() for item in self.metadata):
+        if any(type(item) is not tuple or len(item) != 2 or type(item[0]) is not str or not item[0].strip() or type(item[1]) is not str for item in self.metadata):
             raise ValueError("data table metadata must contain key/value pairs")
         if len({item[0] for item in self.metadata}) != len(self.metadata):
             raise ValueError("data table metadata keys must be unique")
@@ -109,6 +130,42 @@ class DataTable:
 class MissingValuePolicy(StrEnum):
     REJECT = "reject"
     SKIP = "skip"
+
+
+class SplitStrategy(StrEnum):
+    RANDOM = "random"
+    STRATIFIED = "stratified"
+    GROUP = "group"
+    TEMPORAL = "temporal"
+
+
+class AggregationFunction(StrEnum):
+    COUNT = "count"
+    SUM = "sum"
+    MEAN = "mean"
+    VARIANCE = "variance"
+    STANDARD_DEVIATION = "standard_deviation"
+    MINIMUM = "minimum"
+    MEDIAN = "median"
+    MAXIMUM = "maximum"
+
+
+@dataclass(frozen=True, slots=True)
+class AggregationSpec:
+    output_name: str
+    function: AggregationFunction
+    source_column: str | None = None
+    data_type: str = "float"
+
+    def __post_init__(self) -> None:
+        _text(self.output_name, "aggregation output_name")
+        if not isinstance(self.function, AggregationFunction):
+            raise TypeError("aggregation function must be AggregationFunction")
+        if self.function is AggregationFunction.COUNT and self.source_column is not None:
+            _text(self.source_column, "aggregation source_column")
+        elif self.function is not AggregationFunction.COUNT:
+            _text(self.source_column, "aggregation source_column")
+        _text(self.data_type, "aggregation data_type")
 
 
 class TableReaderPort(Protocol):
@@ -176,23 +233,94 @@ class GroupComparison:
         if type(self.candidate_count) is not int or self.candidate_count < 1:
             raise ValueError("candidate_count must be positive")
         numeric = (self.difference, self.confidence95_low, self.confidence95_high)
-        if any(not math.isfinite(float(value)) for value in numeric):
+        if any(not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(float(value)) for value in numeric):
             raise ValueError("comparison statistics must be finite")
+        if self.confidence95_low > self.confidence95_high:
+            raise ValueError("comparison confidence interval is invalid")
         for value in (self.relative_difference, self.standardized_effect):
-            if value is not None and not math.isfinite(float(value)):
+            if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value))):
                 raise ValueError("optional comparison statistics must be finite")
+
+
+@dataclass(frozen=True, slots=True)
+class InferenceResult:
+    """Backend-neutral inferential result; advanced scientific backends may enrich it."""
+
+    metric: str
+    method: str
+    sample_count: int
+    estimate: float
+    standard_error: float
+    confidence95_low: float
+    confidence95_high: float
+    p_value: float | None = None
+    effect_size: float | None = None
+    null_value: float = 0.0
+
+    def __post_init__(self) -> None:
+        _text(self.metric, "inference metric")
+        _text(self.method, "inference method")
+        if type(self.sample_count) is not int or self.sample_count < 1:
+            raise ValueError("inference sample_count must be positive")
+        numeric = (self.estimate, self.standard_error, self.confidence95_low,
+                   self.confidence95_high, self.null_value)
+        if any(isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)) for value in numeric):
+            raise ValueError("inference values must be finite numeric")
+        if self.standard_error < 0 or self.confidence95_low > self.confidence95_high:
+            raise ValueError("inference uncertainty values are invalid")
+        if self.p_value is not None and (isinstance(self.p_value, bool) or not isinstance(self.p_value, (int, float)) or not 0.0 <= float(self.p_value) <= 1.0):
+            raise ValueError("inference p_value must be between zero and one")
+        if self.effect_size is not None and (isinstance(self.effect_size, bool) or not isinstance(self.effect_size, (int, float)) or not math.isfinite(float(self.effect_size))):
+            raise ValueError("inference effect_size must be finite")
+
+
+@dataclass(frozen=True, slots=True)
+class PairedComparison:
+    """Paired-unit comparison for seeds, users, tasks, episodes, or scenarios."""
+
+    metric: str
+    pair_column: str
+    count: int
+    mean_difference: float
+    standard_deviation: float
+    standard_error: float
+    confidence95_low: float
+    confidence95_high: float
+    p_value: float | None = None
+    standardized_effect: float | None = None
+
+    def __post_init__(self) -> None:
+        _text(self.metric, "paired comparison metric")
+        _text(self.pair_column, "paired comparison pair_column")
+        if type(self.count) is not int or self.count < 1:
+            raise ValueError("paired comparison count must be positive")
+        numeric = (self.mean_difference, self.standard_deviation, self.standard_error,
+                   self.confidence95_low, self.confidence95_high)
+        if any(isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)) for value in numeric):
+            raise ValueError("paired comparison values must be finite numeric")
+        if self.standard_deviation < 0 or self.standard_error < 0 or self.confidence95_low > self.confidence95_high:
+            raise ValueError("paired comparison uncertainty values are invalid")
+        if self.p_value is not None and (isinstance(self.p_value, bool) or not isinstance(self.p_value, (int, float)) or not 0.0 <= float(self.p_value) <= 1.0):
+            raise ValueError("paired comparison p_value must be between zero and one")
+        if self.standardized_effect is not None and (isinstance(self.standardized_effect, bool) or not isinstance(self.standardized_effect, (int, float)) or not math.isfinite(float(self.standardized_effect))):
+            raise ValueError("paired comparison standardized_effect must be finite")
 
 
 class FigureKind(StrEnum):
     LINE = "line"
     BAR = "bar"
     SCATTER = "scatter"
+    HISTOGRAM = "histogram"
+    BOXPLOT = "boxplot"
+    HEATMAP = "heatmap"
 
 
 @dataclass(frozen=True, slots=True)
 class FigurePoint:
     x: str | float
     y: float
+    error_low: float | None = None
+    error_high: float | None = None
 
     def __post_init__(self) -> None:
         if isinstance(self.x, bool) or not isinstance(self.x, (str, int, float)):
@@ -201,6 +329,13 @@ class FigurePoint:
             _text(self.x, "figure point x")
         if isinstance(self.y, bool) or not isinstance(self.y, (int, float)) or not math.isfinite(float(self.y)):
             raise ValueError("figure point y must be finite numeric")
+        for name, value in (("error_low", self.error_low), ("error_high", self.error_high)):
+            if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value))):
+                raise ValueError(f"figure point {name} must be finite numeric or None")
+        if (self.error_low is None) != (self.error_high is None):
+            raise ValueError("figure point error_low and error_high must be provided together")
+        if self.error_low is not None and self.error_low > self.error_high:
+            raise ValueError("figure point error bounds are invalid")
 
 
 @dataclass(frozen=True, slots=True)
@@ -217,6 +352,25 @@ class FigureSeries:
 
 
 @dataclass(frozen=True, slots=True)
+class FigureCell:
+    row: str | float
+    column: str | float
+    value: float
+
+    def __post_init__(self) -> None:
+        if isinstance(self.row, bool) or not isinstance(self.row, (str, int, float)):
+            raise TypeError("figure cell row must be text or numeric")
+        if isinstance(self.column, bool) or not isinstance(self.column, (str, int, float)):
+            raise TypeError("figure cell column must be text or numeric")
+        if isinstance(self.row, str):
+            _text(self.row, "figure cell row")
+        if isinstance(self.column, str):
+            _text(self.column, "figure cell column")
+        if isinstance(self.value, bool) or not isinstance(self.value, (int, float)) or not math.isfinite(float(self.value)):
+            raise ValueError("figure cell value must be finite numeric")
+
+
+@dataclass(frozen=True, slots=True)
 class FigureSpec:
     figure_id: str
     title: str
@@ -226,6 +380,10 @@ class FigureSpec:
     y_label: str = ""
     width: int = 800
     height: int = 480
+    cells: tuple[FigureCell, ...] = ()
+    caption: str = ""
+    source_digests: tuple[str, ...] = ()
+    metadata: tuple[tuple[str, str], ...] = ()
     figure_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -233,14 +391,31 @@ class FigureSpec:
         _text(self.title, "figure title")
         if type(self.kind) is not FigureKind:
             raise TypeError("figure kind must be FigureKind")
-        if type(self.series) is not tuple or not self.series or any(type(item) is not FigureSeries for item in self.series):
-            raise TypeError("figure series must be a non-empty tuple of FigureSeries")
+        if type(self.series) is not tuple or any(type(item) is not FigureSeries for item in self.series):
+            raise TypeError("figure series must be a tuple of FigureSeries")
+        if not self.series and self.kind is not FigureKind.HEATMAP:
+            raise ValueError("non-heatmap figures require at least one series")
         if type(self.width) is not int or self.width < 240 or type(self.height) is not int or self.height < 180:
             raise ValueError("figure dimensions are too small")
+        if type(self.cells) is not tuple or any(type(item) is not FigureCell for item in self.cells):
+            raise TypeError("figure cells must contain FigureCell")
+        if self.kind is FigureKind.HEATMAP and not self.cells:
+            raise ValueError("heatmap figures require cells")
+        if type(self.caption) is not str or type(self.source_digests) is not tuple or type(self.metadata) is not tuple:
+            raise TypeError("figure caption, source_digests, and metadata have invalid types")
+        for digest in self.source_digests:
+            _sha(digest, "figure source digest")
+        if len(set(self.source_digests)) != len(self.source_digests):
+            raise ValueError("figure source_digests must be unique")
+        if any(type(item) is not tuple or len(item) != 2 or type(item[0]) is not str or not item[0].strip() or type(item[1]) is not str for item in self.metadata):
+            raise ValueError("figure metadata must contain string key/value pairs")
+        if len({item[0] for item in self.metadata}) != len(self.metadata):
+            raise ValueError("figure metadata keys must be unique")
         object.__setattr__(self, "figure_digest", canonical_digest({
             "id": self.figure_id, "title": self.title, "kind": self.kind.value,
-            "series": self.series, "x_label": self.x_label, "y_label": self.y_label,
-            "width": self.width, "height": self.height,
+            "series": self.series, "cells": self.cells, "x_label": self.x_label, "y_label": self.y_label,
+            "width": self.width, "height": self.height, "caption": self.caption,
+            "source_digests": self.source_digests, "metadata": self.metadata,
         }))
 
 
@@ -258,6 +433,12 @@ class ResearchReport:
             raise TypeError("research report tables must contain DataTable")
         if any(type(item) is not FigureSpec for item in self.figures):
             raise TypeError("research report figures must contain FigureSpec")
+        if len({item.table_id for item in self.tables}) != len(self.tables):
+            raise ValueError("research report table ids must be unique")
+        if len({item.figure_id for item in self.figures}) != len(self.figures):
+            raise ValueError("research report figure ids must be unique")
+        if type(self.metadata) is not tuple or any(type(item) is not tuple or len(item) != 2 or type(item[0]) is not str or not item[0].strip() or type(item[1]) is not str for item in self.metadata):
+            raise ValueError("research report metadata must contain string key/value pairs")
         object.__setattr__(self, "report_digest", canonical_digest({
             "id": self.report_id,
             "tables": tuple(item.table_digest for item in self.tables),
@@ -275,8 +456,9 @@ class ReportTableRendererPort(Protocol):
 
 
 __all__ = [
-    "DataColumn", "DataTable", "FigureKind", "FigurePoint", "FigureRendererPort",
-    "FigureSeries", "FigureSpec", "GroupComparison", "MetricSummary",
-    "MissingValuePolicy", "ResearchReport", "ReportTableRendererPort",
+    "AggregationFunction", "AggregationSpec", "DataColumn", "DataTable", "FigureCell", "FigureKind", "FigurePoint", "FigureRendererPort",
+    "FigureSeries", "FigureSpec", "GroupComparison", "InferenceResult", "MetricSummary",
+    "MissingValuePolicy", "PairedComparison", "ResearchReport", "ReportTableRendererPort",
+    "SplitStrategy",
     "TableAnalysisPort", "TableReaderPort", "TableTransformPort",
 ]

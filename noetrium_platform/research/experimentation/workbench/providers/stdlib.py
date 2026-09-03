@@ -101,7 +101,91 @@ class StandardTableRenderer(ReportTableRendererPort):
 class SvgFigureRenderer(FigureRendererPort):
     """Deterministic SVG output for paper figures without requiring matplotlib."""
 
+    @staticmethod
+    def _quantile(values: list[float], probability: float) -> float:
+        ordered = sorted(values)
+        position = (len(ordered) - 1) * probability
+        lower, upper = math.floor(position), math.ceil(position)
+        if lower == upper:
+            return ordered[lower]
+        return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
+
+    def _render_heatmap(self, figure: FigureSpec) -> str:
+        width, height = figure.width, figure.height
+        left, top, right, bottom = 72, 48, 28, 64
+        plot_w, plot_h = width - left - right, height - top - bottom
+        rows = sorted({repr(cell.row) for cell in figure.cells})
+        columns = sorted({repr(cell.column) for cell in figure.cells})
+        values = {(repr(cell.row), repr(cell.column)): float(cell.value) for cell in figure.cells}
+        low, high = min(values.values()), max(values.values())
+        span = high - low or 1.0
+        cell_w, cell_h = plot_w / max(len(columns), 1), plot_h / max(len(rows), 1)
+        elements = [
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
+            f'<rect width="{width}" height="{height}" fill="white"/>',
+            f'<text x="{width / 2}" y="24" text-anchor="middle" font-family="sans-serif" font-size="16">{html.escape(figure.title)}</text>',
+        ]
+        for row_index, row in enumerate(rows):
+            for column_index, column in enumerate(columns):
+                value = values.get((row, column))
+                if value is None:
+                    continue
+                intensity = (value - low) / span
+                red = int(37 + 190 * intensity)
+                blue = int(235 - 170 * intensity)
+                color = f"rgb({red},80,{blue})"
+                elements.append(f'<rect x="{left + column_index * cell_w:.2f}" y="{top + row_index * cell_h:.2f}" width="{cell_w:.2f}" height="{cell_h:.2f}" fill="{color}"/>')
+                elements.append(f'<text x="{left + (column_index + .5) * cell_w:.2f}" y="{top + (row_index + .6) * cell_h:.2f}" text-anchor="middle" font-family="sans-serif" font-size="11">{value:g}</text>')
+        elements.append(f'<rect x="{left}" y="{top}" width="{plot_w}" height="{plot_h}" fill="none" stroke="#333"/>')
+        elements.append(f'<text x="{width / 2}" y="{height - 18}" text-anchor="middle" font-family="sans-serif" font-size="12">{html.escape(figure.x_label)}</text>')
+        elements.append(f'<text x="16" y="{height / 2}" transform="rotate(-90 16 {height / 2})" text-anchor="middle" font-family="sans-serif" font-size="12">{html.escape(figure.y_label)}</text>')
+        if figure.caption:
+            elements.append(f'<text x="{left}" y="{height - 4}" font-family="sans-serif" font-size="10" fill="#555">{html.escape(figure.caption)}</text>')
+        elements.append("</svg>")
+        return "".join(elements)
+
+    def _render_boxplot(self, figure: FigureSpec) -> str:
+        width, height = figure.width, figure.height
+        left, top, right, bottom = 72, 48, 28, 64
+        plot_w, plot_h = width - left - right, height - top - bottom
+        values = [float(point.y) for series in figure.series for point in series.points]
+        ymin, ymax = min(0.0, min(values)), max(0.0, max(values))
+        if math.isclose(ymin, ymax):
+            ymax = ymin + 1.0
+
+        def y_pos(value: float) -> float:
+            return top + plot_h * (ymax - value) / (ymax - ymin)
+
+        elements = [
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
+            f'<rect width="{width}" height="{height}" fill="white"/>',
+            f'<text x="{width / 2}" y="24" text-anchor="middle" font-family="sans-serif" font-size="16">{html.escape(figure.title)}</text>',
+            f'<line x1="{left}" y1="{top + plot_h}" x2="{left + plot_w}" y2="{top + plot_h}" stroke="#333"/>',
+            f'<line x1="{left}" y1="{top}" x2="{left}" y2="{top + plot_h}" stroke="#333"/>',
+        ]
+        for index, series in enumerate(figure.series):
+            values = [float(point.y) for point in series.points]
+            q1, q2, q3 = (self._quantile(values, probability) for probability in (0.25, 0.5, 0.75))
+            low, high = min(values), max(values)
+            center = left + plot_w * (index + 0.5) / len(figure.series)
+            box_w = min(80.0, plot_w / max(len(figure.series) * 2, 1))
+            color = ("#2563eb", "#dc2626", "#16a34a", "#9333ea")[index % 4]
+            elements.extend((
+                f'<line x1="{center:.2f}" y1="{y_pos(low):.2f}" x2="{center:.2f}" y2="{y_pos(high):.2f}" stroke="{color}"/>',
+                f'<rect x="{center - box_w / 2:.2f}" y="{y_pos(q3):.2f}" width="{box_w:.2f}" height="{abs(y_pos(q1) - y_pos(q3)):.2f}" fill="{color}" opacity="0.55" stroke="{color}"/>',
+                f'<line x1="{center - box_w / 2:.2f}" y1="{y_pos(q2):.2f}" x2="{center + box_w / 2:.2f}" y2="{y_pos(q2):.2f}" stroke="#111"/>',
+                f'<text x="{center:.2f}" y="{height - 38}" text-anchor="middle" font-family="sans-serif" font-size="12">{html.escape(series.name)}</text>',
+            ))
+        elements.append(f'<text x="{width / 2}" y="{height - 18}" text-anchor="middle" font-family="sans-serif" font-size="12">{html.escape(figure.x_label)}</text>')
+        elements.append(f'<text x="16" y="{height / 2}" transform="rotate(-90 16 {height / 2})" text-anchor="middle" font-family="sans-serif" font-size="12">{html.escape(figure.y_label)}</text>')
+        elements.append("</svg>")
+        return "".join(elements)
+
     def render(self, figure: FigureSpec) -> str:
+        if figure.kind is FigureKind.HEATMAP:
+            return self._render_heatmap(figure)
+        if figure.kind is FigureKind.BOXPLOT:
+            return self._render_boxplot(figure)
         width, height = figure.width, figure.height
         left, top, right, bottom = 72, 48, 28, 64
         plot_w, plot_h = width - left - right, height - top - bottom
@@ -123,7 +207,7 @@ class SvgFigureRenderer(FigureRendererPort):
         for series_index, series in enumerate(figure.series):
             color = colors[series_index % len(colors)]
             coords = [(x_pos(i, len(series.points)), y_pos(float(point.y))) for i, point in enumerate(series.points)]
-            if figure.kind is FigureKind.BAR:
+            if figure.kind in {FigureKind.BAR, FigureKind.HISTOGRAM}:
                 bar_w = max(8.0, plot_w / max(len(series.points) * len(figure.series), 1) * 0.7)
                 for i, (x, y) in enumerate(coords):
                     baseline = y_pos(0.0)
@@ -133,6 +217,14 @@ class SvgFigureRenderer(FigureRendererPort):
                 stroke = "none" if figure.kind is FigureKind.SCATTER else color
                 elements.append(f'<path d="{path}" fill="none" stroke="{stroke}" stroke-width="2"/>')
                 elements.extend(f'<circle cx="{x:.2f}" cy="{y:.2f}" r="3.5" fill="{color}"/>' for x, y in coords)
+                for point, (x, _) in zip(series.points, coords, strict=True):
+                    if point.error_low is not None:
+                        low_y, high_y = y_pos(float(point.error_low)), y_pos(float(point.error_high))
+                        elements.extend((
+                            f'<line x1="{x:.2f}" y1="{low_y:.2f}" x2="{x:.2f}" y2="{high_y:.2f}" stroke="{color}"/>',
+                            f'<line x1="{x - 4:.2f}" y1="{low_y:.2f}" x2="{x + 4:.2f}" y2="{low_y:.2f}" stroke="{color}"/>',
+                            f'<line x1="{x - 4:.2f}" y1="{high_y:.2f}" x2="{x + 4:.2f}" y2="{high_y:.2f}" stroke="{color}"/>',
+                        ))
             elements.append(f'<text x="{left + plot_w - 4}" y="{top + 16 + series_index * 16}" text-anchor="end" font-family="sans-serif" font-size="12" fill="{color}">{html.escape(series.name)}</text>')
         elements.append(f'<text x="{width / 2}" y="{height - 18}" text-anchor="middle" font-family="sans-serif" font-size="12">{html.escape(figure.x_label)}</text>')
         elements.append(f'<text x="16" y="{height / 2}" transform="rotate(-90 16 {height / 2})" text-anchor="middle" font-family="sans-serif" font-size="12">{html.escape(figure.y_label)}</text>')

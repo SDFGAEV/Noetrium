@@ -11,11 +11,12 @@ Before this audit, the platform was not sufficient for a complete paper workflow
 
 - immutable schema-bound DataTable values;
 - source and transformation lineage digests;
-- deterministic filtering, projection, derived columns, and train/test splits;
-- shared numeric summaries and two-group effect comparisons;
-- CSV and JSONL readers;
-- CSV, Markdown, and LaTeX table output;
-- deterministic SVG line, bar, and scatter output.
+- deterministic filtering, projection, derived columns, joins, aggregations, and train/test splits;
+- random, stratified, group-preserving, and temporal split policies;
+- shared numeric summaries, paired comparisons, Bootstrap intervals, and permutation comparisons;
+- CSV and JSONL readers behind a reader port;
+- CSV, Markdown, and LaTeX table output behind a renderer port;
+- deterministic SVG line, bar, scatter, histogram, boxplot, heatmap, and uncertainty/error-bar output;
 
 The workbench is standard-library-first. Pandas, NumPy, SciPy, Matplotlib, PyTorch, vector databases, and simulator SDKs remain downstream or provider adapters. This keeps the public method surface decoupled from vendor details.
 
@@ -34,9 +35,9 @@ The workbench is standard-library-first. Pandas, NumPy, SciPy, Matplotlib, PyTor
 | Multi-modal/VLM agents | Typed model capability families and environment artifacts | Provider-ready | Image/video/audio preprocessing backend is downstream |
 | Long-horizon autonomous agents | Run control, evidence validity, recovery and durable artifacts | Strong | Domain task decomposition remains downstream |
 | Benchmarking and ablations | Variant bindings, deterministic assignments, study matrix, workload graph | Strong | Paper-specific factor definitions are downstream |
-| Data processing and feature preparation | research.workbench.DataTable and TablePipeline | Now usable | Parquet/database/cloud readers need adapters |
-| Statistical evaluation | ScientificStatistics, summaries, effects, missing policy | Common baseline | Advanced tests/power analysis require a scientific-statistics adapter |
-| Paper tables and plots | StandardTableRenderer, SvgFigureRenderer, report digest | Now usable | Matplotlib/Plotly styling can be an output adapter |
+| Data processing and feature preparation | DataTable, TablePipeline, joins, aggregations, split policies | Strong common core | Parquet/Arrow/database/cloud readers and domain transforms need adapters |
+| Statistical evaluation | ScientificStatistics, summaries, paired/effect/resampling tests, missing policy | Strong common baseline | Mixed-effects, exact domain tests, power analysis and multiple-comparison families need an adapter |
+| Paper tables and plots | StandardTableRenderer, SvgFigureRenderer, error bars, boxplots, heatmaps, report digest | Strong common core | Matplotlib/Plotly/seaborn styling and journal templates are output adapters |
 | Reproducibility and provenance | Dataset versions, measurement cuts, analysis identity, artifacts | Strong | Physical storage and external dependency lockfiles stay outside core |
 
 ## What implementable downstream means
@@ -78,3 +79,56 @@ These are extension points, not reasons to duplicate lifecycle, lineage, metrics
 ## Audit conclusion
 
 The architecture is sufficient for the core method of most Agent-paper families, provided the method-specific backend is injected. It was not sufficient for the surrounding scientific workflow until the research workbench was added. The main follow-up is to add optional scientific backend adapters and richer statistical procedures without moving those vendor-specific details into the public contracts.
+
+## Deep downstream method reasoning
+
+The matrix is a capability-family judgment, not a claim that the platform contains every algorithm from every paper. The correct downstream implementation pattern is:
+
+| Paper contribution changes | Downstream owns | Noetrium reuses |
+|---|---|---|
+| Prompt/tool policy or ReAct loop | policy, tool schema, provider calls | turn lifecycle, effects, evidence, recovery, measurements |
+| Retrieval, reranking, citation grounding | index/embedding/reranker adapter and grounding policy | content identity, evidence cuts, result provenance, evaluation |
+| Memory, reflection, skill acquisition | memory semantics and storage implementation | participant identity, checkpoint envelope, task completion |
+| Planner/search/world model | search/state transition/model implementation | stateful method host, run isolation, checkpoints, study matrix |
+| PPO, offline RL, MARL | simulator, tensor backend, replay/loss/optimizer | trial/run boundary, seed/repetition design, metric/evidence path |
+| Vision/audio/video/GUI/robotics | media preprocessing and environment provider | content refs, action/effect boundary, failure/recovery |
+| Benchmark/ablation/generalization | factor definitions and task cut | compiled variants, assignments, paired comparability |
+| Publication analysis | domain-specific estimator or styling adapter | immutable tables, statistics, figure identity, report digest |
+
+A method is “downstream implementable” only if its novel control graph can be expressed through the typed whole-method program or composed public Agent/Model/Environment capabilities, and all observations/results can enter the shared Measurement/Artifact/Evidence path. A method is not considered fully supported merely because a generic run() function can execute it.
+
+### Paper infrastructure closure
+
+The common paper path is now:
+
+1. Reader adapter produces a schema-bound DataTable with source digest.
+2. TablePipeline performs explicit transforms, joins, aggregation, and split policy; each output carries parent and configuration lineage.
+3. Trial/run emits typed measurements and durable evidence/artifacts.
+4. The study matrix repeats variants, seeds, repetitions, and workload cuts under one plan.
+5. ScientificStatistics creates summaries, paired effects, and reproducible resampling results.
+6. FigureSpec consumes semantic series/cells, including uncertainty, and a renderer emits SVG or a downstream backend emits publication styling.
+7. ResearchReport binds the tables/figures and exposes one report digest.
+
+This is the aggregation boundary: paper projects should not create a second data frame authority, metric aggregation authority, plotting authority, or provenance scheme.
+
+### Plotting decision
+
+The standard-library SVG renderer is intentionally suitable for deterministic smoke tests, dashboards, lightweight reports, and environments where scientific plotting packages are unavailable. It covers the common figure semantics needed by Agent papers: learning curves, method comparison bars, scatter/error plots, distributions, boxplots, and matrix heatmaps.
+
+For publication-quality work, the downstream project should implement one FigureRendererPort adapter around Matplotlib, Seaborn, Plotly, Vega, or a journal-specific renderer. That adapter receives the same FigureSpec; it must not redefine experiment data, metric names, uncertainty semantics, or provenance. This gives the project high-quality typography without exposing plotting-library types to the method or changing figure identity.
+
+### What “strong enough” means by method family
+
+- ReAct/tool/RAG/memory/planning/long-horizon methods: platform-level path is strong; only method/provider semantics remain downstream.
+- Benchmark, ablation, seed/repetition, paired evaluation, generalization, and common metric/report workflows: platform-level path is strong after the workbench additions.
+- PPO, offline RL, MARL, world models, diffusion/VLM, browser/GUI, robotics, and distributed training: the experiment architecture is ready, but the scientific backend is necessarily injected. The platform must not pretend to provide GPU kernels, simulators, browser automation, model weights, or tensor optimizers.
+- Advanced statistical claims: the shared result types are available, but a paper requiring mixed-effects, non-parametric exact tests, bootstrap variants, multiple-comparison correction, calibration, survival analysis, causal estimands, or inter-rater reliability must bind a specialized TableAnalysisPort/statistics adapter. It must return immutable results with the same source and configuration identities.
+- High-volume datasets: the in-memory DataTable is the portable value boundary, not a claim that all data must be materialized in memory. A streaming/Arrow/database adapter should implement the reader/transform/analysis ports and emit the same semantic cut and digest contracts.
+
+### Audit rule
+
+When a future paper is evaluated, check the full chain rather than the algorithm label:
+
+method input -> model/environment seam -> trial/run -> measurement/evidence -> analysis -> table/figure -> report
+
+A green method seam with a red analysis or publication seam is not a complete paper implementation. Conversely, a backend-specific implementation is acceptable when it is isolated behind the shared ports and does not duplicate lifecycle, lineage, comparison, or plotting semantics.

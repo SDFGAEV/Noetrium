@@ -5,8 +5,9 @@ import tempfile
 from pathlib import Path
 
 from noetrium.contracts.research import (
-    DataColumn, DataTable, FigureKind, FigurePoint, FigureSeries, FigureSpec,
-    MissingValuePolicy, ScientificStatistics, StandardTableRenderer,
+    AggregationFunction, AggregationSpec, DataColumn, DataTable, FigureCell,
+    FigureKind, FigurePoint, FigureSeries, FigureSpec, MissingValuePolicy,
+    ScientificStatistics, SplitStrategy, StandardTableRenderer,
     SvgFigureRenderer, TablePipeline,
 )
 from noetrium_platform.research.experimentation.workbench.providers import CsvTableReader
@@ -88,3 +89,82 @@ def test_csv_reader_pins_source_digest_and_numeric_coercion():
         table = CsvTableReader(coerce_numeric=True).read(str(source), table_id="csv-scores")
         assert table.values("score") == (1.5, 2.5)
         assert table.source_digest == hashlib.sha256(source.read_bytes()).hexdigest()
+
+def test_pipeline_aggregates_and_joins_without_reimplementing_group_logic():
+    table = _table()
+    pipeline = TablePipeline()
+    summary = pipeline.aggregate(
+        table, ("variant",),
+        (AggregationSpec("n", AggregationFunction.COUNT, data_type="int"),
+         AggregationSpec("mean_score", AggregationFunction.MEAN, "score")),
+        operation_id="summary", configuration_digest=SHA_B,
+    )
+    assert summary.rows == (("control", 2, 2.0), ("treatment", 2, 6.0))
+    steps = DataTable("steps", (DataColumn("variant", "text"), DataColumn("label", "text")),
+                      (("control", "baseline"), ("treatment", "new")))
+    joined = pipeline.join(summary, steps, ("variant",), operation_id="join", configuration_digest=SHA_B)
+    assert joined.column_names == ("variant", "n", "mean_score", "label")
+    assert joined.rows[1][-1] == "new"
+
+
+def test_split_strategies_preserve_research_units():
+    table = DataTable(
+        "episodes",
+        (DataColumn("group", "text"), DataColumn("episode", "int"), DataColumn("score", "float")),
+        (("a", 1, 1.0), ("a", 2, 2.0), ("b", 3, 3.0), ("b", 4, 4.0)),
+        source_digest=SHA_A,
+    )
+    pipeline = TablePipeline()
+    grouped = pipeline.split(table, seed=3, fractions=(("train", .5), ("test", .5)),
+                             operation_id="group-split", configuration_digest=SHA_B,
+                             strategy=SplitStrategy.GROUP, group_by=("group",))
+    assert {row[0] for row in grouped["train"].rows}.isdisjoint({row[0] for row in grouped["test"].rows})
+    temporal = pipeline.split(table, seed=3, fractions=(("train", .5), ("test", .5)),
+                              operation_id="time-split", configuration_digest=SHA_B,
+                              strategy=SplitStrategy.TEMPORAL, order_by=("episode",))
+    assert temporal["train"].rows[-1][1] < temporal["test"].rows[0][1]
+
+
+
+def test_inference_authority_supports_bootstrap_permutation_and_paired_units():
+    table = DataTable(
+        "paired",
+        (DataColumn("unit", "text"), DataColumn("variant", "text"), DataColumn("score", "float")),
+        (("u1", "control", 1.0), ("u1", "candidate", 2.0),
+         ("u2", "control", 2.0), ("u2", "candidate", 4.0),
+         ("u3", "control", 3.0), ("u3", "candidate", 5.0)),
+    )
+    stats = ScientificStatistics()
+    paired = stats.paired_compare(table, "score", "variant", pair_column="unit",
+                                   baseline="control", candidate="candidate")
+    assert paired.count == 3 and paired.mean_difference == 5 / 3
+    bootstrap = stats.bootstrap_mean(table, "score", replicates=100, seed=7)
+    assert bootstrap.confidence95_low <= bootstrap.estimate <= bootstrap.confidence95_high
+    permutation = stats.permutation_compare(table, "score", "variant",
+                                             baseline="control", candidate="candidate",
+                                             replicates=100, seed=7)
+    assert 0.0 < permutation.p_value <= 1.0
+
+
+def test_figure_semantics_support_uncertainty_boxplot_and_heatmap():
+    renderer = SvgFigureRenderer()
+    line = FigureSpec("ci", "Learning curve", FigureKind.LINE, (
+        FigureSeries("method", (FigurePoint(0, 1.0, .8, 1.2), FigurePoint(1, 2.0, 1.7, 2.3))),
+    ))
+    assert "stroke=" in renderer.render(line)
+    box = FigureSpec("box", "Returns", FigureKind.BOXPLOT, (
+        FigureSeries("PPO", (FigurePoint(0, 1.0), FigurePoint(1, 2.0), FigurePoint(2, 4.0))),
+    ))
+    assert "<rect" in renderer.render(box)
+    heatmap = FigureSpec("heat", "Confusion", FigureKind.HEATMAP, (), cells=(
+        FigureCell("actual", "predicted", 1.0), FigureCell("actual", "other", 0.0),
+    ))
+    assert "rgb(" in renderer.render(heatmap)
+
+def test_table_schema_rejects_wrong_types_and_non_nullable_nulls():
+    import pytest
+
+    with pytest.raises(TypeError):
+        DataTable("bad-type", (DataColumn("score", "float", False),), (("not-number",),))
+    with pytest.raises(ValueError):
+        DataTable("bad-null", (DataColumn("score", "float", False),), ((None,),))
