@@ -17,6 +17,24 @@ from noetrium_platform.research.experimentation.run.api import (
     RunArtifactKind,
     RunArtifactSnapshotReceipt,
 )
+from noetrium_platform.research.workbench import (
+    CsvTableReader,
+    DataColumn,
+    DataTable,
+    FigureKind,
+    FigurePoint,
+    FigureSeries,
+    FigureSpec,
+    GroupComparison,
+    JsonlTableReader,
+    MetricSummary,
+    MissingValuePolicy,
+    ResearchReport,
+    ScientificStatistics,
+    StandardTableRenderer,
+    SvgFigureRenderer,
+    TablePipeline,
+)
 from noetrium_platform.research.experimentation.run.control.api import (
     RunControlAction,
     RunControlActionFailure,
@@ -63,4 +81,9 @@ __all__ = [
     "RunScientificValidity", "RunTaskOutcome", "DerivedEvidenceArtifact",
     "EvidenceBundleManifest", "EvidenceBundleReceipt", "EvidenceBundleStatus",
     "EvidenceStreamDescriptor",
+    "CsvTableReader", "DataColumn", "DataTable", "FigureKind", "FigurePoint",
+    "FigureSeries", "FigureSpec", "GroupComparison", "JsonlTableReader",
+    "MetricSummary", "MissingValuePolicy", "ResearchReport",
+    "ScientificStatistics", "StandardTableRenderer", "SvgFigureRenderer",
+    "TablePipeline",
 ]

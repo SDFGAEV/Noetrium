@@ -1,0 +1,143 @@
+"""Portable standard-library providers; heavier scientific backends remain optional adapters."""
+from __future__ import annotations
+
+import csv
+import hashlib
+import html
+import io
+import json
+import math
+from pathlib import Path
+
+from noetrium_platform.foundation.kernel.kernel import thaw_json
+from ..api import DataColumn, DataTable, FigureKind, FigureSpec, ReportTableRendererPort, TableReaderPort, FigureRendererPort
+
+
+def _parse_cell(value: str, coerce_numeric: bool):
+    if not coerce_numeric:
+        return value
+    stripped = value.strip()
+    if not stripped:
+        return None
+    lowered = stripped.lower()
+    if lowered in {"true", "false"}:
+        return lowered == "true"
+    try:
+        return int(stripped)
+    except ValueError:
+        try:
+            number = float(stripped)
+        except ValueError:
+            return value
+        return number if math.isfinite(number) else value
+
+
+class CsvTableReader(TableReaderPort):
+    def __init__(self, *, delimiter: str = ",", coerce_numeric: bool = False) -> None:
+        if len(delimiter) != 1:
+            raise ValueError("CSV delimiter must be one character")
+        self._delimiter = delimiter
+        self._coerce_numeric = coerce_numeric
+
+    def read(self, source: str, *, table_id: str) -> DataTable:
+        path = Path(source)
+        payload = path.read_bytes()
+        text = payload.decode("utf-8-sig")
+        rows = list(csv.reader(io.StringIO(text), delimiter=self._delimiter))
+        if not rows:
+            raise ValueError("CSV source must contain a header")
+        header = tuple(rows[0])
+        if not header or any(not name.strip() for name in header):
+            raise ValueError("CSV header names must be non-empty")
+        if len(set(header)) != len(header):
+            raise ValueError("CSV header names must be unique")
+        width = len(header)
+        values = tuple(tuple(_parse_cell(value, self._coerce_numeric) for value in row) for row in rows[1:])
+        if any(len(row) != width for row in values):
+            raise ValueError("CSV row width does not match header")
+        columns = tuple(DataColumn(name, "unknown", True) for name in header)
+        return DataTable(table_id, columns, values, source_digest=hashlib.sha256(payload).hexdigest(),
+                         metadata=(("source_format", "csv"),))
+
+
+class JsonlTableReader(TableReaderPort):
+    def read(self, source: str, *, table_id: str) -> DataTable:
+        path = Path(source)
+        payload = path.read_bytes()
+        records = [json.loads(line) for line in payload.decode("utf-8-sig").splitlines() if line.strip()]
+        if not records or any(type(record) is not dict for record in records):
+            raise ValueError("JSONL source must contain non-empty object records")
+        names = tuple(sorted({name for record in records for name in record}))
+        columns = tuple(DataColumn(name, "unknown", True) for name in names)
+        rows = tuple(tuple(record.get(name) for name in names) for record in records)
+        return DataTable(table_id, columns, rows, source_digest=hashlib.sha256(payload).hexdigest(),
+                         metadata=(("source_format", "jsonl"),))
+
+
+def _cell(value: object) -> str:
+    return json.dumps(thaw_json(value), ensure_ascii=False, sort_keys=True, separators=(",", ":")) if isinstance(value, (dict, list, tuple)) else str(value)
+
+
+class StandardTableRenderer(ReportTableRendererPort):
+    def render(self, table: DataTable, format: str) -> str:
+        format = format.lower()
+        if format == "csv":
+            output = io.StringIO()
+            writer = csv.writer(output, lineterminator="\n")
+            writer.writerow(table.column_names)
+            writer.writerows((_cell(value) for value in row) for row in table.rows)
+            return output.getvalue()
+        if format == "markdown":
+            head = "| " + " | ".join(table.column_names) + " |"
+            rule = "| " + " | ".join("---" for _ in table.columns) + " |"
+            body = "\n".join("| " + " | ".join(_cell(value).replace("|", "\\|") for value in row) + " |" for row in table.rows)
+            return "\n".join((head, rule, body))
+        if format in {"latex", "tex"}:
+            body = "\n".join(" & ".join(_cell(value).replace("&", "\\&") for value in row) + r" \\" for row in table.rows)
+            return "\n".join((r"\begin{tabular}{" + "l" * len(table.columns) + "}", " & ".join(table.column_names) + r" \\", body, r"\end{tabular}"))
+        raise ValueError("table format must be csv, markdown, or latex")
+
+
+class SvgFigureRenderer(FigureRendererPort):
+    """Deterministic SVG output for paper figures without requiring matplotlib."""
+
+    def render(self, figure: FigureSpec) -> str:
+        width, height = figure.width, figure.height
+        left, top, right, bottom = 72, 48, 28, 64
+        plot_w, plot_h = width - left - right, height - top - bottom
+        points = [point for series in figure.series for point in series.points]
+        ys = [float(point.y) for point in points]
+        ymin, ymax = min(0.0, min(ys)), max(0.0, max(ys))
+        if math.isclose(ymin, ymax):
+            ymax = ymin + 1.0
+        def x_pos(index: int, point_count: int) -> float:
+            return left + (plot_w * index / max(point_count - 1, 1))
+        def y_pos(value: float) -> float:
+            return top + plot_h * (ymax - value) / (ymax - ymin)
+        elements = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
+                    f'<rect width="{width}" height="{height}" fill="white"/>',
+                    f'<text x="{width / 2}" y="24" text-anchor="middle" font-family="sans-serif" font-size="16">{html.escape(figure.title)}</text>',
+                    f'<line x1="{left}" y1="{top + plot_h}" x2="{left + plot_w}" y2="{top + plot_h}" stroke="#333"/>',
+                    f'<line x1="{left}" y1="{top}" x2="{left}" y2="{top + plot_h}" stroke="#333"/>']
+        colors = ("#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea580c", "#0891b2")
+        for series_index, series in enumerate(figure.series):
+            color = colors[series_index % len(colors)]
+            coords = [(x_pos(i, len(series.points)), y_pos(float(point.y))) for i, point in enumerate(series.points)]
+            if figure.kind is FigureKind.BAR:
+                bar_w = max(8.0, plot_w / max(len(series.points) * len(figure.series), 1) * 0.7)
+                for i, (x, y) in enumerate(coords):
+                    baseline = y_pos(0.0)
+                    elements.append(f'<rect x="{x + series_index * bar_w - bar_w * len(figure.series) / 2:.2f}" y="{min(y, baseline):.2f}" width="{bar_w:.2f}" height="{abs(baseline - y):.2f}" fill="{color}"/>')
+            else:
+                path = " ".join(("M" if i == 0 else "L") + f" {x:.2f},{y:.2f}" for i, (x, y) in enumerate(coords))
+                stroke = "none" if figure.kind is FigureKind.SCATTER else color
+                elements.append(f'<path d="{path}" fill="none" stroke="{stroke}" stroke-width="2"/>')
+                elements.extend(f'<circle cx="{x:.2f}" cy="{y:.2f}" r="3.5" fill="{color}"/>' for x, y in coords)
+            elements.append(f'<text x="{left + plot_w - 4}" y="{top + 16 + series_index * 16}" text-anchor="end" font-family="sans-serif" font-size="12" fill="{color}">{html.escape(series.name)}</text>')
+        elements.append(f'<text x="{width / 2}" y="{height - 18}" text-anchor="middle" font-family="sans-serif" font-size="12">{html.escape(figure.x_label)}</text>')
+        elements.append(f'<text x="16" y="{height / 2}" transform="rotate(-90 16 {height / 2})" text-anchor="middle" font-family="sans-serif" font-size="12">{html.escape(figure.y_label)}</text>')
+        elements.append("</svg>")
+        return "".join(elements)
+
+
+__all__ = ["CsvTableReader", "JsonlTableReader", "StandardTableRenderer", "SvgFigureRenderer"]
