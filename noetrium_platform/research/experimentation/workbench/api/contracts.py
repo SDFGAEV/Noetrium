@@ -132,6 +132,15 @@ class MissingValuePolicy(StrEnum):
     SKIP = "skip"
 
 
+class MultipleComparisonMethod(StrEnum):
+    """Shared multiplicity policy for every family of reported p-values."""
+
+    BONFERRONI = "bonferroni"
+    HOLM = "holm"
+    BENJAMINI_HOCHBERG = "benjamini_hochberg"
+    BENJAMINI_YEKUTIELI = "benjamini_yekutieli"
+
+
 class SplitStrategy(StrEnum):
     RANDOM = "random"
     STRATIFIED = "stratified"
@@ -334,6 +343,8 @@ class GroupComparison:
     standardized_effect: float | None
     confidence95_low: float
     confidence95_high: float
+    p_value: float | None = None
+    adjusted_p_value: float | None = None
 
     def __post_init__(self) -> None:
         _text(self.metric, "group comparison metric")
@@ -349,6 +360,11 @@ class GroupComparison:
             raise ValueError("comparison statistics must be finite")
         if self.confidence95_low > self.confidence95_high:
             raise ValueError("comparison confidence interval is invalid")
+        for name, value in (("p_value", self.p_value), ("adjusted_p_value", self.adjusted_p_value)):
+            if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or not 0.0 <= float(value) <= 1.0):
+                raise ValueError(f"comparison {name} must be between zero and one")
+        if self.adjusted_p_value is not None and self.p_value is None:
+            raise ValueError("adjusted_p_value requires p_value")
         for value in (self.relative_difference, self.standardized_effect):
             if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value))):
                 raise ValueError("optional comparison statistics must be finite")
@@ -384,6 +400,38 @@ class InferenceResult:
             raise ValueError("inference p_value must be between zero and one")
         if self.effect_size is not None and (isinstance(self.effect_size, bool) or not isinstance(self.effect_size, (int, float)) or not math.isfinite(float(self.effect_size))):
             raise ValueError("inference effect_size must be finite")
+
+
+@dataclass(frozen=True, slots=True)
+class MultipleComparisonResult:
+    """Auditable p-value family with raw values, adjusted values and decisions."""
+
+    method: MultipleComparisonMethod
+    alpha: float
+    raw_p_values: tuple[float, ...]
+    adjusted_p_values: tuple[float, ...]
+    reject: tuple[bool, ...]
+    result_digest: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        if type(self.method) is not MultipleComparisonMethod:
+            raise TypeError("multiple comparison method must be MultipleComparisonMethod")
+        if isinstance(self.alpha, bool) or not isinstance(self.alpha, (int, float)) or not 0.0 < float(self.alpha) < 1.0:
+            raise ValueError("multiple comparison alpha must be between zero and one")
+        if type(self.raw_p_values) is not tuple or not self.raw_p_values:
+            raise ValueError("raw_p_values must be a non-empty tuple")
+        if type(self.adjusted_p_values) is not tuple or len(self.adjusted_p_values) != len(self.raw_p_values):
+            raise ValueError("adjusted_p_values must match raw_p_values")
+        if type(self.reject) is not tuple or len(self.reject) != len(self.raw_p_values) or any(type(value) is not bool for value in self.reject):
+            raise ValueError("reject must match raw_p_values")
+        for name, values in (("raw_p_values", self.raw_p_values), ("adjusted_p_values", self.adjusted_p_values)):
+            if any(isinstance(value, bool) or not isinstance(value, (int, float)) or not 0.0 <= float(value) <= 1.0 for value in values):
+                raise ValueError(f"{name} must contain p-values between zero and one")
+        object.__setattr__(self, "result_digest", canonical_digest({
+            "method": self.method.value, "alpha": self.alpha,
+            "raw": self.raw_p_values, "adjusted": self.adjusted_p_values,
+            "reject": self.reject,
+        }))
 
 
 @dataclass(frozen=True, slots=True)

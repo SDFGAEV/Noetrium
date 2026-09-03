@@ -208,6 +208,18 @@ class SvgFigureRenderer(FigureRendererPort):
             return ordered[lower]
         return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
 
+    @staticmethod
+    def _grid_elements(style, left: float, top: float, plot_w: float, plot_h: float) -> tuple[str, ...]:
+        if not style.show_grid:
+            return ()
+        lines = []
+        for step in range(1, 5):
+            y = top + plot_h * step / 5.0
+            x = left + plot_w * step / 5.0
+            lines.append(f'<line x1="{left:.2f}" y1="{y:.2f}" x2="{left + plot_w:.2f}" y2="{y:.2f}" stroke="{style.grid}" stroke-width="0.8"/>')
+            lines.append(f'<line x1="{x:.2f}" y1="{top:.2f}" x2="{x:.2f}" y2="{top + plot_h:.2f}" stroke="{style.grid}" stroke-width="0.8"/>')
+        return tuple(lines)
+
     def _render_heatmap(self, figure: FigureSpec) -> str:
         width, height = figure.width, figure.height
         style = figure.style
@@ -226,6 +238,7 @@ class SvgFigureRenderer(FigureRendererPort):
             f'<rect width="{width}" height="{height}" fill="{background}"/>',
             f'<text x="{width / 2}" y="24" text-anchor="middle" font-family="{font}" font-size="{style.title_size}" font-weight="600" fill="{style.foreground}">{html.escape(figure.title)}</text>',
         ]
+        elements.extend(self._grid_elements(style, left, top, plot_w, plot_h))
         for row_index, row in enumerate(rows):
             for column_index, column in enumerate(columns):
                 value = values.get((row, column))
@@ -267,6 +280,7 @@ class SvgFigureRenderer(FigureRendererPort):
             f'<line x1="{left}" y1="{top + plot_h}" x2="{left + plot_w}" y2="{top + plot_h}" stroke="{style.foreground}"/>',
             f'<line x1="{left}" y1="{top}" x2="{left}" y2="{top + plot_h}" stroke="{style.foreground}"/>',
         ]
+        elements.extend(self._grid_elements(style, left, top, plot_w, plot_h))
         for index, series in enumerate(figure.series):
             values = [float(point.y) for point in series.points]
             q1, q2, q3 = (self._quantile(values, probability) for probability in (0.25, 0.5, 0.75))
@@ -307,6 +321,7 @@ class SvgFigureRenderer(FigureRendererPort):
             f'<line x1="{left}" y1="{top + plot_h}" x2="{left + plot_w}" y2="{top + plot_h}" stroke="{style.foreground}"/>',
             f'<line x1="{left}" y1="{top}" x2="{left}" y2="{top + plot_h}" stroke="{style.foreground}"/>',
         ]
+        elements.extend(self._grid_elements(style, left, top, plot_w, plot_h))
         for index, series in enumerate(figure.series):
             values = [float(point.y) for point in series.points]
             bandwidth = max((ymax - ymin) / 12.0, 1e-9)
@@ -347,6 +362,7 @@ class SvgFigureRenderer(FigureRendererPort):
             f'<line x1="{left}" y1="{top + plot_h}" x2="{left + plot_w}" y2="{top + plot_h}" stroke="{style.foreground}"/>',
             f'<line x1="{left}" y1="{top}" x2="{left}" y2="{top + plot_h}" stroke="{style.foreground}"/>',
         ]
+        elements.extend(self._grid_elements(style, left, top, plot_w, plot_h))
         for index, series in enumerate(figure.series):
             ordered = sorted(float(point.y) for point in series.points)
             coords = []
@@ -380,10 +396,21 @@ class SvgFigureRenderer(FigureRendererPort):
         plot_w, plot_h = width - left - right, height - top - bottom
         points = [point for series in figure.series for point in series.points]
         ys = [float(point.y) for point in points]
-        ymin, ymax = min(0.0, min(ys)), max(0.0, max(ys))
+        classification_kinds = {FigureKind.ROC, FigureKind.PRECISION_RECALL, FigureKind.CALIBRATION}
+        if figure.kind in classification_kinds:
+            ymin, ymax = 0.0, max(1.0, max(ys))
+        else:
+            ymin, ymax = min(0.0, min(ys)), max(0.0, max(ys))
         if math.isclose(ymin, ymax):
             ymax = ymin + 1.0
-        def x_pos(index: int, point_count: int) -> float:
+        numeric_x = all(isinstance(point.x, (int, float)) and not isinstance(point.x, bool) for point in points)
+        x_values = [float(point.x) for point in points] if numeric_x else []
+        x_min, x_max = (min(x_values), max(x_values)) if x_values else (0.0, 1.0)
+        if math.isclose(x_min, x_max):
+            x_max = x_min + 1.0
+        def x_pos(point: FigurePoint, index: int, point_count: int) -> float:
+            if numeric_x:
+                return left + plot_w * (float(point.x) - x_min) / (x_max - x_min)
             return left + (plot_w * index / max(point_count - 1, 1))
         def y_pos(value: float) -> float:
             return top + plot_h * (ymax - value) / (ymax - ymin)
@@ -392,10 +419,13 @@ class SvgFigureRenderer(FigureRendererPort):
                     f'<text x="{width / 2}" y="24" text-anchor="middle" font-family="{font}" font-size="{style.title_size}" font-weight="600" fill="{style.foreground}">{html.escape(figure.title)}</text>',
                     f'<line x1="{left}" y1="{top + plot_h}" x2="{left + plot_w}" y2="{top + plot_h}" stroke="{style.foreground}"/>',
                     f'<line x1="{left}" y1="{top}" x2="{left}" y2="{top + plot_h}" stroke="{style.foreground}"/>']
+        elements.extend(self._grid_elements(style, left, top, plot_w, plot_h))
+        if figure.kind in {FigureKind.ROC, FigureKind.CALIBRATION}:
+            elements.append(f'<line x1="{left}" y1="{y_pos(0.0):.2f}" x2="{left + plot_w}" y2="{y_pos(1.0):.2f}" stroke="{style.grid}" stroke-dasharray="6,5" stroke-width="{style.line_width / 2:.2f}"/>')
         colors = style.palette
         for series_index, series in enumerate(figure.series):
             color = colors[series_index % len(colors)]
-            coords = [(x_pos(i, len(series.points)), y_pos(float(point.y))) for i, point in enumerate(series.points)]
+            coords = [(x_pos(point, i, len(series.points)), y_pos(float(point.y))) for i, point in enumerate(series.points)]
             if figure.kind in {FigureKind.BAR, FigureKind.HISTOGRAM}:
                 bar_w = max(8.0, plot_w / max(len(series.points) * len(figure.series), 1) * 0.7)
                 for i, (x, y) in enumerate(coords):

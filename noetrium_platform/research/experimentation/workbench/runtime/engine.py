@@ -12,7 +12,8 @@ from noetrium_platform.foundation.kernel.kernel import canonical_digest, freeze_
 from ..api import (
     AggregationFunction, AggregationSpec, BaselineRegistryPort, BaselineSpec,
     DataColumn, DataTable, EvaluationContext, FigureSpec, GroupComparison,
-    InferenceResult, MetricSummary, MissingValuePolicy, PairedComparison,
+    InferenceResult, MetricSummary, MissingValuePolicy, MultipleComparisonMethod,
+    MultipleComparisonResult, PairedComparison,
     ResearchEvaluation, ResearchReport, SplitStrategy,
 )
 
@@ -344,7 +345,46 @@ class ScientificStatistics:
                                len(base), len(cand), difference,
                                difference / base_mean if base_mean else None,
                                difference / pooled if pooled else None,
-                               difference - 1.96 * standard_error, difference + 1.96 * standard_error)
+                               difference - 1.96 * standard_error, difference + 1.96 * standard_error,
+                               self._normal_p(difference, standard_error))
+
+    def adjust_p_values(
+        self,
+        p_values: tuple[float, ...],
+        *,
+        method: MultipleComparisonMethod = MultipleComparisonMethod.HOLM,
+        alpha: float = 0.05,
+    ) -> MultipleComparisonResult:
+        """Apply one declared family-wise/FDR policy in the shared statistics authority."""
+        if type(p_values) is not tuple or not p_values:
+            raise ValueError("p_values must be a non-empty tuple")
+        if type(method) is not MultipleComparisonMethod:
+            raise TypeError("method must be MultipleComparisonMethod")
+        if isinstance(alpha, bool) or not isinstance(alpha, (int, float)) or not 0.0 < float(alpha) < 1.0:
+            raise ValueError("alpha must be between zero and one")
+        if any(isinstance(value, bool) or not isinstance(value, (int, float)) or not 0.0 <= float(value) <= 1.0 for value in p_values):
+            raise ValueError("p_values must contain values between zero and one")
+        count = len(p_values)
+        order = sorted(range(count), key=lambda index: (float(p_values[index]), index))
+        adjusted = [0.0] * count
+        if method is MultipleComparisonMethod.BONFERRONI:
+            adjusted = [min(1.0, float(value) * count) for value in p_values]
+        elif method is MultipleComparisonMethod.HOLM:
+            running = 0.0
+            for rank, index in enumerate(order):
+                running = max(running, min(1.0, (count - rank) * float(p_values[index])))
+                adjusted[index] = running
+        else:
+            harmonic = sum(1.0 / rank for rank in range(1, count + 1)) if method is MultipleComparisonMethod.BENJAMINI_YEKUTIELI else 1.0
+            running = 1.0
+            for rank, index in reversed(tuple(enumerate(order, start=1))):
+                running = min(running, min(1.0, float(p_values[index]) * count * harmonic / rank))
+                adjusted[index] = running
+        adjusted_tuple = tuple(adjusted)
+        return MultipleComparisonResult(
+            method, float(alpha), tuple(float(value) for value in p_values), adjusted_tuple,
+            tuple(value <= float(alpha) for value in adjusted_tuple),
+        )
 
     def compare_many(
         self,
@@ -368,7 +408,7 @@ class ScientificStatistics:
             raise ValueError("compare_many requires at least one candidate")
         if baseline in candidates:
             raise ValueError("compare_many candidates cannot include the baseline")
-        return tuple(
+        results = tuple(
             self.compare(
                 table,
                 value_column,
@@ -378,6 +418,18 @@ class ScientificStatistics:
                 missing=missing,
             )
             for candidate in candidates
+        )
+        p_values = tuple(result.p_value if result.p_value is not None else 1.0 for result in results)
+        adjusted = self.adjust_p_values(p_values)
+        return tuple(
+            GroupComparison(
+                result.metric, result.group_column, result.baseline, result.candidate,
+                result.baseline_count, result.candidate_count, result.difference,
+                result.relative_difference, result.standardized_effect,
+                result.confidence95_low, result.confidence95_high,
+                result.p_value, adjusted.adjusted_p_values[index],
+            )
+            for index, result in enumerate(results)
         )
 
     @staticmethod

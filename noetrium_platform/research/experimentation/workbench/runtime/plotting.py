@@ -230,6 +230,44 @@ class ResearchFigureFactory:
             y_label=y_label or row_column, caption=caption, style=style,
         )
 
+    def classification_curve(
+        self,
+        table: DataTable,
+        *,
+        x_column: str,
+        y_column: str,
+        kind: FigureKind,
+        series_column: str | None = None,
+        title: str | None = None,
+        figure_id: str | None = None,
+        x_label: str = "",
+        y_label: str = "",
+        caption: str = "",
+        style: FigureStyle | None = None,
+    ) -> FigureSpec:
+        """Build ROC, precision-recall, or calibration curves through the same curve authority."""
+        if kind not in {FigureKind.ROC, FigureKind.PRECISION_RECALL, FigureKind.CALIBRATION}:
+            raise ValueError("classification_curve kind must be ROC, PRECISION_RECALL, or CALIBRATION")
+        defaults = {
+            FigureKind.ROC: ("ROC curve", "False-positive rate", "True-positive rate"),
+            FigureKind.PRECISION_RECALL: ("Precision-recall curve", "Recall", "Precision"),
+            FigureKind.CALIBRATION: ("Calibration curve", "Predicted probability", "Observed frequency"),
+        }
+        default_title, default_x, default_y = defaults[kind]
+        return self.curve(
+            table,
+            x_column=x_column,
+            y_column=y_column,
+            series_column=series_column,
+            title=title or default_title,
+            figure_id=figure_id,
+            kind=kind,
+            x_label=x_label or default_x,
+            y_label=y_label or default_y,
+            caption=caption,
+            style=style,
+        )
+
     def pareto(
         self,
         table: DataTable,

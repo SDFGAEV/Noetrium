@@ -204,3 +204,12 @@ The intended downstream path is now:
 method/provider -> frozen run/study matrix -> authoritative measurements -> DataTable projection -> shared statistics -> ResearchFigureFactory -> FigureSpec + FigureStyle -> renderer adapter -> ResearchReport/RenderedResearchPackage.
 
 This adds public strength at the semantic layer while preserving the convergence rule: no downstream paper creates its own figure model, confidence-interval implementation, baseline registry, measurement ledger, scheduler, logger, or provenance digest.
+
+## Fourth-round closure: inferential evidence and diagnostic plots
+
+The shared workbench now closes two publication-critical gaps:
+
+- `ScientificStatistics.adjust_p_values` is the single multiplicity authority for Bonferroni, Holm, Benjamini-Hochberg and Benjamini-Yekutieli correction. `MultipleComparisonResult` preserves raw p-values, adjusted p-values, decisions, alpha and a result digest; `compare_many` attaches raw and Holm-adjusted values to every baseline comparison.
+- `ResearchFigureFactory.classification_curve` provides stable ROC, precision-recall and calibration semantics. The renderer uses numeric x coordinates, adds a reference diagonal for ROC/calibration, and applies one style-controlled grid policy across line, distribution, ECDF and classification figures.
+
+These are intentionally backend-neutral. The built-in implementation covers deterministic/common cases; specialized tests, mixed-effects models, survival/causal estimands, power analysis, or journal-specific annotation layout still bind through `TableAnalysisPort`/`FigureRendererPort`. The downstream contract remains one table, one statistics authority, one figure specification, and one provenance path.

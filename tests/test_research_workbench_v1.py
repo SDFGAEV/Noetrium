@@ -7,8 +7,8 @@ from pathlib import Path
 from noetrium.contracts.research import (
     AggregationFunction, AggregationSpec, BaselineSpec, DataColumn, DataTable,
     EvaluationContext, EvaluationStage, FigureCell, FigureKind, FigurePoint,
-    FigureSeries, FigureSpec, FigureStyle, MissingValuePolicy, ResearchFigureFactory,
-    ResearchLifecycle, ScientificStatistics, SplitStrategy, StandardTableRenderer,
+    FigureSeries, FigureSpec, FigureStyle, MissingValuePolicy, MultipleComparisonMethod,
+    ResearchFigureFactory, ResearchLifecycle, ScientificStatistics, SplitStrategy, StandardTableRenderer,
     StudyObservationTableAdapter, SvgFigureRenderer, TablePipeline,
 )
 from noetrium_platform.research.experimentation.identity import OptionalIdentityFacet
@@ -393,3 +393,42 @@ def test_baseline_catalog_is_deterministic_and_auditable():
         reference="Paper A", source_uri="https://example.invalid/a",
         license="BSD-3-Clause", tags=("strong",),
     ).baseline_digest
+
+
+def test_multiple_comparison_correction_is_shared_and_replayable():
+    statistics = ScientificStatistics()
+    result = statistics.adjust_p_values(
+        (0.01, 0.04, 0.20), method=MultipleComparisonMethod.HOLM,
+    )
+    assert result.adjusted_p_values == (0.03, 0.08, 0.20)
+    assert result.reject == (True, False, False)
+    assert len(result.result_digest) == 64
+
+
+def test_compare_many_attaches_raw_and_adjusted_p_values():
+    table = DataTable(
+        "multi-method-p-values",
+        (DataColumn("variant", "text", False), DataColumn("score", "float", False)),
+        (("control", 1.0), ("candidate-a", 2.0), ("candidate-b", 4.0)),
+    )
+    results = ScientificStatistics().compare_many(
+        table, "score", "variant", baseline="control",
+        candidates=("candidate-a", "candidate-b"),
+    )
+    assert all(result.p_value is not None for result in results)
+    assert all(result.adjusted_p_value is not None for result in results)
+    assert all(result.adjusted_p_value >= result.p_value for result in results)
+
+
+def test_classification_curve_uses_numeric_axis_and_reference_diagonal():
+    table = DataTable(
+        "roc-data",
+        (DataColumn("fpr", "float", False), DataColumn("tpr", "float", False)),
+        ((0.0, 0.0), (0.25, 0.60), (1.0, 1.0)),
+    )
+    figure = ResearchFigureFactory().classification_curve(
+        table, x_column="fpr", y_column="tpr", kind=FigureKind.ROC,
+    )
+    rendered = SvgFigureRenderer().render(figure)
+    assert "stroke-dasharray=\"6,5\"" in rendered
+    assert "stroke=\"#D9E1EA\"" in rendered
