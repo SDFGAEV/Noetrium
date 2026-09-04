@@ -213,3 +213,23 @@ The shared workbench now closes two publication-critical gaps:
 - `ResearchFigureFactory.classification_curve` provides stable ROC, precision-recall and calibration semantics. The renderer uses numeric x coordinates, adds a reference diagonal for ROC/calibration, and applies one style-controlled grid policy across line, distribution, ECDF and classification figures.
 
 These are intentionally backend-neutral. The built-in implementation covers deterministic/common cases; specialized tests, mixed-effects models, survival/causal estimands, power analysis, or journal-specific annotation layout still bind through `TableAnalysisPort`/`FigureRendererPort`. The downstream contract remains one table, one statistics authority, one figure specification, and one provenance path.
+
+## Fifth-round closure: categorized publication artifacts and PDF-first output
+
+The figure system now has an explicit semantic category derived from FigureKind, so downstream code can group figures without recreating classification logic:
+
+| Category | Figure kinds |
+|---|---|
+| trend | line |
+| comparison | bar, scatter |
+| distribution | histogram, boxplot, violin, ECDF |
+| matrix | heatmap, confusion matrix |
+| classification | ROC, precision-recall, calibration |
+| tradeoff | Pareto |
+| effect | forest |
+
+PublicationFigureRenderer is the stable downstream facade. It defaults to deterministic vector PDF and accepts explicit SVG output. PdfFigureRenderer is standard-library-only, returns a portable base64 data URI, and preserves the same FigureSpec semantics, source digests and style tokens. SVG remains available for web/authoring workflows. A journal-specific backend can implement FigureRendererPort when it needs native font embedding, LaTeX text, panel composition or journal templates.
+
+This closes the output contract without moving rendering details into the lifecycle: ResearchLifecycle.render selects the output format, RenderedResearchPackage records it, and the provider owns serialization. The same immutable figure specification can therefore be rendered to PDF, SVG, or an external backend without recomputing statistics or creating a second provenance path.
+
+Design inspiration was reviewed from [SciencePlots](https://github.com/garrettj403/SciencePlots), [mplscience](https://github.com/adamgayoso/mplscience), [statannotations](https://github.com/trevismd/statannotations), and [Seaborn](https://github.com/mwaskom/seaborn). Their composable publication styling, vector-output concerns, statistical annotation model and high-level plot semantics informed the contracts; no external source code was copied. The built-in backend remains intentionally lightweight so core installation does not force heavyweight numerical/plotting dependencies.

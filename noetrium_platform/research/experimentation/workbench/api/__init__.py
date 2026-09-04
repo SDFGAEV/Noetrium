@@ -1,7 +1,8 @@
 from .adapters import MeasurementRecordTableAdapter, StudyObservationTableAdapter
 from .contracts import (
     AggregationFunction, AggregationSpec, BaselineRegistryPort, BaselineSpec,
-    DataColumn, DataTable, EvaluationContext, EvaluationStage, FigureCell, FigureKind,
+    DataColumn, DataTable, EvaluationContext, EvaluationStage, FigureCategory, FigureCell, FigureKind,
+    FigureOutputFormat,
     FigurePoint, FigureRendererPort, FigureSeries, FigureSpec, FigureStyle, GroupComparison,
     InferenceResult, MetricSummary, MissingValuePolicy, MultipleComparisonMethod,
     MultipleComparisonResult, PairedComparison,
@@ -12,7 +13,7 @@ from .contracts import (
 __all__ = [
     "AggregationFunction", "AggregationSpec", "BaselineRegistryPort", "BaselineSpec",
     "DataColumn", "DataTable", "EvaluationContext", "EvaluationStage",
-    "FigureCell", "FigureKind", "FigurePoint", "FigureRendererPort",
+    "FigureCategory", "FigureCell", "FigureKind", "FigureOutputFormat", "FigurePoint", "FigureRendererPort",
     "FigureSeries", "FigureSpec", "FigureStyle", "GroupComparison", "InferenceResult", "MetricSummary",
     "MissingValuePolicy", "MultipleComparisonMethod", "MultipleComparisonResult", "PairedComparison",
     "RenderedResearchPackage", "ResearchEvaluation", "ResearchReport",

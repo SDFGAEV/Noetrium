@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import tempfile
 from pathlib import Path
 
 from noetrium.contracts.research import (
     AggregationFunction, AggregationSpec, BaselineSpec, DataColumn, DataTable,
-    EvaluationContext, EvaluationStage, FigureCell, FigureKind, FigurePoint,
+    EvaluationContext, EvaluationStage, FigureCell, FigureKind, FigureOutputFormat, FigurePoint,
     FigureSeries, FigureSpec, FigureStyle, MissingValuePolicy, MultipleComparisonMethod,
     ResearchFigureFactory, ResearchLifecycle, ScientificStatistics, SplitStrategy, StandardTableRenderer,
-    StudyObservationTableAdapter, SvgFigureRenderer, TablePipeline,
+    PdfFigureRenderer, PublicationFigureRenderer, StudyObservationTableAdapter,
+    SvgFigureRenderer, TablePipeline,
 )
 from noetrium_platform.research.experimentation.identity import OptionalIdentityFacet
 from noetrium_platform.research.experimentation.workbench.providers import CsvTableReader
@@ -245,12 +247,14 @@ def test_research_lifecycle_renders_one_identity_bound_package():
         evaluation,
         table_renderer=StandardTableRenderer(),
         figure_renderer=SvgFigureRenderer(),
+        output_format=FigureOutputFormat.SVG,
     )
     assert rendered.evaluation_digest == evaluation.evaluation_digest
     assert rendered.table_format == "markdown"
     assert "| variant | score | step |" in rendered.table_text
     assert rendered.figures[0][0] == "scores"
     assert rendered.figures[0][1].startswith("<svg ")
+    assert rendered.figure_format is FigureOutputFormat.SVG
     assert len(rendered.render_digest) == 64
 
 
@@ -362,6 +366,7 @@ def test_figure_factory_centralizes_publication_semantics_and_style():
     factory = ResearchFigureFactory(style=FigureStyle.science())
     curve = factory.curve(table, x_column="step", y_column="score", series_column="method")
     assert curve.kind is FigureKind.LINE
+    assert curve.category.value == "trend"
     assert curve.style.name == "science"
     assert [point.x for point in curve.series[0].points] == [1, 2]
     benchmark = factory.benchmark(table, method_column="method", metric_column="score")
@@ -436,3 +441,28 @@ def test_classification_curve_uses_numeric_axis_and_reference_diagonal():
     rendered = SvgFigureRenderer().render(figure)
     assert "stroke-dasharray=\"6,5\"" in rendered
     assert "stroke=\"#D9E1EA\"" in rendered
+
+def test_publication_renderer_defaults_to_pdf_and_can_emit_svg():
+    figure = FigureSpec(
+        "publication", "Publication", FigureKind.LINE,
+        (FigureSeries("method", (FigurePoint(0, 1.0), FigurePoint(1, 2.0))),),
+        x_label="step", y_label="score",
+    )
+    renderer = PublicationFigureRenderer()
+    pdf = renderer.render(figure)
+    assert pdf.startswith("data:application/pdf;base64,")
+    assert base64.b64decode(pdf.split(",", 1)[1]).startswith(b"%PDF-1.4")
+    svg = renderer.render(figure, output_format=FigureOutputFormat.SVG)
+    assert svg.startswith("<svg ")
+
+
+def test_pdf_renderer_supports_matrix_and_is_deterministic():
+    figure = FigureSpec(
+        "matrix", "Confusion", FigureKind.CONFUSION_MATRIX, (),
+        cells=(FigureCell("actual", "predicted", 1.0), FigureCell("actual", "other", 0.0)),
+    )
+    renderer = PdfFigureRenderer()
+    first = renderer.render(figure)
+    second = renderer.render(figure)
+    assert first == second
+    assert base64.b64decode(first.split(",", 1)[1]).count(b"/Type /Page ") == 1

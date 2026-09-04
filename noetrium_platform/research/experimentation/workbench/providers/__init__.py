@@ -1,3 +1,5 @@
+from .pdf import PdfFigureRenderer
+from .publication import PublicationFigureRenderer
 from .stdlib import (
     CsvTableReader, JsonlTableReader, MeasurementRecordTableAdapter,
     StandardTableRenderer, StudyObservationTableAdapter, SvgFigureRenderer,
@@ -5,5 +7,6 @@ from .stdlib import (
 
 __all__ = [
     "CsvTableReader", "JsonlTableReader", "MeasurementRecordTableAdapter",
-    "StandardTableRenderer", "StudyObservationTableAdapter", "SvgFigureRenderer",
+    "PdfFigureRenderer", "PublicationFigureRenderer", "StandardTableRenderer",
+    "StudyObservationTableAdapter", "SvgFigureRenderer",
 ]

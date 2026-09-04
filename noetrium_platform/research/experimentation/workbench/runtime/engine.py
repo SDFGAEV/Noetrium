@@ -11,7 +11,7 @@ from typing import Any
 from noetrium_platform.foundation.kernel.kernel import canonical_digest, freeze_json
 from ..api import (
     AggregationFunction, AggregationSpec, BaselineRegistryPort, BaselineSpec,
-    DataColumn, DataTable, EvaluationContext, FigureSpec, GroupComparison,
+    DataColumn, DataTable, EvaluationContext, FigureOutputFormat, FigureSpec, GroupComparison,
     InferenceResult, MetricSummary, MissingValuePolicy, MultipleComparisonMethod,
     MultipleComparisonResult, PairedComparison,
     ResearchEvaluation, ResearchReport, SplitStrategy,
@@ -809,10 +809,11 @@ class ResearchLifecycle:
         evaluation: ResearchEvaluation,
         *,
         table_format: str = "markdown",
+        output_format: FigureOutputFormat = FigureOutputFormat.PDF,
         table_renderer: Any | None = None,
         figure_renderer: Any | None = None,
     ) -> Any:
-        """Render one evaluation through injected or standard output adapters."""
+        """Render one evaluation through injected adapters; figures default to PDF."""
         from ..api import RenderedResearchPackage
 
         if type(evaluation) is not ResearchEvaluation:
@@ -822,10 +823,12 @@ class ResearchLifecycle:
         if not callable(getattr(table_renderer, "render", None)):
             raise TypeError("table_renderer must provide render(table, format)")
         if not callable(getattr(figure_renderer, "render", None)):
-            raise TypeError("figure_renderer must provide render(figure)")
+            raise TypeError("figure_renderer must provide render(figure, output_format=...)")
+        if type(output_format) is not FigureOutputFormat:
+            raise TypeError("output_format must be FigureOutputFormat")
         table_text = table_renderer.render(evaluation.table, table_format)
         figures = tuple(
-            (figure.figure_id, figure_renderer.render(figure))
+            (figure.figure_id, figure_renderer.render(figure, output_format=output_format))
             for figure in evaluation.report.figures
         )
         return RenderedResearchPackage(
@@ -833,6 +836,7 @@ class ResearchLifecycle:
             table_format=table_format,
             table_text=table_text,
             figures=figures,
+            figure_format=output_format,
         )
 
 

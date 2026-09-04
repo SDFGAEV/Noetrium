@@ -466,6 +466,16 @@ class PairedComparison:
             raise ValueError("paired comparison standardized_effect must be finite")
 
 
+class FigureCategory(StrEnum):
+    TREND = "trend"
+    COMPARISON = "comparison"
+    DISTRIBUTION = "distribution"
+    MATRIX = "matrix"
+    CLASSIFICATION = "classification"
+    TRADEOFF = "tradeoff"
+    EFFECT = "effect"
+
+
 class FigureKind(StrEnum):
     LINE = "line"
     BAR = "bar"
@@ -481,6 +491,11 @@ class FigureKind(StrEnum):
     CALIBRATION = "calibration"
     PARETO = "pareto"
     FOREST = "forest"
+
+
+class FigureOutputFormat(StrEnum):
+    PDF = "pdf"
+    SVG = "svg"
 
 
 @dataclass(frozen=True, slots=True)
@@ -612,6 +627,25 @@ class FigureSpec:
     style: FigureStyle = field(default_factory=FigureStyle.nature)
     figure_digest: str = field(init=False)
 
+    @property
+    def category(self) -> FigureCategory:
+        return {
+            FigureKind.LINE: FigureCategory.TREND,
+            FigureKind.BAR: FigureCategory.COMPARISON,
+            FigureKind.SCATTER: FigureCategory.COMPARISON,
+            FigureKind.HISTOGRAM: FigureCategory.DISTRIBUTION,
+            FigureKind.BOXPLOT: FigureCategory.DISTRIBUTION,
+            FigureKind.VIOLIN: FigureCategory.DISTRIBUTION,
+            FigureKind.ECDF: FigureCategory.DISTRIBUTION,
+            FigureKind.HEATMAP: FigureCategory.MATRIX,
+            FigureKind.CONFUSION_MATRIX: FigureCategory.MATRIX,
+            FigureKind.ROC: FigureCategory.CLASSIFICATION,
+            FigureKind.PRECISION_RECALL: FigureCategory.CLASSIFICATION,
+            FigureKind.CALIBRATION: FigureCategory.CLASSIFICATION,
+            FigureKind.PARETO: FigureCategory.TRADEOFF,
+            FigureKind.FOREST: FigureCategory.EFFECT,
+        }[self.kind]
+
     def __post_init__(self) -> None:
         _text(self.figure_id, "figure id")
         _text(self.title, "figure title")
@@ -730,11 +764,14 @@ class RenderedResearchPackage:
     table_format: str
     table_text: str
     figures: tuple[tuple[str, str], ...]
+    figure_format: FigureOutputFormat = FigureOutputFormat.PDF
     render_digest: str = field(init=False)
 
     def __post_init__(self) -> None:
         _sha(self.evaluation_digest, "rendered research evaluation_digest")
         _text(self.table_format, "rendered research table_format")
+        if type(self.figure_format) is not FigureOutputFormat:
+            raise TypeError("rendered research figure_format must be FigureOutputFormat")
         if type(self.table_text) is not str:
             raise TypeError("rendered research table_text must be a string")
         if type(self.figures) is not tuple:
@@ -749,11 +786,17 @@ class RenderedResearchPackage:
             "table_format": self.table_format,
             "table_text": self.table_text,
             "figures": self.figures,
+            "figure_format": self.figure_format.value,
         }))
 
 
 class FigureRendererPort(Protocol):
-    def render(self, figure: FigureSpec) -> str: ...
+    def render(
+        self,
+        figure: FigureSpec,
+        *,
+        output_format: FigureOutputFormat = FigureOutputFormat.PDF,
+    ) -> str: ...
 
 
 class ReportTableRendererPort(Protocol):
@@ -763,9 +806,10 @@ class ReportTableRendererPort(Protocol):
 __all__ = [
     "AggregationFunction", "AggregationSpec", "BaselineRegistryPort", "BaselineSpec",
     "DataColumn", "DataTable", "EvaluationContext", "EvaluationStage",
-    "FigureCell", "FigureKind", "FigurePoint", "FigureRendererPort",
+    "FigureCategory", "FigureCell", "FigureKind", "FigureOutputFormat", "FigurePoint", "FigureRendererPort",
     "FigureSeries", "FigureSpec", "FigureStyle", "GroupComparison", "InferenceResult", "MetricSummary",
-    "MissingValuePolicy", "PairedComparison", "RenderedResearchPackage", "ResearchEvaluation",
+    "MissingValuePolicy", "MultipleComparisonMethod", "MultipleComparisonResult", "PairedComparison",
+    "RenderedResearchPackage", "ResearchEvaluation",
     "ResearchReport", "ReportTableRendererPort", "SplitStrategy",
     "TableAnalysisPort", "TableReaderPort", "TableTransformPort",
 ]

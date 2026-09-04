@@ -11,7 +11,7 @@ from pathlib import Path
 
 from noetrium_platform.foundation.kernel.kernel import canonical_digest, thaw_json
 from ..api import (
-    DataColumn, DataTable, FigureKind, FigureSpec, FigureRendererPort,
+    DataColumn, DataTable, FigureKind, FigureOutputFormat, FigureSpec, FigureRendererPort,
     ReportTableRendererPort, StudyObservationTableAdapter, MeasurementRecordTableAdapter,
     TableReaderPort,
 )
@@ -285,7 +285,16 @@ class SvgFigureRenderer(FigureRendererPort):
         elements.append("</svg>")
         return "".join(elements)
 
-    def render(self, figure: FigureSpec) -> str:
+    def render(
+        self,
+        figure: FigureSpec,
+        *,
+        output_format: FigureOutputFormat = FigureOutputFormat.SVG,
+    ) -> str:
+        if type(output_format) is not FigureOutputFormat:
+            raise TypeError("output_format must be FigureOutputFormat")
+        if output_format is not FigureOutputFormat.SVG:
+            raise ValueError("SvgFigureRenderer only supports SVG output")
         if figure.kind in {FigureKind.HEATMAP, FigureKind.CONFUSION_MATRIX}:
             return self._render_heatmap(figure)
         if figure.kind is FigureKind.BOXPLOT:
